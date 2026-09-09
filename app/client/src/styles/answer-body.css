@@ -1,0 +1,715 @@
+/*
+ * A chart panel and the figure breakdown under it, in one treatment.
+ *
+ * A hairline, an 8px radius and 16px of padding, and none of AppKit's 24px
+ * gutters or 12px radius: at the library's spacing a card holding one 320px plot
+ * is half padding, and inside an answer card that is already padded it reads as a
+ * second page rather than as a panel on this one.
+ */
+/* TRANSPARENT, NOT WHITE, and the same goes for every panel and band below it.
+   These sit on `--ast-pane`, which is the sky showing faintly through a white
+   sheet; a panel that repaints itself opaque white cancels the sheet over its own
+   area and leaves the translucency visible only as a grey seam around it. On the
+   Run Explorer, where the same panel sits on an opaque page, transparent is that
+   page's white and nothing changes. */
+.chart-card {
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  box-shadow: none;
+  background: transparent;
+  padding-block: 16px;
+  gap: 10px;
+}
+.chart-card > [data-slot='card-header'],
+.chart-card > [data-slot='card-content'] {
+  padding-inline: 16px;
+}
+/* The panel's own title, which is a sub-block title and not a card title: the
+   answer's takeaway is the heading here and this sits under it. AppKit sets the
+   slot to 600, a weight the app does not ship a file for. */
+.chart-card > [data-slot='card-header'] [data-slot='card-title'] {
+  font-size: var(--ast-fs-14);
+  font-weight: 700;
+  line-height: 1.3;
+}
+/* Title on the left, chart-kind badge on the right, and nothing under them. */
+.chart-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* No gap: the rows pad themselves and rule between themselves, per the table
+   recipe below, so a gap here would be a second, invisible source of the same
+   spacing and the hairline would float between two 8px voids.
+ *
+ * IT IS ALSO THE ROWS' CONTAINER, in the CSS sense, and that is the fourth and
+ * last attempt at the wrapping complaint below. The three before it divided a
+ * width the row does not always have; this one asks how much width the row
+ * actually got. Nothing else can answer that: this panel sits inside a card
+ * inside a transcript column whose width is the window MINUS the conversation
+ * rail, minus the trace rail, minus two page insets and two card insets, and any
+ * of those can be present or absent. Two readers at the same window width get
+ * rows hundreds of pixels apart, so a media query here is measuring the wrong
+ * box -- which is why the mobile override in responsive.css never reached the
+ * desktop report.
+ */
+.bar-chart {
+  display: grid;
+  gap: 0;
+  container-type: inline-size;
+  container-name: breakdown;
+}
+/*
+ * Break agent-supplied text wherever it has to break.
+ */
+.answer-card p,
+.answer-card strong,
+.answer-card b,
+/* `overflow-wrap` inherits, so naming the wrapper covers the headings, list
+   items and code spans the Markdown renderer puts inside it. */
+.answer-prose,
+/* AppKit's own slots, reached by data attribute: the takeaway lives in a card
+   title and the caveats in an alert description, both Tailwind-classed. */
+.answer-card [data-slot='card-header'],
+.answer-card [data-slot='card-title'],
+.answer-card [data-slot='card-content'],
+.answer-card [data-slot='card-description'],
+[data-slot='alert-description'],
+/* The caveats, which are agent prose and hold table names longer than the
+   footer is wide. The source rows are deliberately absent from this list: they
+   ellipsise on one line instead, and carry the whole name in a tooltip. */
+.keep-in-mind,
+.dag-node,
+.dag-node strong,
+.metric-row span,
+.metric-row strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+/*
+ * One reading rhythm for the answer, including the list items the Markdown
+ * renderer emits and the caveats AppKit seats in a description slot. The bare
+ * paragraph default in base.css already catches prose paragraphs; naming the
+ * answer containers here is what brings bullets and non-`p` description slots
+ * under the same standard instead of letting their line boxes depend on which
+ * element the renderer happened to choose.
+ *
+ * Deliberately not inherited by `.code-panel pre`: SQL is a statement read a
+ * clause at a time, and its 1.65 exception below records why that extra leading
+ * remains.
+ */
+.answer-card .answer-prose,
+.answer-card [data-slot='card-description'],
+.keep-in-mind .answer-list {
+  line-height: 1.5;
+}
+/*
+ * The Sources module: the tables an answer read, then its caveats.
+ *
+ * ONE BULLET PER TABLE, NOT A SENTENCE AND NOT A CARD. It was a bordered card
+ * of ruled rows, then a wrapping provenance sentence that ran every name into
+ * one paragraph. Both hid the thing a reader is checking: which tables, and
+ * which of them the numbers came from. The list below is the same blue middot
+ * Caveats uses, so the card is one list language.
+ *
+ * The pill families stay: a source's role is carried by the colour of its own
+ * name, and the words in parentheses after the name say what that colour means.
+ */
+.sources-module {
+  min-width: 0;
+}
+.sources-module.answer-support-panel {
+  width: 100%;
+  max-width: 100%;
+  padding: 14px;
+  border-radius: 6px;
+  background: var(--ast-ice);
+  box-sizing: border-box;
+}
+.answer-support-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+.answer-support-head :is(.source-list-heading, .keep-in-mind-heading) {
+  margin: 0;
+}
+.answer-support-panel > :is(.source-list, .keep-in-mind-list) {
+  margin-top: 8px;
+}
+.answer-support-toggle {
+  flex: none;
+  min-height: 24px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  color: var(--ast-blue);
+  font-size: var(--ast-fs-11);
+}
+.answer-support-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+.source-name-pill {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+/* The link keeps its dotted rule and takes the row's role colour instead of the
+   action blue. A source row is already unmistakably a list of links; what the
+   colour has to carry here is which of these tables the numbers came from,
+   which is the question the row exists to answer. */
+.source-name-pill a {
+  color: inherit;
+}
+/* The name reads in the chip's own text colour, so the row is one statement
+   rather than a name and a separate label about it. Both are the pill families
+   the chip takes, which is what keeps them the same two colours. */
+.source-name-pill[data-tone='queried'] {
+  color: var(--ast-info-text);
+}
+.source-name-pill[data-tone='neutral'] {
+  color: var(--ast-neutral-text);
+}
+/* The qualifier is present but recessive: it disambiguates two tables with the
+   same short name and is otherwise the same string on every row. */
+.source-name-pill .source-name-qualifier {
+  opacity: 0.72;
+}
+/* The segment a reader recognises the table by, tinted in the chip's own fill so
+   the eye can find it without reading the catalog and schema first. */
+.source-name-pill .source-name-short {
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.source-name-pill[data-tone='queried'] .source-name-short {
+  background: var(--ast-info-fill);
+}
+.source-name-pill[data-tone='neutral'] .source-name-short {
+  background: var(--ast-neutral-fill);
+}
+/*
+ * The provenance line: what a statement measured, over what, with what filter.
+ *
+ * A row of labelled facts rather than a table or a sentence. The value carries
+ * the weight because the value is what is being read; the label is 500 and small
+ * because it is the same word under every answer and only has to be findable.
+ * Wraps rather than scrolls, because a filter is as long as the question made it
+ * and a horizontally scrolled fact is one nobody reads.
+ */
+.derivation-fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.derivation-label {
+  flex: none;
+  font-weight: 700;
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text-secondary);
+}
+/* Mono for the value, because every one of them is a fragment of the statement
+   that ran -- a column name, a date, a measure -- and a reader compares them
+   character by character against the SQL and the prose above. */
+.derivation-value {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0;
+  background: transparent;
+  color: var(--ast-text);
+  overflow-wrap: anywhere;
+}
+/* The linked table keeps the link's own affordance and the value's weight. */
+.derivation-source a {
+  color: var(--ast-info-text);
+}
+
+/*
+ * Caveats: the footer zone of the same card.
+ *
+ * The amber wash, which the handoff assigns to qualifications as well as to
+ * evaluation. The line is the amber family's own edge token rather than the
+ * full-strength hue, which at 1.90:1 cannot describe an edge. Nothing here caps,
+ * sorts or shortens the list — that is caveat-priority.ts's job — this only
+ * decides how loudly it is said.
+ */
+.keep-in-mind {
+  border: 0;
+  border-radius: 6px;
+  background: var(--ast-ice);
+  padding: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  overflow-x: clip;
+  overflow-y: visible;
+  box-sizing: border-box;
+  /* In the card grid, not pulled back over the Sources line or under Run
+     process. The toggle below keeps a small negative inset for the ghost
+     button's own padding; that is horizontal only. */
+  position: static;
+  margin: 0;
+}
+/* 700 and no colon, because it labels the list under it rather than introducing
+   a sentence. No warning glyph either: the wash is the alarm, and a second one
+   beside the heading made the block read as an error the reader had caused. */
+.keep-in-mind-heading {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  color: var(--ast-text-secondary);
+}
+.keep-in-mind .answer-list {
+  color: var(--ast-text-long);
+  margin: 0;
+  gap: 8px;
+  font-size: var(--ast-fs-13);
+  line-height: 1.5;
+}
+/*
+ * A real failure in this list is the same muted dark red as the Failed badge.
+ * Identity and grants stay a secondary note: they qualify every answer and
+ * must not shout as if the run died.
+ */
+.keep-in-mind-list > li[data-surface='failure'] {
+  padding: 8px 10px;
+  border: 1px solid var(--ast-neg-border);
+  border-radius: 6px;
+  background: var(--ast-neg-fill);
+  color: var(--ast-neg-text);
+}
+.keep-in-mind-list > li[data-surface='note'] {
+  color: var(--ast-text-secondary);
+}
+/*
+ * Every identifier inside a caveat, in one treatment.
+ *
+ * The rule is consistency rather than decoration: a column name set bold in one
+ * bullet and plain in the next teaches a reader that the marking means
+ * something, and then lies to them about which words it means. So the leading
+ * scope tag, a linked table and a named column are the same mono tag wherever
+ * they appear — and the link keeps the underline that says it is one.
+ */
+.keep-in-mind .caveat-scope,
+.keep-in-mind .entity-mark,
+.keep-in-mind a[data-entity] {
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-11);
+  /* The warning family's own mono fill, which is rgba rather than a hex so the
+     tag sits on the wash without being a second opaque tint over it -- a tint on
+     a tint at these two values reads as a rendering fault. */
+  background: var(--ast-warn-mono-fill);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: inherit;
+}
+.keep-in-mind :is(.caveat-scope, .entity-token, .entity-mark, .answer-code, a[data-entity]) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.keep-in-mind .caveat-scope {
+  margin-right: 6px;
+}
+/* Counts, percentages and thresholds. Bold is the whole of it: the figure has to
+   be findable in a paragraph of amber prose, and a second colour in a block that
+   already carries one would be spending a meaning to do a weight's job. */
+.keep-in-mind .answer-list b {
+  font-weight: 700;
+}
+/*
+ * The control that opens the rest of the list.
+ *
+ * Pulled back to the bullets' left edge, so it reads as belonging to the list it
+ * extends rather than as an action on the answer. The ghost button's own left
+ * padding would otherwise indent it past the bullets and leave it floating in
+ * the middle of the wash.
+ *
+ * Deliberately not the action blue. Blue is what you press in this app and a blue
+ * control under a list of qualifications reads as the thing to do about them,
+ * when all it does is show two more lines of the same list. The amber deep rung
+ * is the panel's own emphasis colour and says "more of this" instead.
+ */
+.keep-in-mind-toggle {
+  margin: 6px 0 0 -8px;
+  color: var(--ast-blue);
+  font-size: var(--ast-fs-11);
+}
+/*
+ * The run process disclosure: one panel, whose head bar is the part that stays
+ * visible. It was a bordered bar with a second bordered box under it, which read
+ * as two sections where the first happened to be a heading for the second.
+ *
+ * What is drawn in the body is TraceTimeline's and timeline.css's. This owns the
+ * container and the bar above it.
+ */
+.run-process {
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
+  overflow: hidden;
+  position: static;
+  margin: 0;
+}
+.run-process-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 10px 16px;
+  /* A hairline is ADDED here rather than the fill merely removed. This band had no
+     border of its own, so dropping the grey would have left the head and the body
+     as one undivided box with a heading floating in it. */
+  background: transparent;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+/* 700, against the 500 the label carries as a utility class. */
+.run-process-head > p:first-child {
+  font-size: var(--ast-fs-13);
+  font-weight: 700;
+}
+/* The trigger goes to the right edge of the bar. Matched as the bar's own button
+   rather than by the collapsible's data-slot: the trigger is `asChild` over a
+   Button, and Radix's Slot lets the child's own `data-slot="button"` win the
+   merge. */
+.run-process-head > button {
+  margin-left: auto;
+}
+.run-process-body {
+  padding: 14px 16px;
+  overflow: visible;
+  container: run-process / inline-size;
+}
+.run-process .run-kpi-grid--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+.run-process .run-kpi-grid--compact [data-slot='card'] {
+  min-width: 0;
+  height: 100%;
+  background: var(--ast-surface-primary);
+}
+.run-process .run-kpi-grid--compact [data-slot='card-content'] {
+  align-items: flex-start;
+  min-height: 112px;
+  height: 100%;
+  gap: 5px;
+  padding: 12px 14px;
+}
+.run-process .run-kpi-grid--compact .run-kpi-value,
+.run-process .run-kpi-grid--compact .run-kpi-feedback {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+.run-process .run-kpi-grid--compact .run-kpi-subtitle {
+  min-width: 0;
+  margin-top: auto;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.run-process .run-kpi-grid--compact .run-rating-badge--kpi {
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 7px;
+  font-size: var(--ast-fs-18);
+  font-weight: 700;
+}
+.run-process .run-kpi-grid--compact .run-rating-badge--kpi > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.run-process .run-kpi-grid--compact .run-rating-badge-label {
+  color: currentColor;
+  font-size: inherit;
+}
+@container run-process (max-width: 680px) {
+  .run-process .run-kpi-grid--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container run-process (max-width: 420px) {
+  .run-process .run-kpi-grid--compact {
+    grid-template-columns: 1fr;
+  }
+}
+/*
+ * The toggle row's edge, at the control rung rather than the hairline.
+ *
+ * It sits directly under the run process panel, so a #EBEBEB box on a card that is
+ * a high-alpha white over the sky gave it no break from the step list at all: the
+ * label and its caption read as two more lines of the timeline, with a switch that
+ * belonged to whatever was above it. #CBCBCB is the rung .ast-pill--neutral-outline
+ * already steps to for an edge that has to survive a tinted surface, and it is a
+ * rung, not a black rule.
+ */
+.advanced-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
+  padding: 10px 16px;
+}
+.advanced-row > div {
+  flex: 1;
+  min-width: 0;
+}
+/* 500, which the toggle row's label takes in the design reference and which the
+   markup used to ask for as a utility class this rule outranked. Stated here so
+   there is one answer to what weight the label is. */
+.advanced-row > div > p {
+  font-size: var(--ast-fs-13);
+  font-weight: 500;
+}
+.code-panel {
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: transparent;
+  color: var(--ast-text);
+  overflow: hidden;
+}
+.code-panel > .code-panel-head {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ast-hairline);
+  background: transparent;
+  color: var(--ast-text-secondary);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--ast-fs-11);
+}
+.code-panel pre {
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ast-fs-12);
+  /* 1.65, which is the design reference's line height for a statement block.
+     SQL is read a clause at a time and the extra leading is what separates the
+     clauses without a rule between them. */
+  line-height: 1.65;
+  color: var(--ast-text-long);
+  max-height: 350px;
+}
+/* A hairline above the row rather than a Separator element: the rule belongs to
+   the feedback block, and as an element it was a sibling that could be left
+   behind by a conditional. */
+.feedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--ast-fs-13);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--ast-hairline);
+  padding-top: 12px;
+}
+.feedback > span:first-child {
+  color: var(--ast-text-secondary);
+}
+/* The two icon buttons, at the 30px the handoff gives an outline icon control.
+   Scoped to direct children so the Save button inside the comment row keeps the
+   ordinary small height. */
+.feedback > button {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--ast-radius-control);
+  border-color: var(--ast-border-input);
+  background: var(--ast-fill-band);
+  color: var(--ast-text-secondary);
+}
+
+.feedback > button:not(.feedback-chosen):hover {
+  background: var(--ast-neutral-fill);
+  color: var(--ast-text-long);
+}
+
+/* The chosen controls use the same positive and negative families as the saved
+   and failed messages beside them. `aria-pressed` remains the state source; the
+   semantic surface, edge and glyph make that state unmistakable in either
+   theme without inventing a feedback-only colour. */
+.feedback > button.feedback-rating--up.feedback-chosen {
+  border-color: var(--ast-pos-border);
+  background: var(--ast-pos-fill);
+  color: var(--ast-pos-text);
+}
+
+.feedback > button.feedback-rating--down.feedback-chosen {
+  border-color: var(--ast-neg-border);
+  background: var(--ast-neg-fill);
+  color: var(--ast-neg-text);
+}
+/* A rating that did not reach the table, said in the negative family rather than
+   in AppKit's `--destructive`. Named here rather than as two utility classes on
+   the markup so that the one sentence in this row which reports a failure is
+   coloured from the same three values as every other failure on the card. */
+.feedback-error {
+  font-size: var(--ast-fs-11);
+  color: var(--ast-neg-text);
+}
+.feedback-comment {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+.saved {
+  display: flex;
+  align-items: center;
+  color: var(--ast-pos-text);
+  gap: 4px;
+}
+.saved svg {
+  width: 14px;
+}
+.ai-note {
+  font-size: var(--ast-fs-12);
+  color: var(--ast-text-secondary);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ai-note svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+/* Primary answer anatomy. Utility disclosures below it use the existing panels. */
+.answer-card-content {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  /* Auto rows, content height. A 1fr track or a height taken from a shrinking
+     flex parent is what let later sections (Sources, Caveats, Run process)
+     start before the tables had finished, so they painted through each other. */
+  grid-auto-rows: auto;
+  height: auto;
+  overflow: visible;
+  align-content: start;
+}
+.answer-narrative {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.answer-evidence,
+.answer-evidence > .answer-prose {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+  align-content: start;
+}
+/*
+ * The control that unfolds the rows behind a charted answer.
+ *
+ * `justify-self: start` because the evidence section is a grid and a button in a
+ * grid cell stretches: unpinned, a quiet disclosure became a full-width bar under
+ * the panel, which reads as a primary action rather than as a footnote to one.
+ *
+ * Sized and coloured down to the caption scale on purpose. The charts are the
+ * evidence; this offers the same numbers for a reader who wants the rows, and a
+ * control that competed with the panel above it would be arguing the opposite.
+ */
+.answer-evidence-rows {
+  justify-self: start;
+  height: auto;
+  padding: 2px 6px;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+}
+/* The rows themselves, once open, take the section's own spacing rather than
+   sitting flush against the control that revealed them. */
+.answer-evidence [data-slot='collapsible-content'] > .answer-prose {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+/*
+ * Sources list: one leftover table per bullet. Filter, metric and window sit
+ * inside that bullet. Same `.answer-list` middot and rhythm as Caveats.
+ * Name first, role after, Open last — wrapping inside the bullet, never a
+ * three-column row or a middle-dot paragraph.
+ */
+.source-list-heading {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  color: var(--ast-text-secondary);
+}
+.source-list {
+  margin: 0;
+  color: var(--ast-text-long);
+  /* Same middot, 13px and 1.5 rhythm as Caveats, so the two collapsible panels
+     that sit under an answer read as one type family rather than two sizes. */
+  gap: 6px;
+  font-size: var(--ast-fs-13);
+  line-height: 1.5;
+}
+.source-list-derivation {
+  margin: 4px 0 0;
+  color: var(--ast-text-long);
+  font-size: var(--ast-fs-13);
+  line-height: 1.5;
+}
+.source-list-name,
+.source-list-name a,
+.source-list-derivation .derivation-source,
+.source-list-derivation .derivation-source a {
+  color: var(--ast-pos-text);
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-13);
+  font-weight: 500;
+}
+.source-list-name .source-name-short,
+.source-list-derivation .derivation-source .source-name-short {
+  padding: 0;
+  background: transparent;
+}
+.source-list-role {
+  color: var(--ast-text-secondary);
+}
+.source-list-freshness {
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-12);
+  overflow-wrap: anywhere;
+}
+.provenance-detail {
+  border-radius: 3px;
+}
+.provenance-detail:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}
+.source-list-derivation .derivation-fact {
+  display: block;
+}
+.source-list-derivation .derivation-label {
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-13);
+  font-weight: 400;
+}
+.source-list-derivation .derivation-value {
+  color: var(--ast-pos-text);
+  font-size: var(--ast-fs-13);
+}
+.source-list a,
+.source-list-derivation a {
+  vertical-align: baseline;
+}

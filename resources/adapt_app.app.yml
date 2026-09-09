@@ -1,0 +1,82 @@
+# Initial bootstrap only: creates the Databricks App and attaches its existing
+# Lakebase database, model serving endpoint, and SQL warehouse. Create the
+# serving endpoint with bundle/agent-release.sh before deploying this resource,
+# then run bundle/app-release.sh once for grants and the initial code release.
+# After that, customer app-code updates use Deploy from Git on the existing app.
+# Do not rerun the bundle merely to update UI or server code, and do not run
+# agent-release or app-release as part of Deploy from Git. That path updates
+# source only; it must not reconcile these bindings, jobs, models, the serving
+# endpoint, or user roles. Lakebase remains authoritative for roles. The source
+# path below is an absolute workspace path for the bootstrap, not the
+# repo-relative Git Source code path (`app/build/deploy`).
+
+variables:
+  app_telemetry_schema:
+    description: >-
+      Separate schema inside ${var.app_catalog} for OpenTelemetry tables.
+      The bundle creates it, but ingestion stays off while
+      app_telemetry_destinations is empty. Keep telemetry outside
+      ${var.app_schema}.
+    default: adapt_telemetry
+  app_telemetry_destinations:
+    description: >-
+      OpenTelemetry export destinations. Defaults to an empty list, which
+      disables telemetry and ingestion charges. Set this only with
+      app_telemetry_schema after approving the billed ingestion. Tables do not
+      backfill and begin receiving data after the app is redeployed.
+    type: complex
+    default: []
+
+resources:
+  apps:
+    adapt_app:
+      name: ${var.app_name}
+      description: ${var.app_description}
+      source_code_path: ${var.app_source_code_path}
+
+      # Optional OpenTelemetry destinations are added only by targets that opt
+      # in. Do not render this API field as an empty list: CLI 1.11/1.12
+      # dereference a nil prior value while creating an App.
+
+      # OAuth scopes for the signed-in user's forwarded token. Keep this list
+      # minimal: one unavailable required scope can block sign-in. Catalog
+      # *:read scopes are optional for the login gate. Scope changes need a full
+      # app stop/start and a fresh sign-in.
+      user_api_scopes: ${var.app_user_api_scopes}
+
+      # ADAPT's customer identity groups are the app's outer access boundary.
+      # The server maps the admin group to its Admin role; named Super Admin
+      # assignments remain explicit inside the app.
+      permissions:
+        - group_name: ${var.app_admin_group}
+          level: CAN_MANAGE
+        - group_name: ${var.app_user_group}
+          level: CAN_USE
+
+      # These bindings grant the app service principal access to its state
+      # store, serving endpoint, and SQL warehouse. Do not bind governed tables
+      # or Genie spaces; governed reads must use the signed-in user's token.
+      resources:
+        # Bind an existing Lakebase database; this does not create Lakebase.
+        - name: postgres
+          postgres:
+            branch: ${var.postgres_branch_name}
+            database: ${var.postgres_database_name}
+            permission: CAN_CONNECT_AND_CREATE
+        - name: serving-endpoint
+          serving_endpoint:
+            name: ${var.serving_endpoint_name}
+            permission: CAN_QUERY
+        # This binding supplies the warehouse ID and grants app access.
+        # CAN_USE, not CAN_MANAGE: the app only runs queries on this warehouse,
+        # and a deployer who does not already hold MANAGE on it cannot grant
+        # MANAGE away, so asking for it fails the deploy in any workspace where
+        # the warehouse belongs to someone else.
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+
+      lifecycle:
+        # Destroying the app also removes its service principal and grants.
+        prevent_destroy: true

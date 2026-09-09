@@ -1,0 +1,2924 @@
+/**
+ * ADAPT Ask: the conversation rail, the transcript, the composer and the rail of
+ * agent steps beside them.
+ *
+ * Split out of App.tsx when the pages became modules. The helpers above the page
+ * are its own -- the attachment chips, the response parsing and the rail's
+ * watermarks -- and stay unexported, because nothing else has ever
+ * needed them. The two cards a turn can be drawn as, AnswerCard and PlanCard,
+ * are their own modules; ClarificationCard is here because this is the only page
+ * that asks for a clarification.
+ */
+import { Link, useSearchParams } from 'react-router';
+import { lazy, memo, Suspense, useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { type ListAvailability } from './list-availability';
+import { readConversationList, readRunSummaries, startInitialRail } from './initial-rail';
+import { UnavailablePanel } from './UnavailablePanel';
+import { unavailableNotice, unavailableNoticeFor, type UnavailableNotice } from './unavailable-copy';
+import { submitsOnEnter } from './submit-on-enter';
+import { PASSWORD_MANAGER_OPT_OUT } from './password-manager-optout';
+import {
+  claimConversationTitle,
+  railEmptyNotice,
+  railOwnership,
+  signedInOwner,
+  unaskedConversation,
+} from './conversation-rail';
+import {
+  clearOwnerSelectionPreference,
+  normalizeOwnerSelection,
+  readOwnerSelectionPreference,
+  rememberOwnerSelectionPreference,
+} from './conversation-owner-selection';
+import type { ConversationFilterSelection } from '../../shared/conversation-filters';
+import { subscribeAskHome } from './ask-home-control';
+import {
+  clearSelectedConversation,
+  readSelectedConversation,
+  rememberSelectedConversation,
+} from './selected-conversation';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardDescription,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Progress,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
+  Textarea,
+} from './ui';
+import {
+  CircleAlert,
+  Database,
+  ExternalLink,
+  FileText,
+  MessagesSquare,
+  Paperclip,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Workflow,
+  X,
+} from 'lucide-react';
+import { signedInFirstName } from './user-initials';
+import { insightConfidence, insightTables, tableStatusTone, useInsightScope } from './insight-scope';
+import { EntityText } from './InlineEntityText';
+import { attachControlState } from './attach-control';
+import { ANSWER_PARAM, CONVERSATION_PARAM, answerRowId } from './conversation-links';
+import { conversationRunSummary, railDuration, type RailRunSummary } from './rail-run-summary';
+import type { WatchlistTrendsResponse } from '../../shared/watchlist';
+import { DEFAULT_INSIGHT_RAIL_SECTIONS, type InsightRailSections } from '../../shared/insight-rail-sections';
+import { WATCHLIST_METRIC_DETAIL, WATCHLIST_METRIC_LABEL } from '../../shared/watchlist-metric';
+import { DEFAULT_ASK_STARTER_SETTINGS, type AskStarter } from '../../shared/ask-starters-browser';
+import { askStarterSettingsFromResponse, listenForAskStartersChanges } from './ask-starters-api';
+import {
+  listenForInsightsSettingsChanges,
+  watchlistSettingsFromResponse,
+  watchlistTrendsFromResponse,
+} from './watchlist-api';
+import {
+  applyRunLabelOverrideToConversations,
+  applyRunLabelOverrideToSummaries,
+  subscribeRunLabelOverrides,
+} from './run-header-labels';
+import { AskCancelled, AskRefused, AskRunFailed, AskUnreachable, askStreaming } from './ask-stream';
+import {
+  activeAskHasHealthyStream,
+  forgetActiveAsk,
+  markActiveAskStreamActivity,
+  markActiveAskStreamOpen,
+  readActiveAsk,
+  registerActiveAsk,
+  stopActiveAsk,
+  subscribeToActiveAskChanges,
+} from './ask-cancellation';
+import {
+  browserActiveRunPollingHost,
+  startAdaptiveActiveRunPolling,
+  type ActiveRunPollingController,
+} from './active-run-polling';
+import { LiveProgress } from './LiveProgress';
+import { runningElapsed, runningStepNumber } from './live-progress';
+import {
+  beginLiveAsk,
+  endLiveAsk,
+  hydrateLiveAsk,
+  identifyLiveAsk,
+  openLiveAsk,
+  readLiveAsk,
+  recordLiveStage,
+  stopLiveAsk,
+  useLiveAsk,
+} from './live-ask';
+import { useAgentReadiness } from './agent-readiness';
+import { runStatusFor } from './run-status';
+import { answerRunVerdict, completedWithGovernedRetries } from '../../shared/run-verdict';
+import { RunStatusPill } from './RunStatusPill';
+import {
+  conversationRunStateKey,
+  isWorkingConversationRun,
+  readConversationRun,
+  replayedStages,
+} from './conversation-run';
+import {
+  forgetActiveConversationRun,
+  readActiveConversationRuns,
+  settleActiveConversationRun,
+  terminalConversationRunSummary,
+  trackActiveConversationRun,
+  updateActiveConversationRuns,
+  useActiveConversationRuns,
+} from './active-conversation-runs';
+import { failedAskSettlement, settleAskDisplay, terminalSettlementForResponse } from './ask-terminal-state';
+import { AstrolabeMark } from './AstrolabeMark';
+import { AdaptBusyButtonContent, AdaptLoader, AdaptLoadingAnimation } from './AdaptLoadingAnimation';
+import { elapsedSeconds, seatForTranscript } from './working-animation';
+import { deriveCurrentStageView, PLANNING_STAGE_LABEL, WORKING_STAGE_LABEL } from './current-stage-view';
+import {
+  normalizeAnswer,
+  normalizeClarification,
+  storedExecutionIdentity,
+  type TraceStage,
+  type WireAnswer,
+} from './answer-shape';
+import { EMPTY_FEEDBACK, feedbackFromStored } from './stored-feedback';
+import { useIdentity } from './app-state';
+import { acceptAppBudgetStatus, approveContinuedUsage, useAppBudgetStatus } from './app-budget-status';
+import { ComposerBudgetStatus } from './ComposerBudgetStatus';
+import { roleFrom, showsAdminSurfaces } from './role';
+import { conversationAge } from './conversation-age';
+import { PlanCard } from './PlanCard';
+import { StoredAnswerBoundary } from './StoredAnswerBoundary';
+import {
+  preloadStoredAnswerRendererForHistory,
+  scheduleStoredAnswerRendererPreload,
+  startStoredAnswerRendererPreload,
+} from './stored-answer-loader';
+import {
+  capturePrependAnchor,
+  mergeNewestConversationMessages,
+  prependConversationMessages,
+  readConversationMessagePage,
+  restorePrependAnchor,
+} from './conversation-messages';
+import type {
+  AgentResponse,
+  Answer,
+  Attachment,
+  Clarification,
+  Conversation,
+  ConversationMessage,
+  FeedbackEntry,
+  PlanResponse,
+} from './app-types';
+import { QuestionAttributionBubble } from './QuestionAttributionBubble';
+import { OrganizationUserBadge } from './OrganizationUserBadge';
+import { organizationForEmail, organizationOptionsForEmails } from '../../shared/organization-mapping';
+import { FeedbackWriteQueue } from './feedback-write-queue';
+import { notifyFeedbackChanged } from './feedback-events';
+
+const ConversationFilters = lazy(() =>
+  import('./ConversationFilters').then(({ ConversationFilters: filters }) => ({ default: filters }))
+);
+const RunRatingBadge = lazy(() => import('./RunRatingBadge').then(({ RunRatingBadge: badge }) => ({ default: badge })));
+const VisitInDatabricks = lazy(() =>
+  import('./DataEntityLinks').then(({ VisitInDatabricks: visit }) => ({ default: visit }))
+);
+import type { FeedbackDirection } from '../../shared/feedback-direction';
+
+/** Formats the customer confirmed: PDF, Markdown, JSON, TXT, CSV. */
+const ATTACHMENT_ACCEPT = '.pdf,.md,.json,.txt,.csv';
+/** Mirrors MAX_ATTACHMENT_BYTES on the server so oversized files fail before upload. */
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+/**
+ * The user turn an approval writes, and the one the transcript is read back for
+ * when a plan card asks whether it was approved or revised away. Mirrors
+ * `PLAN_APPROVAL_MESSAGE` on the server, which writes the same sentence for a
+ * conversation loaded from the store.
+ */
+const PLAN_APPROVAL_LABEL = 'Approved the proposed analysis plan.';
+
+/**
+ * The Genie space this deployment reads, as the insight rail names it. A demo
+ * constant rather than a live lookup: it is customer-facing framing over the
+ * attached space, and it is the label the mockup carries.
+ */
+const GENIE_SPACE_LABEL = 'DSAM_PROD';
+
+/**
+ * The empty step list, allocated once.
+ *
+ * A fresh `[]` per render would be a new prop for the constellation and the live
+ * panel on every tick of the one-second clock, which is what the memoization
+ * around them exists to avoid.
+ */
+const NO_LIVE_STAGES: TraceStage[] = [];
+
+function isPdfAttachment(filename: string) {
+  return /\.pdf$/i.test(filename.trim());
+}
+
+/**
+ * PDF extraction is CPU-bound and can run for several seconds, so the chip counts up
+ * once a parse passes the point where a static label would look hung.
+ */
+function parsingLabel(attachment: Attachment, now: number) {
+  const base = isPdfAttachment(attachment.filename) ? 'Extracting PDF text' : 'Reading report';
+  const elapsed = attachment.started_at ? Math.max(0, Math.floor((now - attachment.started_at) / 1000)) : 0;
+  return elapsed >= 2 ? `${base}… ${elapsed}s` : `${base}…`;
+}
+
+/**
+ * Brings a stored or live payload up to the shape the components require.
+ *
+ * `executionIdentity` is the claim a reopened turn recorded in its own columns,
+ * which a live reply instead carries in its body. Applied only on the answer
+ * branch: a proposed plan and a question back to the reader executed no
+ * analysis, so there is no data-access identity for either to have, and
+ * stamping one on them would be a claim about a run that did not happen.
+ */
+function normalizeResponse(raw: unknown, executionIdentity?: unknown): AgentResponse | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const response = raw as Record<string, unknown>;
+  if (response.type === 'plan') return response as unknown as PlanResponse;
+  if (response.type === 'clarification') {
+    return { type: 'clarification', mode: 'live', clarification: normalizeClarification(response.clarification) };
+  }
+  const wire = response as WireAnswer;
+  return normalizeAnswer(
+    executionIdentity === undefined ? wire : { ...wire, execution_identity: executionIdentity }
+  ) as Answer;
+}
+
+const emptyFeedback = EMPTY_FEEDBACK;
+
+/**
+ * A stored turn, as the transcript renders it.
+ *
+ * The identity comes off the row rather than out of the answer, because that is
+ * where the ask route wrote it. Reading it here is what stopped every answer
+ * reopened from the rail claiming its identity was unknown while the columns
+ * beside it said exactly whose grants had been used: the browser was told the
+ * answer and not the record around it, so "unconfirmed" was an honest report of
+ * a payload that had been stripped on the way out.
+ *
+ * A row that recorded nothing still says nothing. `storedExecutionIdentity`
+ * returns undefined for it, the answer states no identity, and the footer prints
+ * no identity line at all rather than a sentence about the gap. That is correct
+ * for every turn taken before the columns existed.
+ */
+function responseFromMessage(message?: ConversationMessage): AgentResponse | null {
+  if (!message?.response_json) return null;
+  const identity = storedExecutionIdentity(message);
+  if (typeof message.response_json === 'string') {
+    try {
+      return normalizeResponse(JSON.parse(message.response_json), identity);
+    } catch {
+      return null;
+    }
+  }
+  return normalizeResponse(message.response_json, identity);
+}
+
+/**
+ * The id of a rail entry's title, so the delete control beside it can borrow the
+ * title as its description without repeating it in its own name.
+ *
+ * Derived from the conversation id rather than `useId`, because the two elements
+ * that have to agree on it are rendered in the same iteration of the same list
+ * and a per-component id would need threading through both.
+ *
+ * Scoped, because below 800px the rail is drawn twice: once in the aside, which
+ * is hidden but still in the document, and once inside the sheet. Two elements
+ * with one id is a document where `aria-describedby` resolves to whichever came
+ * first, so the sheet's delete control would borrow its description from the
+ * copy the user cannot see.
+ */
+/**
+ * What a lost write means for the answer on screen.
+ *
+ * One constant because it is said in two places now: in the inspector, and in the
+ * strip that stands in for the inspector below 1180px. It was only in the
+ * inspector, which `display: none` took off the screen at exactly the widths where
+ * the reader most needs to be told -- so the sentence has to survive the move
+ * intact rather than be paraphrased into a strip-sized version of itself.
+ */
+const RUN_NOT_STORED =
+  'This answer was not stored, so there is no run to explore and it will not be here when you ' +
+  'come back. The answer above is the agent’s own; only the record of it was lost. Ask again ' +
+  'once storage recovers to keep it.';
+
+function railTitleId(conversationId: string, scope: RailScope) {
+  return `${scope}-title-${conversationId}`;
+}
+
+/**
+ * Which copy of the conversation rail is being drawn: the aside beside the
+ * transcript, or the sheet that replaces it below 800px.
+ */
+type RailScope = 'rail' | 'rail-sheet';
+
+// The client's own copy of the representative answer, its six reference stages
+// and the helper that disclosed them used to live here. They were the last
+// invented figures the browser could put on screen without the server being
+// involved: the ask path appended the whole card to the transcript whenever a
+// question failed. The server's seeded conversations, runs and stored answer
+// have since gone the same way, so no surface has a fixture to fall back to and
+// every empty list on screen is a fact about the store.
+
+/**
+ * What the rail says instead of "No saved conversations yet" when the store
+ * could not be read.
+ *
+ * Taken from the same per-surface copy Run Explorer uses rather than written
+ * again here, so the two cannot describe one outage differently. Rendered as a
+ * sentence in the rail's own 12px style rather than as an `UnavailablePanel`:
+ * the panel carries a heading, a remedy and a correlation id, and a 240px column
+ * is not the place a reader acts on any of them.
+ */
+const railUnreadableNotice = unavailableNotice({
+  surface: 'conversations',
+  code: 'DEPENDENCY_UNAVAILABLE',
+});
+
+export function HomePage() {
+  const identity = useIdentity();
+  const budgetStatus = useAppBudgetStatus();
+  const showAdminTrace = showsAdminSurfaces(roleFrom(identity).state);
+  /**
+   * The address to stamp on a conversation this session creates, or nothing
+   * while `/api/identity` has not answered. Undefined is left as undefined all
+   * the way to the row: an unattributed conversation is drawn without a
+   * watermark and counted under nobody, which is true, where a guess would be
+   * a name on screen that no query would ever agree with.
+   */
+  const signedInAddress = signedInOwner(identity.signedInAs);
+  /**
+   * The reader's first name for the hero greeting, or null before identity has
+   * resolved and for a principal with no name to greet. Null falls back to the
+   * generic headline rather than addressing a placeholder.
+   */
+  const firstName = signedInFirstName(identity.signedInAs);
+  const heroHeadline = firstName
+    ? `What do you want to know, ${firstName}?`
+    : 'What do you want to know about your business?';
+  const [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [olderMessages, setOlderMessages] = useState<{ hasMore: boolean; cursor: string | null }>({
+    hasMore: false,
+    cursor: null,
+  });
+  const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
+  const [olderMessagesError, setOlderMessagesError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  /**
+   * Whether this conversation's documents could not be read, as opposed to there
+   * being none. The chip row cannot express the difference, so it is said in
+   * words beside it.
+   */
+  const [attachmentsUnreadable, setAttachmentsUnreadable] = useState(false);
+  /**
+   * Whether a file the paperclip accepted is still being uploaded and parsed.
+   *
+   * Deliberately not derived from the chip row's `parsing` statuses, even though
+   * the two are true at almost the same times. This is a fact about the control:
+   * it is what stops a second press starting a second `uploadAttachments` over
+   * the same `<input>`, and it has to be set before the first `await` and cleared
+   * after the last one, which the chips cannot promise -- a chip becomes `error`
+   * the instant its own file is rejected, so a rejected first file in a batch of
+   * three would re-enable the button halfway through the batch.
+   */
+  const [attaching, setAttaching] = useState(false);
+  const [clearingDocs, setClearingDocs] = useState(false);
+  const activeConversationRuns = useActiveConversationRuns();
+  const [conversationLoading, setConversationLoading] = useState(true);
+  /**
+   * What the rail's own emptiness means, taken from the response rather than
+   * from the row count.
+   *
+   * The rail used to be backed by seeded conversations whenever the store could
+   * not be read, so "blank" could only mean "nothing saved". With no fixture
+   * behind it, blank now covers a store that answered and holds nothing and a
+   * store nobody could read, and the second must not be rendered as the first:
+   * "No saved conversations yet" over an outage tells a reader their history is
+   * gone.
+   */
+  const [railAvailability, setRailAvailability] = useState<ListAvailability | null>(null);
+  /**
+   * When the request in flight was sent, so the wait can be counted rather than
+   * mimed. A real question took 27.5 seconds against a progress bar that filled
+   * in 2.6 and then sat frozen and fully ticked for the remaining 23, which
+   * reads as a hung application, and is worse than showing no progress at all.
+   */
+  const [askStartedAt, setAskStartedAt] = useState<number | null>(null);
+  /**
+   * When a run this view did not start was found already going, per its durable
+   * row's `created_at`.
+   *
+   * The fallback for the one case no stream can cover: a run whose stream was
+   * opened by a page load that is gone, or by another browser tab. Its STEPS are
+   * recovered -- the app server records each one as the run reports it, and the
+   * durable poll replays them into `live-ask.ts` -- but the instant its stream
+   * opened is not something this browser ever observed, so the row's own start
+   * stands in for it. A run this browser IS still streaming reports its own
+   * instant, and that one wins below.
+   */
+  const [durableRunOpenedAt, setDurableRunOpenedAt] = useState<number | null>(null);
+  /** The question in flight, so the live panel can avoid echoing it back. */
+  const [askedQuestion, setAskedQuestion] = useState('');
+  /**
+   * Set when a run died mid-flight, holding how far it got.
+   *
+   * Keeps `liveStages` on screen after `loading` goes false, so a stopped run
+   * settles into the steps it completed rather than either vanishing or leaving
+   * a spinner up. Cleared when the next question starts.
+   */
+  const [runStopped, setRunStopped] = useState<{ steps: number } | null>(null);
+  const [stopNotice, setStopNotice] = useState<string | null>(null);
+  /**
+   * The panel shown when a question produced no answer.
+   *
+   * Held apart from `error`, which is for things that went wrong around a turn
+   * that still happened (a re-proposed plan, a failed delete). This one says the
+   * turn produced nothing, and it is the state that used to be filled in with
+   * the stored demo response.
+   */
+  const [askUnavailable, setAskUnavailable] = useState<UnavailableNotice | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [budgetApprovalBusy, setBudgetApprovalBusy] = useState(false);
+  const [budgetApprovalError, setBudgetApprovalError] = useState('');
+  /**
+   * Feedback state per answer, keyed by the message id it belongs to.
+   */
+  const [feedback, setFeedback] = useState<Record<string, FeedbackEntry>>({});
+  const feedbackRef = useRef<Record<string, FeedbackEntry>>({});
+  const feedbackWriteQueueRef = useRef(new FeedbackWriteQueue());
+  const feedbackWriteVersionsRef = useRef(new Map<string, number>());
+  const confirmedFeedbackRef = useRef(new Map<string, FeedbackEntry>());
+  useEffect(() => {
+    feedbackRef.current = feedback;
+  }, [feedback]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  /**
+   * What each conversation's latest answered turn recorded: its status, its wall
+   * time and the rating the reader gave it, keyed by conversation id.
+   *
+   * Empty until `/api/runs` lands, and empty for good if it cannot be read, which
+   * is why the row treats every entry as optional rather than waiting for one.
+   */
+  const [runSummaries, setRunSummaries] = useState<Map<string, RailRunSummary>>(new Map());
+  /**
+   * The conversation whose delete has been asked for but not yet confirmed.
+   */
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState<string | null>(null);
+  /**
+   * Whose conversations the rail is narrowed to. Empty means everyone in it.
+   */
+  const [ownerFilters, setOwnerFilters] = useState<readonly string[]>([]);
+  const [organizationFilters, setOrganizationFilters] = useState<readonly string[]>([]);
+  const [serverConversationMatches, setServerConversationMatches] = useState<{
+    key: string;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  /**
+   * Whether the rail's sheet is open. Only reachable below 800px, where the aside
+   * is hidden and its trigger is the rail.
+   */
+  const [railSheetOpen, setRailSheetOpen] = useState(false);
+  const ownerPreferenceLoadedFor = useRef('');
+  const [watchlist, setWatchlist] = useState<WatchlistTrendsResponse | null>(null);
+  const [railSections, setRailSections] = useState<InsightRailSections>({ ...DEFAULT_INSIGHT_RAIL_SECTIONS });
+  const [askStarters, setAskStarters] = useState<AskStarter[]>(DEFAULT_ASK_STARTER_SETTINGS.questions);
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/ask-starters')
+      .then(askStarterSettingsFromResponse)
+      .then((document) => {
+        if (active) {
+          setAskStarters(
+            document.settings.questions.length > 0
+              ? document.settings.questions
+              : DEFAULT_ASK_STARTER_SETTINGS.questions
+          );
+        }
+      })
+      .catch(() => {
+        // Keep the deployment defaults available if the shared settings store
+        // cannot be read during page load.
+      });
+    const stopListening = listenForAskStartersChanges((settings) => {
+      if (active) {
+        setAskStarters(settings.questions.length > 0 ? settings.questions : DEFAULT_ASK_STARTER_SETTINGS.questions);
+      }
+    });
+    return () => {
+      active = false;
+      stopListening();
+    };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const loadTrends = () => {
+      if (active) setWatchlist(null);
+      void fetch('/api/watchlist-trends')
+        .then((response) => watchlistTrendsFromResponse(response))
+        .then((result) => {
+          if (active) setWatchlist(result);
+        })
+        .catch((error: Error) => {
+          if (active) setWatchlist({ status: 'unavailable', detail: error.message, trends: [] });
+        });
+    };
+    loadTrends();
+    void fetch('/api/watchlist-settings')
+      .then((response) => watchlistSettingsFromResponse(response))
+      .then((document) => {
+        if (active) setRailSections(document.settings.sections);
+      })
+      .catch(() => {
+        // The rail remains useful with its safe all-visible defaults when the
+        // preference store is temporarily unavailable.
+      });
+    const stopListening = listenForInsightsSettingsChanges((settings) => {
+      if (!active) return;
+      setRailSections(settings.sections);
+      loadTrends();
+    });
+    return () => {
+      active = false;
+      stopListening();
+    };
+  }, []);
+  /**
+   * The URL wins for deep links and Back/Forward. When Ask is mounted without
+   * one after visiting another top-level tab, the browser-session selection
+   * wins next. Only a genuinely new session mints a blank draft.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [conversationId, setConversationId] = useState(
+    () => searchParams.get(CONVERSATION_PARAM) ?? readSelectedConversation() ?? `conv-${crypto.randomUUID()}`
+  );
+  /**
+   * The conversation on screen, readable from inside a run that is still going.
+   */
+  const activeConversationRef = useRef(conversationId);
+  const conversationLoadControllerRef = useRef<AbortController | null>(null);
+  const olderMessagesControllerRef = useRef<AbortController | null>(null);
+  const activeRunPollerRef = useRef<ActiveRunPollingController | null>(null);
+  const previousPolledConversationRef = useRef(conversationId);
+  /**
+   * The run this conversation has going, read from outside this component.
+   *
+   * THE FIX FOR THE FROZEN CARD. These four values used to be this component's
+   * own state, so leaving Ask -- another tab, another conversation, anything that
+   * unmounts this page -- threw away every step the run had reported while the
+   * run itself carried on. Coming back mounted a page with an empty list, and the
+   * durable poll below could only say that something was still working: the
+   * question stayed on screen above a "Working on your question" row and a bar,
+   * for the rest of a run that was streaming steps the whole time.
+   *
+   * They now live in `live-ask.ts`, keyed by conversation, which is where a run
+   * that outlives a view belongs. Mounting subscribes and reads; unmounting
+   * unsubscribes and does nothing else. A stage arriving while nobody is looking
+   * is still recorded, so returning shows the path as it is now and it keeps
+   * growing from there.
+   *
+   * Every value below is still only what the run reported. Nothing is
+   * reconstructed, and a run whose stream this browser is not holding -- one
+   * started before a reload, or in another tab -- has no stages here and is not
+   * given any.
+   */
+  const liveAsk = useLiveAsk(conversationId);
+  const activeConversationRun = activeConversationRuns.get(conversationId)?.status ?? null;
+  const liveStages = liveAsk?.stages ?? NO_LIVE_STAGES;
+  const loading = Boolean(liveAsk?.inFlight || isWorkingConversationRun(activeConversationRun));
+  useEffect(() => {
+    if (loading) startStoredAnswerRendererPreload();
+  }, [loading]);
+  const displayedStopNotice = stopNotice ?? liveAsk?.stopNotice ?? null;
+  /**
+   * When the step in progress was announced, on this machine's clock.
+   *
+   * The reader's counter cannot be derived from the stage's own `start`: that is
+   * an offset into the agent's run, measured by `perf_counter` inside a serving
+   * container, and it shares no epoch with the browser. What is knowable is when
+   * the announcement arrived, which is within the delivery delay of when the step
+   * began. Null whenever nothing is in progress, which is what stops the count.
+   */
+  const runningSince = liveAsk?.runningSince ?? null;
+  /**
+   * When the route opened the stream, and when the newest step arrived.
+   *
+   * Both are instants recorded as they happened, because both are things the live
+   * panel states as fact. The first is what lets it distinguish "still asking"
+   * from "the run has started" in the seconds before any step exists, measured at
+   * about half a second against a first step that can be twenty away. See
+   * live-progress.ts. The durable instant stands in only for a run this browser
+   * is not streaming.
+   */
+  const streamOpenedAt = liveAsk?.streamOpenedAt ?? durableRunOpenedAt;
+  const lastStageAt = liveAsk?.lastStageAt ?? null;
+  const [now, setNow] = useState(() => Date.now());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const conversationMainRef = useRef<HTMLElement>(null);
+  const prependingMessagesRef = useRef(false);
+  const composerRef = useRef<HTMLFormElement>(null);
+  /**
+   * Parsed once per set of messages, not once per render.
+   */
+  const parsedResponses = useMemo(() => {
+    const byId = new Map<string, AgentResponse>();
+    for (const message of messages) {
+      if (message.role !== 'assistant') continue;
+      const parsed = responseFromMessage(message);
+      if (parsed) byId.set(message.id, parsed);
+    }
+    return byId;
+  }, [messages]);
+  const responses = messages
+    .filter((message) => message.role === 'assistant')
+    .map((message) => parsedResponses.get(message.id))
+    .filter((response): response is AgentResponse => response !== undefined);
+  const latestResponse = responses.at(-1);
+  // `type` is absent on answers stored before it was added, so an answer is what
+  // is left after the two types that name themselves, not what carries 'answer'.
+  const answer =
+    latestResponse && latestResponse.type !== 'plan' && latestResponse.type !== 'clarification' ? latestResponse : null;
+  const asked = latestResponse?.type === 'clarification' ? latestResponse.clarification : null;
+  const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
+  const parsing = attachments.some((attachment) => attachment.status === 'parsing');
+  // What the paperclip says and whether it answers, in one place. See
+  // attach-control.ts: the state it is in has to be readable off one object,
+  // because the label, the glyph, `aria-busy` and `disabled` are four
+  // expressions of it and they were previously going to disagree.
+  const attachControl = attachControlState({ attaching, asking: loading, conversationLoading });
+  // One condition for the Ask button and for Return, so the key cannot start a
+  // run the button is disabled for -- a second submission while one is in
+  // flight, or an empty prompt.
+  const budgetBlocked = budgetStatus?.level === 'approval-required';
+  const canAsk = draft.trim().length > 0 && !loading && !conversationLoading && !parsing && !budgetBlocked;
+  /**
+   * Which step is in progress, one-based, or 0 when the run has not said so.
+   *
+   * Read off the rows rather than tracked separately, so it cannot disagree with
+   * what is on screen. Zero against a model version that reports a step only once
+   * it has finished, and zero in the gap between one step finishing and the next
+   * being announced.
+   */
+  const runningStep = runningStepNumber(liveStages);
+  /**
+   * How long the step in progress has been going, for the one row that ticks.
+   *
+   * ONE CLOCK FOR THE WHOLE PAGE, not a timer per row: `now` is already ticked
+   * once a second by the effect below, and only while a run or an extraction is
+   * going. So the counter stops when the run does, by construction rather than by
+   * a component remembering to clear something.
+   *
+   * Null unless a run is in flight AND a step is in progress, which is what a
+   * finished, failed or reopened conversation all reduce to: `loading` goes false
+   * and `runningSince` is cleared, and the row prints what it never measured
+   * rather than a figure that looks live.
+   */
+  const railElapsedMs = runningElapsed({ loading, runningSince, now });
+  /*
+   * Which seating the working animation takes: the full panel while the answer
+   * column has nothing in it, the compact strip once there is an answer above to
+   * read. Derived from the transcript rather than from a "first run" flag, so
+   * clearing a conversation puts the splash back without anything having to
+   * remember that it should.
+   */
+  const workingSeat = seatForTranscript(messages);
+  const workingLabel = (() => {
+    const view = deriveCurrentStageView({ stages: liveStages, runActive: loading });
+    return view.mode === 'planning' || view.mode === 'idle' ? PLANNING_STAGE_LABEL : WORKING_STAGE_LABEL;
+  })();
+
+  /*
+   * The wait, counted rather than mimed, and null until there is something to
+   * say. Real seconds and never a percentage (loading-suite.md): the run reports
+   * each step on finishing it, so the client knows what has happened and never
+   * how much is left.
+   */
+  const elapsed = elapsedSeconds(askStartedAt, now);
+
+  // One request per page load, shared with the tracked-table list the answer
+  // prose reads from the same payload. See `agent-readiness.ts` for why the Ask
+  // page is the one screen where invoking the endpoint on arrival is the right
+  // trade: the reader is here to wake it anyway.
+  const readiness = useAgentReadiness();
+
+  /*
+   * The insight rail's real scope, off the same preflight report the pill reads:
+   * the tracked tables with their reachability and freshness, and the confidence
+   * lines derived from the report's checks. No extra request -- `useInsightScope`
+   * shares `readPreflightOnce` with the readiness hook above.
+   */
+  const { report: scopeReport, loading: scopeLoading } = useInsightScope();
+  const scopeTables = useMemo(() => insightTables(scopeReport), [scopeReport]);
+  const scopeConfidence = useMemo(() => insightConfidence(scopeReport), [scopeReport]);
+
+  /*
+   * What the run is doing, as a word, a tone, and whether the dot may move.
+   *
+   * Derived in `run-status.ts` rather than here, and the readiness it is given
+   * comes from the endpoint having actually answered rather than from this
+   * component having mounted. The pill said "Ready" from first paint for as long
+   * as it has existed, which was a statement about the browser: on a deployment
+   * whose endpoint was stopped or whose principal had lost CAN_QUERY it said
+   * exactly the same thing, and the reader found out when the question they had
+   * just typed failed.
+   */
+  const answerVerdict = answer
+    ? answerRunVerdict({
+        stages: answer.trace.stages,
+        caveats: answer.caveats,
+        figures: answer.figures,
+        narrative: answer.narrative,
+        content: answer.content,
+      })
+    : undefined;
+  const runStatus = runStatusFor({
+    loading,
+    liveSteps: liveStages.length,
+    runningStep,
+    runStopped: !!runStopped,
+    awaitingApproval: latestResponse?.type === 'plan',
+    asked: !!asked,
+    answered: !!answer,
+    verdict: answerVerdict,
+    recoveredWithRetries:
+      answerVerdict === 'complete' && Boolean(answer && completedWithGovernedRetries(answer.trace.stages)),
+    readiness,
+  });
+
+  const selectConversation = useCallback(async (id: string) => {
+    startStoredAnswerRendererPreload();
+    conversationLoadControllerRef.current?.abort();
+    olderMessagesControllerRef.current?.abort();
+    const controller = new AbortController();
+    conversationLoadControllerRef.current = controller;
+    // Before any await: leaving Ask immediately after clicking a row must still
+    // restore that row when the route mounts again.
+    rememberSelectedConversation(id);
+    setConversationId(id);
+    activeConversationRef.current = id;
+    setConversationLoading(true);
+    setError(null);
+    setStopNotice(null);
+    setFeedback({});
+    setOlderMessages({ hasMore: false, cursor: null });
+    setOlderMessagesError(null);
+    setOlderMessagesLoading(false);
+    // The run that stopped belongs to the conversation it stopped in. Left
+    // standing, its badge narrates whichever conversation is opened next, which
+    // is a run that never happened there.
+    setRunStopped(null);
+    // The steps are NOT cleared here any more, and that is the point: they are
+    // filed under the conversation they belong to rather than held by this view,
+    // so opening a conversation reads that conversation's run and opening another
+    // one reads another. Clearing was what made switching away from a running
+    // question -- and switching back to it -- lose everything it had reported.
+    setDurableRunOpenedAt(null);
+    try {
+      const [messageResponse, attachmentResponse, durableRun] = await Promise.all([
+        readConversationMessagePage(id, { signal: controller.signal }),
+        fetch(`/api/conversations/${encodeURIComponent(id)}/attachments`, { signal: controller.signal }),
+        readConversationRun(id).catch(() => null),
+      ]);
+      if (activeConversationRef.current !== id) return;
+      const stored = messageResponse.messages;
+      preloadStoredAnswerRendererForHistory(stored);
+      setMessages(stored);
+      setOlderMessages({ hasMore: messageResponse.hasMore, cursor: messageResponse.nextCursor });
+      // The ratings these answers already carry, from the rows rather than from
+      // this session. `setFeedback({})` above is what a reopened conversation
+      // used to be left with: the rating was in the store the whole time and the
+      // thumbs came back blank, because nothing had ever read it. See
+      // stored-feedback.ts.
+      setFeedback(feedbackFromStored(stored));
+      // An attachment list that could not be read is not a conversation with no
+      // documents, and drawing it as one is worse than saying nothing: the
+      // documents are still attached and still reach the agent on the next
+      // question, so a user looking at an empty chip row would conclude the
+      // opposite of what is true. The route says which of the two happened.
+      setAttachmentsUnreadable(!attachmentResponse.ok);
+      setAttachments(
+        attachmentResponse.ok
+          ? ((await attachmentResponse.json()) as Omit<Attachment, 'status'>[]).map((attachment) => ({
+              ...attachment,
+              status: 'ready',
+            }))
+          : []
+      );
+      setDraft('');
+      if (isWorkingConversationRun(durableRun)) {
+        updateActiveConversationRuns((current) => trackActiveConversationRun(current, id, durableRun));
+        const started = Date.parse(durableRun.created_at);
+        setAskStartedAt(Number.isFinite(started) ? started : Date.now());
+        // Only as the fallback. A run this browser is still streaming reports its
+        // own opening instant, and that one is preferred where it exists, so a
+        // reopened conversation does not have the durable row's timestamp
+        // overwrite the live one.
+        setDurableRunOpenedAt(Number.isFinite(started) ? started : Date.now());
+        const question = [...stored].reverse().find((message) => message.role === 'user')?.content ?? '';
+        setAskedQuestion(question);
+        // The steps it has taken, for the case the stream cannot answer: this
+        // browser was not the one holding it. Without this, everything above is
+        // true and useless -- the question comes back, the composer stays shut
+        // because a run is in flight, and the agent path is empty for as long as
+        // the run lasts. Folded into the same record the stream writes to, so a
+        // browser that has both gets one path rather than two.
+        hydrateLiveAsk({
+          conversationId: id,
+          stages: replayedStages(durableRun),
+          question,
+          startedAt: Number.isFinite(started) ? started : Date.now(),
+        });
+      }
+    } catch (loadError) {
+      if (loadError instanceof DOMException && loadError.name === 'AbortError') return;
+      if (activeConversationRef.current !== id) return;
+      setDraft('');
+      setMessages([]);
+      setAttachments([]);
+      setAttachmentsUnreadable(false);
+      setError('This conversation could not be loaded. Start a new conversation or try again.');
+    } finally {
+      if (conversationLoadControllerRef.current === controller) conversationLoadControllerRef.current = null;
+      if (activeConversationRef.current === id) setConversationLoading(false);
+    }
+  }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!olderMessages.hasMore || !olderMessages.cursor || olderMessagesLoading) return;
+    olderMessagesControllerRef.current?.abort();
+    const controller = new AbortController();
+    olderMessagesControllerRef.current = controller;
+    const requestedConversation = conversationId;
+    const anchor = capturePrependAnchor(messages[0]);
+    setOlderMessagesLoading(true);
+    setOlderMessagesError(null);
+    try {
+      const page = await readConversationMessagePage(requestedConversation, {
+        cursor: olderMessages.cursor,
+        signal: controller.signal,
+      });
+      if (activeConversationRef.current !== requestedConversation) return;
+      prependingMessagesRef.current = true;
+      setMessages((current) => prependConversationMessages(current, page.messages));
+      setFeedback((current) => ({ ...feedbackFromStored(page.messages), ...current }));
+      setOlderMessages({ hasMore: page.hasMore, cursor: page.nextCursor });
+      window.requestAnimationFrame(() => restorePrependAnchor(anchor));
+    } catch (loadError) {
+      if (loadError instanceof DOMException && loadError.name === 'AbortError') return;
+      if (activeConversationRef.current === requestedConversation) {
+        setOlderMessagesError('Older messages could not be loaded. Try again.');
+      }
+    } finally {
+      if (olderMessagesControllerRef.current === controller) olderMessagesControllerRef.current = null;
+      if (activeConversationRef.current === requestedConversation) setOlderMessagesLoading(false);
+    }
+  }, [conversationId, messages, olderMessages.cursor, olderMessages.hasMore, olderMessagesLoading]);
+
+  useEffect(
+    () => () => {
+      conversationLoadControllerRef.current?.abort();
+      olderMessagesControllerRef.current?.abort();
+    },
+    []
+  );
+
+  /**
+   * The three things a transcript row can ask this page to do, as callbacks whose
+   * identity never changes.
+   *
+   * THIS EXISTS SO `MessageItem` CAN BE MEMOIZED AT ALL. `ask` and `saveFeedback`
+   * are redefined on every render -- they have to be, they read this render's
+   * state -- so handing them to a row straight would hand it a different prop
+   * every time and `React.memo` would skip nothing. The row would re-render on
+   * every tick of the one-second clock, which is the whole thing being fixed.
+   *
+   * The indirection is a ref rather than a `useCallback` over the two functions,
+   * because a `useCallback` whose deps include them changes identity for the same
+   * reason they do. WRITTEN IN AN EFFECT, NOT DURING RENDER: a ref written while
+   * rendering is not part of the render's input, so a pass React discards takes
+   * the write with it. The effect has no dependency array on purpose -- it must
+   * run after every render, so what a row calls is always the newest closure and
+   * never one holding a stale conversation id.
+   */
+  const latest = useRef({ ask, saveFeedback });
+  useEffect(() => {
+    latest.current = { ask, saveFeedback };
+  });
+  const askRow = useCallback((question: string, approval?: { planId: string; label: string }) => {
+    void latest.current.ask(question, approval);
+  }, []);
+  const rateRow = useCallback(
+    (answerId: string, sentiment: FeedbackDirection, options?: { keepCommentOpen?: boolean }) =>
+      latest.current.saveFeedback(answerId, sentiment, options),
+    []
+  );
+  const changeFeedback = useCallback((answerId: string, changes: Partial<FeedbackEntry>) => {
+    setFeedback((current) => ({
+      ...current,
+      [answerId]: { ...(current[answerId] ?? emptyFeedback), ...changes },
+    }));
+  }, []);
+  /**
+   * Re-reads the run list and collapses it to one summary per conversation.
+   *
+   * A second request on this page, deliberately, rather than widening the
+   * conversation list query: the runs endpoint already derives a turn's status,
+   * wall time and rating, and the alternative was a second server-side
+   * derivation of the same three things that could disagree with the first.
+   *
+   * Failure is silent and the pills simply do not appear. The rail's job is to
+   * list conversations, and a rail that reported an outage of a decoration would
+   * be claiming its titles and dates were in doubt when they are not.
+   *
+   * Called after a turn completes. The read on arrival is not this -- it is one
+   * half of `startInitialRail`, which issues both lists at once.
+   */
+  const loadRunSummaries = useCallback(async (signal?: AbortSignal) => {
+    const summaries = await readRunSummaries(signal);
+    if (summaries.size > 0) setRunSummaries(summaries);
+    return summaries;
+  }, []);
+
+  /**
+   * Follow every durable run, regardless of which conversation is open.
+   * Healthy SSE streams stay primary; polling recovers reloads, stale streams,
+   * and work started in another tab.
+   */
+  const activeConversationRunIds = [...activeConversationRuns]
+    .filter(([, run]) => isWorkingConversationRun(run.status))
+    .map(([id]) => id)
+    .sort()
+    .join('\u0000');
+  useEffect(() => {
+    if (!activeConversationRunIds) return;
+    let live = true;
+    const requests = new AbortController();
+    const runIds = activeConversationRunIds.split('\u0000');
+    const observed = new Map<string, string>();
+    const pollOne = async (runConversationId: string) => {
+      try {
+        const status = await readConversationRun(runConversationId, fetch, requests.signal);
+        if (!live || !status) return 'unchanged' as const;
+        const stateKey = conversationRunStateKey(status);
+        const changed = observed.get(runConversationId) !== stateKey;
+        observed.set(runConversationId, stateKey);
+        if (isWorkingConversationRun(status)) {
+          updateActiveConversationRuns((current) => trackActiveConversationRun(current, runConversationId, status));
+          hydrateLiveAsk({
+            conversationId: runConversationId,
+            stages: replayedStages(status),
+          });
+          return changed ? ('changed' as const) : ('unchanged' as const);
+        }
+        if (status.state === 'AWAITING_APPROVAL') {
+          updateActiveConversationRuns((current) =>
+            settleActiveConversationRun(current, runConversationId, status, null)
+          );
+          endLiveAsk(runConversationId, status.run_id);
+          return 'stop' as const;
+        }
+        const summaries = await loadRunSummaries(requests.signal);
+        if (!live) return 'stop' as const;
+        if (!terminalConversationRunSummary(status, summaries.get(runConversationId) ?? null)) {
+          return changed ? ('changed' as const) : ('unchanged' as const);
+        }
+        const response =
+          activeConversationRef.current === runConversationId
+            ? await readConversationMessagePage(runConversationId, { signal: requests.signal }).catch(() => null)
+            : null;
+        if (!live) return 'stop' as const;
+        if (status?.state === 'CANCELLED' && activeConversationRef.current === runConversationId) {
+          setStopNotice(readLiveAsk(runConversationId)?.stopNotice ?? 'Stopped');
+        }
+        updateActiveConversationRuns((current) =>
+          settleActiveConversationRun(current, runConversationId, status, summaries.get(runConversationId) ?? null)
+        );
+        endLiveAsk(runConversationId, status.run_id);
+        if (response && activeConversationRef.current === runConversationId) {
+          const stored = response.messages;
+          setMessages((current) => mergeNewestConversationMessages(current, stored));
+          setFeedback((current) => ({ ...current, ...feedbackFromStored(stored) }));
+          setOlderMessages((current) => ({
+            hasMore: current.hasMore || response.hasMore,
+            cursor: current.cursor ?? response.nextCursor,
+          }));
+        }
+        return 'stop' as const;
+      } catch {
+        return 'unchanged' as const;
+      }
+    };
+    const controller = startAdaptiveActiveRunPolling({
+      targets: () =>
+        runIds.flatMap((id) => {
+          const run = readActiveConversationRuns().get(id);
+          if (!run || !isWorkingConversationRun(run.status)) return [];
+          return [{ conversationId: id, shouldPoll: !activeAskHasHealthyStream(id, run.status.run_id) }];
+        }),
+      poll: pollOne,
+      host: browserActiveRunPollingHost(),
+    });
+    activeRunPollerRef.current = controller;
+    const unsubscribeStreams = subscribeToActiveAskChanges(() => controller.wake());
+    return () => {
+      live = false;
+      requests.abort();
+      unsubscribeStreams();
+      controller.stop();
+      if (activeRunPollerRef.current === controller) activeRunPollerRef.current = null;
+    };
+  }, [activeConversationRunIds, loadRunSummaries]);
+
+  useEffect(() => {
+    if (previousPolledConversationRef.current === conversationId) return;
+    previousPolledConversationRef.current = conversationId;
+    activeRunPollerRef.current?.wake();
+  }, [conversationId]);
+
+  /**
+   * The rail, in one round trip rather than two.
+   *
+   * ONE EFFECT FOR BOTH LISTS, and the reason is stated in initial-rail.ts: as
+   * two effects the requests did overlap, but only because effects happen to run
+   * back-to-back, and that is one `await` away from becoming a waterfall. Asking
+   * for them together makes the concurrency something the code says rather than
+   * something the scheduler happens to do -- and gives the suite something it can
+   * count, which two fetches inside effects were not.
+   *
+   * BOTH ISSUED TOGETHER, EACH AWAITED ON ITS OWN, and the second half is not
+   * tidiness. `conversationLoading` below is not a spinner on the rail: while it
+   * is true this page hides the welcome screen and disables the composer, so
+   * whatever clears it decides when the reader may start typing. Waiting on one
+   * combined promise made that the slower of the two reads -- and the run list is
+   * the heavier one while feeding nothing but the status pills, so a decoration on
+   * the rail was holding the text box shut.
+   *
+   * The two failures are handled differently and that is not an oversight: a
+   * rail without pills is still a rail, and a rail without conversations is an
+   * outage the reader is told about. See `InitialRail`.
+   */
+  useEffect(() => {
+    let active = true;
+    const reads = startInitialRail();
+    void reads.conversations.then((list) => {
+      if (!active) return;
+      setRailAvailability(list.availability);
+      preloadStoredAnswerRendererForHistory(list.conversations ?? []);
+      // The rail lists saved conversations, but the app opens on a fresh chat
+      // so the welcome state is the first thing a new user sees.
+      if (list.conversations) {
+        setConversations(list.conversations);
+        setServerConversationMatches(
+          list.matchingConversationIds ? { key: '', ids: new Set(list.matchingConversationIds) } : null
+        );
+      }
+      setConversationLoading(false);
+    });
+    void reads.runSummaries.then((summaries) => {
+      if (!active) return;
+      setRunSummaries(summaries);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /**
+   * Follows the URL, which is what makes Back and Forward work.
+   *
+   * Every conversation change goes through the address bar. A click, Back, and
+   * a deep link name the thread there. Returning from another top-level tab has
+   * no Ask query string, so it falls back to the browser-session selection,
+   * restores that thread, and puts it back in the URL. Guarded on the id already
+   * loaded, so it does not re-fetch on unrelated renders.
+   */
+  const loadedConversationRef = useRef<string | null>(null);
+  useEffect(() => {
+    const requested = searchParams.get(CONVERSATION_PARAM);
+    const target = requested ?? readSelectedConversation();
+    if (!target || target === loadedConversationRef.current) return;
+    loadedConversationRef.current = target;
+    if (!requested) setSearchParams({ [CONVERSATION_PARAM]: target }, { replace: true });
+    void selectConversation(target);
+  }, [searchParams, selectConversation, setSearchParams]);
+
+  /**
+   * The answer a link asked for, when one did.
+   *
+   * A trace names the answer it came from, and that answer is usually not the
+   * last one in the thread, so the end of the transcript is the wrong place to
+   * put a reader who followed such a link -- it is the same "landed somewhere
+   * plausible, not where you were sent" failure as opening no conversation at
+   * all, one screen further in.
+   */
+  const requestedAnswer = searchParams.get(ANSWER_PARAM);
+  const scrolledToAnswerRef = useRef('');
+  useEffect(() => {
+    if (conversationLoading || messages.length === 0) return;
+    const prepended = prependingMessagesRef.current;
+    prependingMessagesRef.current = false;
+    // Once per requested answer, and then never again for it. The parameter
+    // stays in the address bar after the jump -- so the link survives a reload
+    // and Back still works -- and without this guard asking a new question in a
+    // conversation opened this way would scroll away from the answer that had
+    // just arrived, back to the one the reader followed a link to.
+    if (requestedAnswer && scrolledToAnswerRef.current !== requestedAnswer) {
+      const row = document.getElementById(answerRowId(requestedAnswer));
+      if (!row && olderMessages.hasMore && !olderMessagesLoading) {
+        void loadOlderMessages();
+        return;
+      }
+      // No row means that answer is not in this thread, which is what a stale
+      // link looks like. Falling through to the end is the behaviour every
+      // other visit gets, and is better than not scrolling at all and leaving
+      // the reader at the top with no sign anything was meant to happen.
+      if (row) {
+        scrolledToAnswerRef.current = requestedAnswer;
+        row.scrollIntoView({ block: 'center' });
+        return;
+      }
+    }
+    if (prepended) return;
+    const newest = messages[messages.length - 1];
+    if (!loading && newest?.role === 'assistant' && newest.id) {
+      // An answer is read from its beginning. Scrolling to the transcript end
+      // landed on the final trace row and made the result appear to open midway.
+      document.getElementById(answerRowId(newest.id))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [
+    messages,
+    loading,
+    conversationLoading,
+    requestedAnswer,
+    olderMessages.hasMore,
+    olderMessagesLoading,
+    loadOlderMessages,
+  ]);
+
+  // Keeps every elapsed counter moving: the parsing chips during a slow PDF
+  // extraction, and the agent's own wait, which is the longer of the two.
+  useEffect(() => {
+    if (!parsing && !loading) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [parsing, loading]);
+
+  async function stopCurrentAsk() {
+    const streamed = readActiveAsk(conversationId);
+    const current =
+      streamed ??
+      (activeConversationRun
+        ? {
+            conversationId,
+            correlationId: activeConversationRun.run_id,
+            controller: new AbortController(),
+            stopRequested: false,
+          }
+        : null);
+    if (!loading || current?.conversationId !== conversationId || !current.correlationId) return;
+    current.stopRequested = true;
+    try {
+      await stopActiveAsk(current);
+      setAskUnavailable(null);
+      setStopNotice('Stopped by you');
+      if (!streamed) {
+        setRunStopped({ steps: liveStages.filter((stage) => stage.status !== 'running').length });
+        settleAskDisplay(current.conversationId, current.correlationId, failedAskSettlement('CANCELLED'));
+      }
+    } catch (stopError) {
+      current.stopRequested = false;
+      setError(stopError instanceof Error ? stopError.message : 'Stop failed.');
+    }
+  }
+
+  async function ask(question = draft, approval?: { planId: string; label: string }) {
+    if (!question.trim() || readLiveAsk(conversationId)?.inFlight || readActiveAsk(conversationId)) return;
+    if (budgetStatus?.level === 'approval-required') return;
+    // Everything below writes into the conversation this run started in. Once
+    // the user is somewhere else, none of it is theirs to write: an answer, a
+    // step, an error banner or a URL change landing in the conversation they
+    // moved to describes a question that was never asked there.
+    const runConversationId = conversationId;
+    const conversationBefore = conversations.find((conversation) => conversation.id === runConversationId) ?? null;
+    // A blank draft becomes a selected conversation the instant it is used.
+    // Persist before the request starts, so leaving Ask while the run is active
+    // returns to this thread rather than to another starter.
+    rememberSelectedConversation(runConversationId);
+    const stillInThisConversation = () => activeConversationRef.current === runConversationId;
+    const userMessage: ConversationMessage = {
+      id: `local-${crypto.randomUUID()}`,
+      role: 'user',
+      content: approval?.label ?? question,
+    };
+    setMessages((items) => [...items, userMessage]);
+    // The rail is renamed on submission, not on completion. It used to be
+    // renamed where the answer is appended, tens of seconds later, so a reader
+    // watching their own question run had a rail beside it that still said
+    // "New conversation" -- the one place on the screen that could have told
+    // them their question had been accepted, saying it had not been. The claim
+    // is conditional in the same way the server's upsert is, so this cannot
+    // rename a conversation that already has a name, and so calling it again
+    // below when the answer lands cannot move a label a reader has read.
+    setConversations((items) =>
+      claimConversationTitle(items, {
+        id: runConversationId,
+        prompt: question,
+        owner: signedInAddress,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+    setDraft('');
+    setAskStartedAt(Date.now());
+    setDurableRunOpenedAt(null);
+    // Filed under the conversation rather than held here, so the run survives
+    // this view. A new question replaces whatever this conversation had on
+    // record, which is what clearing the step list used to mean.
+    beginLiveAsk({ conversationId: runConversationId, question });
+    setAskedQuestion(question);
+    setRunStopped(null);
+    setStopNotice(null);
+    setError(null);
+    setAskUnavailable(null);
+    const controller = new AbortController();
+    const currentAsk = {
+      conversationId: runConversationId,
+      correlationId: '',
+      controller,
+      stopRequested: false,
+      stream: {
+        state: 'connecting' as const,
+        openedAt: null,
+        lastActivityAt: null,
+      },
+    };
+    registerActiveAsk(currentAsk);
+    try {
+      const { body } = await askStreaming(
+        {
+          conversationId: runConversationId,
+          prompt: question,
+          approvedPlanId: approval?.planId,
+          executePlan: Boolean(approval),
+        },
+        // Appended rather than replaced: each event is one finished step, and
+        // the list is the run so far. A turn that answers with a plan sends
+        // none at all, because the agent proposes before it runs anything.
+        {
+          // Recorded whatever is on screen, and this is the second half of the
+          // frozen-card fix. These callbacks used to return early unless the
+          // reader was still looking at the conversation the run started in, so a
+          // step that arrived while they were on another conversation, or another
+          // tab, was dropped on the floor and never came back. The stage belongs
+          // to a conversation, so it is filed under one; which conversation is
+          // being drawn is the view's business and it reads its own key.
+          //
+          // The merge, the announcement bookkeeping and the instant the counter
+          // runs from are all in `live-ask.ts` now, over a list it can read
+          // synchronously -- the stream hands stages over faster than a render,
+          // and deciding whether anything is still in progress off a stale copy
+          // is what used to stop the clock while two tools of a batch were going.
+          onStage: (stage) => {
+            recordLiveStage(runConversationId, stage);
+          },
+          onStart: (correlationId) => {
+            currentAsk.correlationId = correlationId;
+            identifyLiveAsk(runConversationId, correlationId);
+            const now = new Date().toISOString();
+            updateActiveConversationRuns((runs) =>
+              trackActiveConversationRun(runs, runConversationId, {
+                run_id: correlationId,
+                state: 'RUNNING',
+                created_at: now,
+                updated_at: now,
+                terminal_code: null,
+              })
+            );
+          },
+          // The run is under way and the request passed every check. Recorded
+          // as an instant because the panel says so on screen, and because the
+          // interval between this and the first step is the wait this whole
+          // change is about.
+          onOpen: () => {
+            openLiveAsk(runConversationId);
+            markActiveAskStreamOpen(currentAsk);
+            scheduleStoredAnswerRendererPreload();
+          },
+          onActivity: () => {
+            markActiveAskStreamActivity(currentAsk);
+          },
+        },
+        fetch,
+        controller.signal
+      );
+      // Normalized before it is read rather than after it is stored: the envelope
+      // below reads `result.narrative` and `result.id`, and those can be absent too.
+      const result = normalizeResponse(body);
+      if (!result) throw new Error('The live agent returned a response the app could not read.');
+      settleAskDisplay(runConversationId, currentAsk.correlationId, terminalSettlementForResponse(result, body));
+      if (!stillInThisConversation()) return;
+      setMessages((items) => [
+        ...items,
+        {
+          // Each response type is keyed and summarized by its own field. Reading
+          // `result.narrative` for all of them is what put an empty bubble on
+          // screen for anything that was not an answer.
+          id:
+            result.type === 'plan'
+              ? `msg-${result.plan.id}`
+              : result.type === 'clarification'
+                ? `msg-${result.clarification.id}`
+                : result.id,
+          role: 'assistant',
+          content:
+            result.type === 'plan'
+              ? result.plan.summary
+              : result.type === 'clarification'
+                ? result.clarification.question
+                : result.narrative,
+          response_json: result,
+        },
+      ]);
+      if (approval && result.type === 'plan') {
+        setError(
+          'The agent proposed a revised plan instead of running the approved one. Review and approve it to continue.'
+        );
+      }
+      // The row was named and moved to the top when the question was sent; this
+      // only carries the store's own "just now" onto it. Same helper, so the
+      // label is untouchable from here: an answer arriving must not restate
+      // what the rail has been saying for the length of the run, and this used
+      // to overwrite the title unconditionally, which renamed a conversation
+      // after its second question and then unrenamed it on the next load.
+      setConversations((items) =>
+        claimConversationTitle(items, {
+          id: runConversationId,
+          prompt: question,
+          owner: signedInAddress,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      // The turn that just finished is a run now, so the rail's row for it has a
+      // status, a duration and a place to put a rating. Re-read rather than
+      // assembled here from what this page happens to know: the pill has to say
+      // what the store recorded, and a turn with a failed stage in it is
+      // 'partial' there while looking like a success from up here.
+      void loadRunSummaries();
+      void refreshConversationEvidence();
+      // Now that this conversation has something stored in it, name it in the URL
+      // so it can be linked to and so Back and Forward have somewhere to land.
+      // Replace rather than push: asking a question is not a navigation.
+      loadedConversationRef.current = runConversationId;
+      setSearchParams({ c: runConversationId }, { replace: true });
+    } catch (askError) {
+      const budgetRefusal =
+        askError instanceof AskRefused && askError.result.code === 'BUDGET_APPROVAL_REQUIRED'
+          ? askError.result.budget_status
+          : undefined;
+      if (budgetRefusal) {
+        acceptAppBudgetStatus(budgetRefusal);
+        setDraft(question);
+        setMessages((items) => items.filter((item) => item.id !== userMessage.id));
+        setConversations((items) =>
+          conversationBefore
+            ? items.map((item) => (item.id === runConversationId ? conversationBefore : item))
+            : items.filter((item) => item.id !== runConversationId)
+        );
+        endLiveAsk(runConversationId);
+        updateActiveConversationRuns((runs) => forgetActiveConversationRun(runs, runConversationId));
+        setAskStartedAt(null);
+        setAskedQuestion('');
+        setRunStopped(null);
+        setAskUnavailable(null);
+        return;
+      }
+      if (askError instanceof AskCancelled) {
+        stopLiveAsk(
+          runConversationId,
+          currentAsk.stopRequested ? 'Stopped by you' : 'Stopped by an administrator',
+          currentAsk.correlationId
+        );
+        settleAskDisplay(runConversationId, currentAsk.correlationId, failedAskSettlement('CANCELLED'));
+      } else if (askError instanceof AskRefused) {
+        settleAskDisplay(
+          runConversationId,
+          currentAsk.correlationId,
+          failedAskSettlement('REFUSED', askError.result.code)
+        );
+      } else if (askError instanceof AskRunFailed && askError.terminal) {
+        settleAskDisplay(runConversationId, currentAsk.correlationId, failedAskSettlement('FAILED'));
+      }
+      if (!stillInThisConversation()) return;
+      // A run that reached the agent and then stopped is a different event from
+      // an endpoint that was never reachable, and the difference is visible on
+      // screen: the steps it did finish are still there. Saying "the endpoint is
+      // unavailable" over a rail showing four completed steps contradicts what
+      // the user just watched happen.
+      // A question the server refused is already fully described: it chose the
+      // code, the sentence and the correlation id, and re-deriving any of them
+      // here would show a reader "the endpoint is unavailable" over a denial
+      // that says precisely which of their permissions was the problem.
+      if (askError instanceof AskCancelled) {
+        setRunStopped({ steps: askError.completed });
+        setAskUnavailable(null);
+        setStopNotice(currentAsk.stopRequested ? 'Stopped by you' : 'Stopped by an administrator');
+        return;
+      }
+      if (askError instanceof AskRefused) {
+        // The stages are kept when the refusal arrived mid-run. It used to clear
+        // them unconditionally, which was right while a refusal could only reach
+        // here as a plain JSON body -- there were none. A refusal that arrives on
+        // an open stream has some behind it, and blanking a timeline the user
+        // just watched fill in tells them the run never started.
+        setRunStopped(askError.completed > 0 ? { steps: askError.completed } : null);
+        setAskUnavailable(unavailableNoticeFor('ask', askError.result, { interactive: true }));
+        return;
+      }
+      /*
+       * Named before the generic branch, because it is the failure a reader
+       * actually meets and the one they were told least about. The request got no
+       * response at all, so the only true statement about which hop failed is
+       * that this app's own server did not complete one -- and a release
+       * replacing that server mid-question is the ordinary way it happens. The
+       * old copy said "a service this needed did not respond", which points at
+       * the agent endpoint and is wrong: nothing downstream was reached.
+       */
+      if (askError instanceof AskUnreachable) {
+        setRunStopped(null);
+        setAskUnavailable(
+          unavailableNotice({
+            surface: 'ask',
+            code: 'DEPENDENCY_UNAVAILABLE',
+            interactive: true,
+            // The id the browser minted before the request left. Every other
+            // branch here takes one off the server's payload; this branch has no
+            // payload, and used to be the one failure a reader could not quote.
+            correlationId: askError.correlationId,
+            evidence: {
+              dependency: { kind: 'app-server', name: '' },
+              // The browser's own words. There is no status to quote, because
+              // the point of this branch is that no response arrived.
+              providerMessage: askError.reason,
+            },
+          })
+        );
+        return;
+      }
+      const stopped = askError instanceof AskRunFailed ? askError : null;
+      setRunStopped(stopped ? { steps: stopped.completed } : null);
+      // Nothing is appended to the transcript. This used to push a complete,
+      // confident, fully-traced answer about five game titles into the
+      // conversation and then apologise for it underneath, which is the exact
+      // shape of the problem: the apology scrolls away and the figures do not.
+      // The stages the run did finish stay on the timeline, because those were
+      // observed; an answer was not.
+      setAskUnavailable(
+        unavailableNotice({
+          surface: 'ask',
+          code: stopped ? 'STREAM_INTERRUPTED' : 'DEPENDENCY_UNAVAILABLE',
+          interactive: true,
+          message: stopped
+            ? `${stopped.message} The steps it did finish are shown above, as far as they got.`
+            : undefined,
+        })
+      );
+    } finally {
+      if (!currentAsk.correlationId) endLiveAsk(runConversationId);
+      forgetActiveAsk(runConversationId, currentAsk);
+    }
+  }
+
+  async function approveBudgetOverage() {
+    if (!budgetStatus || budgetStatus.level !== 'approval-required' || budgetApprovalBusy) return;
+    setBudgetApprovalBusy(true);
+    setBudgetApprovalError('');
+    try {
+      await approveContinuedUsage(budgetStatus);
+    } catch (approvalError) {
+      setBudgetApprovalError((approvalError as Error).message);
+    } finally {
+      setBudgetApprovalBusy(false);
+    }
+  }
+
+  function startNewConversation() {
+    conversationLoadControllerRef.current?.abort();
+    olderMessagesControllerRef.current?.abort();
+    // The one intentional route back to the starter. Clear before minting the
+    // local draft so leaving and returning does not resurrect the old thread.
+    clearSelectedConversation();
+    const id = `conv-${crypto.randomUUID()}`;
+    setConversationId(id);
+    activeConversationRef.current = id;
+    // This id is only a browser draft. It enters the rail when an ask is sent
+    // (or a durable attachment is stored), never merely because the reader
+    // opened an empty composer.
+    setDraft('');
+    setMessages([]);
+    setOlderMessages({ hasMore: false, cursor: null });
+    setOlderMessagesError(null);
+    setOlderMessagesLoading(false);
+    setAttachments([]);
+    setError(null);
+    setFeedback({});
+    setRunStopped(null);
+    setStopNotice(null);
+    setDurableRunOpenedAt(null);
+    // Nothing to clear: a conversation this new has no run on record, and the one
+    // it was started from keeps its own under its own id.
+    setConversationLoading(false);
+    // An empty conversation has nothing stored to reload, so it is marked as
+    // already loaded and the URL is cleared without pushing a history entry,
+    // Back should return to the previous conversation, not to a blank one.
+    loadedConversationRef.current = id;
+    setSearchParams({}, { replace: true });
+  }
+
+  function focusQuestionInput() {
+    composerRef.current?.querySelector('textarea')?.focus();
+  }
+
+  useEffect(() => subscribeAskHome(() => startNewConversation()));
+  useEffect(() =>
+    subscribeRunLabelOverrides((conversationId, overlay) => {
+      setRunSummaries((current) => applyRunLabelOverrideToSummaries(current, conversationId, overlay));
+      setConversations((items) => applyRunLabelOverrideToConversations(items, conversationId, overlay));
+    })
+  );
+
+  /**
+   * Records one rating against one message.
+   *
+   * The comment is read from this message's own entry, not from a shared box, so
+   * the text posted is the text typed about this answer. Failure is reported
+   * rather than swallowed: this used to `.catch(() => undefined)` and then say
+   * "Feedback saved" regardless, so a rating that never reached the table looked
+   * recorded, and the usefulness figure is computed from that table.
+   */
+  async function saveFeedback(
+    messageId: string,
+    sentiment: FeedbackDirection,
+    options: { keepCommentOpen?: boolean } = {}
+  ) {
+    const entry = feedbackRef.current[messageId] ?? emptyFeedback;
+    if (!confirmedFeedbackRef.current.has(messageId) && entry.saved) {
+      confirmedFeedbackRef.current.set(messageId, { ...entry });
+    }
+    const comment = sentiment === 'down' ? entry.comment.trim() : '';
+    const version = (feedbackWriteVersionsRef.current.get(messageId) ?? 0) + 1;
+    feedbackWriteVersionsRef.current.set(messageId, version);
+    const patch = (changes: Partial<FeedbackEntry>) => {
+      const next = { ...(feedbackRef.current[messageId] ?? emptyFeedback), ...changes };
+      feedbackRef.current = { ...feedbackRef.current, [messageId]: next };
+      setFeedback((current) => ({ ...current, [messageId]: { ...(current[messageId] ?? emptyFeedback), ...changes } }));
+    };
+    patch({
+      saving: true,
+      saved: false,
+      error: null,
+      sentiment,
+      open: sentiment === 'down' && (options.keepCommentOpen === true || entry.open),
+      ...(sentiment === 'up' ? { comment: '' } : {}),
+    });
+    const write = feedbackWriteQueueRef.current.enqueue(messageId, async () => {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, sentiment, comment: comment || undefined }),
+      });
+      if (!response.ok) throw new Error(`Feedback was not recorded (HTTP ${response.status}).`);
+      notifyFeedbackChanged();
+    });
+    try {
+      await write;
+      const confirmed: FeedbackEntry = {
+        ...emptyFeedback,
+        saved: true,
+        sentiment,
+        comment,
+        open: sentiment === 'down' && options.keepCommentOpen === true,
+      };
+      confirmedFeedbackRef.current.set(messageId, confirmed);
+      if (feedbackWriteVersionsRef.current.get(messageId) !== version) return;
+      patch({
+        saving: false,
+        saved: true,
+        open: confirmed.open,
+        error: null,
+        sentiment,
+        ...(sentiment === 'up' ? { comment: '' } : {}),
+      });
+      setRunSummaries((current) => {
+        const next = new Map(current);
+        for (const [conversationId, summary] of next) {
+          if (summary.runId === messageId) next.set(conversationId, { ...summary, feedback: sentiment });
+        }
+        return next;
+      });
+    } catch (error) {
+      if (feedbackWriteVersionsRef.current.get(messageId) !== version) return;
+      const confirmed = confirmedFeedbackRef.current.get(messageId) ?? emptyFeedback;
+      patch({
+        saving: false,
+        saved: false,
+        sentiment: confirmed.sentiment,
+        comment: sentiment === 'down' ? entry.comment : confirmed.comment,
+        open: sentiment === 'down' || confirmed.sentiment === 'down',
+        error: (error as Error).message || 'Feedback was not recorded.',
+      });
+    }
+  }
+
+  async function uploadAttachments(files: FileList | null) {
+    if (!files?.length) return;
+    // Raised for the whole batch and lowered once, at the end of it, so the
+    // control cannot be pressed again while any part of a multi-file selection is
+    // still in flight over the shared `<input>`.
+    setAttaching(true);
+    try {
+      for (const file of Array.from(files)) {
+        const localId = `upload-${crypto.randomUUID()}`;
+        const failed = (message: string) =>
+          setAttachments((items) =>
+            items.map((attachment) =>
+              attachment.id === localId
+                ? { ...attachment, status: 'error', error: message, started_at: undefined }
+                : attachment
+            )
+          );
+        setAttachments((items) => [
+          ...items,
+          {
+            id: localId,
+            filename: file.name,
+            mime_type: file.type || 'application/octet-stream',
+            size_bytes: file.size,
+            status: 'parsing',
+            started_at: Date.now(),
+          },
+        ]);
+        // Reject oversized files here rather than spending the upload to be told at the server.
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          failed('This report is larger than 8 MB. Try a smaller file.');
+          continue;
+        }
+        try {
+          const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/attachments`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-File-Name': encodeURIComponent(file.name),
+              'X-File-Type': file.type || 'application/octet-stream',
+            },
+            body: file,
+          });
+          // A proxy or body-size rejection can answer with HTML, so never let a JSON
+          // parse failure surface to the user as the reason the upload failed.
+          const payload = (await response.json().catch(() => null)) as Attachment | null;
+          if (!response.ok || !payload) {
+            throw new Error(payload?.error ?? 'The report could not be attached. Try uploading it again.');
+          }
+          setAttachments((items) =>
+            items.map((attachment) =>
+              attachment.id === localId ? { ...payload, status: 'ready', started_at: undefined } : attachment
+            )
+          );
+          const updatedAt = new Date().toISOString();
+          setConversations((items) =>
+            items.some((conversation) => conversation.id === conversationId)
+              ? items
+              : [unaskedConversation({ id: conversationId, owner: signedInAddress, updatedAt }), ...items]
+          );
+          rememberSelectedConversation(conversationId);
+          loadedConversationRef.current = conversationId;
+          setSearchParams({ c: conversationId }, { replace: true });
+        } catch (uploadError) {
+          failed((uploadError as Error).message || 'The report could not be attached. Try uploading it again.');
+        }
+      }
+    } finally {
+      // `finally`, because a control that is disabled until the page is reloaded
+      // is a worse outcome than the missing feedback this pass is here to fix,
+      // and the per-file `catch` above cannot promise to have caught everything.
+      setAttaching(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function removeAttachment(attachment: Attachment) {
+    setAttachments((items) => items.filter((item) => item.id !== attachment.id));
+    if (attachment.status === 'ready') {
+      await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}/attachments/${encodeURIComponent(attachment.id)}`,
+        { method: 'DELETE' }
+      ).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Drop every uploaded document without ending the conversation.
+   */
+  async function clearDocs() {
+    setClearingDocs(true);
+    try {
+      const response = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/attachments`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        // The route explains itself on a 503; preferring its message keeps the
+        // reason ("try again shortly") from being flattened into a generic one.
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message ?? 'The documents could not be cleared. They are still attached.');
+      }
+      setAttachments([]);
+      setError(null);
+    } catch (clearError) {
+      setError((clearError as Error).message);
+    } finally {
+      setClearingDocs(false);
+    }
+  }
+
+  /**
+   * Remove a conversation, once its confirmation has been answered.
+   *
+   * The row is dropped from the rail only after the route says it is gone.
+   * Removing it optimistically is what made the attachment delete misreport a
+   * Lakebase outage as a successful removal (the chip disappeared and the
+   * document was still there), and the same trade is worse here, because a rail
+   * entry that vanished without being deleted looks exactly like the data loss
+   * this store has already suffered once.
+   */
+  async function deleteConversation(id: string) {
+    setDeletingConversation(id);
+    try {
+      const response = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!response.ok) {
+        // The route explains itself on 404 and 503, and its wording says
+        // whether anything was removed. Preferring it keeps "nothing was
+        // removed, try again" from being flattened into a generic failure.
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message ?? 'This conversation could not be deleted.');
+      }
+      setConversations((items) => items.filter((item) => item.id !== id));
+      setPendingDelete(null);
+      setError(null);
+      // Deleting the conversation that is open would otherwise leave its
+      // answers on screen under an id that no longer resolves.
+      if (id === conversationId) startNewConversation();
+    } catch (deleteError) {
+      setError((deleteError as Error).message);
+      setPendingDelete(null);
+    } finally {
+      setDeletingConversation(null);
+    }
+  }
+
+  /**
+   * Who appears in the rail, how many entries each of them has, and which owner
+   * every row on screen is drawn with.
+   *
+   * Read off the conversations already fetched rather than asked for
+   * separately. A second lookup could name someone the rail is not showing, or
+   * miss someone it is, and either way the filter would be describing a
+   * different set from the one being filtered.
+   *
+   * Rows and counts come back from ONE pass for the same reason. They were two:
+   * the chips counted rows that carried an address and the "All" chip counted
+   * every row, so the browser's own optimistic rows -- which carried no address
+   * at all -- were on screen without a watermark and missing from the tally.
+   * One reader asking five questions saw "All 5 · You 3" and two anonymous rows,
+   * which reads as a colleague having quietly used their rail.
+   */
+  const rail = useMemo(() => railOwnership(conversations, identity.signedInAs), [conversations, identity.signedInAs]);
+  const adminSharedRail =
+    identity.sharedConversationRail === true && (identity.role === 'admin' || identity.role === 'super_admin');
+
+  useEffect(() => {
+    if (identity.role === 'consumer') {
+      ownerPreferenceLoadedFor.current = '';
+      setOwnerFilters([]);
+      clearOwnerSelectionPreference();
+      return;
+    }
+    if (identity.role !== 'admin' && identity.role !== 'super_admin') return;
+    if (!adminSharedRail) {
+      setOwnerFilters([]);
+      return;
+    }
+    if (conversationLoading) return;
+    const available = rail.owners.map((owner) => owner.key);
+    if (ownerPreferenceLoadedFor.current !== identity.signedInAs) {
+      ownerPreferenceLoadedFor.current = identity.signedInAs;
+      setOwnerFilters(readOwnerSelectionPreference(identity.signedInAs, available));
+      return;
+    }
+    setOwnerFilters((current) => {
+      const normalized = normalizeOwnerSelection(current, available);
+      if (normalized.length !== current.length || normalized.some((value, index) => value !== current[index])) {
+        rememberOwnerSelectionPreference(identity.signedInAs, normalized);
+        return normalized;
+      }
+      return current;
+    });
+  }, [adminSharedRail, conversationLoading, identity.role, identity.signedInAs, rail.owners]);
+
+  /**
+   * The selection, narrowed to people the rail is actually showing.
+   *
+   * A filter naming somebody who has since left the rail (their last
+   * conversation deleted, say), would silently empty it. Worse with several
+   * selected than with one: their chip goes with them, so the filter would be
+   * both invisible and unclearable. Intersecting here means a name that is not
+   * on screen cannot narrow what is, and does it for the toggles and the rows
+   * from one place, so the pressed chips and the visible rows cannot disagree.
+   *
+   * Held as the normalised key rather than as the address, so a selection
+   * survives the same person arriving under a different capitalisation.
+   */
+  const activeOwnerFilters = useMemo(() => {
+    const present = new Set(rail.owners.map((owner) => owner.key));
+    return ownerFilters.filter((key) => present.has(key));
+  }, [ownerFilters, rail]);
+  const railOrganizations = useMemo(() => {
+    const emails = rail.entries.flatMap((entry) => (entry.owner ? [entry.owner] : []));
+    return organizationOptionsForEmails(emails, emails, identity.organizations);
+  }, [identity.organizations, rail.entries]);
+  const activeOrganizationFilters = useMemo(() => {
+    const present = new Set(railOrganizations.map((organization) => organization.id));
+    return organizationFilters.filter((id) => present.has(id));
+  }, [organizationFilters, railOrganizations]);
+  const conversationFilterKey = useMemo(() => JSON.stringify(activeOwnerFilters), [activeOwnerFilters]);
+  const conversationFilters = useMemo<ConversationFilterSelection>(() => {
+    const owners = JSON.parse(conversationFilterKey) as string[];
+    return { owners };
+  }, [conversationFilterKey]);
+
+  const refreshConversationEvidence = useCallback(
+    async (signal?: AbortSignal) => {
+      const list = await readConversationList(conversationFilters, signal);
+      if (!list.conversations) return;
+      setConversations(list.conversations);
+      if (list.matchingConversationIds) {
+        setServerConversationMatches({
+          key: conversationFilterKey,
+          ids: new Set(list.matchingConversationIds),
+        });
+      }
+    },
+    [conversationFilterKey, conversationFilters]
+  );
+
+  useEffect(() => {
+    if (!adminSharedRail || conversationLoading) return;
+    const hasFilter = conversationFilters.owners.length > 0;
+    if (!hasFilter) {
+      setServerConversationMatches(null);
+      return;
+    }
+    const controller = new AbortController();
+    void refreshConversationEvidence(controller.signal);
+    return () => controller.abort();
+  }, [adminSharedRail, conversationFilters, conversationLoading, refreshConversationEvidence]);
+
+  const asker = useMemo(() => {
+    const owner = conversations.find((item) => item.id === conversationId)?.user_email;
+    return typeof owner === 'string' && owner.trim() ? owner : identity.signedInAs;
+  }, [conversations, conversationId, identity.signedInAs]);
+
+  /** Owner and organization are ANDed; each multiselect is ORed within itself. */
+  const visibleEntries = useMemo(() => {
+    const candidates =
+      serverConversationMatches?.key === conversationFilterKey
+        ? rail.entries.filter((entry) => serverConversationMatches.ids.has(entry.conversation.id))
+        : rail.entries;
+    const selectedOwners = new Set(activeOwnerFilters);
+    const selectedOrganizations = new Set(activeOrganizationFilters);
+    return candidates.filter((entry) => {
+      if (selectedOwners.size > 0 && (entry.ownerKey === null || !selectedOwners.has(entry.ownerKey))) {
+        return false;
+      }
+      if (
+        selectedOrganizations.size > 0 &&
+        (entry.owner === null ||
+          !selectedOrganizations.has(organizationForEmail(entry.owner, identity.organizations).id))
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [
+    activeOrganizationFilters,
+    activeOwnerFilters,
+    conversationFilterKey,
+    identity.organizations,
+    rail,
+    serverConversationMatches,
+  ]);
+
+  /*
+   * The rail's contents, drawn twice.
+   *
+   * Below 800px there is no room for a 264px column beside the transcript, and
+   * the rail was simply hidden there: creating, switching and deleting a
+   * conversation all became unreachable on a phone, which is most of what the
+   * page can do besides asking. It now moves into a left sheet, the same pattern
+   * the header's nav uses at the same widths.
+   *
+   * One function rather than a component, because the rail closes over nineteen
+   * pieces of this page's state and a component would mean threading every one of
+   * them through props. `scope` is what keeps the two copies' element ids apart,
+   * and closing the sheet is unconditional: the actions that pick a conversation
+   * are the ones that should dismiss it, and calling it on the aside's copy,
+   * where it is already closed, does nothing.
+   */
+  const renderRail = (scope: RailScope) => (
+    <>
+      <Button
+        className="w-full justify-center"
+        onClick={() => {
+          setRailSheetOpen(false);
+          startNewConversation();
+          focusQuestionInput();
+        }}
+      >
+        <Plus /> New conversation
+      </Button>
+      <div className="conversation-rail-content">
+        <p className="section-label">Conversations</p>
+        {adminSharedRail && rail.owners.length > 0 ? (
+          <div className="conversation-filter-row">
+            <Suspense
+              fallback={
+                <>
+                  <Skeleton className="conversation-owner-select app-select-trigger" />
+                  <Skeleton className="monitoring-organization-select app-select-trigger" />
+                </>
+              }
+            >
+              <ConversationFilters
+                owners={rail.owners}
+                organizations={railOrganizations}
+                total={rail.entries.length}
+                selectedOwners={activeOwnerFilters}
+                selectedOrganizations={activeOrganizationFilters}
+                onOwnersChange={(next) => {
+                  setOwnerFilters(next);
+                  rememberOwnerSelectionPreference(identity.signedInAs, next);
+                }}
+                onOrganizationsChange={setOrganizationFilters}
+              />
+            </Suspense>
+          </div>
+        ) : null}
+        <div className="conversation-list">
+          {conversationLoading && conversations.length === 0 ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : railAvailability?.origin ===
+            'unavailable' /* Checked before the empty state, and the order is the whole point.
+                 Both arrive here with no rows. `role="status"` because nobody
+                 is waiting on this the way they wait on an answer, but a reader
+                 who has just been told the rail is empty needs the correction. */ ? (
+            <p className="conversation-empty" role="status">
+              {railUnreadableNotice.heading}. {railUnreadableNotice.consequence}
+            </p>
+          ) : conversations.length === 0 ? (
+            <p className="conversation-empty">{railEmptyNotice(identity.sharedConversationRail)}</p>
+          ) : visibleEntries.length === 0 ? (
+            <p className="conversation-empty">No conversations match the selected filters.</p>
+          ) : (
+            visibleEntries.map(({ conversation, owner, you }) => {
+              // What this conversation's latest answered turn recorded, or null
+              // when nothing is known about it. Absent is the normal state for a
+              // conversation nobody has asked anything yet.
+              const summary = runSummaries.get(conversation.id) ?? conversationRunSummary(conversation);
+              const duration = summary ? railDuration(summary.durationMs) : null;
+              return (
+                // Drawn from the entry rather than from the conversation, so the
+                // watermark below is the same answer to "whose is this" that the
+                // chips above were counted from. Reading `conversation.user_email`
+                // here again is how the two came apart.
+                // A row rather than a bare button, because the delete control is
+                // a second button and one cannot be nested inside the other.
+                // Selecting the conversation is still the whole of the first
+                // button, so the click target for the common action is unchanged.
+                conversation.id === pendingDelete ? (
+                  <div
+                    key={conversation.id}
+                    className="conversation-row confirming"
+                    role="group"
+                    aria-label={`Delete ${conversation.title}?`}
+                  >
+                    <p className="conversation-confirm-question">Delete this conversation?</p>
+                    <p className="conversation-confirm-detail">
+                      Its questions, answers and traces are removed too. This cannot be undone.
+                    </p>
+                    <div className="conversation-confirm-actions">
+                      <button
+                        type="button"
+                        className="conversation-confirm-cancel"
+                        onClick={() => setPendingDelete(null)}
+                        disabled={deletingConversation !== null}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="conversation-confirm-delete"
+                        onClick={() => void deleteConversation(conversation.id)}
+                        disabled={deletingConversation !== null}
+                      >
+                        {deletingConversation === conversation.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={conversation.id}
+                    className={`conversation-row ${conversation.id === conversationId ? 'active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="conversation-item"
+                      aria-pressed={conversation.id === conversationId}
+                      disabled={conversationLoading}
+                      onMouseEnter={() => startStoredAnswerRendererPreload()}
+                      onFocus={() => startStoredAnswerRendererPreload()}
+                      // Pushes a history entry rather than loading directly, so Back
+                      // returns to the conversation the user came from. The effect
+                      // watching the URL does the loading.
+                      onClick={() => {
+                        // Persist in the click itself, before React processes the
+                        // URL change, so an immediate tab switch cannot race the
+                        // effect that loads the thread.
+                        rememberSelectedConversation(conversation.id);
+                        setRailSheetOpen(false);
+                        setSearchParams({ c: conversation.id });
+                      }}
+                    >
+                      {/* The head line: what the latest turn did, and when the
+                        conversation was last touched. The same pair, in the same
+                        places, as the recorded-runs card in the Run Explorer, which
+                        is the list this rail is the other view of.
+
+                        The pill is drawn only when a run is actually known for this
+                        conversation. A conversation nobody has asked anything yet,
+                        and one whose turns belong to somebody else and were never
+                        sent to this browser, both have no status to report, and the
+                        line is then the date alone. */}
+                      <span className="conversation-item-head">
+                        {summary && (
+                          <span
+                            className={`ast-pill conversation-status ${summary.tone}`}
+                            // The store's own word is short and unqualified. The
+                            // tooltip says what it is the status OF, which the pill
+                            // has no room to say and the row's title does not imply.
+                            title={`Latest turn: ${summary.status}`}
+                          >
+                            {summary.status}
+                          </span>
+                        )}
+                        <span className="conversation-age ast-num">{conversationAge(conversation.updated_at)}</span>
+                      </span>
+                      {/* The clamp is two lines, so a long label is cut on screen even
+                        though the row now stores it whole. The tooltip is how a reader
+                        gets the rest of it back without opening the conversation. */}
+                      <span
+                        className="conversation-title"
+                        id={railTitleId(conversation.id, scope)}
+                        title={conversation.title}
+                      >
+                        {conversation.title}
+                      </span>
+                      <span className="conversation-meta">
+                        {/* Wall time of that latest turn, when the trace recorded one.
+                          Absent rather than zero for a turn stored before it did. */}
+                        {duration && <span className="conversation-duration ast-num">{duration}</span>}
+                        {summary?.feedback ? (
+                          <Suspense fallback={null}>
+                            <RunRatingBadge feedback={summary.feedback} />
+                          </Suspense>
+                        ) : null}
+                      </span>
+                    </button>
+                    {owner ? (
+                      <OrganizationUserBadge
+                        identity={owner}
+                        organizations={identity.organizations}
+                        className="conversation-owner"
+                        canOpen={adminSharedRail}
+                        showArrow={adminSharedRail}
+                      />
+                    ) : null}
+                    {you ? (
+                      <button
+                        type="button"
+                        className="conversation-delete"
+                        aria-label="Delete conversation"
+                        aria-describedby={railTitleId(conversation.id, scope)}
+                        title="Delete this conversation"
+                        disabled={conversationLoading}
+                        onClick={() => setPendingDelete(conversation.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                )
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  /*
+   * Nothing has been asked yet, which is a layout as well as a state.
+   *
+   * The hero and the composer both read it: on an empty transcript the composer
+   * leaves its fixed seat at the bottom of the window and sits in the flow under
+   * the headline, where the thing a reader has come to do is the thing in front of
+   * them. Once there is a transcript it goes back to the bottom, because then it
+   * is a control over a document rather than the document.
+   *
+   * `loading` is in the test so the composer does not travel the height of the
+   * window between submitting the first question and the answer arriving. The
+   * first question is appended to `messages` immediately, so this goes false on
+   * the same render that draws the reader's own bubble.
+   */
+  const transcriptEmpty = messages.length === 0 && !loading && !conversationLoading;
+
+  return (
+    <div
+      className="ask-layout"
+      data-transcript={transcriptEmpty ? 'empty' : 'active'}
+      data-center-state={loading ? 'working' : conversationLoading ? 'restoring' : answer ? 'final' : 'idle'}
+    >
+      <aside className="conversation-rail">{renderRail('rail')}</aside>
+
+      {/* The sheet's trigger, drawn only below 800px, where the aside is not.
+          responsive.css decides both, so the page cannot end up with two rails or
+          none. Above that width this button is display:none and the aside is the
+          rail. */}
+      <Sheet open={railSheetOpen} onOpenChange={setRailSheetOpen}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rail-sheet-trigger"
+          onClick={() => setRailSheetOpen(true)}
+        >
+          <MessagesSquare aria-hidden="true" /> Conversations
+          {/* The count, because the button replaces a rail whose length was
+              visible, and "Conversations" alone does not say whether there are
+              any. */}
+          {rail.entries.length > 0 && <span className="rail-sheet-count">{rail.entries.length}</span>}
+        </Button>
+        <SheetContent side="left" className="rail-sheet">
+          <SheetHeader>
+            <SheetTitle>Conversations</SheetTitle>
+          </SheetHeader>
+          <div className="conversation-rail is-sheet">{renderRail('rail-sheet')}</div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="conversation-column">
+        <section ref={conversationMainRef} className={`conversation-main${transcriptEmpty ? ' is-empty' : ''}`}>
+          {transcriptEmpty && (
+            <div className="ask-hero">
+              {/* The chip that introduces the agent, carrying the small cut of the
+                mark on Ice. THE MARK IS THE AGENT (§1): the orange robot is
+                retired, and the figure a reader meets on an empty transcript is
+                now the same drawing as the app's own mark in the header and the
+                one the loaders flicker through. It is decorative, because the
+                words beside it are the label. */}
+              <div className="ask-hero-chip">
+                <span className="ask-hero-chip-mark">
+                  <AstrolabeMark size={18} />
+                </span>
+                ADAPT digital sales intelligence
+              </div>
+              <h2>{heroHeadline}</h2>
+              {/* The starter questions. Each is a real prompt: clicking one submits
+                it through the same ask() the composer calls, so a starter and a
+                typed question travel the identical path. The kicker names the
+                kind of question; the label is the question itself. */}
+              <div className="ask-starters">
+                {askStarters.map((starter) => (
+                  <button
+                    key={starter.id}
+                    type="button"
+                    className="ask-starter"
+                    onClick={() => void ask(starter.question)}
+                    disabled={loading}
+                  >
+                    <span className="ask-starter-kicker">{starter.kicker}</span>
+                    <span className="ask-starter-question">{starter.question}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!conversationLoading && (olderMessages.hasMore || olderMessagesLoading || olderMessagesError) ? (
+            <div className="message-pagination" aria-live="polite">
+              {olderMessages.hasMore ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-message-pagination="older"
+                  disabled={olderMessagesLoading}
+                  aria-busy={olderMessagesLoading || undefined}
+                  onClick={() => void loadOlderMessages()}
+                >
+                  {olderMessagesLoading ? 'Loading older messages…' : 'Load older messages'}
+                </Button>
+              ) : null}
+              {olderMessagesError ? (
+                <p className="message-pagination-error" role="alert">
+                  {olderMessagesError}
+                </p>
+              ) : olderMessagesLoading ? (
+                <span className="sr-only" role="status">
+                  Loading older messages
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!conversationLoading &&
+            messages.map((message, index) => {
+              // The memoized parse, so the object handed to the cards below keeps
+              // its identity between renders and the charts are not rebuilt.
+              const response = parsedResponses.get(message.id);
+              // This answer's own feedback, looked up by the ANSWER's id rather
+              // than the message's -- they are not always the same value -- so no
+              // other answer's rating, comment or saved flag can appear here.
+              // Only an answer has one: a plan and a clarification are not turns
+              // anybody rates, and the two carry no id to rate them by.
+              const rated =
+                response && response.type !== 'plan' && response.type !== 'clarification'
+                  ? feedback[response.id]
+                  : undefined;
+              const entry = rated ?? emptyFeedback;
+              const previousResponse = index > 0 ? parsedResponses.get(messages[index - 1].id) : undefined;
+              const displayedMessage =
+                message.role === 'user' && message.content === PLAN_APPROVAL_LABEL && previousResponse?.type === 'plan'
+                  ? {
+                      ...message,
+                      content: `${previousResponse.plan.question}\n\n${PLAN_APPROVAL_LABEL}`,
+                    }
+                  : message;
+              return (
+                <div
+                  key={message.id}
+                  id={`conversation-message-${message.id}`}
+                  className="conversation-message"
+                  tabIndex={-1}
+                >
+                  <MessageItem
+                    message={displayedMessage}
+                    response={response}
+                    asker={asker}
+                    canOpenUser={adminSharedRail}
+                    loading={loading}
+                    resolved={index < messages.length - 1}
+                    approved={messages[index + 1]?.content === PLAN_APPROVAL_LABEL}
+                    question={index > 0 && messages[index - 1].role === 'user' ? messages[index - 1].content : ''}
+                    feedback={entry}
+                    showFeedback={(index === lastAssistantIndex && !loading) || Boolean(entry.saved)}
+                    showRunProcess={showAdminTrace}
+                    onAsk={askRow}
+                    onFeedbackChange={changeFeedback}
+                    onSaveFeedback={rateRow}
+                  />
+                </div>
+              );
+            })}
+
+          {(loading || conversationLoading) && (
+            <Card className="answer-card">
+              <CardContent className={workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'}>
+                {/* The working animation is for a run that is actually running.
+                  Restoring a saved conversation from Lakebase is not the agent
+                  working -- nothing is being asked and nothing is being read --
+                  so that case keeps the still mark it always had. Miming a run
+                  over a database read is the same invention as a progress bar
+                  that fills on a timer. */}
+                {conversationLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="ask-loading-mark">
+                      <AstrolabeMark size={26} />
+                    </div>
+                    <div>
+                      <p className="font-medium">Loading conversation</p>
+                      <p className="text-sm text-muted-foreground">
+                        Restoring the saved answer and trace from Lakebase.
+                      </p>
+                    </div>
+                  </div>
+                ) : workingSeat === 'splash' ? (
+                  <>
+                    <AdaptLoadingAnimation variant="ask" label={workingLabel} elapsed={elapsed} />
+                  </>
+                ) : (
+                  <AdaptLoader variant="compact" label={WORKING_STAGE_LABEL} className="answer-preparing-header" />
+                )}
+                {/* Still indeterminate, and still for the original reason: the run
+                  reports each step on finishing it, so the client knows what has
+                  happened but never how much is left -- the agent takes as many
+                  steps as the question needs. A percentage would be the same
+                  invention as the four hardcoded stage names this replaced, which
+                  ticked to full in 2.6 seconds and froze for the remaining 23. */}
+                {!conversationLoading && <Progress value={null} aria-label="Working on your question" />}
+                {/* The run, said from what has been observed of it: the request
+                  going out, then each step with the arguments it was actually
+                  given. The skeletons this replaces stood in for content that
+                  was fourteen seconds away, under a sentence promising each
+                  step "as it finishes" -- which is not what the endpoint does.
+                  See live-progress.ts. */}
+                {!conversationLoading ? (
+                  <div className={workingSeat === 'splash' ? 'ast-splash-run' : undefined}>
+                    <LiveProgress
+                      stages={liveStages}
+                      openedAt={streamOpenedAt}
+                      lastStageAt={lastStageAt}
+                      now={now}
+                      question={askedQuestion}
+                      elapsedMs={railElapsedMs}
+                    />
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
+
+          {askUnavailable && <UnavailablePanel notice={askUnavailable} />}
+          {displayedStopNotice && (
+            <Alert>
+              <AlertDescription>{displayedStopNotice}</AlertDescription>
+            </Alert>
+          )}
+          {error && (
+            <Alert>
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div ref={transcriptEndRef} aria-hidden="true" />
+        </section>
+        <form
+          ref={composerRef}
+          className="composer"
+          // The submit is what prompts a password manager to offer to save, so
+          // the form is opted out as well as the field inside it. These are
+          // attributes only; the Return-to-send wiring on the Textarea below is
+          // untouched by them.
+          {...PASSWORD_MANAGER_OPT_OUT}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (loading) void stopCurrentAsk();
+            else void ask();
+          }}
+        >
+          {/* The inspector's two load-bearing parts, for the widths where there is
+              no inspector. composer.css hides this above 1180px, where the column
+              itself is on screen.
+              Drawn from the first paint now, rather than only once there was a run
+              to report. It was gated on one because the pill could say nothing an
+              empty transcript did not already say -- "Ready" meant the page had
+              rendered. It now reports whether the agent endpoint answered, which
+              is a fact about the deployment that an empty transcript says nothing
+              about, and withholding it until after the first question would mean
+              the one moment it is worth reading is the one moment it is missing. */}
+          <div className="trace-summary">
+            <RunStatusPill status={runStatus} />
+            {answer &&
+              (answer.runStored === false ? (
+                <span className="trace-summary-note" role="status">
+                  {RUN_NOT_STORED}
+                </span>
+              ) : showAdminTrace ? (
+                <Link className="trace-summary-link" to={`/runs?run=${encodeURIComponent(answer.id)}`}>
+                  Explore full run <Workflow aria-hidden="true" />
+                </Link>
+              ) : null)}
+          </div>
+          <ComposerBudgetStatus
+            status={budgetStatus}
+            admin={identity.role === 'admin' || identity.role === 'super_admin'}
+            busy={budgetApprovalBusy}
+            error={budgetApprovalError}
+            onApprove={() => void approveBudgetOverage()}
+          />
+          {attachmentsUnreadable && (
+            <p className="composer-notice" role="status">
+              Any documents attached to this conversation could not be read just now, so none are listed. Whatever was
+              attached is still attached, and still reaches the agent.
+            </p>
+          )}
+          {attachments.length > 0 && (
+            <div className="attachment-list" role="region" aria-label="Attached context" tabIndex={0}>
+              {attachments.map((attachment) => (
+                <div
+                  className={`attachment-chip ${attachment.status}`}
+                  key={attachment.id}
+                  role={attachment.status === 'error' ? 'alert' : undefined}
+                >
+                  {attachment.status === 'parsing' ? (
+                    <AdaptLoader
+                      variant="inline"
+                      label="Parsing attachment"
+                      announce={false}
+                      className="attachment-progress-loader"
+                    />
+                  ) : attachment.status === 'error' ? (
+                    <CircleAlert className="size-4" />
+                  ) : (
+                    <FileText className="size-4" />
+                  )}
+                  <span>
+                    <strong title={attachment.filename}>{attachment.filename}</strong>
+                    <small>
+                      {attachment.status === 'parsing'
+                        ? parsingLabel(attachment, now)
+                        : attachment.status === 'error'
+                          ? attachment.error
+                          : `${Math.max(1, Math.round(attachment.size_bytes / 1024))} KB · Ready`}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${attachment.filename}`}
+                    onClick={() => void removeAttachment(attachment)}
+                  >
+                    <X />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Ask ADAPT about your accounts, titles or storefronts…"
+            rows={2}
+            disabled={conversationLoading}
+            // A textarea does not submit its form implicitly, so Return has to be
+            // wired by hand. Default is prevented for every plain Return, including
+            // one this cannot act on, so a keypress meant as "send" never leaves a
+            // stray newline in the box. See submit-on-enter.ts for the IME clause.
+            onKeyDown={(event) => {
+              if (!submitsOnEnter(event)) return;
+              event.preventDefault();
+              if (!canAsk) return;
+              void ask();
+            }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            onChange={(event) => void uploadAttachments(event.target.files)}
+          />
+          <div className="composer-actions">
+            {/* `aria-busy` is both halves of the working state: it is what a screen
+                reader is told and, through composer.css, what is painted. Two
+                sources -- an attribute and a class -- is how a control ends up
+                looking busy to one reader and idle to the other. The hover, press
+                and focus states are the stylesheet's as well, because the ghost
+                variant's own hover is `bg-accent`, and --accent is the same wash
+                this strip is painted in: it has been drawing the strip's colour
+                onto the strip for as long as the strip has existed. */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="composer-attach"
+              aria-busy={attachControl.pending}
+              disabled={attachControl.disabled}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <AdaptBusyButtonContent
+                busy={attachControl.pending}
+                label="Attach context"
+                busyLabel={attachControl.label}
+                icon={<Paperclip />}
+              />
+            </Button>
+            {attachments.length > 0 && ( // Separate from New conversation on purpose: dropping the documents
+              // and dropping the thread are different intentions, and coupling them
+              // costs the user the conversation to get rid of one stale PDF.
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={clearingDocs || loading || conversationLoading}
+                onClick={() => void clearDocs()}
+              >
+                <AdaptBusyButtonContent
+                  busy={clearingDocs}
+                  label={`Clear docs (${attachments.length})`}
+                  busyLabel="Clearing…"
+                  icon={<Trash2 />}
+                />
+              </Button>
+            )}
+            {/* The size and the colour are the strip's, in composer.css, rather
+                than utilities here: this span is also the flexible spacer that puts
+                the submit button hard right, and the two facts belong together.
+
+                The mark leads the caveat rather than sitting elsewhere on the strip
+                because the sentence names the agent in its first word, and the
+                drawing and the name it belongs to read as one thing only while they
+                are adjacent. Same seating as `.ai-note` under an answer, which is
+                the same sentence said about a result instead of about the field.
+                Decorative: the adjacent sentence names ADAPT, so announcing the
+                ADAPT mark again would read the name twice. */}
+            <span>
+              <AstrolabeMark size={13} />
+              ADAPT can make mistakes. Sources and caveats are included.
+            </span>
+            {/* "Ask ADAPT" is the composer button's name, and
+                while a run is in flight the button becomes the in-button loader:
+                the 14px mark, all white on the blue fill, and the label
+                "Running" (loading-suite.md, Seatings). The lucide sparkle it
+                carried is gone with the rest of the glyphs that stood in for the
+                agent -- the mark is the agent. */}
+            <Button type="submit" disabled={loading ? false : !canAsk}>
+              {loading ? 'Stop' : parsing ? 'Reading files…' : 'Ask ADAPT'}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* The insight rail is permanent business context for the governed space. */}
+      <aside className="trace-inspector insight-rail" aria-label="Insights">
+        <div className="insight-rail-head">
+          <div>
+            <p className="ast-eyebrow">Steam Sales &amp; Analytics</p>
+            <h3 className="insight-rail-title">{GENIE_SPACE_LABEL}</h3>
+          </div>
+        </div>
+
+        {railSections.dataInScope ? (
+          <section className="insight-sec">
+            <p className="insight-sec-title">
+              <Database aria-hidden="true" /> Data in scope
+            </p>
+            {/* The real Unity Catalog tables this deployment tracks, off the same
+                preflight report the status pill reads. The dot is the table's
+                reachability; a blocked or unchecked table says so in words too,
+                because a dot alone is a claim carried by colour. */}
+            {scopeLoading ? (
+              <p className="insight-note">Checking the tables in scope…</p>
+            ) : scopeTables.length > 0 ? (
+              scopeTables.map((table) => (
+                <div className="insight-table" key={table.name} title={table.name}>
+                  <span className={`insight-dot tone-${tableStatusTone(table.status)}`} aria-hidden="true" />
+                  <Suspense
+                    fallback={
+                      <span className="insight-table-link">
+                        <ExternalLink aria-hidden="true" />
+                        <code>{table.display.split('.').at(-1)}</code>
+                      </span>
+                    }
+                  >
+                    <VisitInDatabricks name={table.name} className="insight-table-link">
+                      <code>{table.display.split('.').at(-1)}</code>
+                    </VisitInDatabricks>
+                  </Suspense>
+                  {table.status !== 'ok' && (
+                    <span className="insight-rows">{table.status === 'failed' ? 'blocked' : 'not checked'}</span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="insight-note">No tables reported in scope.</p>
+            )}
+            <Link className="insight-connections-link" to="/connections">
+              View all connections
+            </Link>
+          </section>
+        ) : null}
+
+        {railSections.watchlist ? (
+          <section className="insight-sec">
+            <div className="insight-sec-head">
+              <p className="insight-sec-title">Watchlist</p>
+              {watchlist && 'sourceTable' in watchlist && watchlist.sourceTable ? (
+                <Suspense fallback={null}>
+                  <VisitInDatabricks name={watchlist.sourceTable} className="insight-watch-source">
+                    Source table
+                  </VisitInDatabricks>
+                </Suspense>
+              ) : null}
+            </div>
+            {!watchlist ? <p className="insight-note">Reading sales trends…</p> : null}
+            {watchlist && watchlist.status !== 'ready' ? (
+              <p className="insight-note" role={watchlist.status === 'unavailable' ? 'alert' : undefined}>
+                {watchlist.detail}
+              </p>
+            ) : null}
+            {watchlist?.status === 'ready'
+              ? watchlist.trends.map((item) => {
+                  const up = item.trendPercent !== null && item.trendPercent >= 0;
+                  const delta =
+                    item.trendPercent === null
+                      ? 'No prior-period baseline'
+                      : `${item.trendPercent >= 0 ? '+' : '−'}${Math.abs(item.trendPercent).toFixed(1)}%`;
+                  return (
+                    <div className="insight-watch" key={item.title}>
+                      <span className="insight-watch-name">{item.title}</span>
+                      <span
+                        className={`insight-watch-val ast-num ${item.trendPercent === null ? '' : up ? 'up' : 'dn'}`}
+                        title={WATCHLIST_METRIC_DETAIL}
+                        aria-label={
+                          item.trendPercent === null
+                            ? `${item.title}: no prior-period baseline for ${WATCHLIST_METRIC_LABEL}`
+                            : `${item.title}: ${delta} ${WATCHLIST_METRIC_LABEL}`
+                        }
+                      >
+                        {item.trendPercent === null ? null : up ? (
+                          <TrendingUp aria-hidden="true" />
+                        ) : (
+                          <TrendingDown aria-hidden="true" />
+                        )}{' '}
+                        {delta}
+                      </span>
+                    </div>
+                  );
+                })
+              : null}
+            {watchlist?.status === 'ready' ? (
+              <p className="insight-watch-meta">
+                {WATCHLIST_METRIC_DETAIL} · through <span className="ast-num">{watchlist.asOfDate}</span>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {railSections.answerConfidence ? (
+          <section className="insight-sec insight-confidence">
+            <p className="insight-sec-title">Answer confidence</p>
+            {/* Read off the preflight report's own checks and counts -- endpoint
+                reachability, how many tracked tables are reachable, the freshest
+                content timestamp any of them reported, and who the checks ran as.
+                A signal the report did not carry is a line this does not draw. */}
+            {scopeLoading ? (
+              <p className="insight-note">Checking data sources…</p>
+            ) : scopeConfidence.length > 0 ? (
+              scopeConfidence.map((line) => (
+                <div className="insight-trust" key={line.text}>
+                  {line.tone === 'ok' ? (
+                    <ShieldCheck className="insight-trust-ok" aria-hidden="true" />
+                  ) : (
+                    <CircleAlert
+                      className={line.tone === 'neg' ? 'insight-trust-neg' : 'insight-trust-warn'}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span>{line.text}</span>
+                </div>
+              ))
+            ) : (
+              <p className="insight-note">Confidence unavailable — the preflight report could not be read.</p>
+            )}
+          </section>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
+/**
+ * One row of the transcript: a question the reader asked, or whatever the agent
+ * answered it with.
+ *
+ * MEMOIZED, AND THE CLOCK IS THE REASON. While a run is in flight the page ticks
+ * `now` once a second so the elapsed counters move. Every one of those ticks used
+ * to re-render the whole transcript with it -- every answer card, its plan card,
+ * its sources, its timeline and its charts -- to change a number that is not in
+ * any of them. On a long thread on a mid-range machine that is the most
+ * expensive thing this page does while doing nothing.
+ *
+ * WHAT MAKES THE MEMO ACTUALLY WORK is that none of these props is rebuilt per
+ * render. `message` and `response` come from state and a `useMemo`; `asker` is
+ * the stable address string; `feedback` is either the entry from state or one
+ * shared empty object; and the three callbacks are stable for the life of the page
+ * -- see `askRow` and its neighbours, which exist for that reason alone. A single
+ * inline arrow function in the list above would defeat every line of this.
+ *
+ * The JSX below is the transcript's, moved rather than rewritten: it is the same
+ * markup, the same order of cases, and the same comments, so what a reader sees
+ * is unchanged.
+ */
+const MessageItem = memo(function MessageItem({
+  message,
+  response,
+  asker,
+  canOpenUser,
+  loading,
+  resolved,
+  approved,
+  question,
+  feedback,
+  showFeedback,
+  showRunProcess,
+  onAsk,
+  onFeedbackChange,
+  onSaveFeedback,
+}: {
+  message: ConversationMessage;
+  /** Undefined where the stored envelope could not be parsed. */
+  response: AgentResponse | undefined;
+  asker: string;
+  canOpenUser: boolean;
+  loading: boolean;
+  /** Whether a later turn has superseded this one's question or plan. */
+  resolved: boolean;
+  /** Whether the turn that superseded a plan was the reader approving it. */
+  approved: boolean;
+  /** The question this answered, or '' where the row above is not one. */
+  question: string;
+  feedback: FeedbackEntry;
+  showFeedback: boolean;
+  showRunProcess: boolean;
+  onAsk: (question: string, approval?: { planId: string; label: string }) => void;
+  onFeedbackChange: (answerId: string, changes: Partial<FeedbackEntry>) => void;
+  onSaveFeedback: (
+    answerId: string,
+    sentiment: FeedbackDirection,
+    options?: { keepCommentOpen?: boolean }
+  ) => Promise<void>;
+}) {
+  if (message.role === 'user') {
+    return (
+      <QuestionAttributionBubble
+        question={message.content}
+        asker={asker}
+        canOpenUser={canOpenUser}
+        className="user-message"
+      />
+    );
+  }
+  if (!response) {
+    return (
+      <StoredAnswerBoundary
+        rawContent={message.content}
+        feedback={feedback}
+        onFeedbackChange={() => undefined}
+        saveFeedback={() => Promise.resolve()}
+        showFeedback={false}
+        showRunProcess={showRunProcess}
+      />
+    );
+  }
+  if (response.type === 'clarification') {
+    return (
+      <ClarificationCard
+        clarification={response.clarification}
+        loading={loading}
+        resolved={resolved}
+        onAnswer={(reply) => onAsk(reply)}
+      />
+    );
+  }
+  if (response.type === 'plan') {
+    return (
+      <PlanCard
+        plan={response.plan}
+        loading={loading}
+        resolved={resolved}
+        approved={approved}
+        onApprove={() =>
+          onAsk(response.plan.question, {
+            planId: response.plan.id,
+            label: PLAN_APPROVAL_LABEL,
+          })
+        }
+        // A revision is a question, so it is asked like one: no approval
+        // attached, so nothing runs and the agent comes back with a new plan.
+        // It used to drop the plan's original question into the composer and
+        // focus it, which left the reader looking at the words they had already
+        // typed with nothing to say what had happened. The editor is on the
+        // card now; see PlanCard and plan-revision.ts.
+        onRevise={(request) => onAsk(request)}
+      />
+    );
+  }
+  return (
+    <StoredAnswerBoundary
+      // The message id reaches the DOM as well as being React's key one level
+      // up. React needs the key to tell the rows apart between renders; the
+      // document needs an id so a link from a trace can name one answer and
+      // this page can find it. A key alone never reaches the DOM.
+      id={answerRowId(message.id)}
+      preferenceKey={message.id}
+      answer={response}
+      rawContent={message.content}
+      question={question}
+      feedback={feedback}
+      onFeedbackChange={(changes) => onFeedbackChange(response.id, changes)}
+      saveFeedback={(sentiment, options) => onSaveFeedback(response.id, sentiment, options)}
+      showFeedback={showFeedback}
+      showRunProcess={showRunProcess}
+    />
+  );
+});
+
+/**
+ * The agent asking for something it needs, with the options it can offer.
+ */
+function ClarificationCard({
+  clarification,
+  loading,
+  resolved,
+  onAnswer,
+}: {
+  clarification: Clarification;
+  loading: boolean;
+  resolved: boolean;
+  onAnswer: (reply: string) => void;
+}) {
+  const options = clarification.options ?? [];
+  return (
+    <Card className={`plan-card ${resolved ? 'resolved' : ''}`}>
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          {/* The agent's mark, not a question mark: the same reasoning as the plan
+              card. The badge beside it says whether the question is still open, and
+              a mark that changes per turn stops being an identity.
+              This is the ADAPT mark rather than a generic robot, so a
+              clarification is signed with the same drawing the header carries. */}
+          <div className="agent-avatar">
+            <AstrolabeMark size={32} />
+          </div>
+          <div className="space-y-1">
+            <Badge variant="outline">{resolved ? 'Question answered' : 'Needs one detail'}</Badge>
+            <CardTitle className="answer-takeaway">{clarification.question}</CardTitle>
+            {clarification.reason && (
+              <CardDescription>
+                <EntityText text={clarification.reason} sources={[]} />
+              </CardDescription>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {options.length > 0 && (
+          <div className="plan-steps">
+            {options.map((option, index) => (
+              <button
+                type="button"
+                className="plan-step"
+                key={option}
+                onClick={() => onAnswer(option)}
+                disabled={loading || resolved}
+              >
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{option}</strong>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        <Alert>
+          <ShieldCheck />
+          <AlertDescription>
+            {resolved ? 'The analysis below continued from your reply.' : 'Nothing was queried for this turn.'}
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
+  );
+}

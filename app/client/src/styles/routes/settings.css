@@ -1,0 +1,6 @@
+/* The lazy modal owns all of its panels, responsive geometry and theme paint. */
+@import '../settings.css';
+@import '../egress.css';
+@import '../responsive-settings.css';
+@import '../dark-settings.css';
+@import '../density-settings.css';

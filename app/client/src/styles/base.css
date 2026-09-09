@@ -1,0 +1,475 @@
+* {
+  box-sizing: border-box;
+}
+/*
+ * WHERE A PROGRAMMATIC SCROLL IS ALLOWED TO STOP.
+ *
+ * The document is the scroller on every page in this app: `.ask-layout`'s two
+ * side columns are `position: sticky` and the header is `sticky top-0`, so the
+ * window scrolls and these two declarations are what the browser measures
+ * `scrollIntoView` against.
+ *
+ * Two offsets existed as bugs before they existed as rules, and both were read
+ * as the answer card "clipping behind" something:
+ *
+ *   - HomePage scrolls each new answer into view with `block: 'start'`, which
+ *     aligns the card's top edge with the top of the scrollport. The scrollport
+ *     starts behind the 52px header, so every answer opened with its provenance
+ *     chip and the first line of its takeaway hidden under the nav tabs. Not
+ *     clipped -- covered, and by a bar the reader cannot scroll away.
+ *   - The same effect ends a turn with `block: 'end'`. The composer is
+ *     content-sized, so its measured bottom clearance is scoped to Ask's
+ *     `.transcript-end` rather than declared on this document-wide scroller.
+ *
+ * Padding the scrollport rather than adding `scroll-margin` to each target: the
+ * top offset is a fact about page chrome, not about each card. The composer's
+ * offset is instead a fact about one route and stays on that route.
+ */
+html {
+  scroll-padding-top: var(--app-header-h);
+  /*
+   * THE DOCUMENT ROOT RESERVES THE BAR. Opening a filter menu that peeks past
+   * the fold -- or any other overflow that was not there a moment ago -- used
+   * to summon a classic scrollbar, shrink the viewport, and shove the centered
+   * page and the fixed starfield left. `stable` keeps that strip whether the
+   * page currently overflows or not, so the thumb appearing fills a hole that
+   * was already there.
+   *
+   * This is the ROOT only. The thirty inner scrollers stay without a gutter;
+   * see the note on `*` below. Scrollbars themselves stay visible: this does
+   * not hide them, it only stops them moving the layout.
+   */
+  scrollbar-gutter: stable;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  /* The page was two soft radial pools over a diagonal gradient, so that a screen
+     with no controls on it still had some depth. DuBois gets its depth from
+     hairlines and from the wash on panel heads instead, and a gradient underneath
+     is what made every card above it want to be translucent. Flat white, and the
+     cards that sit on it are solid. */
+  background: var(--background);
+  color: var(--foreground);
+  /* Both stated for the first time. The app has always drawn in DM Sans by
+     inheritance from AppKit's own base layer and at whatever size that layer
+     chose; 13px is the design's body size and this is the only place it is set. */
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+}
+/*
+ * A PARAGRAPH FOLLOWS ITS TYPE SIZE; it does not inherit AppKit's fixed line
+ * box.
+ *
+ * AppKit is the first import in index.css and puts `p { line-height: 1.75rem }`
+ * inside `@layer base`. That is 28px even when the paragraph is the app's 11px
+ * caption or 12px explanatory copy, which is why wrapped answer steps and
+ * Settings descriptions looked double-spaced. This rule is intentionally
+ * unlayered. Normal declarations outside a cascade layer outrank normal
+ * declarations inside one, so it defeats the library default without a
+ * specificity contest; base.css is also imported after both token files, so the
+ * value exists before this rule reads it.
+ *
+ * This is only the proportional-prose default. A surface may restate another
+ * line height when its content needs one -- notably the mono SQL and payload
+ * blocks, whose extra leading separates clauses and recorded lines.
+ */
+p {
+  line-height: var(--ast-lh-body);
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+svg {
+  flex: none;
+}
+
+/* A neutral tool-call mark shared by Run Explorer, Answer and Monitoring.
+   Product tools keep their own artwork; this wrench only accompanies generic
+   measurement labels. Its fixed box keeps counts and headings from shifting. */
+.tool-calls-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  color: inherit;
+  vertical-align: text-bottom;
+}
+.tool-calls-label > svg {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  stroke-width: 1.8;
+}
+.tool-calls-label > span {
+  min-width: 0;
+}
+
+/*
+ * ONE SCROLLBAR TREATMENT FOR THE WHOLE APP: thin, and invisible until the
+ * reader is in the thing that scrolls.
+ *
+ * This lived on `.conversation-rail` alone, which is why the Ask rail was quiet
+ * and every other scroller in the app was not. There are around thirty of them
+ * -- the Run Explorer's run list, the trace inspector, the settings modal, the
+ * wide tables, the payload blocks -- and each one painted the platform's grey
+ * slab. The Run Explorer's was the loudest because its list is sticky and full
+ * height, so the bar was a permanent dark stripe down the middle of the page,
+ * next to the cards it was scrolling and competing with them for the eye.
+ * Nothing about it is information: the rows already say there are more rows.
+ *
+ * THE DEFAULT IS ON `*` AND NOT ON `:root`, and that is the whole of why this
+ * works. `scrollbar-color` is an INHERITED property, so declaring the
+ * transparent default once at the root and revealing it with `*:hover` reveals
+ * every bar on the page at once: the pointer being anywhere in the window makes
+ * `html` hovered, and the visible colour then inherits down to scrollers the
+ * pointer is nowhere near. Declaring the default on every element instead means
+ * a scroller that is not itself hovered has its own value to fall back on and
+ * inherits nothing, so only the scroller under the pointer lights up.
+ *
+ * Hover is also, on this platform, exactly the "actively scrolling" case: a
+ * wheel or trackpad scroll requires the pointer to be over the thing scrolling.
+ * `:focus-within` covers the keyboard reader who never hovers.
+ *
+ * `--db-line-strong` rather than the hairline `--db-line`: most of these
+ * scrollers are on `--ast-white`, and a hairline thumb there is #ebebeb on
+ * #ffffff -- a bar that is technically shown and practically invisible, which is
+ * a hover affordance that does not afford anything. The control-border grey is
+ * the lightest token that reads against white, and it is still a long way from
+ * the platform's slab.
+ *
+ * NO `scrollbar-gutter` ON `*`. Reserving a strip on every scroller in the app
+ * would move the contents of all thirty. The document root already reserves
+ * its own strip, above, so a page-level bar cannot shove the layout. The one
+ * inner place a gutter is reserved is the Ask rail, which pays for it out of
+ * its own padding; see the note there.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover,
+*:focus-within {
+  scrollbar-color: var(--db-line-strong) transparent;
+}
+/*
+ * The same states again for WebKit, which is a duplicate only where the standard
+ * properties above are unimplemented: Chrome ignores these pseudo-elements
+ * entirely once `scrollbar-color` or `scrollbar-width` is set on the element, so
+ * this block is what older Safari reads and nothing else. It is also the only
+ * way to ask for a specific size -- `thin` is the platform's choice, 6px is
+ * ours, and `height` is the horizontal bar's `width`, which the app needs
+ * because a good half of these scrollers are wide tables rather than tall lists.
+ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background: var(--db-line-strong);
+}
+
+/* One compact, opaque dropdown language across pages, rails, and modals. */
+.app-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 9px 0 10px;
+  gap: 8px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--ast-text-long);
+  font-size: var(--ast-fs-12);
+  font-weight: 400;
+  line-height: 1.25;
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out,
+    color 120ms ease-out;
+}
+.app-select-trigger:hover:not(:disabled),
+.app-select-trigger[data-state='open']:not(:disabled) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--background) 94%, var(--primary));
+  color: var(--ast-text);
+}
+.app-select-trigger[data-state='open']:not(:disabled) {
+  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+}
+.app-select-trigger:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 36%, transparent);
+}
+.app-select-trigger:disabled,
+.app-select-trigger[data-disabled] {
+  color: var(--muted-foreground);
+  background: var(--ast-fill-band);
+  cursor: not-allowed;
+  opacity: 1;
+}
+.app-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-select-trigger > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--ast-text-secondary);
+  transition:
+    color 120ms ease-out,
+    transform 120ms ease-out;
+}
+.app-select-trigger:is(:hover, :focus-visible, [data-state='open']) > svg {
+  color: var(--primary);
+}
+.app-select-trigger[data-state='open'] > svg {
+  transform: rotate(180deg);
+}
+.app-multiselect {
+  min-width: 0;
+}
+.app-multiselect-trigger {
+  width: 100%;
+}
+/*
+ * EVERY DROPDOWN IN THE APP, LIFTED ABOVE EVERY SURFACE THAT CAN HOLD ONE.
+ *
+ * AppKit renders Popover content into its resolved portal container: normally
+ * `document.body`, and the active dialog overlay when a modal provides one.
+ * The app's own ladder runs well past 50 -- the composer is 20, the sticky
+ * chrome 40, the first-open panel 60, the Settings modal 80 -- so a dropdown
+ * opened inside Settings was painting UNDERNEATH the modal that opened it. The
+ * report was that the Roles pane's role control "doesn't work when clicked,
+ * causes stutter, dead end": the menu opened where it could not be seen and
+ * there was nothing to click. AppSelect now uses non-modal Popover, so it also
+ * never locks the document while solving this stacking problem.
+ *
+ * THE WRAPPER AND NOT THE CONTENT. `[data-radix-popper-content-wrapper]` is the
+ * positioned div Radix owns; it carries a `transform`, which makes it a stacking
+ * context, so a `z-index` on the content inside it is resolved against the
+ * wrapper and cannot lift the menu out from under anything. The wrapper is the
+ * only element in the stack that can.
+ *
+ * 90 IS A POSITION IN A LADDER, not a big number. It clears the Settings modal
+ * at 80, which is the highest surface a dropdown is opened from, and it stays
+ * under the access gate and the account menu at 100 -- neither of which contains
+ * one, and both of which are meant to be the last thing on screen. A surface
+ * added above 90 that holds a dropdown moves this, and the comment in
+ * settings.css by the overlay's own z-index says so.
+ */
+[data-radix-popper-content-wrapper] {
+  z-index: var(--ast-layer-menu);
+  /*
+   * Overlay, not layout. Radix sizes this wrapper to the longest option via
+   * an inline `min-width: max-content`. A long conversation title then
+   * widens the document, shoves a centred page, and leaves a gap after
+   * Built on Databricks. Cap it to the viewport; the menu still hangs as a
+   * popover. `min-width` has to be overridden because when it exceeds
+   * `max-width`, min wins.
+   */
+  min-width: 0 !important;
+  max-width: calc(100vw - 24px) !important;
+}
+.app-menu-content {
+  isolation: isolate;
+  max-width: min(24rem, calc(100vw - 24px));
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  background-image: none;
+  color: var(--ast-text-long);
+  font-size: var(--ast-fs-12);
+  line-height: 1.25;
+  opacity: 1;
+  backdrop-filter: none;
+  box-shadow: var(--shadow-lg);
+}
+.app-select-content {
+  /*
+   * A filter's trigger is deliberately concise; its menu is not forced into
+   * that narrow measure. Give identifiers a useful reading width, never make
+   * the menu narrower than its trigger, and yield to the viewport at the edge.
+   */
+  width: min(max(var(--radix-popover-trigger-width), 18rem), 24rem, calc(100vw - 24px));
+  min-width: min(var(--radix-popover-trigger-width), calc(100vw - 24px));
+  max-width: min(24rem, calc(100vw - 24px));
+  max-height: min(320px, var(--radix-popover-content-available-height));
+  padding: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.app-action-menu-content {
+  max-height: min(320px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.app-menu-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.app-menu-option:is(:hover, :focus-visible),
+.app-menu-option[data-highlighted] {
+  outline: none;
+  background: var(--db-hover-tint);
+  color: var(--ast-text);
+}
+.app-menu-option[data-state='checked'] {
+  background: var(--db-selected-tint);
+  color: var(--ast-info-text);
+  font-weight: 500;
+}
+.app-menu-option:disabled {
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.app-menu-check {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+  opacity: 0;
+}
+.app-menu-option[data-state='checked'] .app-menu-check {
+  opacity: 1;
+}
+.app-menu-check > svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.25;
+}
+.app-menu-option-label {
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+}
+.app-menu-option-count {
+  flex: none;
+  color: var(--ast-text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+@media (forced-colors: active) {
+  .app-select-trigger:is(:hover, :focus-visible, [data-state='open']) {
+    border-color: Highlight;
+    box-shadow: 0 0 0 1px Highlight;
+  }
+  .app-menu-option:is(:hover, :focus-visible, [data-highlighted], [data-state='checked']) {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+  .app-menu-check {
+    color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-select-trigger,
+  .app-select-trigger > svg {
+    transition: none;
+  }
+}
+
+/* Every binary control says its state in words as well as thumb position. */
+.state-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.state-switch > .ast-pill {
+  min-width: 48px;
+  justify-content: center;
+}
+
+/* Shared date primitives for compact facts across route cards. The neutral
+   pill family owns theme color; these rules only keep the semantic `<time>`
+   content and a range's single separator together without clipping. */
+.date-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.date-badge > svg,
+.date-range-separator {
+  flex: none;
+}
+
+.date-range-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.date-range-separator {
+  color: var(--muted-foreground);
+}
+/*
+ * Keyboard focus is an action, so it is blue, and it is the same blue everywhere.
+ * AppKit draws its own ring from --ring at partial alpha, which on a white shell was
+ * faint enough to lose; this states the ring outright, solid, which is also what the
+ * handoff asks for. #2272B4 measures 5.08:1 on white, comfortably past the 3:1 a
+ * focus indicator has to clear, and it is the same colour as the thing being focused
+ * would use if it were pressed.
+ */
+:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}

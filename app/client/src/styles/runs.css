@@ -1,0 +1,1408 @@
+/*
+ * Run Explorer.
+ *
+ * Two columns: a 340px list of runs and the selected run read four ways. The
+ * list is the navigation. The right column is the document -- tabs plus the
+ * view they switch -- and it is a real pane: the same hairline, radius and
+ * `--ast-pane` sheet the answer card uses. Leaving that column unbordered is
+ * what made Overview, Agent map, Timeline and Details read as a floating
+ * tint with only a line under the tab labels.
+ *
+ * The Gantt and the roll-up inside the Timeline tab belong to timeline.css.
+ * Nothing here reaches into them.
+ */
+
+/*
+ * The page heading, at the handoff's size rather than the shared one.
+ *
+ * page-shell.css still asks for clamp(28px, 4vw, 38px), which is two rungs
+ * above the 22px the DuBois scale gives an h2 and is the last of the old
+ * display sizes left on this page. Scoped rather than changed there, because
+ * that file is shared with three other pages being restyled in parallel.
+ */
+.run-explorer .page-heading h2 {
+  font-size: var(--text-h-page);
+  letter-spacing: -0.01em;
+  margin: 0 0 2px;
+}
+.run-explorer {
+  /*
+   * One block-size contract for BOTH top-level panes.
+   *
+   * The pane starts after the app header, 56px page inset, title and 24px page
+   * gap. Subtracting the header and another 8px from one dynamic viewport makes
+   * its bottom land about 100px past the first fold on an ordinary desktop.
+   * 760px keeps a useful reading surface on shorter desktop windows; 1120px
+   * stops a very tall display turning either scroll owner into an unbounded
+   * column. The narrow layout below removes this contract and returns both
+   * panes to page flow.
+   */
+  --run-explorer-pane-block-size: var(--workspace-pane-block-size);
+  /* Recorded result tables benefit from the available desktop width. The shell
+     still contracts fluidly below this cap and the narrow breakpoint stacks the
+     run list above the detail. */
+  max-width: 1760px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
+  grid-template-rows: auto auto;
+  overflow: visible;
+  /*
+   * Restate the shell's top air so this page cannot lose it to a later
+   * shorthand. The title sat flush under the nav; 56px is the room that
+   * actually shows above "Run Explorer".
+   */
+  padding-top: 56px;
+  padding-bottom: 24px;
+}
+/* There was an eyebrow above the h2 here, reading PROGRESSIVE TRACE DISCLOSURE,
+   with a grid wrapper to close the page gap under it. It named the mechanism the
+   page is built on rather than the page, which is the one thing an eyebrow may
+   not do -- and the heading's own description already says what is on the screen.
+   The wrapper went with it: PageHeading is the only child now. */
+/* No border. It used to be a bordered pill, which read as something to press
+   next to a switch that already is. */
+.advanced-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 4px;
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+/* The copy beside a truncated id. Sized to the line it sits on rather than to a
+   button's own minimum, because a row that is mostly identifier has no room for
+   a control with a label. */
+.copy-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-sm);
+  color: var(--db-slate);
+  background: var(--card);
+  cursor: pointer;
+}
+.copy-value:hover {
+  color: var(--db-ink);
+  background: var(--db-wash);
+}
+.copy-value > svg {
+  width: 12px;
+  height: 12px;
+}
+/* One row, not a titled card: the MLflow action immediately precedes the id it
+   opens, with copy after the id. `min-width: 0` lets the identifier give way
+   without separating the action from it across the pane. */
+.trace-id-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.trace-id-row > code {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--db-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trace-id-row > a {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--db-blue-700);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.trace-id-row > a > svg {
+  width: 13px;
+  height: 13px;
+}
+.trace-id-note {
+  margin-left: auto;
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+/* The generated SQL. Each statement is its own block so the reader can see where
+   one ends, which a single wrapped field could not show. */
+.sql-panel {
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.sql-panel-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--db-line);
+  background: var(--db-wash);
+  font-size: var(--text-sm);
+}
+.sql-panel-head > b {
+  font-weight: 700;
+}
+.sql-panel-head > span {
+  color: var(--db-slate);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.sql-panel-head > .copy-value {
+  margin-left: auto;
+}
+.sql-panel > .semantic-sql-blocks > pre {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sql-panel > .semantic-sql-blocks > pre + pre {
+  border-top: 1px solid var(--db-line);
+}
+/* A continued clause is indented, so a wrapped WHERE cannot be mistaken for the
+   next clause down. */
+.sql-line {
+  display: block;
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+}
+.sql-line > b {
+  color: var(--db-blue-700);
+  font-weight: 500;
+}
+/*
+ * Advanced Details is an inspection view, so every stage is open here. The
+ * collapsible Timeline remains the compact timing view; this stack is where a
+ * reader compares the sanitized arguments, result, retries and error record.
+ */
+.stage-raw-io {
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.stage-raw-io-head,
+.stage-raw-io-stage > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stage-raw-io-head {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--db-line);
+  background: var(--db-wash);
+  font-size: var(--text-sm);
+}
+.stage-raw-io-head > span {
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+}
+.stage-raw-io-list {
+  display: grid;
+}
+.stage-raw-io-stage {
+  min-width: 0;
+  padding: 10px 12px 12px;
+}
+.stage-raw-io-stage + .stage-raw-io-stage {
+  border-top: 1px solid var(--db-line);
+}
+.stage-raw-io-stage > header {
+  margin-bottom: 8px;
+  font-size: var(--text-sm);
+}
+.stage-raw-io-stage > header > b {
+  min-width: 0;
+  font-weight: 700;
+}
+.stage-raw-io-status {
+  flex: none;
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+}
+.stage-raw-io-status.failed {
+  color: var(--db-red-600);
+}
+.stage-raw-io-status.partial {
+  color: var(--db-warn-600);
+}
+.stage-raw-io-payloads {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+.stage-raw-io-stage .trace-payload pre {
+  margin: 0;
+  padding: 8px 10px;
+  overflow: visible;
+  background: var(--db-wash);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.stage-raw-io-empty {
+  margin: 0;
+  color: var(--db-slate);
+  font-size: var(--text-sm);
+}
+.token-consumption {
+  min-width: 0;
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.token-consumption-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--db-line);
+  background: var(--db-wash);
+  font-size: var(--text-sm);
+}
+.token-consumption-head > span {
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+}
+.token-consumption-summary {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 5px 12px;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+}
+.token-consumption-summary dt {
+  color: var(--db-slate);
+}
+.token-consumption-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.token-consumption-unavailable {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--db-slate);
+  font-size: var(--text-sm);
+}
+.token-invocations {
+  max-width: 100%;
+  overflow: visible;
+  border-top: 1px solid var(--db-line);
+}
+.token-invocations table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+.token-invocations caption {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.token-invocations th,
+.token-invocations td {
+  padding: 7px 10px;
+  border-top: 1px solid var(--ast-hairline);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.token-invocations th:first-child {
+  width: 30%;
+  text-align: left;
+}
+.token-invocations th:nth-child(2) {
+  width: 10%;
+}
+.token-invocations th:nth-child(n + 3) {
+  width: 15%;
+}
+.token-invocations thead th {
+  color: var(--db-slate);
+  font-weight: 600;
+}
+/* What the trace amounts to, with the trace behind a caret. */
+.trace-summary {
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.trace-summary-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+}
+.trace-summary-head > b {
+  font-weight: 500;
+}
+/*
+ * THE FACE IS NOT SET HERE, and that is the change. This rule put the whole line
+ * in DM Mono -- "total", "tool calls" and "stages" along with the three figures
+ * they label -- which is §3 read backwards. The face belongs to the number, so
+ * `.ast-num` on each figure carries it and the words around them stay in the body
+ * face. See RunDetails.tsx.
+ */
+.trace-summary-head > span {
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+}
+.trace-summary-head > button {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+  color: var(--db-ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+/* Same split on the caret's own count: the line count is mono, "lines" is not. */
+.trace-summary-head > button > span {
+  color: var(--db-slate);
+  font-size: var(--text-xs);
+}
+.trace-summary-head > button > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--db-slate);
+  transition: transform 120ms ease;
+}
+.trace-summary-head > button[aria-expanded='true'] > svg {
+  transform: rotate(90deg);
+}
+.trace-summary > pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--db-line);
+  background: var(--db-wash);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Static panels carry a hairline and nothing else, and there are exactly two
+   radii. AppKit's Card ships `shadow-sm` and `rounded-xl`; both are utilities,
+   so a plain rule outranks them. */
+.run-explorer [data-slot='card'] {
+  box-shadow: none;
+  border-radius: var(--radius-md);
+}
+.explorer-layout {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  /* Clip rather than scroll: a menu that failed to portal must not grow the
+     grid or summon a page-level horizontal bar. Portaled menus still overlay
+     from `document.body`. */
+  overflow-x: clip;
+}
+.run-list,
+.run-detail {
+  /*
+   * Equal by construction: neither pane derives its size from its contents or
+   * from the other column. The shared min/max pins also keep async empty and
+   * loading states from changing the grid's bottom edge.
+   */
+  height: var(--run-explorer-pane-block-size);
+  min-height: var(--run-explorer-pane-block-size);
+  max-height: var(--run-explorer-pane-block-size);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.run-list {
+  position: static;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+.run-list [data-slot='card-title'] {
+  font-size: var(--text-h-sub);
+  font-weight: 700;
+}
+/*
+ * Two bounded tracks inside the fixed 340px rail.
+ *
+ * Intrinsic select width must never size either track: a question or email can
+ * be hundreds of characters, but changing it is state, not page geometry.
+ * `minmax(0, …)` and `min-width: 0` make the labels give way while the chevrons,
+ * gap, search field and detail pane stay exactly where they were.
+ */
+.run-list-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+.run-filter-field {
+  min-width: 0;
+  max-width: 100%;
+}
+.run-conversation-filter,
+.run-username-filter {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 6px;
+  padding-right: 8px;
+  overflow: hidden;
+}
+/* The search field's leading icon sits in the field rather than beside it, so
+   the 340px column spends none of its width on a second box. */
+.run-search {
+  position: relative;
+  display: block;
+}
+.run-search svg {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  width: 13px;
+  height: 13px;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.run-search input {
+  padding-left: 30px;
+}
+.run-list [data-slot='card-content'] {
+  display: grid;
+  gap: 6px;
+}
+.run-list-skeleton {
+  display: grid;
+  gap: 6px;
+}
+
+/*
+ * A run row is a card rather than a list line, because the prompt wraps to two
+ * or three lines and a bordered block is what keeps the status, the date and
+ * the person reading as one run's worth of detail.
+ *
+ * Selection is the blue edge on a faint blue ground, the same language the
+ * conversation rail uses, and the border is present in both states so picking a
+ * row cannot move the row below it.
+ */
+.run-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out;
+}
+.run-item:hover {
+  border-color: var(--primary);
+  background: var(--db-row-hover);
+}
+.run-item.active {
+  border-color: var(--primary);
+  background: var(--db-selected-tint);
+}
+.run-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* The head is a two-child row with the date pushed to the far end, so the pills
+   are grouped rather than added as siblings: a third child would be spread by
+   the space-between above and land the date in the middle of the row. */
+.run-item-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/*
+ * THE FACE IS NOT SET HERE. `font-variant-numeric: tabular-nums` stood alone on
+ * this rule and on the rating below it, which is a declaration with nothing to
+ * apply: the shipped DM Sans build carries no `tnum` feature, so asking for
+ * tabular figures in it changes nothing at all and the column stayed ragged
+ * while the stylesheet said it was even. §3 answers exactly this case -- numeric
+ * cells render in DM Mono instead -- and `.ast-num` on the element is that
+ * answer. Same inert pair the timeline carried; see timeline.css.
+ */
+.run-item-date {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+.run-item-prompt {
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.run-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+/*
+ * The status pill.
+ *
+ * Duplicated in benchmark.css rather than shared, deliberately: the two files
+ * are the two screens, and a pill defined in one and used by the other is how a
+ * restyle of one page silently repaints the other. The recipe is four lines.
+ */
+.run-pill {
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  /* The store's own word for the status, with its first letter raised rather
+     than a label of this page's choosing: a status nobody here recognises still
+     reads as itself. */
+  text-transform: capitalize;
+  border: 1px solid var(--db-line-strong);
+  background: transparent;
+  color: var(--db-body);
+}
+.run-pill.tone-ok {
+  border-color: var(--db-green-line);
+  background: var(--db-green-wash);
+  color: var(--db-green-600);
+}
+.run-pill.tone-bad {
+  border-color: var(--db-red-line);
+  background: var(--db-red-wash);
+  color: var(--db-red-600);
+}
+/* Degraded, not evaluated: the wash is the amber one and the type is the drift
+   rung, because amber itself is 1.90:1 and cannot be a label. */
+.run-pill.tone-degraded {
+  border-color: var(--db-amber-line);
+  background: var(--db-amber-wash);
+  color: var(--db-warn-600);
+}
+/*
+ * Stored answer feedback, using the answer card's exact selected treatments.
+ * Direction is also present as the badge's accessible name and tooltip; the
+ * semantic colour is reinforcement, never the only signal.
+ */
+.run-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 20px;
+  padding: 2px 6px;
+}
+.run-rating-badge > svg,
+.run-rating-unknown-icons > svg {
+  width: 12px;
+  height: 12px;
+}
+.run-rating-badge--up {
+  border-color: var(--ast-pos-border);
+  background: var(--ast-pos-fill);
+  color: var(--ast-pos-text);
+}
+.run-rating-badge--down {
+  border-color: var(--ast-neg-border);
+  background: var(--ast-neg-fill);
+  color: var(--ast-neg-text);
+}
+.run-rating-badge--unknown,
+.run-rating-badge--none {
+  border-color: var(--ast-border-input);
+  background: transparent;
+  color: var(--ast-text-secondary);
+}
+.run-rating-unknown-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ---- the detail side ----
+ *
+ * One surface for every tab. The fill is the Ask pane token; the hairline is
+ * what makes it a box rather than a wash on the sky. Inner tiles and the
+ * Final Answer destack in dark-mode.css so they do not lay a second frost
+ * on this sheet.
+ */
+.run-detail {
+  position: static;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+  box-sizing: border-box;
+  padding: 16px 20px 20px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-pane);
+  overflow-x: clip;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+/*
+ * The run header, tabs and active body expand as one document inside
+ * `.run-detail`, the desktop right-side scroll owner. No tab or result panel
+ * gets a second vertical viewport.
+ */
+.run-detail-tabs {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  overflow: visible;
+}
+.run-detail-tab-panel {
+  flex: none;
+  min-width: 0;
+  margin: 0;
+  overflow: visible;
+}
+.run-detail-content {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+.run-detail-state {
+  min-height: 430px;
+}
+/*
+ * The placeholder occupies the same pane and KPI tracks as ready content. Its
+ * fixed header, tab, tile, and answer geometry prevents the detail column from
+ * collapsing and then jumping when either the list or trace request resolves.
+ */
+.run-detail-skeleton {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.run-detail-skeleton-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+}
+.run-detail-skeleton-head > div {
+  display: grid;
+  gap: 10px;
+  width: min(560px, 72%);
+}
+.run-detail-skeleton-title {
+  width: 72%;
+  height: 24px;
+}
+.run-detail-skeleton-ident {
+  width: 88%;
+  height: 24px;
+}
+.run-detail-skeleton-duration {
+  width: 58px;
+  height: 18px;
+}
+.run-detail-skeleton-tabs {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  min-height: 35px;
+  border-bottom: 1px solid var(--border);
+}
+.run-detail-skeleton-tabs > [data-slot='skeleton'] {
+  width: 62px;
+  height: 13px;
+  margin-bottom: 10px;
+}
+.run-detail-skeleton-tabs > [data-slot='skeleton']:nth-child(2) {
+  width: 76px;
+}
+.run-detail-skeleton-kpis [data-slot='card-content'] {
+  min-height: 138px;
+}
+.run-detail-skeleton-label {
+  width: 58%;
+  height: 14px;
+}
+.run-detail-skeleton-value {
+  width: 70%;
+  height: 34px;
+}
+.run-detail-skeleton-subtitle {
+  width: 86%;
+  height: 2.7em;
+  margin-top: auto;
+}
+.run-detail-skeleton-answer {
+  display: grid;
+  gap: 12px;
+  min-height: 190px;
+  box-sizing: border-box;
+  padding: 18px 20px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--radius-md);
+}
+.run-detail-skeleton-answer > [data-slot='skeleton'] {
+  height: 16px;
+}
+.run-detail-skeleton-answer > [data-slot='skeleton']:first-child {
+  width: 44%;
+  height: 24px;
+}
+.run-detail-skeleton-answer > [data-slot='skeleton']:last-child {
+  width: 78%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-explorer [data-slot='skeleton'] {
+    animation: none !important;
+  }
+}
+.run-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.run-detail-title {
+  margin: 0;
+  font-size: var(--text-h-section);
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+/* Who and what, under the prompt: the id chip, the person, the status pill. It
+   wraps rather than truncating, because each part is now its own object and the
+   one that would have fallen off the end is the status. */
+.run-detail-ident {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  min-width: 0;
+}
+/*
+ * The id / run / person chips were taller than Outcome, Tools and Not rated,
+ * which used the shared 11px / 1px-padding pill recipe. Grow those three to the
+ * identity chip's 24px so the rail is one height; do not shrink the first four.
+ */
+.run-detail-ident .run-context-badge,
+.run-detail-ident .run-id-chip,
+.run-detail-ident .identity-chip,
+.run-detail-ident .ast-pill {
+  min-height: 24px;
+  box-sizing: border-box;
+  font-size: var(--text-sm);
+}
+.run-detail-ident .ast-pill {
+  padding: 3px 8px;
+}
+.run-header-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border: 1px solid var(--db-line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--db-slate-icon);
+  cursor: pointer;
+}
+.run-header-edit svg {
+  width: 13px;
+  height: 13px;
+}
+.run-header-edit:hover {
+  background: var(--db-hover-tint);
+}
+.run-detail-ident .run-header-label-editor {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0;
+  align-items: center;
+}
+.run-header-label-editor .app-select-trigger {
+  flex: none;
+}
+.run-header-label-error {
+  margin: 6px 0 0;
+  font-size: var(--text-sm);
+  color: var(--destructive);
+}
+/* Conversation context is compact and distinct from status. The conversation
+   badge copies the full id while showing only the shared six-character prefix.
+   Its shared ast-pill status class supplies the complete/partial/refused color;
+   the run-number badge keeps the navy identity treatment. */
+.run-context-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+.run-context-badge:not(.conversation-context-badge) {
+  border: 1px solid var(--ast-navy);
+  background: var(--ast-navy);
+  color: var(--ast-white);
+}
+button.run-context-badge {
+  cursor: pointer;
+}
+button.run-context-badge:not(.conversation-context-badge):hover {
+  background: color-mix(in srgb, var(--ast-navy) 90%, var(--ast-white));
+}
+.run-context-badge > svg {
+  width: 12px;
+  height: 12px;
+}
+/* The moment after a copy lands. What is on screen is a six-character prefix
+   and what went to the clipboard is the whole id, so a reader given no
+   confirmation cannot tell a working button from a dead one -- which is how
+   these chips came to be reported as broken. */
+.run-context-badge[data-copied='true'],
+.run-id-chip[data-copied='true'] {
+  border-color: var(--ast-pos-border);
+}
+.run-context-badge[data-copied='true'] > svg,
+.run-id-chip[data-copied='true'] > svg {
+  color: var(--ast-pos-text);
+}
+/*
+ * The id, as much of it as is worth showing.
+ *
+ * A control rather than a label: pressing it puts the WHOLE id on the clipboard,
+ * which is the form anyone actually wants it in -- to paste into MLflow, or into
+ * a ticket. What renders is the twelve-character prefix, so the header cannot be
+ * pushed onto a second line by a value nobody reads end to end.
+ */
+.run-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--db-line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+}
+.run-id-chip {
+  cursor: pointer;
+}
+.run-id-chip:hover {
+  background: var(--db-hover-tint);
+}
+/* Mono, because it is a value to be compared against MLflow rather than prose,
+   and tabular so two ids of the same length are the same width. */
+.run-id-short {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.run-id-chip > svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--db-slate-icon);
+}
+.run-detail-user {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The pill's glyph, which only the complete tone carries. Sized here because the
+   pill is the run list's recipe and the icon is the header's addition to it. */
+.run-pill > svg {
+  width: 12px;
+  height: 12px;
+}
+/*
+ * The two things a status pill on this page needs that the shared recipe does not
+ * give it, and NOTHING ELSE.
+ *
+ * `.ast-pill` in astrolabe-tokens.css is the one recipe -- 1px border, tint, 4px
+ * radius, 11px/500 -- and this does not restate any of it. What it adds is the
+ * store's own word raised at its first letter, so a status nobody here recognises
+ * still reads as itself, and the check glyph's size. Both were on `.run-pill`,
+ * which is where the app said them before; neither is a colour, so neither can
+ * become a second recipe.
+ *
+ * `.run-pill` above stays defined because the conversation rail's own pill is
+ * written against it -- rail-run-summary.test.ts holds the two together -- and
+ * that stylesheet is not this lane's to move. No Run Explorer surface renders it
+ * any more.
+ */
+.run-status-pill {
+  text-transform: capitalize;
+}
+.run-status-pill > svg {
+  width: 12px;
+  height: 12px;
+}
+/* The run's own figures, at the other end of the line from its identity, with
+   the badges that qualify the trace under them. */
+.run-detail-figures {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.run-detail-flags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/*
+ * Measurements: the wall time, the call count and the rating, read against the
+ * same figures on the Overview tiles beside them.
+ *
+ * THE FACE IS NOT SET HERE. `.ast-num` on the element is what puts these in DM
+ * Mono, because §3's rule is about where a number sits rather than about which
+ * rule found it, and one class is what lets that be checked in one place. The
+ * `font-family` and `font-variant-numeric` this used to carry were the same
+ * intention written locally, and the `tabular-nums` half of it did nothing at all:
+ * DM Sans declares no such feature, so the declaration read as done.
+ */
+.run-detail-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+/*
+ * In-page tabs get the header's own underline treatment rather than AppKit's
+ * segmented pill, so "which view am I in" looks the same in the page as it does
+ * in the nav. The list is a rail with a hairline under the whole row.
+ */
+.run-detail [data-slot='tabs-list'] {
+  gap: 24px;
+  height: auto;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  overflow: visible;
+}
+.run-detail [data-slot='tabs-trigger'] {
+  flex: none;
+  height: auto;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  /* 13px/500, which is the tab row the handoff specifies rather than the page's
+     base size: the row is chrome above the view and reads as a rail, not as body
+     copy with a line under one word. */
+  font-size: var(--ast-fs-13);
+  color: var(--ast-text-secondary);
+  cursor: pointer;
+}
+.run-detail [data-slot='tabs-trigger'][data-state='inactive']:hover:not(:disabled):not([data-disabled]) {
+  border-bottom-color: var(--ast-border-input);
+  background: transparent;
+  color: var(--ast-text);
+}
+.run-detail [data-slot='tabs-trigger']:focus-visible {
+  outline: none;
+  border-bottom-color: var(--ast-blue);
+  background: transparent;
+  color: var(--ast-blue);
+}
+.run-detail [data-slot='tabs-trigger']:is(:disabled, [data-disabled]) {
+  border-bottom-color: transparent;
+  background: transparent;
+  color: var(--ast-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/*
+ * The view you are in: the one blue, on the type and on the 2px rule under it.
+ *
+ * `--ast-blue` rather than `--primary` because the two are the same value today
+ * and only one of them is guaranteed to stay it. The tab row is the surface where
+ * "which view am I in" is the entire question, so it reads the token that the
+ * palette check covers.
+ */
+.run-detail [data-slot='tabs-trigger'][data-state='active'] {
+  border-bottom-color: var(--ast-blue);
+  background: transparent;
+  color: var(--ast-blue);
+  font-weight: 500;
+}
+.run-detail [data-slot='tabs-trigger'][data-state='active']:hover {
+  border-bottom-color: var(--ast-blue);
+  background: transparent;
+  color: var(--ast-blue);
+}
+
+@media (forced-colors: active) {
+  .run-list,
+  .run-detail {
+    scrollbar-color: CanvasText Canvas;
+  }
+  .run-list-filters [data-slot='select-trigger']:is(:hover, :focus-visible, [data-state='open']),
+  .run-detail [data-slot='tabs-trigger']:is(:hover, :focus-visible) {
+    border-color: Highlight;
+    color: Highlight;
+  }
+  .run-filter-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    color: HighlightText;
+    background: Highlight;
+  }
+}
+
+/*
+ * THE OVERVIEW TILES CANNOT DEPEND ON ANOTHER PAGE'S STYLESHEET REACHING THEM.
+ *
+ * `.summary-grid` is shared with the Benchmark Lab and its recipe is written in
+ * benchmark.css, which is documented there as one recipe rather than two that
+ * drift. That held while every partial was global. When the page stylesheets
+ * were moved behind lazy route imports, this page kept the markup and lost the
+ * rules: the five measurements rendered as unstyled AppKit cards -- thin
+ * full-bleed bars whose default content row set "Wall time" hard against
+ * "100.4s" with nothing between them.
+ *
+ * index.css imports both partials again, so this block is a floor rather than
+ * an override. It restates the SAME arrangement the shared recipe gives -- the
+ * auto-fit row of tiles, the label above its value, the tile's own padding --
+ * so the two cannot disagree about the design, and this page can no longer be
+ * left with a label welded to a figure by a change made in another lane. The
+ * declarations that are genuinely Run Explorer's, and are not in the shared
+ * recipe, are the row gap and the nowrap: they are what guarantee separation
+ * whichever of the two rules wins.
+ */
+.run-explorer .summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+}
+.run-explorer .summary-grid [data-slot='card'] {
+  height: 100%;
+  padding: 0;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+.run-explorer .summary-grid [data-slot='card-content'] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+  gap: 6px;
+  min-height: 138px;
+  height: 100%;
+  padding: 16px;
+}
+.run-explorer .summary-grid .run-kpi-label {
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: 1.25;
+}
+.run-explorer .summary-grid strong {
+  font-size: var(--text-kpi);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  /* The figure is the tile's subject and never wraps mid-value: "26,437" broken
+     across two lines is what made the token tile unreadable at this width. */
+  white-space: nowrap;
+}
+.run-explorer .summary-grid small {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.run-explorer .summary-grid .run-kpi-value,
+.run-explorer .summary-grid .run-kpi-feedback {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.run-explorer .summary-grid .run-kpi-subtitle {
+  min-width: 0;
+  min-height: 2.7em;
+  margin-top: auto;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.run-explorer .summary-grid small.tile-mono {
+  font-family: var(--font-mono);
+}
+.run-explorer .summary-grid strong.tile-absent {
+  color: var(--muted-foreground);
+}
+.run-explorer .summary-grid .run-rating-badge--kpi {
+  gap: 8px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 9px;
+  font-size: var(--text-kpi);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.run-explorer .summary-grid .run-rating-badge--kpi > svg {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+.run-explorer .summary-grid .run-rating-badge--kpi .run-rating-unknown-icons {
+  gap: 3px;
+}
+.run-explorer .summary-grid .run-rating-badge--kpi .run-rating-unknown-icons > svg {
+  width: 18px;
+  height: 18px;
+}
+.run-explorer .summary-grid .run-rating-badge--kpi .run-rating-badge-label {
+  color: currentColor;
+  font-size: inherit;
+}
+.run-explorer .summary-grid .run-rating-badge--none.run-rating-badge--kpi {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  padding-inline: 0;
+}
+.run-kpi-feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.run-kpi-feedback-actions [data-slot='button'] {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+.run-kpi-feedback-actions [data-slot='button'] svg {
+  width: 14px;
+  height: 14px;
+}
+.run-kpi-feedback-comment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+.run-kpi-feedback-comment [data-slot='input'] {
+  min-width: 0;
+}
+.run-kpi-feedback-comment [data-slot='button'] {
+  white-space: nowrap;
+}
+.run-kpi-feedback-error {
+  color: var(--destructive) !important;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The final answer, as a region on the detail pane.
+ *
+ * Same width as the KPI row above it: a max-width or a shrink-to-content card
+ * left starfield gutters either side of the answer while the tiles spanned the
+ * column. The hairline keeps it a box; dark-mode destacks the fill so this
+ * is not a second frost on the column's Ask pane.
+ */
+.run-explorer .final-answer {
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+  box-sizing: border-box;
+  background: var(--ast-pane);
+  border: 1px solid var(--ast-hairline);
+  padding: 0;
+}
+/*
+ * Run Explorer has one right-side scroll owner. Recorded prose, code and tables
+ * therefore grow inside that workspace instead of introducing horizontal or
+ * vertical sub-scrollers.
+ */
+.run-explorer .answer-code-block,
+.run-explorer .code-panel pre {
+  max-height: none;
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-explorer .answer-table-wrap {
+  overflow: visible;
+}
+.run-explorer .answer-table {
+  table-layout: fixed;
+}
+.run-explorer .answer-table thead th,
+.run-explorer .answer-table [data-wrap='atomic'],
+.run-explorer .answer-table [data-wrap='prose'] {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.final-answer [data-slot='card-content'],
+.run-explorer .final-answer > [data-slot='card-content'] {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  /* 8px top and left match the answer-card stamp: Live sits inside the
+     rounded corner, not pulled onto the hairline. Right and bottom keep the
+     body inset. Restated on the Run Explorer child so a later AppKit
+     content utility cannot drop the top. */
+  padding: 8px 20px 16px 8px;
+}
+.final-answer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
+  gap: 8px;
+}
+.final-answer-eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.final-answer-takeaway {
+  margin: 0;
+  font-size: var(--text-h-section);
+  font-weight: 700;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.final-answer .answer-prose {
+  font-size: var(--ast-fs-14);
+  line-height: 1.55;
+  min-width: 0;
+}
+.final-answer .answer-table-wrap {
+  width: 100%;
+}
+/*
+ * Identifier chips on this card: a quiet night-sky mark, not a white slab.
+ * Appearance-saved entity fills can still be a highlighter on paper; on this
+ * surface they are not allowed to win.
+ */
+html[data-theme='dark'] .final-answer .entity-token,
+html[data-theme='dark'] .final-answer .entity-mark,
+html[data-theme='dark'] .final-answer .answer-code {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ast-ink-on-dark);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+html[data-theme='dark'] .final-answer .entity-catalog {
+  color: var(--ast-ice-accent);
+  background: rgba(143, 193, 232, 0.12);
+}
+.final-answer .keep-in-mind {
+  background: color-mix(in srgb, var(--ast-ice) 70%, transparent);
+}
+.final-answer-open {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ast-hairline);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  justify-self: start;
+}
+
+/*
+ * The runtime this Ask sent, as a compact chip row on Overview, Agent map, and
+ * Monitoring. Not the rail chips: those name the run. These name the bounds
+ * it ran under. Distinct class, so a restyle of outcome/tools/rating cannot
+ * pick this row up.
+ */
+.run-runtime-used {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+}
+.run-runtime-used-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ast-text-secondary);
+  margin-right: 2px;
+}
+.run-runtime-used-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--db-line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--ast-text-long);
+  background: var(--ast-pane);
+}
+.run-runtime-used-chip.is-off {
+  color: var(--ast-text-secondary);
+}
+.run-runtime-used-chip .ast-num {
+  font-size: inherit;
+}
+.run-runtime-used-absent {
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}

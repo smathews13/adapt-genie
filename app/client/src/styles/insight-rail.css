@@ -1,0 +1,391 @@
+/*
+ * The Ask page's scope bar and insight rail bring the ADAPT mockup's chrome
+ * onto the live page.
+ *
+ * The insight rail shares its element with the live agent-harness trace
+ * inspector (the aside carries `trace-inspector insight-rail`), so every rule
+ * that paints the column, its eyebrow, its pill and its metrics still comes from
+ * rail.css and its light-mode override in dark-mode.css. This file adds only the
+ * new parts: the business sections above the harness, the scope bar over the
+ * transcript, and the hide/show toggle.
+ *
+ * EVERYTHING HERE READS FROM THEME-FLIPPING TOKENS. The Ask surfaces are navy in
+ * dark and a light wash/card in light (see light-mode.test.tsx), so `--ast-text`,
+ * `--ast-text-secondary`, `--ast-hairline`, `--ast-blue` and the `*-text` status
+ * tokens are used rather than the fixed on-dark forms -- each already resolves
+ * correctly on both surfaces, so none of this needs a per-theme override.
+ */
+
+/* ─────────── INSIGHT RAIL ─────────── */
+.trace-inspector.insight-rail {
+  border-left: 1px solid var(--ast-border-input);
+  box-shadow: -8px 0 20px color-mix(in srgb, var(--background) 78%, transparent);
+}
+
+.insight-rail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.insight-rail-title {
+  margin: 2px 0 0;
+  font-family: var(--ast-mono, ui-monospace, monospace);
+  font-size: var(--ast-fs-14);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ast-text);
+}
+.insight-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+.insight-sec-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: var(--ast-fs-11);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+}
+.insight-sec-title svg {
+  width: 13px;
+  height: 13px;
+}
+/* The "(demo data)" note beside a section still on fixed figures: lowercase and
+   unspaced, so it reads as a qualifier on the heading rather than part of it. */
+.insight-sec-demo {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ast-text-secondary);
+  opacity: 0.85;
+}
+
+/* Data in scope: a table name, a row count, and a coloured dot for the kind.
+   The markers come from existing palette tokens rather than the mockup's raw
+   blue/violet/amber, so the rail stays inside the app's five-meaning colour
+   system. Dot-only -- never text or a lone hairline. */
+.insight-table {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+.insight-table:last-child {
+  border-bottom: none;
+}
+.insight-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--ast-blue);
+}
+.insight-dot.tone-charge {
+  background: var(--ast-blue);
+}
+.insight-dot.tone-ice {
+  background: var(--ast-info-text);
+}
+.insight-dot.tone-pos {
+  background: var(--ast-pos-text);
+}
+.insight-dot.tone-amber {
+  background: var(--db-amber);
+}
+.insight-dot.tone-grey {
+  background: var(--ast-text-secondary);
+}
+.insight-dot.tone-neg {
+  background: var(--ast-neg-text);
+}
+
+/* The muted line a section shows while its data is loading, or when it has none
+   to show -- checking scope, no tables reported, no saved queries yet. */
+.insight-note {
+  margin: 0;
+  font-size: var(--ast-fs-12);
+  line-height: 1.5;
+  color: var(--ast-text-secondary);
+}
+.insight-table code {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--ast-mono, ui-monospace, monospace);
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insight-table-link,
+.insight-connections-link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--ast-text);
+  text-decoration: none;
+}
+/* Raised above the shared `.visit-in-databricks` inline-block rule. The link is
+   one row while answer geometry settles, so its icon cannot wrap above the
+   ellipsized table name. */
+.insight-table .insight-table-link,
+.insight-table-link {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  flex: 1;
+  gap: 6px;
+  margin-right: 0;
+  white-space: nowrap;
+}
+.insight-table .insight-table-link svg,
+.insight-table-link svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  color: var(--ast-text-secondary);
+}
+.insight-table-link:hover code,
+.insight-connections-link:hover {
+  color: var(--ast-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.insight-connections-link {
+  align-self: flex-start;
+  margin-top: 9px;
+  font-size: var(--ast-fs-11);
+  font-weight: 600;
+}
+.insight-rows {
+  margin-left: auto;
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text-secondary);
+}
+
+/* Answer confidence: an icon and a sentence per line. */
+.insight-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: var(--ast-fs-12);
+  line-height: 1.5;
+  color: var(--ast-text-secondary);
+}
+.insight-trust svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.insight-trust-ok {
+  color: var(--ast-pos-text);
+}
+.insight-trust-warn {
+  color: var(--ast-warn-text);
+}
+.insight-trust-neg {
+  color: var(--ast-neg-text);
+}
+.insight-trust code {
+  font-family: var(--ast-mono, ui-monospace, monospace);
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text);
+}
+
+/* Saved queries: a section head with a Save control, then one row per kept
+   question. Each question re-asks through the composer's ask(); the trailing
+   button removes it. */
+.insight-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.insight-sec-head .insight-sec-title {
+  margin: 0;
+}
+.insight-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+.insight-save-btn:hover:not(:disabled) {
+  border-color: var(--ast-blue);
+  color: var(--ast-text);
+}
+.insight-save-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.insight-save-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.insight-saved-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.insight-saved-row:last-child {
+  margin-bottom: 0;
+}
+.insight-saved {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 9px 10px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: transparent;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-12);
+  line-height: 1.45;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+.insight-saved:hover:not(:disabled) {
+  border-color: var(--ast-blue);
+  color: var(--ast-text);
+}
+.insight-saved:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.insight-saved-del {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: transparent;
+  color: var(--ast-text-secondary);
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+.insight-saved-del:hover {
+  border-color: var(--ast-neg-text);
+  color: var(--ast-neg-text);
+}
+.insight-saved-del svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Raised above `.visit-in-databricks` (inline-block) so the icon and label
+   always share one flex row rather than stacking when this pill also carries
+   the shared visit-in-databricks class. */
+.insight-sec-head .insight-watch-source,
+.insight-watch-source {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: 999px;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.insight-watch-source svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.insight-watch-source:hover,
+.insight-watch-source:focus-visible {
+  color: var(--ast-text);
+  border-color: var(--ast-text-secondary);
+}
+.insight-watch-metric {
+  margin: 0 0 8px;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  line-height: 1.45;
+}
+.insight-watch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ast-hairline);
+  font-size: var(--ast-fs-12);
+}
+.insight-watch:last-child {
+  border-bottom: none;
+}
+.insight-watch-name {
+  color: var(--ast-text);
+}
+.insight-watch-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: var(--ast-fs-12);
+}
+.insight-watch-val svg {
+  width: 13px;
+  height: 13px;
+}
+.insight-watch-val.up {
+  color: var(--ast-pos-text);
+}
+.insight-watch-val.dn {
+  color: var(--ast-neg-text);
+}
+.insight-watch-meta {
+  margin: 9px 0 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  line-height: 1.45;
+}
+
+/* The harness block below the business sections, set off by a little room above
+   its eyebrow so it reads as a distinct column-within-the-column. */
+.insight-harness {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+/* The harness "No run yet" empty state carries a 120px top margin to centre
+   itself in the standalone full-height inspector. Inside the insight rail it
+   sits under four sections already, so that margin strands it at the bottom with
+   a large gap above -- it belongs directly under its own heading here. */
+.insight-harness .trace-empty {
+  margin-top: 8px;
+}

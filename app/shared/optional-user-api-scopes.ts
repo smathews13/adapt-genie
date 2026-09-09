@@ -1,0 +1,48 @@
+/**
+ * OAuth scopes that improve Connections / Ops metadata probes and the
+ * Connections pickers, but are not required for asks (Genie's SQL / serving
+ * path).
+ *
+ * Always listed in the login gate and Identity card as Optional so a reader can
+ * see the capability without treating a shortfall as a hard gate. As of
+ * 2026-08-18 they are in the SHARED DEFAULT, so a customer/T2 deploy requests
+ * them too (not just cmeg); "optional" here means the login gate does not fail
+ * when the workspace cannot issue one, NOT that the deploy declines to ask. A
+ * deployment may still drop them from its own override, and the gate stays
+ * neutral either way.
+ *
+ * `postgres` joined later the same day for Lakebase project/branch/database
+ * browse on Connections. It is the Apps name for the Lakebase family (the bare
+ * control-plane paths sit under `/api/2.0/postgres/`), and without it the
+ * picker falls back to typing the full database resource name. It is NOT an
+ * MLflow substitute: Apps still has no MLflow scope at all.
+ */
+export const WORKSPACE_READ_USER_API_SCOPE = 'workspace.workspace:read' as const;
+/** Official Databricks API scope for Lakebase Postgres control-plane operations. */
+export const LAKEBASE_USER_API_SCOPE = 'postgres' as const;
+
+export const OPTIONAL_USER_API_SCOPES = [
+  'catalog.catalogs:read',
+  'catalog.schemas:read',
+  'catalog.tables:read',
+  // Workspace object listing, for the Connections notebook picker. Optional on
+  // the same terms as the three above: without it a reader types the path
+  // instead, and no ask is affected. The name is the Apps API's, which refuses
+  // the bare `workspace` the OAuth server advertises.
+  WORKSPACE_READ_USER_API_SCOPE,
+  // Lakebase (Postgres) control-plane browse: projects, branches, databases.
+  // Apps accepts `postgres` (also used for OBO Lakebase queries). Without it
+  // the Connections Lakebase picker stays a typed full resource name.
+  LAKEBASE_USER_API_SCOPE,
+] as const;
+
+export type OptionalUserApiScope = (typeof OPTIONAL_USER_API_SCOPES)[number];
+
+export function isOptionalUserApiScope(name: string): boolean {
+  return (OPTIONAL_USER_API_SCOPES as readonly string[]).includes(name);
+}
+
+/** Declared shortfalls that still gate the login verdict / sign-in remedy. */
+export function requiredMissingScopes(missing: readonly string[]): string[] {
+  return missing.filter((name) => name && !isOptionalUserApiScope(name));
+}

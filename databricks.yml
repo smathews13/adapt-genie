@@ -1,0 +1,279 @@
+# ADAPT Databricks Asset Bundle.
+# Variables without defaults are required deployment inputs.
+# The serving endpoint and app source tree are deployed separately.
+
+bundle:
+  name: adapt-genie
+
+include:
+  - resources/*.yml
+
+# Variables without a `default` are required.
+variables:
+  # Deployment
+  bundle_root_path:
+    description: >-
+      Workspace folder for bundle state and synced files. Defaults to the
+      deploying identity's home. For CI/CD, use a shared folder with explicit
+      grants. Keep the `-dab` suffix to prevent bundle state collisions.
+    default: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}-dab/${bundle.target}
+
+  # Unity Catalog
+  app_catalog:
+    description: >-
+      REQUIRED. Unity Catalog catalog for objects owned by this deployment,
+      including the registered orchestrator model, volume, and telemetry.
+      Keep it separate from production data catalogs.
+  app_schema:
+    description: >-
+      REQUIRED. Schema inside ${var.app_catalog} for objects owned by this
+      deployment. The bundle creates and protects this schema.
+  data_catalogs:
+    description: >-
+      REQUIRED. Complete Unity Catalog read scope for the agent. Supply a list
+      of catalog names and/or catalog.schema names. A catalog entry includes all
+      of its non-system schemas; a catalog.schema entry limits access to that
+      schema. Changing this list requires a model re-log and redeploy.
+    type: complex
+  catalog_denylist:
+    description: >-
+      Comma-separated glob patterns for tables the agent must not declare.
+      Defaults to empty. Set this in variable-overrides.json or
+      BUNDLE_VAR_catalog_denylist, not `--var`, which splits comma-separated
+      values. Changing it requires a model re-log and redeploy.
+    default: ""
+
+  # Compute
+  warehouse_id:
+    description: >-
+      REQUIRED. ID of an existing PRO or SERVERLESS SQL warehouse used by Genie
+      and the agent. This bundle does not create or modify the warehouse. Set
+      this in the git-ignored
+      `.databricks/bundle/<target>/variable-overrides.json` or as
+      BUNDLE_VAR_warehouse_id. Do not put workspace-specific warehouse ids in
+      this tracked file or in a target block.
+
+  warehouse_role_name:
+    description: >-
+      Expected warehouse name used for drift checks. Defaults to empty. Use a
+      stable role name rather than an instance-specific name.
+    default: ""
+
+  # Agent and model serving
+  serving_endpoint_name:
+    description: >-
+      Agent serving endpoint name. Created by `databricks.agents.deploy()`, not
+      by this bundle. Referenced here so the app resource can attach it.
+    default: adapt-orchestrator
+  serving_rollbacks_kept:
+    description: >-
+      Number of idle endpoint versions to retain after a release. Defaults to
+      0. Each retained served entity adds standing capacity cost; pruned
+      versions remain available in the model registry.
+    default: 0
+  llm_endpoint:
+    description: >-
+      Foundation-model endpoint, or three-level Unity Catalog model service
+      name when a gateway route is configured.
+    default: databricks-claude-sonnet-4-6
+  llm_gateway:
+    description: >-
+      Gateway route for llm_endpoint. Empty, the default, calls the workspace
+      endpoint directly. Use `mlflow` or `openai` for the corresponding gateway
+      path. Gateway failures do not fall back to a direct call.
+    default: ""
+  manifest_source:
+    description: >-
+      Source for the model's table manifest and resulting data grants. Empty,
+      the default, uses allowlisted schemas and the data contract. Use `genie`
+      to declare only tables curated by the Genie spaces. Changing this value
+      requires a model re-log and redeploy.
+    default: ""
+  model_name:
+    description: Three-level UC name of the registered agent model.
+    default: ${var.app_catalog}.${var.app_schema}.adapt_orchestrator
+  experiment_path:
+    description: Workspace path of the MLflow experiment for agent runs and traces.
+    default: /Shared/adapt-genie
+  max_output_tokens:
+    description: Agent max output tokens (PLAYER_INSIGHTS_MAX_OUTPUT_TOKENS).
+    default: "2500"
+  # Genie
+  #
+  # This bundle ATTACHES to Genie spaces that already exist. It does not create
+  # them, does not curate their tables, and does not overwrite their
+  # instructions. Name the space by id; what it curates is read from the
+  # workspace at model-log time.
+  #
+  # There is deliberately no table list here. A deployment names spaces, not
+  # their contents: `manifest_source: genie` derives the model's table manifest
+  # from what the live spaces curate (agent/preflight.py `_manifest_from_genie`),
+  # and refuses to log a model when any curated table falls outside
+  # data_catalogs. That refusal is where read-scope containment is enforced, so
+  # discovering tables rather than typing them does not widen the boundary.
+  #
+  # Curate a space in the Genie UI, or from the reference bodies in genie/.
+  genie_data_space_id:
+    description: >-
+      REQUIRED. ID of the EXISTING data Genie space the agent asks. This bundle
+      does not create or modify the space. Set it in the git-ignored
+      `.databricks/bundle/<target>/variable-overrides.json` or as
+      BUNDLE_VAR_genie_data_space_id. Every table the space curates must fall
+      inside data_catalogs, which agent/preflight.py enforces at log time.
+      Changing this value requires a model re-log and redeploy.
+
+  # App
+  app_name:
+    description: >-
+      Databricks App name. <=26 chars, lowercase/digits/hyphens only.
+    default: adapt-genie
+  app_description:
+    description: App description shown in the workspace.
+    default: ADAPT, governed digital sales intelligence through Genie
+  app_admin_group:
+    description: >-
+      Workspace group granted CAN_MANAGE on the App and mapped to ADAPT's admin
+      role floor. Override for customers that do not use the the customer group.
+    default: adapt_genie_admins
+  app_user_group:
+    description: >-
+      Workspace group granted CAN_USE on the App and mapped to ADAPT's consumer
+      role. Override for customers that do not use the the customer group.
+    default: adapt_genie_users
+  shared_conversation_rail:
+    description: >-
+      Whether users can see shared conversations in the rail. Defaults to
+      "false". Only "true" enables shared reads; deleting, asking, and uploading
+      remain owner-scoped.
+    default: "false"
+  watchlist_table:
+    description: >-
+      REQUIRED. Three-part Unity Catalog Steam sales table containing DATE, TITLE_ROLL_UP_DESC,
+      NET_REV_USD_AMT, and UNIT_QTY. Watchlist KPIs are net USD revenue per unit sold, queried as
+      the signed-in user.
+  admin_emails:
+    description: >-
+      REQUIRED. Comma-separated app administrator email addresses. Set this only
+      in the git-ignored
+      `.databricks/bundle/<target>/variable-overrides.json`. Do not put addresses
+      in this tracked file or in a target block.
+  allow_unattributed_figures:
+    description: >-
+      Whether the agent may return figures it cannot trace to a governed read.
+      Defaults to "false"; only "true" enables it. This does not relax protected
+      column controls. Changing it requires a model re-log and redeploy.
+    default: "false"
+  execution_identity:
+    description: >-
+      Intended identity for data calls. Defaults to system-passthrough.
+      `user-authorization` runs Genie and SQL as the invoking user. The app and
+      logged model must use the same mode and be released together.
+    default: system-passthrough
+  app_user_api_scopes:
+    description: >-
+      OAuth scopes requested from each signed-in user. Catalog and workspace
+      read scopes support resource browsing. Apps consent is
+      all-or-nothing, so remove any scope the destination workspace cannot
+      issue. After changing scopes, stop and start the app and sign in again.
+    type: complex
+    default:
+      - serving.serving-endpoints
+      - model-serving
+      - sql
+      - dashboards.genie
+      # Resource-browser scopes accepted by the Apps API.
+      - catalog.catalogs:read
+      - catalog.schemas:read
+      - catalog.tables:read
+      - workspace.workspace:read
+      # Official Lakebase/Postgres API family scope.
+      - postgres
+  app_source_code_path:
+    description: >-
+      REQUIRED FOR THE INITIAL BUNDLE BOOTSTRAP AND CLI APP RELEASE. Absolute
+      workspace path containing the uploaded build/deploy tree. This is not the
+      repo-relative Source code path used by Deploy from Git; that UI value is
+      `app/build/deploy`. The workspace directory must not
+      contain package.json because the app would run `npm install` during
+      deployment. Set it to the canonical mutable staging path
+      `/Workspace/Users/<release-actor>/adapt-genie-src`; SNAPSHOT deployment
+      moves the active app to a separate immutable platform path before the next
+      release replaces staging. Set this in the git-ignored
+      `.databricks/bundle/<target>/variable-overrides.json` or as
+      BUNDLE_VAR_app_source_code_path. Do not put personal home paths in this
+      tracked file or in a target block. After the app and bindings exist,
+      app-code-only updates can use Deploy from Git and do not require another
+      bundle deploy. Deploy from Git is source-only: do not run bundle deploy,
+      agent-release, or app-release as part of that update. It must not
+      reconcile bindings, jobs, models, the serving endpoint, or user roles.
+      Lakebase is authoritative for roles after the one-time empty-roster
+      bootstrap, so stale or absent role config in app.yaml is harmless.
+
+  # Lakebase
+  #
+  # This bundle ATTACHES to a Lakebase instance that already exists. It does not
+  # create or modify the project, branch, endpoint, or database.
+  lakebase_project_id:
+    description: >-
+      REQUIRED. ID of an EXISTING Lakebase project. Read it from
+      `databricks postgres list-projects --profile <profile> -o json`. This
+      bundle does not create the project.
+  lakebase_branch_id:
+    description: >-
+      ID of an existing branch in that project, which the app connects to.
+      Read it from `databricks postgres list-branches projects/<project>`.
+    default: production
+  lakebase_database_id:
+    description: >-
+      REQUIRED. ID of an existing database in that branch. Read it from
+      `databricks postgres list-databases projects/<project>/branches/<branch>`.
+  lakebase_app_schema:
+    description: >-
+      Postgres schema the app creates and owns inside the existing database.
+      Changing it requires an app release, grants on the new schema, and any
+      required data migration.
+    default: adapt
+  # Derived resource names for the existing Lakebase objects.
+  postgres_branch_name:
+    description: Full Lakebase branch resource name (derived).
+    default: projects/${var.lakebase_project_id}/branches/${var.lakebase_branch_id}
+  postgres_database_name:
+    description: Full Lakebase database resource name (derived).
+    default: projects/${var.lakebase_project_id}/branches/${var.lakebase_branch_id}/databases/${var.lakebase_database_id}
+
+  # Resource-specific variables are declared with their resource.
+
+# Exclude local build and test artifacts from bundle sync.
+sync:
+  exclude:
+    - "**/node_modules/**"
+    - "**/.venv/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - agent/mlruns/**
+    - agent/mlflow.db
+
+targets:
+  # Production target. Set all required variables in the git-ignored
+  # `.databricks/bundle/<target>/variable-overrides.json`.
+  customer:
+    default: true
+    mode: production
+    workspace:
+      root_path: ${var.bundle_root_path}
+    variables:
+      # Declare only tables curated by the Genie spaces.
+      manifest_source: genie
+      # Run governed data calls as the signed-in user. Release matching app and
+      # model versions together.
+      execution_identity: user-authorization
+      app_telemetry_schema: adapt_telemetry
+      app_telemetry_destinations:
+        - unity_catalog:
+            logs_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_logs
+            metrics_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_metrics
+            traces_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_spans
+    resources:
+      apps:
+        adapt_app:
+          telemetry_export_destinations: ${var.app_telemetry_destinations}

@@ -1,0 +1,63 @@
+diff --git a/node_modules/@databricks/sdk-experimental/dist/fetch.js b/node_modules/@databricks/sdk-experimental/dist/fetch.js
+index d3e2f0e..d72484f 100644
+--- a/node_modules/@databricks/sdk-experimental/dist/fetch.js
++++ b/node_modules/@databricks/sdk-experimental/dist/fetch.js
+@@ -248,18 +248,55 @@ function getGlobal() {
+ }
+ // Helper function to convert a Node.js Readable stream to a Web ReadableStream.
+ function readableToWeb(readable) {
++    let closed = false;
+     return new ReadableStream({
+         start(controller) {
+             readable.on("data", (chunk) => {
+-                controller.enqueue(chunk);
++                if (closed)
++                    return;
++                try {
++                    controller.enqueue(chunk);
++                }
++                catch (_a) {
++                    // The consumer cancelled the web stream, closing the controller,
++                    // while the Node source kept emitting. Enqueueing onto a closed
++                    // controller throws synchronously here, inside a 'data' emit, so it
++                    // would surface as an uncaught exception and crash the process. Stop
++                    // feeding the stream and tear the source down instead.
++                    closed = true;
++                    readable.destroy();
++                }
+             });
+             readable.on("end", () => {
+-                controller.close();
++                if (closed)
++                    return;
++                closed = true;
++                try {
++                    controller.close();
++                }
++                catch (_a) {
++                    // Consumer already gone.
++                }
+             });
+             readable.on("error", (err) => {
+-                controller.error(err);
++                if (closed)
++                    return;
++                closed = true;
++                try {
++                    controller.error(err);
++                }
++                catch (_a) {
++                    // Consumer already gone.
++                }
+             });
+         },
++        cancel(reason) {
++            // The consumer cancelled: destroy the underlying Node stream so it stops
++            // emitting 'data' events that would otherwise enqueue onto the now-closed
++            // controller.
++            closed = true;
++            readable.destroy(reason instanceof Error ? reason : undefined);
++        },
+     });
+ }
+ function webToReadable(stream) {

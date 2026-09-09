@@ -1,0 +1,30 @@
+{
+  "initialJs": {
+    "raw": 2280000,
+    "compressed": 725000
+  },
+  "initialCss": {
+    "raw": 310000,
+    "compressed": 50000
+  },
+  "homeEntry": {
+    "raw": 620000,
+    "compressed": 193000
+  },
+  "appkitJs": {
+    "raw": 1690000,
+    "compressed": 550000
+  },
+  "eagerServerGraph": {
+    "raw": 12200000,
+    "compressed": 2055000
+  },
+  "largestDeployFile": {
+    "raw": 9100000,
+    "compressed": 1720000
+  },
+  "totalDeployArtifact": {
+    "raw": 20450000,
+    "compressed": 4650000
+  }
+}

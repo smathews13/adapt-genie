@@ -1,0 +1,1094 @@
+/* The agent's own output is signed with a brand rule across the top, matching the
+   one in the header, and it moves with it: identity is blue.
+
+   The reasoning here used to be "not orange, even though the agent wrote the card,
+   because orange marks what is happening right now". That contrast no longer picks
+   anything out, because there is no orange left to contrast with: this palette
+   does not carry one, the agent at work is blue, and #FF3621 renders nowhere in
+   the app but the bricks symbol in the Databricks attribution. Blue is the whole
+   answer rather than the second of two.
+
+   The card no longer floats: the drop shadow that separated it from the page went
+   with the page's gradient, and the radius comes down to the 8px a card takes,
+   from AppKit's 12px, which is a third radius the handoff collapses away. */
+.answer-card {
+  border: 1px solid var(--ast-hairline);
+  border-top: 4px solid var(--ast-blue);
+  border-radius: var(--ast-radius-card);
+  box-shadow: none;
+  /*
+   * Theme-owned surface. Light remaps this to opaque white so no star or navy
+   * can show through; dark keeps the restrained frosted pane on the night sky.
+   */
+  background: var(--ast-pane);
+  margin-bottom: 26px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 280px;
+  min-width: min(640px, 100%);
+  max-width: 100%;
+  /*
+   * THE CARD MAY NOT SHRINK IN A FLEX COLUMN.
+   *
+   * `min-height: 280px` above replaces the flex item's automatic minimum, so a
+   * parent such as the Monitoring dialog -- `display: flex; flex-direction:
+   * column; max-height: …` -- was free to compress this card down to 280px.
+   * Everything after that box (the token line, then later the Sources block
+   * still painting from inside the overflow) sat on the last table row.
+   * `flex-shrink: 0` keeps the used height at the content size; the 280px floor
+   * still holds for a short answer. Ask's transcript is also a column, so the
+   * same rule stops the card overlaying the next turn there.
+   */
+  flex-shrink: 0;
+  overflow: visible;
+  container-type: inline-size;
+  container-name: answer-card;
+  /*
+   * AppKit Card ships `py-6`. The 8px header stamp sits inside that, so Live
+   * drops a gutter under the top edge on Ask and Monitoring alike. Zero the
+   * card's own padding — same as `.final-answer` — so the header is the first
+   * pixel under the hairline. Header and content keep their own insets.
+   */
+  padding: 0;
+}
+
+.entity-token {
+  padding: 1px 3px;
+  font-family: var(--font-mono);
+  text-decoration: inherit;
+}
+
+/*
+ * The last segment is the table a reader scans for; catalog and schema are its
+ * qualifier. `data-entity-part` is emitted by the shared answer/source renderer
+ * as well as Connections, so Ask, Run Explorer and Monitoring cannot drift into
+ * three different weights for the same table name.
+ */
+.entity-token[data-entity-part='table'] {
+  font-weight: 700;
+}
+
+/*
+ * A CHIP IS ONE CHIP, ON ONE LINE.
+ *
+ * An inline box that wraps drops its padding, its border and its radius at the
+ * break by default, so `silver_gameplay_activity` came apart into a fill running
+ * to the card's edge and a bare `y` on the next line with a stray box around it.
+ * That reads as a rendering fault rather than as a wrapped word.
+ *
+ * `clone` was the first answer and it is kept as the backstop, but two properly
+ * drawn half-chips is still an identifier a reader has to reassemble across a
+ * line. `nowrap` is the actual fix: the chip takes a break opportunity BEFORE
+ * itself and moves down whole. It is safe on these because the marks are single
+ * identifier segments -- a qualified name is drawn as one chip per part with the
+ * dots outside them, so nothing in here is long enough to need the break it is
+ * being denied. The `overflow-wrap: anywhere` on `.answer-code` further down
+ * stays, for the one case that has no break opportunity at all.
+ */
+.entity-token,
+.entity-mark,
+.answer-badge {
+  white-space: nowrap;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.entity-catalog {
+  color: var(--ast-entity-catalog-fg);
+  background: var(--ast-entity-catalog-bg);
+}
+.entity-schema {
+  color: var(--ast-entity-schema-fg);
+  background: var(--ast-entity-schema-bg);
+}
+.entity-table {
+  color: var(--ast-entity-table-fg);
+  background: var(--ast-entity-table-bg);
+  border-radius: 4px;
+}
+.entity-table-link {
+  color: var(--ast-entity-table-fg);
+  text-decoration-color: var(--ast-table-ref-border);
+}
+.entity-table-link:hover {
+  color: var(--ast-entity-table-fg);
+  text-decoration-color: currentColor;
+}
+.entity-table-link:focus-visible {
+  outline: 2px solid var(--ast-table-ref-border);
+  outline-offset: 2px;
+}
+.entity-column {
+  color: var(--ast-entity-column-fg);
+  background: var(--ast-entity-column-bg);
+  padding: 1px 3px;
+}
+.entity-quote {
+  color: var(--ast-entity-quote-fg);
+  background: var(--ast-entity-quote-bg);
+}
+.entity-table-list {
+  min-width: 0;
+  max-width: 100%;
+  container-name: entity-table-list;
+  container-type: inline-size;
+}
+.entity-table-list-count,
+.entity-table-list-empty {
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-12);
+  line-height: var(--ast-lh-body);
+}
+.entity-table-list ul {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.entity-table-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 5px 7px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--ast-fs-12);
+  line-height: var(--ast-lh-body);
+}
+.entity-table-list-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.entity-table-list-name:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}
+.entity-table-list-name .entity-table,
+.entity-table-list-name .entity-table-mark {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.entity-table-list-name .entity-token {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Preserve the object segment longest. Qualifiers give way first when a full
+   three-part name has to fit inside one safe card. */
+.entity-table-list-name .entity-catalog {
+  flex: 0 8 auto;
+}
+.entity-table-list-name .entity-schema {
+  flex: 0 5 auto;
+}
+.entity-table-list-name .entity-table {
+  flex: 1 1 auto;
+}
+.entity-table-list-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.entity-table-list-meta {
+  flex: 0 1 auto;
+  max-width: 100%;
+  color: var(--ast-text-secondary);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+/* Two cards only after each can retain the 23rem minimum used by the trace
+   renderer. At screenshot and desktop widths this is two columns; narrower
+   panels stay one column instead of crushing names and metadata together. */
+@container entity-table-list (min-width: 47rem) {
+  .entity-table-list ul {
+    grid-template-columns: repeat(2, minmax(23rem, 1fr));
+  }
+}
+.answer-card .provenance-chip {
+  color: var(--ast-entity-tag-fg);
+  background: var(--ast-entity-tag-bg);
+}
+/* The data package's values, in the shape the source table beside them already
+   takes: `.answer-code`'s 3px radius and 1px 5px, so a fact is one shape across
+   the block and only its colour says which kind of fact it is. The colours are
+   the two Appearance rows that already own these kinds -- Quote for a window,
+   Tag for a label -- rather than a third vocabulary invented here. */
+.answer-badge {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+  /* A window is one value and must not break across lines: `2026-07-22 –
+     2026-08-03` wrapped at the dash reads as two dates. */
+  white-space: nowrap;
+}
+.answer-badge--date {
+  color: var(--ast-entity-quote-fg);
+  background: var(--ast-entity-quote-bg);
+}
+.answer-badge--tag {
+  color: var(--ast-entity-tag-fg);
+  background: var(--ast-entity-tag-bg);
+}
+/* A plan is the one card that is waiting on the user, so it is the most emphatic
+   thing in the transcript until it resolves: a heavier blue edge and a wash, blue
+   because what the card is waiting for is a decision and every other thing you act
+   on in this app is that colour. Once resolved it drops back to an ordinary
+   hairline and the ordinary card surface. */
+.plan-card {
+  border: 1.5px solid var(--ast-blue);
+  border-radius: var(--ast-radius-card);
+  box-shadow: none;
+  /* Ice, which replaces oat as the AI-context surface. The plan is the one card
+     in the transcript that is waiting on the reader, and the wash is what says
+     so until it resolves. Opaque, like the answer card beside it: it was held at
+     95% to take the sky by the same amount, and the amount was the defect. */
+  background: var(--ast-ice);
+  margin-bottom: 26px;
+}
+/* A resolved plan is an answer surface, so it takes the answer card's own -- the
+   96% pane included, or the transcript would have two whites in it. */
+.plan-card.resolved {
+  border: 1px solid var(--ast-hairline);
+  background: var(--ast-pane);
+}
+/*
+ * The transcript's own gutters, over AppKit's.
+ *
+ * The library gives a card 24px of vertical padding, 24px inside its header and
+ * content, and 24px between every section. The design's card is 24/28 with 16px
+ * between sections, which is the difference between a card holding ten sections
+ * and a card holding ten pages. The two utilities being overridden are Tailwind's
+ * and are layered, so these unlayered rules win without needing !important.
+ */
+.answer-card,
+.plan-card {
+  gap: 14px;
+}
+/* The answer is the transcript's primary reading surface. The design's 28px
+   inset and the minimum body height keep it visibly more substantial than the
+   live-step pane and the compact cards nested inside it, without narrowing the
+   page grid. 28 and not 24: the inset is the frame for the body, paired with
+   the 24px bottom stated below. The header is the exception: the provenance
+   chip is the first pixel of the card chrome, so it cannot sit a full gutter
+   down from the top edge. Measure comes from `--conversation-measure`, which
+   is the lever that does not cost the card its frame. */
+.answer-card > [data-slot='card-header'],
+.answer-card > [data-slot='card-content'] {
+  padding-inline: 28px;
+  /* AppKit's card is a flex column. These two are its items; if either shrinks
+     the header or the body is shorter than its sections and they paint over
+     each other. The dialog and the transcript both hit that path. */
+  flex-shrink: 0;
+  min-height: min-content;
+  overflow: visible;
+}
+.plan-card > [data-slot='card-header'],
+.plan-card > [data-slot='card-content'] {
+  padding-inline: 20px;
+}
+/* Shorthand, not padding-top alone: AppKit's CardHeader ships a block padding
+   utility, and a single-side override leaves that gap under the top edge.
+   8px on every side is the card radius: the mark and Live pill sit inside the
+   rounded corner, equally off the top and the left, without a header gutter
+   and without hanging past the hairline. The takeaway on the next grid row
+   carries its own inset. */
+.answer-card > [data-slot='card-header'] {
+  padding: 8px;
+}
+.answer-card > [data-slot='card-content'] {
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+/*
+ * The answer card's header: the mark, the provenance chips, and the takeaway.
+ *
+ * The mark used to be a flex sibling of the whole chip+takeaway column, so
+ * `items-start` aligned it against the top of a block that grows every time the
+ * takeaway wraps to another line -- and a 32px mark beside a short chip then
+ * read as floating above the header rather than sitting on it. This is a
+ * two-column grid instead: the mark in the first column, the chip row and the
+ * takeaway stacked in the second so the takeaway stays indented under the chips.
+ * `align-items: center` centres each item within its own row, so the mark and
+ * the chip row co-centre in the first row -- the header row -- whatever the
+ * takeaway below does. The alignment is the mark against that one row, not a
+ * per-icon nudge, so it holds for one line or several and for every chip tone.
+ */
+.answer-card-head {
+  display: grid;
+  gap: 8px;
+}
+/* The mark and the state chip, at the top left corner of the card and nowhere
+   else. `justify-self: start` is what states it: the head is a grid, and a grid
+   item stretches to its track by default, so the row was as wide as the takeaway
+   under it and any later `justify-content` on it could slide the chip inward. */
+.answer-card-identity {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
+  gap: 8px;
+}
+/* Asked-by in this row is a compact chip, the same size as Live. A later
+   page rule that lifts the 150px cap would stretch it into a banner again. */
+.answer-card-identity .identity-chip {
+  flex: none;
+  max-width: 150px;
+}
+.answer-card-mark {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.answer-card-mark > svg {
+  width: 18px;
+  height: 18px;
+}
+/*
+ * The provenance chip: where the figures under this takeaway came from.
+ *
+ * THREE TONES, WHERE THERE WERE TWO. Live, mixed and stored, which is what the
+ * server actually distinguishes and what the design reference draws at 11ar.
+ * They used to be two because the chip was coloured from AppKit's `variant`,
+ * which has no rung between "fine" and "failure", so a mixed answer -- live
+ * narrative over stored figures -- wore the same chip as one where nothing had
+ * run. Those are different amounts of wrong and a reader has to act on them
+ * differently. Which chip appears is decided in degraded-answer.ts from what the
+ * server stated, never from this file and never from the prose.
+ *
+ * Deliberately NOT the action colour, even though blue owns identity elsewhere: a
+ * blue pill directly above a heading reads as a control, and this is a statement.
+ * Ink is the darkest neutral fill rather than an accent, so it makes the claim
+ * without spending one of the five meanings on it.
+ *
+ * The pill radius stays at 999px, which is the one place this app keeps it. It
+ * is the design reference's own drawing for these three at 11ar and 3ar, and the
+ * distinction is legible: everything else that looks like this is a 4px status
+ * chip inside a table or a row, and this is a statement above a heading.
+ */
+.provenance-chip {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: var(--ast-fs-11);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.answer-card [data-slot='badge'].provenance-chip[data-tone='live'],
+.provenance-chip[data-tone='live'] {
+  background: var(--ast-neutral-fill);
+  background-color: var(--ast-neutral-fill);
+  border: 1px solid var(--ast-border-input);
+  color: var(--ast-text);
+}
+/* The warning family, because a mixed answer IS an answer to the question asked
+   and its figures are not yours. Tinted rather than solid: this one qualifies
+   the answer under it, and a solid mass above a heading reads as a refusal. */
+.provenance-chip[data-tone='mixed'] {
+  background: var(--ast-warn-fill);
+  border: 1px solid var(--ast-warn-border);
+  color: var(--ast-warn-text);
+}
+/* Solid, and the one chip in the app that is. A representative response is not
+   an answer to the question that was asked, and the design reference draws it as
+   a filled #A04A62 for that reason -- 5.93:1 with white on it, so the label is
+   still type at 11px. The mixed chip above it is the tinted rung of the same
+   idea, which is what keeps the two apart at a glance. */
+.provenance-chip[data-tone='stored'] {
+  background: var(--ast-neg-text);
+  border-color: transparent;
+  color: var(--ast-white);
+}
+/*
+ * Failure on the night sky: muted dark red, off-white type. Not --ast-neg-text
+ * as a fill -- that token remaps to pale pink in dark mode, which is the
+ * salmon "No result recorded" chip. Mixed with navy so the mass stays dark
+ * after that remap. Slot selector so the Badge utility cannot win.
+ */
+.answer-card [data-slot='badge'].provenance-chip[data-tone='failed'],
+.provenance-chip[data-tone='failed'] {
+  background: color-mix(in oklab, var(--ast-navy) 72%, var(--ast-neg-text));
+  background-color: color-mix(in oklab, var(--ast-navy) 72%, var(--ast-neg-text));
+  border: 1px solid color-mix(in oklab, var(--ast-navy) 55%, var(--ast-neg-text));
+  color: var(--ast-ice);
+}
+/* The plan's state: warning while it waits on a decision, positive once it has
+   one. Both colours and the whole of the box come from `.ast-pill` and the
+   family class PlanCard.tsx sets, so nothing is declared here. `data-state`
+   stays on the element because it is what a test and a reader of the DOM read
+   the state off; it no longer selects anything. */
+/*
+ * Break the plan's text wherever it has to break.
+ *
+ * The answer card's own version of this list is in answer-body.css and is
+ * scoped to `.answer-card`, which left the plan out of it. The plan is the
+ * surface that needs it most: an answer's takeaway is a sentence of English,
+ * while a plan step opens "Read
+ * <catalog>.<schema>.gold_title_daily_summary" -- one word, no spaces, wider
+ * than the column it lands in at every breakpoint. Without a break opportunity
+ * that word sets the floor for its whole grid column, and the card overflows
+ * rather than wrapping.
+ *
+ * `min-width: 0` for the same reason on the other axis: a grid and a flex child
+ * both size to their content by default, so the floor the long word sets is a
+ * floor the layout is obliged to honour until it is told it may not.
+ */
+.plan-card [data-slot='card-description'],
+.plan-card [data-slot='card-title'],
+.plan-step > div,
+.plan-step strong,
+.plan-step p {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.plan-steps {
+  display: grid;
+  gap: 8px;
+}
+.plan-step {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  padding: 12px 16px;
+  /* The hairline separates the rows, on the unresolved card and the resolved one
+     alike. This was opaque white "rather than a tint of the card", which held while
+     the card was opaque too; against `--ast-pane` an opaque step is a white block
+     on a translucent sheet, and the sheet then reads as the grey around it. */
+  background: transparent;
+}
+/*
+ * The step numerals. Filled from `--ast-seg-pressed`, the same pair Rendered |
+ * Raw already uses, because `--ast-blue` remaps to ice on the night sky and ice
+ * as a mass is the neon chip the reader asked to darken. Daylight stays the
+ * action blue (white on #2272B4 is 5.08:1); dark takes the hover rung, still
+ * selected, no longer a sky chip.
+ *
+ * THE FACE COMES FROM `.ast-num` ON THE MARKUP, and this rule no longer asks for
+ * tabular figures, because asking was the whole of what it did. These sit in a
+ * column -- one per step, at the same offset down the card -- and the reason
+ * given for `font-variant-numeric` here was that a ten-step plan should not have
+ * a wider circle at 10 than at 9. The circle is 22px either way, so that part was
+ * never at risk; what was at risk is the digits inside it, and DM Sans could not
+ * line those up however this rule was written. It declares no `tnum` feature and
+ * its digits are proportional, a `1` being just over half the width of a `0`.
+ */
+.plan-step > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--ast-seg-pressed);
+  color: var(--ast-seg-pressed-ink);
+  font-size: var(--ast-fs-12);
+  font-weight: 700;
+}
+.plan-step strong {
+  font-size: var(--ast-fs-13);
+  font-weight: 700;
+}
+/*
+ * The product mark on a step that names one, sitting left of the title.
+ *
+ * `text-bottom` rather than `middle`: the titles wrap, and a mark centred on the
+ * x-height of a two-line lead floats between the lines. The margin is the
+ * handoff's 6-8px, taken at the low end because the lead is bold and already
+ * reads as one run.
+ */
+.plan-step strong > .brand-icon {
+  margin-right: 6px;
+  vertical-align: text-bottom;
+}
+.plan-step p {
+  color: var(--ast-text-long);
+  font-size: var(--ast-fs-13);
+  line-height: 1.5;
+  margin: 2px 0 0;
+}
+/*
+ * The plan with its steps opened for editing, which is what "Revise request"
+ * shows instead of the read-only list.
+ *
+ * The rows keep the step geometry -- same numeral, same card, same gutters -- so
+ * the editor reads as the plan the reader was just looking at rather than as a
+ * form that replaced it. The third column is the remove control, which the
+ * read-only row does not have.
+ */
+.plan-revision {
+  display: grid;
+  gap: 12px;
+}
+.plan-step-edit {
+  grid-template-columns: 22px 1fr 28px;
+}
+.plan-step-edit > div {
+  display: grid;
+  gap: 6px;
+}
+/* The title reads as the lead it is in the read-only row: same size, same
+   weight, so switching between the two views does not restyle the plan. */
+.plan-step-edit input {
+  font-size: var(--ast-fs-13);
+  font-weight: 700;
+}
+.plan-step-edit textarea {
+  font-size: var(--ast-fs-13);
+  line-height: 1.5;
+  resize: vertical;
+}
+/* Quiet until it is wanted: dropping a step is the rarest of the three things
+   this editor does, and it sits beside two fields a reader is typing into. */
+.plan-step-remove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ast-radius-control);
+  color: var(--ast-text-long);
+  background: transparent;
+  cursor: pointer;
+}
+.plan-step-remove > svg {
+  width: 14px;
+  height: 14px;
+}
+.plan-step-remove:hover:not(:disabled) {
+  background: var(--ast-neg-fill);
+  color: var(--ast-neg-text);
+}
+.plan-step-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.plan-revision-note {
+  display: grid;
+  gap: 6px;
+}
+.plan-revision-note > span {
+  font-size: var(--ast-fs-13);
+  font-weight: 700;
+}
+.plan-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Green, and the tint rather than the solid: what this alert reports is that
+   nothing has run yet, or that what ran is what was approved, which is the
+   reachable-or-saved meaning. The positive family, which is the same three values
+   the plan's own state chip and the Sources rows take, so the reassurance and the
+   chip above it cannot end up two different greens. The semantic pair remains
+   AA on its own wash, so the icon and any type in it are legible. */
+[data-slot='alert'].plan-reassurance {
+  border-color: var(--ast-pos-border);
+  background: var(--ast-pos-fill);
+}
+[data-slot='alert'].plan-reassurance > svg {
+  color: var(--ast-pos-text);
+}
+/* A plan that was revised away, or left behind by the next question, reports
+   that nothing ran -- which is neither the reassurance of an approval nor a
+   fault, so it is the neutral surface rather than the green one. */
+[data-slot='alert'].plan-reassurance[data-state='superseded'] {
+  border-color: var(--ast-hairline);
+  /* Neutral, and on this card neutral is the sheet itself rather than a grey fill.
+     The hairline is what makes it a box; see the note on `--ast-pane`. */
+  background: transparent;
+}
+[data-slot='alert'].plan-reassurance[data-state='superseded'] > svg {
+  color: var(--ast-text-long);
+}
+/* The decision, right-aligned: the outline "Revise request" then the primary
+   "Approve and run", so the action that starts a query is the last thing under
+   the plan it will run. */
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.plan-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+/*
+ * The takeaway, at the size the type scale reserves for it.
+ *
+ * It was a clamp up to 28px, which is the hero size on a page whose own h2 is
+ * 22px: the one sentence in the card competed with the page rather than heading
+ * the card. 18px/700 at 1.35 is the handoff's, and `pretty` keeps a two-line
+ * takeaway from leaving one word alone on the second line.
+ */
+.answer-takeaway {
+  padding-inline: 20px;
+  font-size: calc(var(--ast-fs-16) + 0.5px);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+/* ── The agent's Markdown ───────────────────────────────────────────────────
+ *
+ * The orchestrator writes headings, bullets, bold and code spans, and until
+ * this block existed the app printed the characters. See answer-markdown.ts for
+ * the parser; these are the rules that make its output read as one answer
+ * rather than as a document that wandered into a chat card.
+ *
+ * Tailwind's preflight strips list markers and every default margin, so the
+ * spacing and the bullets here are stated rather than restored.
+ */
+.answer-prose {
+  /* Body grey rather than the ink the headings take: this is long-form prose and
+     #3A3838 is what the design sets it in, at 11.65:1 on white. 14px is one
+     rung above the old 12.5px body: the Source line and these paragraphs
+     share that size everywhere the card is drawn, so Ask, Monitoring and
+     the Run Explorer do not disagree. The takeaway and the figure rail stay
+     on their own rungs. */
+  color: var(--ast-text-long);
+  text-wrap: pretty;
+  font-size: var(--ast-fs-14);
+  line-height: 1.5;
+}
+.answer-prose > * {
+  margin: 0;
+}
+.answer-prose > * + * {
+  margin-top: 6px;
+}
+/* Air above a section, none below it: a heading belongs to the thing under it,
+   and equal gaps either side would leave it floating between two paragraphs. */
+.answer-prose > * + .answer-heading {
+  margin-top: 20px;
+}
+.answer-prose > .answer-heading + * {
+  margin-top: 6px;
+}
+.answer-prose > * + .answer-finding {
+  margin-top: 16px;
+}
+.answer-finding {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.answer-finding-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.answer-finding-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+  line-height: 1.3;
+}
+.answer-finding-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+/*
+ * Sized as the label on a section, not as a title.
+ *
+ * The card already has a heading -- the takeaway -- and the agent's
+ * `## DATA PACKAGE` sits underneath it. At heading sizes the two compete and the
+ * answer looks like a report; at body size with the weight up, it reads as what
+ * it is.
+ */
+.answer-heading {
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ast-text);
+}
+.document-footnotes ol {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding-left: 20px;
+}
+.document-footnotes q {
+  color: var(--ast-text);
+}
+.document-footnotes p {
+  margin-top: 2px;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-12);
+}
+.answer-subheading {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--ast-text);
+}
+.answer-list {
+  padding-left: 0;
+  display: grid;
+  gap: 6px;
+}
+ul.answer-list {
+  list-style: none;
+}
+ul.answer-list > li {
+  position: relative;
+  padding-left: 13px;
+}
+ul.answer-list > li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--ast-blue);
+  font-weight: 700;
+}
+ol.answer-list {
+  list-style: decimal outside;
+}
+/* An identifier, and usually a long one. `anywhere` rather than a scrollbar:
+   the chip sits inside a sentence, and a sentence does not scroll. */
+.answer-code {
+  /* --font-mono is declared now, in tokens.css. It never was until this revamp, so
+     every one of these fallback lists was what actually chose the face. They are
+     left in place: they cost nothing and they are still what renders if the
+     self-hosted DM Mono fails to load. */
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.88em;
+  /* The info chip rather than the grey tint it was. What is inside these
+     backticks is a table or a column name in nine cases out of ten, and §3 sets
+     an entity name in prose as a mono tag "chip-coloured elsewhere" -- the amber
+     mono fill belongs to the caveats, which have a wash of their own to sit on;
+     this one is on white. #0E538B on #DDEAF4 is 6.34:1, so the identifier is
+     still type at 0.88em. The 3px radius and the 1px 5px are the same tag the
+     Keep in mind bullets carry, so an identifier is one shape everywhere on the
+     card and only its colour says which context it is in. */
+  background: var(--ast-info-fill);
+  color: var(--ast-info-text);
+  border-radius: 3px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+  /* So a broken identifier is two whole chips rather than one torn one. See the
+     note beside `.entity-token` at the top of this file. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.semantic-inline-code {
+  display: inline-block;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+/* A link the agent wrote, in the action colour with a solid underline. Solid, and
+   not the dotted rule the entity links carry: dotted now means "this names a table
+   or a column and you can go and look at it", which is a different offer from a
+   link out, and the two should not be confused for each other. */
+.answer-link {
+  color: var(--ast-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.answer-rule {
+  border: 0;
+  border-top: 1px solid var(--ast-hairline);
+}
+.answer-code-block {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ast-fs-12);
+  line-height: 1.5;
+  /* The mono face and the radius are what mark this as code. The grey fill went
+     with every other band on the card. */
+  background: transparent;
+  border: 1px solid var(--ast-hairline);
+  border-radius: 6px;
+}
+/*
+ * ── The agent's tables ─────────────────────────────────────────────────────
+ *
+ * A table the agent wrote, in the treatment the app already gives structured
+ * data. Nothing here is a new design: the bordered box with a clipped radius,
+ * the tinted header band and the ruled rows are `.sources-module`'s, and the
+ * cell padding and the right-aligned mono figures are the results table's, from
+ * `.table-scroll` and `.bench-num` in benchmark.css. An answer's table is the
+ * same kind of object as those two and should not be a third look.
+ *
+ * WHAT WAS ON SCREEN BEFORE THESE RULES was the Markdown source -- `| Date |
+ * Sessions |` and a row of dashes -- because the parser did not read a table and
+ * the renderer had nothing to draw. So this block is second half of that fix and
+ * not a restyle of anything: there was no table element here to style.
+ *
+ * The wrapper carries the border and the scroll, and the table inside it carries
+ * none, which is the one structural decision worth noting. A scrolling element
+ * cannot also draw the edge that the scrolled content passes under: the border
+ * would scroll away with the first column.
+ */
+.answer-table-wrap {
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  /* So the header band's fill is clipped to the radius rather than squaring off
+     the two corners it sits in. Height stays with the rows: a capped wrap with
+     this overflow is what cut the second table in half on the Monitoring
+     dialog, with the leftover rows painting over Sources. */
+  overflow: hidden;
+  /* Six columns of daily figures are wider than the transcript column at some
+     widths, and the alternative to scrolling them is a figure that wraps
+     mid-number. See the comment on the table case in DataEntityLinks.tsx. */
+  overflow-x: auto;
+  height: auto;
+  max-height: none;
+  background: var(--ast-fill-band);
+  /* THE WRAPPER IS THE SCROLLER, and these two say so. A grid or flex child
+     sizes to its content by default, so in the 620px Monitoring drilldown a wide
+     table pushed this box past the panel and was clipped by the panel's own edge:
+     the scrollbar was on an element that never overflowed. */
+  min-width: 0;
+  max-width: 100%;
+}
+/*
+ * Frame around a table that carries its source in a band above the scroller.
+ * The wrap keeps the border when it is used alone (plan step results); nested
+ * here the frame owns the edge so the origin links stay in the visible header
+ * while the columns scroll.
+ */
+.answer-table-frame {
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  overflow: hidden;
+  background: var(--ast-fill-band);
+  min-width: 0;
+  max-width: 100%;
+}
+.answer-table-frame .answer-table-wrap {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.answer-table-origin {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+.answer-origin-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.answer-origin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  /* The table name is one statement and stays on one line as the card animates
+     open; multiple sources still wrap between links via `.answer-origin-links`. */
+  white-space: nowrap;
+}
+.answer-origin-link .source-name-pill,
+.answer-origin-link .source-name-pill a {
+  white-space: nowrap;
+}
+.answer-table {
+  /* `collapse` is Tailwind preflight's default and is restated because the row
+     rules below are one hairline between two rows, not two abutting borders. */
+  border-collapse: collapse;
+  /* Fills the wrapper when the columns are narrow enough to, and grows past it
+     when they are not -- which is what makes the wrapper's scroll conditional
+     rather than always on. */
+  width: 100%;
+  font-size: var(--ast-fs-12);
+  line-height: var(--ast-lh-body);
+  /* Prose in the card is #3A3838; a figure being compared against the figure
+     under it is read as data and takes the body ink. */
+  color: var(--ast-text);
+  /* The default for a table, restated because `.answer-prose` sets `pretty` and
+     a balanced last line inside a 60px cell is not a kindness. */
+  text-wrap: initial;
+}
+/* The band, and the column names on it. The names are the quietest thing in the
+   block on purpose: the reader came for the figures, and a heading that competes
+   with them is a heading being read twice. Same reasoning and same values as
+   `.table-scroll thead th`. */
+.answer-table thead th {
+  padding: 8px 14px;
+  background: var(--ast-neutral-fill);
+  border-bottom: 1px solid var(--ast-hairline);
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+  /* A column name is one or two words and belongs on one line above its
+     numbers. The wrapper scrolls if that makes the table wide. */
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: bottom;
+}
+.answer-table tbody td {
+  padding: 9px 14px;
+  font-size: var(--ast-fs-12);
+  line-height: var(--ast-lh-body);
+  /* Centred rather than top-aligned. A row is one line tall wherever its cells
+     are single values, and the rows that are not are tall because ONE prose cell
+     wrapped: with `top`, the figures beside it sat at the ceiling of an otherwise
+     empty cell, which is what the Monitoring drilldown looked like. */
+  vertical-align: middle;
+}
+/*
+ * ── Column width, and the four-line date ───────────────────────────────────
+ *
+ * WHAT WAS ON SCREEN. In the 620px Monitoring drilldown, a six-column daily
+ * table was wider than the panel, so every column was given its MINIMUM width --
+ * and the minimum of a cell that may break anywhere is one character. `Date`
+ * came out as `202 / 6- / 07- / 14`, every row grew to four lines of white
+ * space, and the figures beside the date sat at the top of it.
+ *
+ * The fix is to state what a column holds, because a table cannot work it out
+ * from a width. A column of dates, codes or figures is `atomic` and its cells
+ * are kept whole; a column of descriptions is `prose` and keeps wrapping, with a
+ * floor so it cannot be squeezed to one word per line either. A table whose
+ * columns then do not fit scrolls in its wrapper, which is what the wrapper was
+ * always for -- crushing the columns instead was the bug.
+ */
+.answer-table [data-wrap='atomic'] {
+  white-space: nowrap;
+  /* The card's content slot sets `overflow-wrap: anywhere`. Right for a table
+     name in a sentence, wrong for a date: see the figures rule below. */
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.answer-table [data-wrap='prose'] {
+  /* Enough for a few words per line. Under this a description column reads as a
+     vertical list of single words, which is the same defect as the broken date
+     wearing different clothes. */
+  min-width: 14ch;
+}
+/* A rule between rows, never above the first one: the band already closes the
+   header off, and a second line under it reads as an empty row. */
+.answer-table tbody tr + tr td {
+  border-top: 1px solid var(--ast-hairline);
+}
+/* The last row of an aggregate table is the total and the agent bolds it, so it
+   arrives as `**...**` and comes out as a `strong` in every cell. 700 flat,
+   against Tailwind preflight's relative `bolder` -- which compounds, and inside
+   a header cell that is already 700 would have set one row of the table at 900
+   for no reason anybody chose. */
+.answer-table strong {
+  font-weight: 700;
+}
+/*
+ * The columns the parser read as figures.
+ *
+ * Right-aligned so the digits line up under each other rather than the first
+ * character of each number lining up, and mono so a column of them does not
+ * jitter by most of a digit as the values change. That is `.bench-num`'s
+ * argument and `.bench-num`'s pair of declarations; the difference is only that
+ * this app cannot put a class on a cell the model wrote, so the parser states
+ * the alignment per cell as a data attribute. `tabular-nums` is belt and braces
+ * for a proportional face -- DM Mono is already fixed-pitch.
+ *
+ * The head is aligned and NOT set in mono: it is a word, and a right-aligned
+ * word over a right-aligned column of figures is the association being made
+ * without the word being made harder to read.
+ */
+.answer-table [data-align='right'] {
+  text-align: right;
+}
+.answer-table [data-align='center'] {
+  text-align: center;
+}
+.answer-table tbody td[data-align='right'] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  /* The card's content slot sets `overflow-wrap: anywhere`, which is right for a
+     table name in a sentence and wrong for a number: the place it chose to break
+     was inside the figure, and "$1,381" over "16" is a number a reader has to
+     reassemble before they can believe it. */
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-size: var(--ast-fs-12);
+}
+/* A cell of prose -- a country, a phase name, a note -- breaks where it has to.
+   `anywhere` is inherited from the card and is left alone here: these cells hold
+   table and column names as often as they hold words. */
+.answer-table tbody td[data-align='left'] {
+  color: var(--ast-text-long);
+}
+.answer-table tbody tr {
+  transition: background-color 120ms ease;
+}
+.answer-table tbody tr:hover {
+  background: var(--ast-neutral-fill);
+}
+/*
+ * Appearance defaults to the authored, polished ledger above. Plain is the
+ * deliberate opt-out: it removes the framed band and row interaction while
+ * retaining table semantics, alignment, spacing, and readable separators.
+ */
+html[data-table-style='plain'] .answer-table-frame,
+html[data-table-style='plain'] .answer-table-wrap {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+}
+html[data-table-style='plain'] .answer-table thead th {
+  background: transparent;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[data-table-style='plain'] .answer-table tbody tr:hover {
+  background: transparent;
+}
+.answer-table tbody tr[data-story='baseline'] {
+  color: var(--ast-text-secondary);
+}
+.answer-table tbody tr[data-story='peak'] {
+  background: var(--ast-info-fill);
+  box-shadow: inset 2px 0 0 var(--ast-blue);
+}
+.answer-table-story-tag {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--ast-info-text);
+  background: var(--ast-info-fill);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.3;
+  text-transform: lowercase;
+}
+.answer-inline-number {
+  font-weight: 700;
+}

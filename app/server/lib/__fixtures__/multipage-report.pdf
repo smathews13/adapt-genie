@@ -1,0 +1,73 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 9 0 R /F2 10 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 9 0 R /F2 10 0 R >> >> >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R /Resources << /Font << /F1 9 0 R /F2 10 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 403 >>
+stream
+BT /F2 18 Tf 64 700 Td (Q3 ADAPT Retention Review) Tj ET
+BT /F1 11 Tf 64 660 Td (Prepared for the ADAPT working group.) Tj ET
+BT /F1 11 Tf 64 638 Td (Day-30 retention across the sample titles averaged 24.8 percent in Q3,) Tj ET
+BT /F1 11 Tf 64 616 Td (up 2.1 points from Q2. The strongest title reached 31.4 percent.) Tj ET
+BT /F1 11 Tf 64 594 Td (The weakest trailed the sample at 18.2 percent.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Length 390 >>
+stream
+BT /F2 18 Tf 64 700 Td (Cohort Detail) Tj ET
+BT /F1 11 Tf 64 660 Td (New-player cohorts acquired through paid social retained at) Tj ET
+BT /F1 11 Tf 64 638 Td (19.6 percent, versus 29.9 percent for organic installs.) Tj ET
+BT /F1 11 Tf 64 616 Td (Cross-label blocked sessions represented 1.2 percent of rows) Tj ET
+BT /F1 11 Tf 64 594 Td (and were excluded from the gold aggregates.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Length 326 >>
+stream
+BT /F2 18 Tf 64 700 Td (Recommendations) Tj ET
+BT /F1 11 Tf 64 660 Td (Shift 15 percent of paid social spend toward organic channels.) Tj ET
+BT /F1 11 Tf 64 638 Td (Instrument session-duration nulls in silver_gameplay_activity.) Tj ET
+BT /F1 11 Tf 64 616 Td (Re-run the evaluation suite after the October model update.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+10 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+11 0 obj
+<< /Title (Q3 ADAPT Retention Review) >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000264 00000 n 
+0000000401 00000 n 
+0000000538 00000 n 
+0000000991 00000 n 
+0000001431 00000 n 
+0000001807 00000 n 
+0000001904 00000 n 
+0000002007 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R /Info 11 0 R >>
+startxref
+2064
+%%EOF

@@ -1,0 +1,183 @@
+{
+  "generated_by": "bundle/scope-contract.py --generate",
+  "do_not_edit": "Generated from databricks.yml, app/server/lib/dependency-probes.ts, and agent/user_authorization.py.",
+  "app_resource": {
+    "file": "resources/adapt_app.app.yml",
+    "bundle_key": "apps.adapt_app"
+  },
+  "app_scopes": {
+    "catalog.catalogs:read": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "unity-catalog",
+        "reads": "metadata-only"
+      },
+      "probe_api_prefixes": [
+        "/api/2.1/unity-catalog/catalogs/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "catalog.schemas:read": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "unity-catalog",
+        "reads": "metadata-only"
+      },
+      "probe_api_prefixes": [
+        "/api/2.1/unity-catalog/schemas/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "catalog.tables:read": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "unity-catalog",
+        "reads": "metadata-only"
+      },
+      "probe_api_prefixes": [
+        "/api/2.1/unity-catalog/tables/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "dashboards.genie": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "genie",
+        "reads": "governed-rows"
+      },
+      "probe_api_prefixes": [
+        "/api/2.0/genie/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": "dashboards.genie",
+      "same_capability_different_spelling": false
+    },
+    "model-serving": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "model-serving",
+        "reads": "no-data"
+      },
+      "probe_api_prefixes": [],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "postgres": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "lakebase",
+        "reads": "metadata-only"
+      },
+      "probe_api_prefixes": [],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "serving.serving-endpoints": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "model-serving",
+        "reads": "no-data"
+      },
+      "probe_api_prefixes": [
+        "/api/2.0/serving-endpoints/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    },
+    "sql": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "sql-warehouse",
+        "reads": "governed-rows"
+      },
+      "probe_api_prefixes": [
+        "/api/2.0/sql/"
+      ],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": "sql",
+      "same_capability_different_spelling": false
+    },
+    "workspace.workspace:read": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "workspace-objects",
+        "reads": "metadata-only"
+      },
+      "probe_api_prefixes": [],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": null,
+      "same_capability_different_spelling": false
+    }
+  },
+  "model_scopes": {
+    "dashboards.genie": {
+      "token": "model: downscoped inside the serving container by Model Serving",
+      "classification": {
+        "surface": "genie",
+        "reads": "governed-rows"
+      },
+      "asked_when": [
+        "the data Genie space is configured"
+      ],
+      "app_equivalent": "dashboards.genie"
+    },
+    "sql": {
+      "token": "model: downscoped inside the serving container by Model Serving",
+      "classification": {
+        "surface": "sql-warehouse",
+        "reads": "governed-rows"
+      },
+      "asked_when": [
+        "a SQL warehouse is configured"
+      ],
+      "app_equivalent": "sql"
+    }
+  },
+  "platform_added_to_effective": [
+    "iam.access-control:read",
+    "iam.current-user:read"
+  ],
+  "targets": {
+    "customer": {
+      "declares": [
+        "serving.serving-endpoints",
+        "model-serving",
+        "sql",
+        "dashboards.genie",
+        "catalog.catalogs:read",
+        "catalog.schemas:read",
+        "catalog.tables:read",
+        "workspace.workspace:read",
+        "postgres"
+      ],
+      "staged": []
+    }
+  }
+}

@@ -1,0 +1,171 @@
+command: ['npm', 'run', 'start']
+env:
+  # Bundle target that produced this app. Empty in source so a Git-based deploy
+  # leaks no internal target name; bundle/app-release.sh fills it in the generated
+  # deploy tree. Release requests need it so the notebook can execute the exact
+  # approved target without asking the customer to edit bundle configuration.
+  - name: PLAYER_INSIGHTS_TARGET
+    value: ''
+  - name: LAKEBASE_ENDPOINT
+    valueFrom: postgres
+  - name: DATABRICKS_SERVING_ENDPOINT_NAME
+    valueFrom: serving-endpoint
+  # Foundation model the orchestrator calls. Empty in public source;
+  # bundle/app-release.sh fills the target value. Git deploys fall back to
+  # databricks-claude-sonnet-4-6 in Connections so the row is not blank.
+  - name: PLAYER_INSIGHTS_LLM_ENDPOINT
+    value: ''
+  - name: PLAYER_INSIGHTS_CATALOG
+    value: ''
+  - name: PLAYER_INSIGHTS_SCHEMA
+    value: ''
+  # Governed Steam sales source for the Ask-rail watchlist KPI (net revenue per
+  # unit sold). Bundle releases fill the deployment's strict three-part
+  # identifier; empty is reported as unavailable.
+  - name: PLAYER_INSIGHTS_WATCHLIST_TABLE
+    value: ''
+  - name: PLAYER_INSIGHTS_DATA_GENIE_ID
+    value: ''
+  # The warehouse the access gate probes as the signed-in user. This is the app's
+  # own warehouse, not the orchestrator's, which takes its warehouse from the
+  # model artifact. The two can differ, so a gate verdict covers the warehouse
+  # named here and says nothing about the one an answer ran on. Unset, the gate
+  # reports that it could not check rather than that access was refused.
+  - name: DATABRICKS_SQL_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  # The experiment the serving endpoint traces into, which lets Run Explorer
+  # deep-link a stored MLflow trace id. Supplied two ways, and the app prefers the
+  # more specific: a numeric id here wins; empty (the authored default) falls
+  # through to the PATH below.
+  #
+  # LEAVE THE ID EMPTY HERE. It is a per-workspace numeric id, so a literal ships
+  # one workspace's experiment into every build and a customer following the link
+  # lands on an experiment that does not exist in their account.
+  # bundle/app-release.sh still resolves and fills it for a bundle release; a
+  # "From Git" deploy leaves it empty and relies on the PATH.
+  - name: PLAYER_INSIGHTS_EXPERIMENT_ID
+    value: ''
+  # The workspace PATH of that experiment, which the app resolves to an id at
+  # runtime -- as its own service principal, the same MLflow get-by-name
+  # bundle/app-release.sh runs at release time -- WHENEVER the id above is empty.
+  # This is what makes a "From Git" deploy, which never runs the release, get the
+  # deep link too.
+  #
+  # SAFE TO BAKE IN, UNLIKE THE ID. A workspace path is the same string in every
+  # workspace, and this is the bundle's own default (var.experiment_path). A
+  # bundle release still sets the id above, which takes precedence, so a target
+  # tracing into a different path is unaffected. Empty here and empty above means
+  # no link, which the app reports as unset.
+  - name: PLAYER_INSIGHTS_EXPERIMENT_PATH
+    value: '/Shared/adapt-genie'
+  # The commit this build came from, so skew between the app and the
+  # orchestrator is readable rather than inferred. Empty on purpose: the value
+  # exists only at build time and scripts/bundle-server.mjs resolves it from git.
+  # Empty means this build does not know its own commit, which a reader must
+  # present as unknown rather than as agreement.
+  - name: PLAYER_INSIGHTS_BUILD_SHA
+    value: ''
+  # Postgres schema the app creates and owns inside Lakebase. Safe to bake the
+  # default: it is the same string in every workspace (`adapt`), and
+  # matches var.lakebase_app_schema. bundle/app-release.sh overrides it from the
+  # bundle var when a target changes it. Connections reads this env so the row
+  # shows the live schema, never "not set". Changing it on a live install still
+  # needs a grant + data migration; the env alone does not move existing tables.
+  - name: PLAYER_INSIGHTS_APP_SCHEMA
+    value: 'adapt'
+  # The three-part Unity Catalog name a notebook publishes its declaration to, so
+  # the Connections tab can show where the notebook and the running model disagree.
+  # Empty on purpose: it is a per-workspace name, and a value saved on the settings
+  # page overrides it. Read as the SIGNED-IN USER on the `sql` scope, so a reader
+  # without SELECT on it is told that rather than shown somebody else's answer.
+  # Nothing published to it is applied to the running agent.
+  - name: PLAYER_INSIGHTS_NOTEBOOK_DECLARATION
+    value: ''
+  # Whether the conversation rail lists everyone's conversations or only the
+  # signed-in user's. Per-user scoping is the default and the safe setting.
+  # Turning this on is for a shared evaluation workspace where stakeholders
+  # benchmark together and attribution is the point.
+  #
+  # The app fails closed: only the exact value "true" enables sharing, so unset,
+  # empty, "1", "yes" and a typo all leave the rail scoped per user, and the app
+  # logs which it saw at boot. Writes are never widened; delete, ask and upload
+  # stay owner-only whatever this says. bundle/app-release.sh resolves it from
+  # var.shared_conversation_rail, so set it in the bundle rather than here.
+  - name: PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL
+    value: 'false'
+  # Workspace groups that form ADAPT's outer App access boundary and role floor.
+  # Bundle releases replace these with var.app_admin_group / var.app_user_group.
+  - name: ADAPT_ADMIN_GROUP
+    value: 'adapt_genie_admins'
+  - name: ADAPT_USER_GROUP
+    value: 'adapt_genie_users'
+  # Customer-facing group names shown in Identity. A shared demo workspace may
+  # map these labels through generic workspace groups while preserving the
+  # the customer access model the app is demonstrating.
+  - name: ADAPT_ADMIN_GROUP_LABEL
+    value: 'adapt_genie_admins'
+  - name: ADAPT_USER_GROUP_LABEL
+    value: 'adapt_genie_users'
+  # Greenfield role bootstrap: a comma-separated list of email addresses.
+  # The app writes these roles to Lakebase only when the roster is genuinely
+  # empty. Once any role row exists, this value is ignored forever: absence or a
+  # stale value on a later code deploy cannot add, remove, promote or demote
+  # anybody. Lakebase is the runtime source of truth.
+  #
+  # EMPTY ON A GENUINELY EMPTY ROSTER MEANS NOBODY, NOT EVERYBODY. The app
+  # refuses every administrative surface until an operator explicitly creates a
+  # role row. Empty after bootstrap is harmless because the stored roster wins.
+  #
+  # NO VALUE HERE, EVER. An address in this file is one workspace's employee
+  # shipped into every build, and this tree is published. bundle/app-release.sh
+  # takes it from `var.admin_emails`, which databricks.yml declares and leaves
+  # empty, and which a deployment fills in the git-ignored
+  # .databricks/bundle/<target>/variable-overrides.json.
+  #
+  # THE GENERATED build/deploy/app.yaml IS THE ONE PLACE THE ADDRESSES LAND, and
+  # that file is tracked and published. The release uploads it from the local
+  # build tree, so it never needs committing; do not commit it after a release
+  # that set this. The build prints the same warning and the leak check blocks
+  # on it.
+  - name: PLAYER_INSIGHTS_ADMIN_EMAILS
+    value: ''
+  - name: PLAYER_INSIGHTS_APP_CATALOG
+    value: ''
+  # The catalog and schema Databricks Apps writes this app's own telemetry into,
+  # as `catalog.schema`. Empty means telemetry is off. Both readers report that
+  # state rather than guessing from PLAYER_INSIGHTS_APP_CATALOG.
+  #
+  # bundle/app-release.sh fills this only when the target declares an export
+  # destination; the customer target currently opts into `adapt_telemetry`.
+  - name: PLAYER_INSIGHTS_TELEMETRY_SCHEMA
+    value: ''
+  # The user API scopes this deployment declares, comma-separated. The app
+  # compares a forwarded token's own scope list against these and tells a reader
+  # whose sign-in predates a declaration what to do, instead of leaving them with
+  # red rows and a 403.
+  #
+  # THE ASK-PATH SCOPES, CATALOG BROWSE, WORKSPACE BROWSE, AND LAKEBASE ARE THE
+  # AUTHORED FALLBACK. A plain build is the artifact customers deploy from Git,
+  # and that path has no bundle target from which to resolve this value. Leaving
+  # it empty made a normal Git deployment claim it needed no serving, SQL, or
+  # Genie scope at all. Catalog read scopes are included so Connections can
+  # name the app catalog and the tables Genie uses. Workspace read and Lakebase
+  # are also requested so those pickers work after a Git deploy. Optional APIs
+  # that ADAPT does not use stay out of the fallback.
+  #
+  # bundle/app-release.sh still replaces this value with the exact resolved
+  # `user_api_scopes` from the App resource for a bundle target. That is how a
+  # target which opts into additional catalog, workspace, or Postgres browsing
+  # reports the larger list without making any optional scope universally
+  # required here.
+  #
+  # No counts here on purpose. This comment gave three of them -- the default's
+  # length, the demo target's, and the difference -- and two had gone stale by
+  # 2026-08-17, because optional scopes changed and nothing recomputes a sentence.
+  # Every number in it was maintained by hand and
+  # derivable from the bundle, which is the wrong side of that trade. The
+  # authority is `bundle summary -t <target>`, and the app reports the resolved
+  # list on its own Connections page.
+  #
+  - name: PLAYER_INSIGHTS_USER_API_SCOPES
+    value: 'serving.serving-endpoints,model-serving,sql,dashboards.genie,catalog.catalogs:read,catalog.schemas:read,catalog.tables:read,workspace.workspace:read,postgres'

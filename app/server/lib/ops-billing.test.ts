@@ -1,0 +1,530 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  BILLING_TAG_KEY,
+  buildCostStatement,
+  buildQuestionAttribution,
+  buildTiles,
+  workspaceEstimateRow,
+  type CostIdentifiers,
+} from './ops-billing';
+import { classifyGenieAccounting, GENIE_FREE_SKU, type GenieAccountingRow } from './genie-accounting';
+
+const IDS: CostIdentifiers = {
+  appName: 'adapt',
+  endpointName: 'adapt-orchestrator',
+  foundationModel: 'databricks-claude-sonnet-4-6',
+  warehouseId: 'warehouse-1',
+  genieSpaces: [
+    { id: '', label: 'Data Genie', tool: 'data_genie', tileId: 'genie:data' },
+    { id: '', label: 'Dictionary Genie', tool: 'dictionary_genie', tileId: 'genie:dictionary' },
+  ],
+  workspaceId: 'workspace-1',
+  telemetryEnabled: false,
+  appBillingTag: 'unverified',
+};
+const RANGE = { from: '2026-08-10', to: '2026-08-16' };
+
+describe('billing attribution', () => {
+  it('uses exact resource identity for spend and keeps the tag as separate coverage evidence', () => {
+    const query = buildCostStatement(IDS, RANGE);
+
+    expect(BILLING_TAG_KEY).toBe('system_billing');
+    expect(query?.statement).toContain("u.custom_tags['system_billing'] = 'adapt'");
+    expect(query?.statement).toContain(
+      "WHEN u.billing_origin_product = 'MODEL_SERVING' AND u.usage_metadata.endpoint_name = :endpointName THEN 'serving-endpoint'"
+    );
+    expect(query?.statement).not.toContain(':foundationEndpoint');
+    expect(query?.statement).toContain(
+      "WHEN u.billing_origin_product = 'SQL' AND u.usage_metadata.warehouse_id = :warehouseId THEN 'sql-warehouse'"
+    );
+    expect(query?.statement).toContain(
+      "WHEN u.billing_origin_product = 'APPS' AND u.usage_metadata.app_name = :appName THEN 'app-compute'"
+    );
+    expect(query?.statement).not.toContain('indexRebuildJobId');
+    expect(query?.statement).not.toContain("billing_origin_product = 'JOBS'");
+    expect(query?.statement).not.toContain('COALESCE(p.pricing.default, 0)');
+    expect(query?.statement).toContain('t.usage_unit = p.usage_unit');
+    expect(query?.statement.match(/u\.workspace_id = :workspaceId/g) ?? []).toHaveLength(3);
+    expect(query?.parameters).toContainEqual({ name: 'workspaceId', value: IDS.workspaceId, type: 'STRING' });
+  });
+
+  it('refuses to scan account-wide billing when the workspace id is unavailable', () => {
+    expect(buildCostStatement({ ...IDS, workspaceId: '' }, RANGE)).toBeNull();
+  });
+
+  it('attributes configured Lakebase only from tagged LAKEBASE billing rows', () => {
+    const query = buildCostStatement(
+      { ...IDS, lakebaseEndpoint: 'projects/adapt/branches/production/endpoints/primary' },
+      RANGE
+    );
+    expect(query?.covered).toContain('lakebase');
+    expect(query?.statement).toContain(
+      "WHEN u.billing_origin_product = 'LAKEBASE' AND u.workspace_id = :workspaceId AND u.custom_tags['system_billing'] = 'adapt' THEN 'lakebase'"
+    );
+    expect(query?.parameters.some((parameter) => parameter.name === 'lakebaseEndpoint')).toBe(false);
+  });
+
+  it('deduplicates tag and metadata overlap by billing record id before summing', () => {
+    const statement = buildCostStatement(IDS, RANGE)!.statement;
+    const spendInput = statement.slice(statement.indexOf('tagged AS ('), statement.indexOf('price_hits AS ('));
+    expect(spendInput).toContain("u.custom_tags['system_billing'] = 'adapt'");
+    expect(spendInput).toContain('OR (u.billing_origin_product');
+    expect(statement).toContain('COALESCE(\n      CAST(u.record_id AS STRING)');
+    expect(statement).toContain('GROUP BY record_id, usage_date');
+    expect(spendInput).not.toContain('UNION');
+  });
+
+  it('bounds the billing scan to the complete days the page requested', () => {
+    const query = buildCostStatement(IDS, RANGE);
+    expect(query?.statement).toContain(
+      'u.usage_date >= GREATEST(:from_day, (SELECT source_from FROM deployment_start))'
+    );
+    expect(query?.statement).toContain('u.usage_date <= :to_day');
+    expect(query?.statement).toContain("u.billing_origin_product = 'APPS'");
+    expect(query?.statement).toContain('u.usage_metadata.app_name = :appName');
+    expect(query?.parameters).toEqual(
+      expect.arrayContaining([
+        { name: 'from_day', value: RANGE.from, type: 'DATE' },
+        { name: 'to_day', value: RANGE.to, type: 'DATE' },
+      ])
+    );
+  });
+
+  it('clips a first deployment day at the exact successful deployment instant', () => {
+    const query = buildCostStatement(IDS, {
+      from: '2026-08-28',
+      to: '2026-08-31',
+      fromTimestamp: '2026-08-28T18:42:11.000Z',
+    });
+    expect(query?.statement.match(/u\.usage_start_time >= :from_instant/g)).toHaveLength(2);
+    expect(query?.parameters).toContainEqual({
+      name: 'from_instant',
+      value: '2026-08-28T18:42:11.000Z',
+      type: 'TIMESTAMP',
+    });
+  });
+
+  it('does not call an endpoint range total per-token before apportioning it', () => {
+    const endpoint = buildTiles(IDS, [
+      {
+        component: 'serving-endpoint',
+        spend: 12,
+        currency: 'USD',
+        billedDays: 2,
+        jobRuns: null,
+        lastDay: RANGE.to,
+      },
+    ]).find((tile) => tile.id === 'serving-endpoint');
+    expect(endpoint?.quality).toBe('real');
+  });
+
+  it('puts the configured identifier on each tile that has one', () => {
+    const tiles = buildTiles(IDS, []);
+    expect(tiles.find((tile) => tile.id === 'serving-endpoint')?.resourceId).toBe(IDS.endpointName);
+    expect(tiles.find((tile) => tile.id === 'sql-warehouse')?.resourceId).toBe(IDS.warehouseId);
+    expect(tiles.find((tile) => tile.id === 'app-compute')?.resourceId).toBe(IDS.appName);
+    expect(tiles.find((tile) => tile.id === 'genie:data')?.resourceId).toBe('');
+    expect(tiles.find((tile) => tile.id === 'genie:dictionary')?.resourceId).toBe('');
+    expect(tiles.some((tile) => tile.id === 'index-rebuild-job')).toBe(false);
+  });
+
+  it('does not turn a missing app-tag match into zero app-compute spend', () => {
+    const app = buildTiles(IDS, []).find((tile) => tile.id === 'app-compute');
+    expect(app?.amount).toBeNull();
+    expect(app?.unavailable).toBe('No Apps billing rows matched this app.');
+    expect(app?.note).toContain('tag');
+    expect(app?.note).toContain('matched by app name');
+  });
+
+  it('keeps a verified organizational tag separate from app-name billing availability', () => {
+    const app = buildTiles({ ...IDS, appBillingTag: 'matched' }, []).find((tile) => tile.id === 'app-compute');
+    expect(app?.amount).toBeNull();
+    expect(app?.unavailable).toBe('No Apps billing rows matched this app.');
+    expect(app?.note).toContain('system_billing=adapt is on this app');
+    expect(app?.unavailable).not.toContain('tag');
+  });
+
+  it('does not claim applying a missing organizational tag would create a billing join', () => {
+    const app = buildTiles({ ...IDS, appBillingTag: 'missing' }, []).find((tile) => tile.id === 'app-compute');
+    expect(app?.amount).toBeNull();
+    expect(app?.unavailable).toBe('No Apps billing rows matched this app.');
+    expect(app?.remedy).toBe('');
+    expect(app?.note).toContain('still matched by app name');
+  });
+
+  it('keeps each configured Genie unavailable when the identity-aware billing read is unavailable', () => {
+    const genie = buildTiles(IDS, [
+      {
+        component: 'genie',
+        spend: 12,
+        currency: 'USD',
+        billedDays: 1,
+        jobRuns: null,
+        lastDay: RANGE.to,
+      },
+    ]).filter((tile) => tile.id.startsWith('genie:'));
+
+    expect(genie).toHaveLength(2);
+    expect(genie.map((tile) => tile.id)).toEqual(['genie:data', 'genie:dictionary']);
+    expect(genie.every((tile) => tile.amount === null && tile.attribution === 'unavailable')).toBe(true);
+  });
+
+  it('uses each Genie space charged spend and keeps allowance and promotion as evidence', () => {
+    const testIds: CostIdentifiers = {
+      ...IDS,
+      genieSpaces: [
+        { id: 'space-data', label: 'Data Genie', tool: 'data_genie', tileId: 'genie:data' },
+        {
+          id: 'space-dictionary',
+          label: 'Dictionary Genie',
+          tool: 'dictionary_genie',
+          tileId: 'genie:dictionary',
+        },
+      ],
+    };
+    const spaces = testIds.genieSpaces.map(({ id, label, tileId }) => ({ id, label, tileId }));
+    const base: GenieAccountingRow = {
+      usageDay: '2026-09-01',
+      identity: 'person@example.test',
+      identityKind: 'human',
+      surface: 'GENIE_CODE',
+      channel: 'UI',
+      offeringType: 'PAYGO',
+      skuName: GENIE_FREE_SKU,
+      spaceId: '',
+      attributionMethod: 'unattributed',
+      dbus: 0,
+      paidUsd: 0,
+      pricedRows: 0,
+      unpricedRows: 0,
+      correctionRows: 0,
+      sourceRows: 1,
+      throughDay: '2026-09-01',
+      freeEquivalentUsd: 0,
+      priceCurrency: 'USD',
+    };
+    const accounting = classifyGenieAccounting(
+      [
+        { ...base, spaceId: '', attributionMethod: 'unattributed', dbus: 5, freeEquivalentUsd: 1 },
+        {
+          ...base,
+          spaceId: '',
+          attributionMethod: 'unattributed',
+          surface: 'GENIE_ONE',
+          dbus: 15,
+          freeEquivalentUsd: 3,
+        },
+        {
+          ...base,
+          spaceId: '',
+          attributionMethod: 'unattributed',
+          skuName: 'PAID',
+          dbus: 20,
+          paidUsd: 4,
+          pricedRows: 1,
+        },
+      ].map((row, index) => ({
+        ...row,
+        spaceId: index < 2 ? 'space-data' : 'space-dictionary',
+        attributionMethod: index === 1 ? ('query-history-allocation' as const) : ('query-history-exact' as const),
+      })),
+      '2026-09-01',
+      spaces
+    );
+    const tiles = buildTiles(testIds, [], undefined, [], { month: accounting, period: accounting });
+    expect(tiles.find((tile) => tile.id === 'genie:dictionary')).toMatchObject({
+      amount: 4,
+      dbus: 20,
+      attribution: 'deployment',
+      genieInstanceAccounting: {
+        chargedRawEquivalentDbus: 15,
+      },
+    });
+    expect(tiles.find((tile) => tile.id === 'genie:data')?.genieInstanceAccounting).toMatchObject({
+      allowanceUsedDbus: 5,
+      promotionalDbus: 15,
+      freeEquivalentUsd: 4,
+    });
+    expect(tiles.find((tile) => tile.id === 'genie:data')?.amount).toBe(0);
+  });
+
+  it('renders a known charged Genie subtotal as estimated when another paid row is unpriced', () => {
+    const testIds: CostIdentifiers = {
+      ...IDS,
+      genieSpaces: [{ id: 'space-data', label: 'Data Genie', tool: 'data_genie', tileId: 'genie:data' }],
+    };
+    const accounting = classifyGenieAccounting(
+      [
+        {
+          usageDay: '2026-09-01',
+          identity: 'person@example.test',
+          identityKind: 'human',
+          surface: 'GENIE_CODE',
+          channel: 'UI',
+          offeringType: 'PAYGO',
+          skuName: 'PAID',
+          spaceId: 'space-data',
+          attributionMethod: 'query-history-exact',
+          dbus: 10,
+          paidUsd: 0.7,
+          pricedRows: 1,
+          unpricedRows: 0,
+          correctionRows: 0,
+          sourceRows: 1,
+          throughDay: '2026-09-01',
+        },
+        {
+          usageDay: '2026-09-01',
+          identity: 'person@example.test',
+          identityKind: 'human',
+          surface: 'GENIE_CODE',
+          channel: 'UI',
+          offeringType: 'PAYGO',
+          skuName: 'UNPRICED',
+          spaceId: 'space-data',
+          attributionMethod: 'query-history-exact',
+          dbus: 5,
+          paidUsd: null,
+          pricedRows: 0,
+          unpricedRows: 1,
+          correctionRows: 0,
+          sourceRows: 1,
+          throughDay: '2026-09-01',
+        },
+      ],
+      '2026-09-01',
+      testIds.genieSpaces
+    );
+    const tile = buildTiles(testIds, [], undefined, [], { month: accounting, period: accounting }).find(
+      (item) => item.id === 'genie:data'
+    );
+    expect(tile).toMatchObject({
+      amount: 0.7,
+      dbus: 15,
+      quality: 'estimate',
+      attribution: 'deployment',
+      pricing: { match: 'partial' },
+    });
+  });
+
+  it('keeps unmatched workspace Genie usage out of configured-space tiles', () => {
+    const testIds: CostIdentifiers = {
+      ...IDS,
+      genieSpaces: [
+        { id: 'space-data', label: 'Data Genie', tool: 'data_genie', tileId: 'genie:data' },
+        {
+          id: 'space-dictionary',
+          label: 'Dictionary Genie',
+          tool: 'dictionary_genie',
+          tileId: 'genie:dictionary',
+        },
+      ],
+    };
+    const freeOnly = classifyGenieAccounting(
+      [
+        {
+          usageDay: '2026-09-01',
+          identity: 'person@example.test',
+          identityKind: 'human',
+          surface: 'GENIE_ONE',
+          channel: 'UI',
+          offeringType: 'PAYGO',
+          skuName: GENIE_FREE_SKU,
+          spaceId: '',
+          attributionMethod: 'unattributed',
+          dbus: 12,
+          paidUsd: 0,
+          pricedRows: 0,
+          unpricedRows: 0,
+          correctionRows: 0,
+          sourceRows: 1,
+          throughDay: '2026-09-01',
+        },
+      ],
+      '2026-09-01',
+      testIds.genieSpaces
+    );
+    const tiles = buildTiles(testIds, [], undefined, [], { month: freeOnly, period: freeOnly });
+    const genieTiles = tiles.filter((tile) => tile.id.startsWith('genie:'));
+    expect(genieTiles.map((tile) => tile.id)).toEqual(['genie:data', 'genie:dictionary']);
+    expect(genieTiles.every((tile) => tile.amount === 0 && tile.dbus === 0)).toBe(true);
+    expect(genieTiles.every((tile) => tile.genieInstanceAccounting?.underlyingTotalDbus === 0)).toBe(true);
+  });
+
+  it('apportions serving by recorded tokens while keeping SQL an estimate', () => {
+    const tiles = buildTiles(
+      IDS,
+      [
+        {
+          component: 'serving-endpoint',
+          spend: 12,
+          currency: 'USD',
+          billedDays: 2,
+          jobRuns: null,
+          lastDay: RANGE.to,
+        },
+        {
+          component: 'sql-warehouse',
+          spend: 9,
+          currency: 'USD',
+          billedDays: 2,
+          jobRuns: null,
+          lastDay: RANGE.to,
+        },
+      ],
+      {
+        complete: true,
+        adaptQueries: 2,
+        totalQueries: 4,
+        adaptExecutionMs: 100,
+        totalExecutionMs: 100,
+        genieSpaces: [],
+      }
+    );
+    const attribution = buildQuestionAttribution(
+      [
+        {
+          runId: 'run-1',
+          correlationId: 'req-1',
+          traceId: 'trace-1',
+          completedAt: '2026-08-16T10:00:00Z',
+          totalTokens: 250,
+          runsInRange: 2,
+          tokenCoveredRuns: 2,
+          totalRecordedTokens: 1000,
+        },
+      ],
+      tiles,
+      100
+    );
+    const parts = attribution.runs[0].parts;
+    expect(parts.find((part) => part.id === 'serving-endpoint')).toEqual(
+      expect.objectContaining({ quality: 'per-token', amount: 3 })
+    );
+    expect(parts.find((part) => part.id === 'sql-warehouse')).toEqual(
+      expect.objectContaining({ quality: 'estimate', amount: 4.5 })
+    );
+    expect(parts.find((part) => part.id === 'genie')).toEqual(
+      expect.objectContaining({ quality: 'unknown', amount: null })
+    );
+  });
+
+  it('estimates SQL from ADAPT execution-time share rather than whole-warehouse spend', () => {
+    const sql = buildTiles(
+      IDS,
+      [
+        {
+          component: 'sql-warehouse',
+          spend: 100,
+          currency: 'USD',
+          billedDays: 2,
+          jobRuns: null,
+          lastDay: RANGE.to,
+          pricedRows: 4,
+          unpricedRows: 0,
+          priceMatchStatus: 'priced',
+        },
+      ],
+      {
+        complete: true,
+        adaptQueries: 2,
+        totalQueries: 10,
+        adaptExecutionMs: 25,
+        totalExecutionMs: 100,
+        genieSpaces: [],
+      }
+    ).find((tile) => tile.id === 'sql-warehouse');
+
+    expect(sql).toMatchObject({
+      amount: 25,
+      quality: 'estimate',
+      population: 'Interactive Ask queries',
+      attribution: 'deployment',
+      evidence: {
+        billingRows: 4,
+        astrolabeQueries: 2,
+        warehouseQueries: 10,
+        queryHistoryComplete: true,
+      },
+    });
+  });
+
+  it('withholds SQL dollars on an incomplete denominator while retaining query and billing counts', () => {
+    const sql = buildTiles(
+      IDS,
+      [
+        {
+          component: 'sql-warehouse',
+          spend: 100,
+          currency: 'USD',
+          billedDays: 2,
+          jobRuns: null,
+          lastDay: RANGE.to,
+          pricedRows: 4,
+          unpricedRows: 0,
+          priceMatchStatus: 'priced',
+        },
+      ],
+      {
+        complete: false,
+        adaptQueries: 2,
+        totalQueries: 9,
+        adaptExecutionMs: 25,
+        totalExecutionMs: 75,
+        genieSpaces: [],
+        coverage: {
+          state: 'partial',
+          requestedRange: { from: '1970-01-01T00:00:00.000Z', to: '2026-08-17T23:59:59.999Z' },
+          queriedRange: { from: '2025-08-17T00:00:00.000Z', to: '2026-08-17T23:59:59.999Z' },
+          rowsRead: 9,
+          pagesRead: 2,
+          chunksRead: 1,
+          reasons: ['range-clamped', 'page-cap'],
+        },
+      }
+    ).find((tile) => tile.id === 'sql-warehouse');
+
+    expect(sql).toMatchObject({
+      amount: null,
+      unavailable: 'Incomplete Query History',
+      evidence: {
+        billingRows: 4,
+        astrolabeQueries: 2,
+        warehouseQueries: 9,
+        queryHistoryComplete: false,
+        queryHistoryCoverage: {
+          state: 'partial',
+          rowsRead: 9,
+          pagesRead: 2,
+          reasons: ['range-clamped', 'page-cap'],
+        },
+      },
+    });
+    expect(sql?.amount).not.toBe(100);
+  });
+
+  it('does not substitute a workspace-wide total when an endpoint identifier is absent', () => {
+    const tiles = buildTiles({ ...IDS, endpointName: '' }, [
+      {
+        component: workspaceEstimateRow('serving-endpoint'),
+        spend: 12,
+        currency: 'USD',
+        billedDays: 2,
+        jobRuns: null,
+        lastDay: RANGE.to,
+      },
+    ]);
+    const serving = tiles.find((tile) => tile.id === 'serving-endpoint');
+    expect(serving?.amount).toBeNull();
+    expect(serving?.attribution).toBe('unavailable');
+  });
+
+  it('excludes unrelated shared model-serving activity from the serving tile query', () => {
+    const statement = buildCostStatement(IDS, RANGE)!.statement;
+    expect(statement).toContain('u.usage_metadata.endpoint_name = :endpointName');
+    expect(statement).toContain('u.workspace_id = :workspaceId');
+    expect(statement).not.toContain(':foundationEndpoint');
+    expect(statement).not.toContain('foundation-model');
+  });
+});

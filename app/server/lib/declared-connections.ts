@@ -1,0 +1,436 @@
+/**
+ * The assets this deployment says the agent should consider, and what removing
+ * one costs.
+ *
+ * WHAT ADDING ONE DOES, AND THE THING IT DOES NOT DO. A row here records intent.
+ * It does not grant anything, it does not widen what any person can read, and it
+ * does not reach the running orchestrator: the tables the agent may query are
+ * enumerated when the model is logged and baked into the artifact as the manifest
+ * the SQL guard checks (see `shared/notebook-declaration.ts` for why that is a
+ * safety property rather than a gap). A reader will assume the opposite, so
+ * `addedConnectionEffect` states it and the surface shows it on the row.
+ *
+ * Historical builds withdrew a row before deleting it. Current deletion is
+ * permanent on the first confirmed request; restore remains only so historical
+ * withdrawn rows are not stranded.
+ */
+import { APP_SCHEMA } from '../../shared/app-schema';
+import {
+  DECLARABLE_KINDS,
+  DECLARED_RESOURCE_TYPES,
+  type DeclaredResourceType,
+  type DeclaredConnection,
+} from '../../shared/notebook-declaration';
+import { CONNECTED_RESOURCES, type ResourceKind } from '../../shared/deployment-config';
+import type { LakebaseReader } from './lakebase-store';
+
+/** Whether a declaration is current, or withdrawn and restorable. */
+export type DeclarationState = 'declared' | 'withdrawn';
+
+/** Who put the row there. `app` is the Connections tab; `notebook` is a publish. */
+export type DeclarationOrigin = 'app' | 'notebook';
+
+export interface StoredDeclaredConnection extends DeclaredConnection {
+  state: DeclarationState;
+  origin: DeclarationOrigin;
+  createdAt: string;
+  createdBy: string;
+  changedAt: string;
+  changedBy: string;
+}
+
+export const DECLARED_CONNECTIONS_QUERY = `
+  SELECT id, label, kind, resource_type, value, note, state, origin, created_at, created_by, changed_at, changed_by
+  FROM ${APP_SCHEMA}.declared_connections
+  ORDER BY created_at, id`;
+
+export const UPSERT_DECLARED_CONNECTION_QUERY = `
+  INSERT INTO ${APP_SCHEMA}.declared_connections
+    (id, label, kind, resource_type, value, note, state, origin, created_by, changed_by, changed_at)
+  VALUES ($1, $2, $3, $4, $5, $6, 'declared', $7, $8, $8, now())
+  ON CONFLICT (id) DO UPDATE
+    SET label = EXCLUDED.label,
+        kind = EXCLUDED.kind,
+        resource_type = EXCLUDED.resource_type,
+        value = EXCLUDED.value,
+        note = EXCLUDED.note,
+        state = 'declared',
+        origin = EXCLUDED.origin,
+        changed_by = EXCLUDED.changed_by,
+        changed_at = now()
+  RETURNING id, label, kind, resource_type, value, note, state, origin, created_at, created_by, changed_at, changed_by`;
+
+/**
+ * Insert one reviewed group as one database statement.
+ *
+ * The conflict CTE gates the whole insert, so a duplicate id or normalized
+ * type/value produces zero writes rather than a partially saved selection.
+ */
+export const INSERT_DECLARED_CONNECTIONS_BATCH_QUERY = `
+  WITH incoming AS (
+    SELECT *
+      FROM jsonb_to_recordset($1::jsonb) AS row(
+        id TEXT, label TEXT, kind TEXT, resource_type TEXT, value TEXT, note TEXT
+      )
+  ),
+  conflicts AS (
+    SELECT 1
+      FROM incoming
+      JOIN ${APP_SCHEMA}.declared_connections existing
+        ON lower(btrim(existing.id)) = lower(btrim(incoming.id))
+        OR (
+          existing.state = 'declared'
+          AND lower(btrim(existing.kind)) = lower(btrim(incoming.kind))
+          AND lower(btrim(existing.resource_type)) = lower(btrim(incoming.resource_type))
+          AND lower(btrim(existing.value)) = lower(btrim(incoming.value))
+        )
+    UNION ALL
+    SELECT 1
+      FROM incoming
+     GROUP BY lower(btrim(id))
+    HAVING count(*) > 1
+    UNION ALL
+    SELECT 1
+      FROM incoming a
+      JOIN incoming b
+        ON a.id < b.id
+       AND (
+         lower(btrim(a.id)) = lower(btrim(b.id))
+         OR (
+           lower(btrim(a.kind)) = lower(btrim(b.kind))
+           AND lower(btrim(a.resource_type)) = lower(btrim(b.resource_type))
+           AND lower(btrim(a.value)) = lower(btrim(b.value))
+         )
+       )
+  ),
+  inserted AS (
+    INSERT INTO ${APP_SCHEMA}.declared_connections
+      (id, label, kind, resource_type, value, note, state, origin, created_by, changed_by, changed_at)
+    SELECT id, label, kind, resource_type, value, note, 'declared', 'app', $2, $2, now()
+      FROM incoming
+     WHERE NOT EXISTS (SELECT 1 FROM conflicts)
+    RETURNING id, label, kind, resource_type, value, note, state, origin,
+              created_at, created_by, changed_at, changed_by
+  )
+  SELECT coalesce(jsonb_agg(to_jsonb(inserted)), '[]'::jsonb) AS connections,
+         (SELECT count(*)::int FROM conflicts) AS conflict_count
+    FROM inserted`;
+
+/**
+ * Withdraw a declaration, keeping the row.
+ *
+ * `RETURNING` so the caller can tell "withdrew it" from "there was nothing to
+ * withdraw" without a second read, and so a withdrawal of an already-withdrawn
+ * row reports honestly rather than as a fresh one.
+ */
+export const WITHDRAW_DECLARED_CONNECTION_QUERY = `
+  UPDATE ${APP_SCHEMA}.declared_connections
+     SET state = 'withdrawn', changed_by = $2, changed_at = now()
+   WHERE id = $1 AND state = 'declared'
+  RETURNING id, label, kind, resource_type, value, note, state, origin, created_at, created_by, changed_at, changed_by`;
+
+export const RESTORE_DECLARED_CONNECTION_QUERY = `
+  UPDATE ${APP_SCHEMA}.declared_connections
+     SET state = 'declared', changed_by = $2, changed_at = now()
+   WHERE id = $1 AND state = 'withdrawn'
+  RETURNING id, label, kind, resource_type, value, note, state, origin, created_at, created_by, changed_at, changed_by`;
+
+/**
+ * Forget one stored declaration rather than merely withdrawing it.
+ *
+ * This is deliberately separate from {@link WITHDRAW_DECLARED_CONNECTION_QUERY}.
+ * Withdrawal is the safe default during a demonstration and keeps a one-click
+ * recovery path. Permanent removal exists for stale remembered rows whose
+ * identifiers should no longer remain in the store, and `RETURNING` lets the
+ * route distinguish a completed deletion from an id that was never there.
+ */
+export const FORGET_DECLARED_CONNECTION_QUERY = `
+  WITH target AS (
+    SELECT lower(btrim(id)) AS id,
+           lower(btrim(kind)) AS kind,
+           lower(btrim(coalesce(resource_type, ''))) AS resource_type,
+           lower(btrim(value)) AS value
+      FROM ${APP_SCHEMA}.declared_connections
+     WHERE lower(btrim(id)) = lower(btrim($1))
+     ORDER BY created_at, id
+     LIMIT 1
+  )
+  DELETE FROM ${APP_SCHEMA}.declared_connections AS connection
+   USING target
+   WHERE lower(btrim(connection.id)) = target.id
+      OR (
+        lower(btrim(connection.kind)) = target.kind
+        AND lower(btrim(coalesce(connection.resource_type, ''))) = target.resource_type
+        AND lower(btrim(connection.value)) = target.value
+      )
+  RETURNING connection.id`;
+
+function text(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+function timestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return text(value);
+}
+
+function storedFromRow(row: Record<string, unknown>): StoredDeclaredConnection {
+  const kind = text(row.kind);
+  const resourceType = text(row.resource_type);
+  return {
+    id: text(row.id),
+    label: text(row.label),
+    // Read through the allowlist rather than cast. A kind that is no longer one
+    // this build declares would otherwise reach the client as an icon lookup that
+    // silently renders nothing.
+    kind: (DECLARABLE_KINDS as readonly string[]).includes(kind) ? (kind as ResourceKind) : 'unity-catalog',
+    resourceType: (DECLARED_RESOURCE_TYPES as readonly string[]).includes(resourceType)
+      ? (resourceType as DeclaredResourceType)
+      : undefined,
+    value: text(row.value),
+    note: text(row.note),
+    state: row.state === 'withdrawn' ? 'withdrawn' : 'declared',
+    origin: row.origin === 'notebook' ? 'notebook' : 'app',
+    createdAt: timestamp(row.created_at),
+    createdBy: text(row.created_by),
+    changedAt: timestamp(row.changed_at),
+    changedBy: text(row.changed_by),
+  };
+}
+
+/**
+ * Every declaration, current and withdrawn.
+ *
+ * An outage answers with an empty list rather than throwing, matching
+ * `readStoredSettings`: the Connections tab is the page somebody opens to find
+ * out why the rest of the app is degraded, and failing its read would take that
+ * page down too. The caller reports the store's own state beside this.
+ */
+export async function readDeclaredConnections(client: LakebaseReader): Promise<StoredDeclaredConnection[]> {
+  try {
+    const result = await client.lakebase.query(DECLARED_CONNECTIONS_QUERY);
+    return (result?.rows ?? []).map(storedFromRow).filter((entry) => entry.id !== '');
+  } catch (error) {
+    console.warn('[connections] Declared connections could not be read:', (error as Error).message);
+    return [];
+  }
+}
+
+export async function writeDeclaredConnection(
+  client: LakebaseReader,
+  connection: {
+    id: string;
+    label: string;
+    kind: ResourceKind;
+    resourceType?: DeclaredResourceType;
+    value: string;
+    note: string;
+    origin: DeclarationOrigin;
+    changedBy: string;
+  }
+): Promise<StoredDeclaredConnection> {
+  const result = await client.lakebase.query(UPSERT_DECLARED_CONNECTION_QUERY, [
+    connection.id,
+    connection.label,
+    connection.kind,
+    connection.resourceType ?? '',
+    connection.value,
+    connection.note,
+    connection.origin,
+    connection.changedBy,
+  ]);
+  const row = (result?.rows ?? [])[0];
+  if (!row) throw new Error('the declared connection was not written back');
+  return storedFromRow(row);
+}
+
+export async function writeDeclaredConnectionsBatch(
+  client: LakebaseReader,
+  connections: Array<{
+    id: string;
+    label: string;
+    kind: ResourceKind;
+    resourceType: DeclaredResourceType;
+    value: string;
+    note: string;
+  }>,
+  changedBy: string
+): Promise<{ connections: StoredDeclaredConnection[]; conflict: boolean }> {
+  const payload = connections.map((connection) => ({
+    id: connection.id,
+    label: connection.label,
+    kind: connection.kind,
+    resource_type: connection.resourceType,
+    value: connection.value,
+    note: connection.note,
+  }));
+  const result = await client.lakebase.query(INSERT_DECLARED_CONNECTIONS_BATCH_QUERY, [
+    JSON.stringify(payload),
+    changedBy,
+  ]);
+  const row = result?.rows?.[0] ?? {};
+  const raw = Array.isArray(row.connections)
+    ? row.connections
+    : typeof row.connections === 'string'
+      ? (JSON.parse(row.connections) as unknown)
+      : [];
+  const saved = Array.isArray(raw)
+    ? raw.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
+    : [];
+  return {
+    connections: saved.map(storedFromRow),
+    conflict: Number(row.conflict_count) > 0 || saved.length !== connections.length,
+  };
+}
+
+export async function withdrawDeclaredConnection(
+  client: LakebaseReader,
+  id: string,
+  changedBy: string
+): Promise<StoredDeclaredConnection | null> {
+  const result = await client.lakebase.query(WITHDRAW_DECLARED_CONNECTION_QUERY, [id, changedBy]);
+  const row = (result?.rows ?? [])[0];
+  return row ? storedFromRow(row) : null;
+}
+
+export async function restoreDeclaredConnection(
+  client: LakebaseReader,
+  id: string,
+  changedBy: string
+): Promise<StoredDeclaredConnection | null> {
+  const result = await client.lakebase.query(RESTORE_DECLARED_CONNECTION_QUERY, [id, changedBy]);
+  const row = (result?.rows ?? [])[0];
+  return row ? storedFromRow(row) : null;
+}
+
+/**
+ * Permanently remove the exact logical declaration.
+ *
+ * Historical rows can carry different generated ids for the same kind/type/value.
+ * The single SQL statement resolves the requested id and deletes every normalized
+ * duplicate atomically, so a concurrent list read can see either side of the
+ * mutation but never a half-deleted set.
+ */
+export async function forgetDeclaredConnection(client: LakebaseReader, id: string): Promise<string[]> {
+  const result = await client.lakebase.query(FORGET_DECLARED_CONNECTION_QUERY, [id]);
+  return (result?.rows ?? []).map((row) => text(row.id)).filter(Boolean);
+}
+
+/** Characters an id may use, so it is safe as a URL path segment and a key. */
+const ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,60}$/;
+
+/**
+ * Why this connection could not be added, or `null` when it can.
+ *
+ * The registry ids are refused because they are the deployment's own wiring: a
+ * declaration that reused `sql-warehouse` would render two rows claiming the same
+ * key, one of which the app resolves from the artifact and one from this table.
+ */
+export function addFault(input: { id: string; kind: string; resourceType?: string; value: string }): string | null {
+  if (!ID_PATTERN.test(input.id)) {
+    return 'A name may use lower-case letters, digits and hyphens, must start with a letter or digit, and is between 2 and 61 characters.';
+  }
+  if (CONNECTED_RESOURCES.some((resource) => resource.id === input.id)) {
+    return `${input.id} is already the name of one of this deployment's own settings. Choose another name.`;
+  }
+  if (!(DECLARABLE_KINDS as readonly string[]).includes(input.kind)) {
+    return `${input.kind} is not a kind of asset that can be added here.`;
+  }
+  if (input.resourceType) {
+    const expectedKind: Record<DeclaredResourceType, ResourceKind> = {
+      catalog: 'unity-catalog',
+      schema: 'unity-catalog',
+      table: 'unity-catalog',
+      'metric-view': 'unity-catalog',
+      volume: 'volume',
+      'sql-warehouse': 'sql-warehouse',
+      'serving-endpoint': 'model',
+      'agent-endpoint': 'agent',
+      'mcp-server': 'agent',
+      'genie-space': 'genie-space',
+    };
+    if (!(DECLARED_RESOURCE_TYPES as readonly string[]).includes(input.resourceType)) {
+      return `${input.resourceType} is not a resource type that can be added here.`;
+    }
+    if (expectedKind[input.resourceType as DeclaredResourceType] !== input.kind) {
+      return `${input.resourceType} does not match the submitted connection kind.`;
+    }
+  }
+  if (!input.value.trim()) {
+    return 'An asset needs an identifier, such as a three-part table name.';
+  }
+  const value = input.value.trim();
+  if (input.resourceType === 'schema' && value.split('.').filter(Boolean).length !== 2) {
+    return 'A schema identifier must be catalog.schema.';
+  }
+  if (input.resourceType === 'table' && value.split('.').filter(Boolean).length !== 3) {
+    return 'This resource identifier must have three parts: catalog.schema.name.';
+  }
+  if (input.resourceType === 'volume' && !/^\/Volumes\/[^/]+\/[^/]+\/[^/]+$/.test(value)) {
+    return 'A volume identifier must be /Volumes/catalog/schema/volume.';
+  }
+  return null;
+}
+
+/**
+ * What adding this connection did, in the words the row has to carry.
+ *
+ * Written here rather than in the client because it is the load-bearing sentence
+ * of the whole feature and it must not drift between the two surfaces that show
+ * it. A customer reads "added a connection" as "granted access", and the one
+ * thing this app must never do is let them believe that.
+ */
+export function addedConnectionEffect(): string {
+  return 'Recorded as an asset the agent may consider. It grants nobody access: whether a person can read it is decided by their own Unity Catalog grants.';
+}
+
+/** What a deletion costs, and whether it can be undone. */
+export interface RemovalImpact {
+  /** The single line shown before the deletion is confirmed. */
+  headline: string;
+  /** What specifically stops working. Empty when nothing does. */
+  consequences: string[];
+  /** Whether this app can put it back after deletion. */
+  recoverable: boolean;
+}
+
+/**
+ * What stops working if this declaration is deleted.
+ *
+ * ASKED BEFORE THE DELETION, NOT AFTER. The reason removal is dangerous here is
+ * that the deployment is usually mid demo, and the failure shows up as the next
+ * question answering worse rather than as an error anyone connects to a click.
+ *
+ * The honest content is narrow, and saying only what is true is the point. A
+ * deleted declaration stops being offered to the agent as an asset to consider
+ * and stops appearing on this page. It does NOT revoke a grant, and it does not
+ * shrink what the agent may read, because that list is in the model artifact. So
+ * a row whose value is also one of the deployment's live resources gets the
+ * stronger warning, and everything else gets the true, milder one.
+ */
+export function removalImpact(connection: StoredDeclaredConnection, liveValues: readonly string[]): RemovalImpact {
+  const consequences: string[] = ['The agent stops being offered this asset when it chooses where to look.'];
+  const normalised = connection.value.trim().toLowerCase();
+  const alsoLive = liveValues.some((value) => value.trim().toLowerCase() === normalised);
+  if (alsoLive) {
+    // The value is one the running model was configured with, so the agent will
+    // keep reaching it whatever this table says. Withdrawing the row hides it
+    // from the page and changes nothing about the running deployment, which is
+    // the opposite of what a reader would assume from a removal.
+    consequences.push(
+      'The running agent is configured with this same value, so it keeps using it. Removing the row here changes what this page lists, not what the agent reaches.'
+    );
+  }
+  if (connection.origin === 'notebook') {
+    consequences.push('It was published from a notebook, so publishing again will add it back.');
+  }
+  return {
+    headline: alsoLive
+      ? `Remove ${connection.label} from the list. The running agent is configured with this value and keeps using it.`
+      : `Remove ${connection.label} from the assets the agent may consider.`,
+    consequences,
+    recoverable: false,
+  };
+}

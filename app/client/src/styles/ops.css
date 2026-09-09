@@ -1,0 +1,2784 @@
+/*
+ * Ops: three blocks, each bordered, each independently readable.
+ *
+ * THE BORDER IS STRUCTURAL RATHER THAN DECORATIVE. The three blocks are read at
+ * three different moments and one of them can be stale, failed or unreadable
+ * while the others are fine. Drawn as a continuous page, a failed middle third
+ * reads as a broken page; drawn as three enclosed blocks, it reads as one block
+ * that could not be read, which is what it is.
+ *
+ * THE FILLED HEADER BAND IS THE SAME ARGUMENT AT SMALLER SCALE. Each block opens
+ * on a #F7F7F7 strip carrying its title, the one line that qualifies everything
+ * beneath it, and its own read control. A heading floating in white above a
+ * table is a heading a reader has to attach to something; a band is the top of a
+ * container and needs no attaching.
+ *
+ * NOTHING HERE CARRIES A STATE ON ITS OWN. Every pill, tile and bar has the word
+ * for its state in text beside it, and these rules only paint what the word
+ * already said. That is why the tone classes below set a border and a background
+ * and never a meaning: switch the whole file off and the page still says which
+ * dependency answered and which did not.
+ *
+ * Values are the design handoff's, from `ops-tab.md` and the reference render it
+ * pins. Every one is a token here rather than a hex.
+ */
+
+.ops-page {
+  display: flex;
+  flex-direction: column;
+  /* 16px between blocks, which is the handoff's figure. The three are separate
+     containers and the gap is what says so; 24px read as three pages. */
+  gap: 16px;
+}
+
+.ops-page-controls {
+  display: grid;
+  grid-template-columns: repeat(2, fit-content(18rem));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  justify-content: start;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ops-stop-all,
+.ops-admin-action {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-control);
+  background: var(--card);
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  min-height: 46px;
+}
+
+.ops-admin-action-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ops-admin-action-scope {
+  border-color: var(--ast-border-input);
+}
+
+.ops-stop-all {
+  border-color: var(--ast-neg-border);
+  background: color-mix(in srgb, var(--ast-neg-bg) 35%, var(--card));
+}
+
+.ops-stop-all strong,
+.ops-stop-all span,
+.ops-stop-all p,
+.ops-admin-action strong,
+.ops-admin-action span {
+  margin: 0;
+}
+
+.ops-stop-all strong,
+.ops-admin-action strong {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.ops-stop-all strong,
+.ops-admin-action strong {
+  color: var(--db-red-700);
+}
+
+.ops-admin-action .ops-scope-check-button {
+  border-color: var(--db-red-700);
+  background: var(--db-red-700);
+  color: var(--destructive-foreground);
+}
+
+.ops-stop-all > .ops-admin-action-main > span,
+.ops-stop-all > p,
+.ops-admin-action > .ops-admin-action-main > span {
+  color: var(--ast-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.ops-stop-all > p {
+  max-width: 30ch;
+}
+
+.ops-stop-all .ops-stop-all-button {
+  border-color: var(--db-red-700);
+  background: var(--db-red-700);
+  color: var(--destructive-foreground);
+}
+
+.ops-stop-all .ops-stop-all-button:hover {
+  border-color: color-mix(in srgb, var(--db-red-700) 82%, white);
+  background: color-mix(in srgb, var(--db-red-700) 82%, white);
+  color: var(--destructive-foreground);
+}
+
+/* ── A block ─────────────────────────────────────────────────────────────── */
+
+.ops-block {
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+  background: var(--card);
+  /* No padding on the block itself: the band reaches the border on three sides,
+     which is what makes it a band rather than a grey rectangle inside a card. */
+  overflow: hidden;
+}
+
+/*
+ * The band. Title, the block's own qualifier, and the control, on one line.
+ *
+ * `align-items: center` and a wrapping row rather than a column, because on this
+ * page the qualifier is a clause about the title and not a paragraph under it.
+ */
+.ops-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--ast-fill-band);
+  border-bottom: 1px solid var(--border);
+}
+
+.ops-block-head-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ops-block-head-text h3 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+}
+
+.ops-block-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The one line that governs everything under the band. Never a sentence: it is
+   a run of facts separated by the app's own separator. */
+.ops-block-meta {
+  font-size: var(--text-sm);
+  color: var(--ast-text-secondary);
+}
+
+.ops-block-head-control {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ops-health-head-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ops-scope-check-button .ast-flick-row,
+.ops-scope-pagination .ast-flick-row,
+.ops-scope-skeleton-row .ast-flick-row {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.ops-scope-check-button .ast-flick-row-say,
+.ops-scope-pagination .ast-flick-row-say {
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.ops-scope-check-button {
+  width: 132px;
+  min-width: 132px;
+  height: 32px;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ops-scope-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.ops-scope-dialog {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  width: min(70rem, 100%);
+  max-height: min(780px, calc(100vh - 48px));
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.ops-scope-dialog-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ops-scope-dialog-head h2,
+.ops-scope-dialog-head p {
+  margin: 0;
+}
+
+.ops-scope-dialog-head p {
+  margin-top: 4px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ops-scope-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ast-radius-control);
+  background: transparent;
+  color: var(--ast-text-secondary);
+  cursor: pointer;
+}
+
+.ops-scope-dialog-close:hover,
+.ops-scope-dialog-close:focus-visible {
+  background: var(--db-hover-tint);
+  color: var(--foreground);
+}
+
+.ops-scope-dialog-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ops-scope-provenance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-scope-provenance > button {
+  margin-left: auto;
+}
+
+.ops-scope-provenance [data-principal-availability='unavailable'] {
+  color: var(--ast-warn-text);
+}
+
+.ops-scope-filters {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.ops-scope-search {
+  width: min(24rem, 100%);
+}
+
+.ops-scope-type-filter {
+  display: grid;
+  gap: 4px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-scope-type-filter .app-select-trigger {
+  min-width: 8rem;
+}
+
+.ops-scope-table-scroll {
+  min-height: 12rem;
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-control);
+}
+
+.ops-scope-table {
+  min-width: 42rem;
+  margin: 0;
+}
+
+.ops-scope-table th:first-child {
+  width: 55%;
+}
+
+.ops-scope-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ops-scope-status[data-scope-status='in'] {
+  color: var(--ast-pos-text);
+  background: var(--ast-pos-fill);
+}
+
+.ops-scope-status[data-scope-status='out'] {
+  color: var(--ast-neg-text);
+  background: var(--ast-neg-fill);
+}
+
+.ops-scope-status[data-scope-status='unavailable'] {
+  color: var(--ast-text-secondary);
+  background: var(--ast-fill-band);
+}
+
+.ops-scope-skeleton-row td {
+  height: 42px;
+}
+
+.ops-scope-skeleton-line,
+.ops-scope-skeleton-pill {
+  display: block;
+  width: min(15rem, 80%);
+  height: 10px;
+  border-radius: 999px;
+  background: var(--ast-fill-band);
+}
+
+.ops-scope-skeleton-pill {
+  width: 5rem;
+  height: 22px;
+}
+
+.ops-scope-dialog-state,
+.ops-scope-empty {
+  margin: 0;
+  color: var(--ast-text-secondary);
+}
+
+.ops-scope-dialog-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ops-scope-more-note {
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-scope-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: var(--text-xs);
+}
+
+.ops-cost-head-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ops-user-spend-link {
+  flex: none;
+  white-space: nowrap;
+}
+.ops-user-spend-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ops-block-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ops-block-body-flush {
+  padding: 0;
+  gap: 0;
+}
+
+/* The latency pager is the only remaining block footer. It does not render on
+ * one-page tables, so no border or reserved height remains below Traffic. */
+.ops-block-foot {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--ast-text-secondary);
+}
+
+/* ── A block that could not be read ──────────────────────────────────────── */
+
+.ops-block-failed {
+  border: 1px solid var(--destructive);
+  border-radius: var(--ast-radius-card);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: var(--ast-fs-14);
+}
+
+.ops-block-failed-title {
+  font-weight: 600;
+  margin: 0;
+}
+
+.ops-block-failed p {
+  margin: 0;
+}
+
+/* The failed block's re-read is the shared Refresh control now, so all this rule
+   has left to do is stop it stretching across a flex column. */
+.ops-block-failed-retry {
+  align-self: flex-start;
+}
+
+/* ── A stated absence ────────────────────────────────────────────────────── */
+
+/*
+ * At body size, deliberately. An absence rendered at the size of a figure reads
+ * as a measurement of nothing, and the whole point of these blocks is that a
+ * thing nobody could establish and a thing that measured zero are different.
+ */
+.ops-absence {
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+  background: var(--muted);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ops-absence-title {
+  font-weight: 600;
+  font-size: var(--ast-fs-14);
+  margin: 0;
+}
+
+.ops-absence-body {
+  font-size: var(--text-sm);
+  margin: 0;
+  max-width: 72ch;
+  color: var(--muted-foreground);
+}
+
+/* ── A grant somebody has to run ─────────────────────────────────────────── */
+
+.ops-grant {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ops-grant-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0;
+}
+
+/*
+ * Monospace, selectable, and wrapping rather than scrolling. The next thing that
+ * happens to this text is that somebody drags across it and pastes it into a SQL
+ * editor, so a line that runs off the right of a box they have to scroll first
+ * is a statement that gets copied in half.
+ */
+.ops-grant-statement {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--db-code-bg);
+  border: 1px solid var(--border);
+  /* 4px. 6px was a third radius, and the copyable GRANT block on Connections --
+     the same affordance, for the same purpose -- has always been 4. */
+  border-radius: var(--ast-radius-control);
+  padding: 0.5rem 0.625rem;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* ── The one pill recipe ─────────────────────────────────────────────────── */
+
+/*
+ * 1px border, a tint, 4px radius, 11px at 500. One recipe for every state word
+ * on this tab, which is what stops a dependency result and a section caveat
+ * reading as two different kinds of thing.
+ *
+ * The pill carries a word. The tone classes carry a colour, and the colour is
+ * the second copy of a state the word has already given, never the only one.
+ */
+/*
+ * LAYOUT ONLY. The recipe -- border, tint, radius, 11px at 500 -- is `.ast-pill`
+ * in astrolabe-tokens.css, and which family a state takes is decided in
+ * astrolabe-pill.ts. This class exists for the two things that are genuinely
+ * about this tab rather than about the pill: a state word here never wraps, and
+ * the pills sit on a line of baseline-aligned text in the block heads.
+ *
+ * The five tone rules that used to live here are gone rather than repointed.
+ * They were `--db-green-600` where the palette's positive is `#35706B`, which is
+ * not two names for one colour: they were a second, brighter status family
+ * rendering beside the ADAPT one on the same screen.
+ */
+.ops-pill {
+  align-items: baseline;
+  padding: 1px 6px;
+  font-size: var(--ast-fs-11);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ── Health ──────────────────────────────────────────────────────────────── */
+
+/*
+ * A result pill, which names the resource and then states its word.
+ *
+ * `.ops-platform` WAS HERE, and it was the flex row that held the band's cluster
+ * of platform readings above the table. The readings are rows now -- one badge
+ * per resource, in that resource's own Result cell -- so there is no cluster to
+ * lay out. The two-part pill itself stays exactly as it was drawn: this shape is
+ * the one the handoff established for "label, separator, state", and the probe
+ * rows now take it too.
+ */
+.ops-platform-pill {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.ops-platform-pill-state {
+  font-weight: 500;
+}
+
+.ast-flick-row.ops-connection-status-loader {
+  min-height: 0;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.ops-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ops-table th,
+.ops-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ops-health-table {
+  font-size: var(--text-base);
+  min-width: 680px;
+}
+
+.ops-health-table th,
+.ops-health-table td {
+  vertical-align: middle;
+  padding: 10px 16px;
+  font-size: var(--text-base);
+  line-height: 1.4;
+}
+
+.ops-table tbody tr:last-child th,
+.ops-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ops-table thead th {
+  font-weight: 500;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-sm);
+  text-transform: none;
+  padding-top: 0;
+}
+
+/* The handoff's two fixed columns. Fixed rather than shrink-to-fit because the
+   pills and the ages are the same size on every row, and a column that resizes
+   with its longest value makes the table jump between reads.
+
+   Stable at the width needed by the longer binary result. */
+.ops-col-result {
+  width: 150px;
+}
+
+td.ops-col-result .ops-platform-pill {
+  white-space: nowrap;
+}
+
+.ops-col-when {
+  width: 110px;
+  color: var(--ast-text-secondary);
+  white-space: nowrap;
+}
+
+.ops-dependency {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Geometry only. The mark carries its own official ink and `brand.css` owns how
+   it is drawn; recolouring one here is the one thing the brand set forbids.
+   It must not shrink when a long dependency name pushes on the row. */
+.ops-dependency-mark {
+  flex: none;
+}
+
+.ops-dependency-mark-generic {
+  width: 16px;
+  height: 16px;
+  color: var(--ast-blue);
+}
+
+.ops-dependency-label {
+  font-weight: 500;
+  color: inherit;
+}
+
+a.ops-dependency-label {
+  text-decoration: none;
+}
+
+a.ops-dependency-label:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ast-border-input);
+}
+
+/* The configured identifier, on the rows whose label is not already carrying it.
+   Monospace because it is a value somebody will compare against a bundle file
+   character by character. */
+.ops-dependency-name {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--ast-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+a.ops-dependency-name {
+  color: var(--ast-blue);
+  font-weight: 500;
+}
+
+a.ops-dependency-name:hover {
+  text-decoration: underline;
+}
+
+.ops-resource-open {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ast-blue);
+  flex: none;
+}
+
+.ops-resource-open:hover {
+  text-decoration: none;
+}
+
+/* The probe's own sentence, verbatim, so it is allowed to be long. */
+.ops-reason {
+  color: var(--ast-text-long);
+  max-width: 52ch;
+}
+
+.ops-when-absent {
+  color: var(--ast-text-secondary);
+}
+
+.ops-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ops-external {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--ast-blue);
+  font-weight: 500;
+  align-self: flex-start;
+}
+.ops-cost-empty-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ast-text-secondary);
+  max-width: 72ch;
+}
+
+.ops-source-filter {
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}
+.ops-source-filter code {
+  font-family: var(--font-mono);
+}
+
+.ops-telemetry-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+}
+
+.ops-telemetry-figures p {
+  margin: 0;
+}
+
+.ops-error-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--ast-fs-12);
+}
+
+.ops-error-body {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Recorded error lines, framed so history does not read as a live failure.
+ *
+ * BODY TEXT, NO COLOUR, NO ICON. The copy rules are explicit that a
+ * conditioning note carries no warning colour and no icon: the words do the
+ * work, so a two-day-old "cache fell back to in-memory" line cannot be dressed
+ * up as an incident. The headline is the count; the note is the distinction.
+ */
+.ops-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ops-errors-headline {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.ops-errors-note {
+  margin: 0;
+  font-size: var(--ast-fs-12);
+  color: var(--ast-text-secondary);
+}
+
+/* ── Cost ────────────────────────────────────────────────────────────────── */
+
+.ops-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.ops-cost-resources {
+  min-width: 0;
+  margin-top: 12px;
+}
+
+.ops-cost-summary-grid {
+  --ops-budget-input-width: 9.5ch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ops-cost-summary-box,
+.ops-cost-resource-budgets {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface-muted);
+}
+
+.ops-cost-resource-budgets {
+  grid-column: 1 / -1;
+  container-type: inline-size;
+}
+
+.ops-cost-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+}
+
+.ops-cost-summary-peers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-cost-summary-peer {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-cost-summary-peer + .ops-cost-summary-peer {
+  padding-left: 12px;
+  border-left: 1px solid var(--ast-border-input);
+}
+
+.ops-cost-summary-heading {
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+}
+
+.ops-cost-summary-value {
+  display: block;
+  margin: 2px 0 0;
+  font-size: var(--ast-fs-18);
+  font-weight: 700;
+}
+
+.ops-cost-summary-budget {
+  display: block;
+  min-width: 0;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--ast-border-input);
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}
+
+.ops-cost-summary-budget .ast-num {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.ops-cost-summary-budget-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+  min-width: 0;
+}
+
+.ops-cost-summary-budget-outcome {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-cost-summary-budget-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='normal'],
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='normal'] .ast-num,
+.ops-cost-summary-budget-mtd[data-budget-tone='normal'],
+.ops-cost-summary-budget-outcome[data-budget-tone='normal'] {
+  color: var(--ast-pos-text);
+}
+
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='warning'],
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='warning'] .ast-num,
+.ops-cost-summary-budget-mtd[data-budget-tone='warning'],
+.ops-cost-summary-budget-outcome[data-budget-tone='warning'] {
+  color: var(--ast-warn-text);
+}
+
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='danger'],
+.ops-cost-summary-budget .ops-cost-budget-balance[data-budget-tone='danger'] .ast-num,
+.ops-cost-summary-budget-mtd[data-budget-tone='danger'],
+.ops-cost-summary-budget-outcome[data-budget-tone='danger'] {
+  color: var(--ast-neg-text);
+}
+
+.ops-cost-summary-budget-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+
+.ops-cost-summary-budget-status[data-budget-tone='danger'] {
+  color: var(--ast-neg-text);
+}
+
+.ops-cost-summary-budget-line svg,
+.ops-cost-summary-budget-status svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+@media (forced-colors: active) {
+  .ops-cost-summary-budget-outcome,
+  .ops-cost-summary-budget-status[data-budget-tone='danger'] {
+    color: CanvasText;
+  }
+}
+
+.ops-cost-summary-budget-unavailable {
+  flex: 1 1 280px;
+}
+
+.ops-budget-audit {
+  margin: 6px 0 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ops-cost-summary-copy {
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}
+
+.ops-cost-summary-copy {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-resource-budget-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+
+.ops-cost-resource-budgets .ops-ticker-assumption-grid {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  align-items: start;
+}
+
+.ops-cost-resource-budgets .ops-ticker-assumption > label {
+  min-height: 1.35em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-cost-resource-budgets .ops-ticker-assumption-helper {
+  min-height: 2.7em;
+}
+
+.ops-tile {
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ops-primary-cost-card {
+  min-height: 10rem;
+}
+
+.ops-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ops-cost-status {
+  flex: none;
+}
+
+/* An eyebrow: the product this figure belongs to, small, spaced and quiet, so
+   the number under it is the thing the eye lands on. */
+.ops-tile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ast-text-secondary);
+  margin: 0;
+  /* So the text beside the mark can shrink instead of pushing the mark out of
+     the card. Without it a flex item refuses to go below its content width and
+     the eyebrow overflows the border it is meant to sit inside. */
+  min-width: 0;
+}
+
+h4.ops-tile-label,
+h5.ops-tile-label {
+  line-height: 1.35;
+}
+
+/*
+ * The eyebrow's words, truncated rather than wrapped.
+ *
+ * An ellipsis and never a cut glyph: `overflow: hidden` alone would slice the
+ * last letter down the middle, which reads as a rendering fault rather than as
+ * a name that did not fit. The full label is on the element's `title`, so
+ * nothing is lost, and a wrapped eyebrow would push the figure onto a second
+ * row and take this card out of step with the five beside it.
+ */
+.ops-tile-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * A title that opens Databricks. Blue and underlined, with the same external
+ * mark the billing-table link uses, so it is not a surprise click on an
+ * uppercase eyebrow that looked like a label.
+ */
+.ops-tile-label-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ast-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ops-cost-resource {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ast-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.ops-cost-card-footer {
+  display: flex;
+  align-items: flex-end;
+  min-height: 1.35em;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+a.ops-cost-resource {
+  display: flex;
+}
+
+.ops-cost-resource > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-genie-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: var(--ast-link);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-underline-offset: 2px;
+}
+
+.ops-genie-open svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ops-tile-label-link:hover {
+  color: var(--ast-blue);
+}
+
+.ops-tile-label-open {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.ops-tile-formula {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}
+
+/* Geometry only, as in the table above: the uppercase eyebrow beside it is
+   letter-spaced and #6F6F6F, and the mark keeps its own colour through both. */
+.ops-tile-mark {
+  flex: none;
+}
+
+/*
+ * The figure and its basis on one wrapping line rather than one clipped one.
+ * `flex-wrap` with a baseline alignment keeps "per day" beside the number where
+ * there is room and drops it underneath where there is not, which is better than
+ * either an ellipsis over a currency code or a horizontal scrollbar in a card.
+ */
+/* The figure. `.ast-num` in the markup is what makes it tabular; this rule used to
+   claim it with `font-variant-numeric` alone, on DM Sans, whose files carry no
+   `tnum` feature -- so six tile figures in a three-column grid were proportional
+   and did not line up column to column, which is the one arrangement where the
+   defect is visible without leaving the page.
+
+   18px rather than 20. 20 is not a rung: §3's scale is 11/12/13/14/16/18/22/32,
+   and ops-tab.md's 20 predates it. 18 rather than 22 because the KPI rung is what
+   Monitoring's five tiles take, and these six are deliberately quieter -- they
+   carry a currency figure AND a basis suffix on one baseline, and a block badged
+   Experimental should not have the largest numbers on the page. */
+.ops-tile-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  font-size: var(--ast-fs-18);
+  font-weight: 700;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-primary-cost-card .ops-tile-figure {
+  min-height: 1.5em;
+}
+
+/*
+ * The per-day basis, beside the figure rather than under it. A rate read
+ * as a total is the single most expensive misreading available on this block:
+ * a fixed-cost endpoint is billed by the hour whether anything queries it
+ * or not, so its daily rate presented as a range total understates it by however
+ * many days the range covers.
+ */
+.ops-tile-basis {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ast-text-secondary);
+  margin: 0;
+}
+
+.ops-tile-secondary {
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+/*
+ * A state where a figure would be, at body size so it never reads as a figure,
+ * and in the foreground colour so it does not read as a disabled card either.
+ */
+/* 14px, the rung below the figure it stands in place of, so it cannot be read as
+   one. It was 15px, which is not on the scale. */
+.ops-tile-absent {
+  display: flex;
+  align-items: baseline;
+  min-height: 28px;
+  font-size: var(--ast-fs-14);
+  font-weight: 600;
+  color: var(--ast-text-secondary);
+  margin: 0;
+}
+
+.ops-tile-evidence {
+  min-height: 1lh;
+  min-width: 0;
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ops-genie-values {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.ops-genie-values > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ops-genie-values dt {
+  color: var(--ast-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.ops-genie-values dd {
+  margin: 0;
+  font-size: var(--ast-fs-18);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+@media (max-width: 72rem) {
+  .ops-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 54rem) {
+  .ops-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .ops-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * The foot of a card: a badge, a remedy, or nothing at all.
+ *
+ * Where six lines of caption used to be. It wraps rather than clipping, because
+ * the one thing that can be long here is a remedy naming an environment
+ * variable, and `align-items: baseline` sits the pill's word on the same line as
+ * the remedy's rather than centring a bordered box against text.
+ */
+.ops-tile-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+/* The one actionable line a card can carry. Body ink rather than the quiet grey,
+   because it is the single thing that would fill this card in. `anywhere` so a
+   long variable name breaks inside the card instead of widening it. */
+.ops-tile-remedy {
+  font-size: var(--text-xs);
+  color: var(--ast-text-long);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-tile-coverage {
+  flex: 1 0 100%;
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Nominal budgets: the app total and compact resource fields above the tiles.
+ * Daily-rate resources say `per day`; all other fields inherit the Cost window.
+ */
+.ops-cost-total {
+  min-width: 0;
+  margin: 0;
+}
+
+.ops-cost-total .ops-ticker-input-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.ops-cost-total .ops-budget-apply {
+  min-height: var(--ops-ticker-control-height);
+  height: var(--ops-ticker-control-height);
+}
+
+.ops-app-budget-status {
+  display: grid;
+  align-items: start;
+  gap: 4px;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+}
+
+.ops-app-budget-save-status {
+  min-width: 0;
+}
+
+.ops-recent-monthly-spend {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-recent-monthly-spend-heading {
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.ops-recent-monthly-spend-list {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ops-recent-monthly-spend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.ops-recent-monthly-spend-row .ast-num {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.ops-budget-not-set {
+  color: var(--ast-text-secondary);
+}
+
+.ops-budget-save-error {
+  font-size: var(--text-xs);
+  color: var(--ast-neg-text);
+}
+
+.ops-budget-apply {
+  flex: 0 0 auto;
+  min-width: 84px;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.ops-budget-apply--resources {
+  min-width: 154px;
+}
+
+.ops-tile-note {
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A BLOCK WHOSE SHAPE IS FINISHED AND WHOSE NUMBERS ARE NOT.
+ *
+ * Cost is the one block on this tab that is not ready to be acted on, and it
+ * says so in its surface as well as in the two words in its band. The cards, the
+ * figures, the badges and the outline all stay: the useful thing about this block
+ * today is what it will look like, and blanking the numbers or hiding the cards
+ * would leave nothing to review.
+ *
+ * SCOPED TO ONE SECTION BY CONSTRUCTION. Every rule here is a descendant of
+ * `.ops-block-unfinished`, which one section carries, and a descendant selector
+ * cannot reach a sibling section. Health, Traffic and Latency show measured data
+ * and would be lying if they wore this.
+ *
+ * Grey rather than faint: `opacity` on the section would take the border, the
+ * band and the pills down with the figures, and at the strength that reads as
+ * "unfinished" it puts body text under the ratio it needs. The wash is the
+ * surface this app already uses for an inert panel, the figures drop from ink to
+ * the secondary grey (4.66:1 on that wash, which clears AA for text of any
+ * size), and the product marks lose their colour rather than their shape.
+ */
+.ops-block-unfinished .ops-block-body {
+  background: var(--ast-fill-band);
+}
+
+/*
+ * The figure stays legible and stops being the thing the eye lands on. Weight is
+ * untouched: at 18px 700 it is still the biggest thing in its card, which is
+ * what makes the card read as a card rather than as a placeholder.
+ */
+.ops-block-unfinished .ops-tile-figure {
+  color: var(--ast-text-secondary);
+}
+
+/* The only colour inside this block is six product marks, and colour is most of
+   what reads as "finished". Greyscale keeps every mark's silhouette, so a reader
+   can still tell which product a card is for. */
+.ops-block-unfinished .ops-tile-mark {
+  filter: grayscale(1);
+  opacity: 0.75;
+}
+
+/* ── Forecasting ────────────────────────────────────────────────────────── */
+
+.ops-forecast-baseline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-forecast-baseline p,
+.ops-forecast-caveat {
+  margin: 0;
+}
+
+.ops-forecast-baseline strong {
+  color: var(--ast-text-long);
+}
+
+.ops-forecast-partial {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--ast-warn-border);
+  background: color-mix(in srgb, var(--ast-warn-border) 22%, var(--card));
+  color: var(--ast-warn-text);
+  font-size: var(--text-sm);
+}
+
+.ops-ticker-assumptions {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+}
+
+.ops-ticker-assumptions > legend {
+  padding: 0 6px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-ticker-assumption-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--ops-assumption-columns), minmax(0, 1fr));
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.ops-ticker-assumptions:not(fieldset) {
+  padding: 0;
+  border: 0;
+}
+
+.ops-cost-resource-budgets > .ops-ticker-assumptions {
+  margin-top: 10px;
+}
+
+.ops-ticker-assumption {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ops-ticker-assumption > label {
+  color: var(--ast-text-long);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.ops-ticker-input-row {
+  --ops-ticker-control-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ops-forecast-number-control,
+.ops-number-ticker {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) 20px;
+  width: min(100%, 8.25rem);
+  overflow: hidden;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-surface-elevated);
+}
+
+.ops-number-ticker-wide {
+  grid-template-columns: minmax(0, 1fr) 24px;
+  width: min(100%, 14rem);
+}
+
+.ops-forecast-number-control input,
+.ops-number-ticker input {
+  width: 100%;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-number-ticker-wide input {
+  height: var(--ops-ticker-control-height, 36px);
+  min-height: var(--ops-ticker-control-height, 36px);
+  padding-right: 9px;
+  padding-left: 9px;
+}
+
+.ops-number-ticker[data-prefix='true'] input {
+  padding-left: 22px;
+}
+
+.ops-number-ticker[data-suffix='true'] input {
+  padding-right: 40px;
+}
+
+.ops-number-ticker-prefix,
+.ops-number-ticker-suffix {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  color: var(--ast-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.ops-number-ticker-prefix {
+  left: 8px;
+}
+
+.ops-number-ticker-suffix {
+  right: 32px;
+}
+
+.ops-forecast-number-control input::-webkit-inner-spin-button,
+.ops-forecast-number-control input::-webkit-outer-spin-button,
+.ops-number-ticker input::-webkit-inner-spin-button,
+.ops-number-ticker input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.ops-forecast-number-control:focus-within,
+.ops-number-ticker:focus-within {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 1px;
+}
+
+.ops-forecast-steppers {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  border-left: 1px solid var(--ast-border-input);
+}
+
+.ops-forecast-steppers button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  min-width: 20px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--ast-fill-band);
+  color: var(--ast-text-long);
+  cursor: pointer;
+}
+
+.ops-number-ticker-wide .ops-forecast-steppers button {
+  width: 24px;
+  min-width: 24px;
+  height: 18px;
+}
+
+.ops-forecast-steppers button + button {
+  border-top: 1px solid var(--ast-border-input);
+}
+
+.ops-forecast-steppers button:hover:not(:disabled) {
+  background: var(--db-hover-tint);
+}
+
+.ops-forecast-steppers button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--ast-blue);
+  outline-offset: -2px;
+}
+
+.ops-forecast-steppers button:disabled {
+  color: var(--ast-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ops-forecast-steppers svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ops-ticker-input-row small {
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.ops-ticker-assumption-helper,
+.ops-ticker-assumption-error {
+  display: block;
+  min-height: 1lh;
+  max-width: 30rem;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ops-ticker-assumption-helper {
+  color: var(--ast-text-secondary);
+  opacity: 0.86;
+}
+
+.ops-ticker-assumption-error {
+  color: var(--ast-neg-text);
+}
+
+.ops-forecast-horizons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-forecast-horizon {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+}
+
+.ops-forecast-horizon h4 {
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-forecast-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ops-forecast-card-head .ops-pill {
+  flex: none;
+}
+
+.ops-forecast-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin: 0;
+}
+
+.ops-forecast-total .ast-num {
+  font-size: var(--ast-fs-18);
+  font-weight: 700;
+}
+
+.ops-forecast-total > span:last-child {
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-forecast-breakdown {
+  min-width: 0;
+}
+
+.ops-forecast-breakdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ast-radius-card);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ops-forecast-breakdown-trigger:hover {
+  border-color: var(--ast-blue);
+  background: var(--db-hover-tint);
+}
+
+.ops-forecast-breakdown-trigger:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}
+
+.ops-forecast-breakdown-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ops-forecast-breakdown-trigger .ops-pill {
+  flex: none;
+}
+
+.ops-forecast-breakdown-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 120ms ease;
+}
+
+.ops-forecast-breakdown-trigger[aria-expanded='true'] .ops-forecast-breakdown-chevron {
+  transform: rotate(90deg);
+}
+
+.ops-forecast-breakdown-trigger[aria-expanded='true'] {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.ops-forecast-breakdown-scroll {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-top: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.ops-forecast-breakdown table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
+}
+
+.ops-forecast-breakdown th,
+.ops-forecast-breakdown td {
+  padding: 7px 10px;
+  border-top: 1px solid var(--ast-hairline);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ops-forecast-breakdown th:first-child {
+  width: 34%;
+  text-align: left;
+  white-space: normal;
+}
+
+.ops-forecast-breakdown th:not(:first-child),
+.ops-forecast-breakdown td {
+  width: 22%;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-forecast-breakdown thead th {
+  border-top: 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.ops-forecast-breakdown tbody th {
+  color: var(--ast-text-long);
+  font-weight: 500;
+}
+
+.ops-forecast-component {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ops-forecast-component > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-forecast-component-mark,
+.ops-forecast-component--total > svg {
+  flex: none;
+}
+
+.ops-forecast-breakdown td {
+  color: var(--ast-text-long);
+  font-family: var(--font-mono);
+}
+
+.ops-forecast-breakdown tfoot th,
+.ops-forecast-breakdown tfoot td {
+  border-top-color: var(--ast-border-input);
+  color: var(--ast-text-long);
+  font-weight: 700;
+}
+
+.ops-forecast-horizon ul,
+.ops-forecast-method ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-forecast-horizon li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.ops-forecast-horizon li span:last-child {
+  color: var(--ast-text-long);
+  white-space: nowrap;
+}
+
+.ops-methodology-sections {
+  display: grid;
+  gap: 16px;
+  padding-top: 12px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.ops-methodology-sections section,
+.ops-methodology-sections h5,
+.ops-methodology-sections dl,
+.ops-methodology-sections dd {
+  margin: 0;
+}
+
+.ops-methodology-sections h5 {
+  margin-bottom: 6px;
+  color: var(--ast-text-long);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-methodology-rows {
+  display: grid;
+}
+
+.ops-methodology-rows > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 7px 0;
+  border-top: 1px solid var(--ast-hairline);
+}
+
+.ops-methodology-rows dt {
+  color: var(--ast-text-long);
+  font-weight: 600;
+}
+
+.ops-methodology-rows dd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.ops-methodology-rows > .ops-methodology-detail-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ops-cost-method {
+  margin-top: 12px;
+}
+
+/* ── Traffic ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Three compact groups: daily trends, question/run statistics, and tools.
+ */
+/*
+ * THREE GROUPS, THREE EQUAL COLUMNS (ops-tab.md Traffic). The old
+ * `auto-fit minmax(17rem, 1fr)` let a wide panel lay out five tracks and drop
+ * the three charts into the first three, so the tool-call chart floated in the
+ * middle with its bars stretched across a track far wider than it needed and
+ * its counts pinned to the panel edge, a stride from the bars they annotate.
+ * A fixed three-column grid holds Questions per day, the Failures/Refusals
+ * pair, and Tool calls to a third of the width each, so the bars are a legible
+ * length and every count sits against the bar it belongs to.
+ */
+.ops-charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  align-items: start;
+}
+
+/*
+ * A rule where each pair of groups meets. Whitespace alone left three unrelated
+ * charts floating in one band; the hairline says which heading owns which bars.
+ * The padding keeps the bars and their counts off the line.
+ */
+.ops-charts > * + * {
+  border-left: 1px solid var(--ast-hairline);
+  padding-left: 16px;
+}
+
+/* One column when the panel is too narrow to seat three charts side by side
+   without crushing the tool labels. The order is already the reading order. */
+@media (max-width: 60rem) {
+  .ops-charts {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stacked, a left rule would be an indent rather than a divider. */
+  .ops-charts > * + * {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+.ops-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ops-chart h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+}
+
+.ops-chart-freshness {
+  margin: -2px 0 4px;
+  color: var(--ast-text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+.ops-statistics-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The three daily series share one column and one compact chart vocabulary. */
+.ops-chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ops-bars {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ops-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+/*
+ * NEVER BROKEN THROUGH THE MIDDLE OF A WORD. `overflow-wrap: anywhere` was
+ * turning a long tool name into an orphaned final character and
+ * "Read a table's columns" into "Read a table' / s columns", which reads as a
+ * rendering fault. `break-word` breaks between words and only reaches inside one
+ * when a single word is wider than the column on its own.
+ */
+.ops-bar-label {
+  color: var(--ast-text-long);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/*
+ * Tool labels are prose, not identifiers: the store records them as "Ran a
+ * governed read-only query", not an internal tool identifier. Truncated to one line they
+ * lost the phrase that carries the meaning ("Ran a governed read-only que…"), so
+ * they wrap instead. `align-items: start` sits the bar and count on the first
+ * line of the label rather than the middle of a wrapped block, which keeps the
+ * bars scannable down the column even when the rows are different heights.
+ *
+ * `minmax(0, ...)` rather than a fixed width so the label column gives way on a
+ * narrow window instead of pushing the bars off the card. Mono is kept: it is
+ * how this app sets recorded values.
+ */
+.ops-chart-tool .ops-bar-row {
+  grid-template-columns: minmax(min(9rem, 42%), 12rem) minmax(0, 1fr) max-content;
+  align-items: center;
+}
+
+.ops-chart-tool .ops-bar-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ops-chart-tool .ops-bar-label code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ops-bar-track {
+  background: var(--ast-hairline);
+  border-radius: 2px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.ops-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--ast-blue);
+}
+
+.ops-statistic-positive .ops-bar-fill {
+  background: var(--ast-pos-text);
+}
+
+.ops-statistic-warning .ops-bar-fill {
+  background: var(--ast-warn-text);
+}
+
+.ops-statistic-refusal .ops-bar-fill {
+  background: var(--ast-neutral-text);
+}
+
+.ops-statistic-negative .ops-bar-fill {
+  background: var(--ast-neg-text);
+}
+
+/* Two series and two colours, because failures and refusals are two charts and
+   never one. The palette's own negative and neutral, which is what ops-tab.md
+   names them as: #A04A62 and #46596B.
+
+   They were --db-red-600 #C82D4C and --db-grey-blue #445461, one step brighter
+   and one step darker than the ADAPT pair. The muting is the point rather than
+   a side effect: a bar chart of failures in DuBois red is the loudest thing on a
+   page whose whole argument is that most of these numbers are estimates. */
+.ops-chart-failure .ops-bar-fill {
+  background: var(--ast-neg-text);
+}
+
+.ops-chart-refusal .ops-bar-fill {
+  background: var(--ast-neutral-text);
+}
+
+/* The count is text on every row. The bar can be misread; the number cannot, so
+   the number is never only a length. */
+.ops-bar-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ast-text-long);
+  text-align: right;
+}
+
+/* A count that leads somewhere leads to the same runs, filtered. Blue at 500,
+   which is this app's one link treatment. */
+a.ops-bar-count {
+  color: var(--ast-blue);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+a.ops-bar-count:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 36rem) {
+  .ops-chart-tool .ops-bar-row {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .ops-chart-tool .ops-bar-label {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
+ * Questions per day: columns, because this is the one chart here whose x axis is
+ * time. 64px tall, 4px apart, 2px on the top corners only, so a column reads as
+ * rising from the axis rather than as a floating capsule.
+ */
+.ops-daybars {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 64px;
+}
+
+/*
+ * A column and its own figure, stacked, sitting on the axis.
+ *
+ * `justify-content: flex-end` rather than `align-items` now the daybar is a
+ * column: the pair grows upwards from the bottom of the plot, so the bar stays
+ * on the axis and the figure rides above whatever height it reached.
+ */
+.ops-daybar {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+ * The column's own count, over the column, where there are few enough columns
+ * for every one to carry it. The bar is capped short of the plot's full height
+ * to leave room for exactly this, in `QuestionsPerDay`.
+ */
+.ops-daybar-value {
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-11);
+  line-height: 1.2;
+  color: var(--ast-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-daybar-fill {
+  display: block;
+  width: 100%;
+  background: var(--ast-blue);
+  border-radius: 2px 2px 0 0;
+}
+
+/*
+ * The top of the scale, on the line the tallest column reaches, for a range with
+ * too many columns to label individually.
+ *
+ * A hairline across the plot's width with the figure at its left, so it reads as
+ * the top gridline of a chart and not as a number belonging to the first day.
+ * Without either this or the per-column figures the chart was bars of relative
+ * height and no magnitude at all.
+ */
+.ops-daybars-peak {
+  margin: 0 0 1px;
+  padding-bottom: 1px;
+  border-bottom: 1px dashed var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The first and last dates only. A column per day over thirty days cannot carry
+   thirty legible labels, and the ones it would drop are not the ones a reader
+   would pick. */
+.ops-daybars-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text-secondary);
+}
+
+.ops-chart-empty {
+  font-size: var(--text-xs);
+  color: var(--ast-text-secondary);
+  margin: 0;
+}
+
+.ops-cost-loading {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-cost-loading-pane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface-muted);
+}
+
+.ops-loading-state {
+  display: grid;
+  min-height: 8rem;
+  place-items: center;
+  align-content: center;
+}
+
+/*
+ * THE COMPACT LATENCY GRID (#24b).
+ *
+ * method 52px · route (flex, ellipsised) · last hit 70px · spans 56px · p50 64px
+ * · log-scaled p50 bar 150px · slowest 70px, with p95/p99/trend appended only
+ * when a route has crossed the span floor. Trend is 200px so "Slower than
+ * baseline" fits with its rounded end visible; leftover width still goes to the
+ * route. Tabular numerals and right alignment so a column of durations can be
+ * scanned down: the routes here span five orders of magnitude, and proportional
+ * digits put the decimal point in a different place on every row. The route is
+ * the one prose column and overrides both.
+ */
+/* Search and Refresh remain the header's right-hand working controls. The
+   baseline filters live with the title instead, so the heading and the two
+   choices read as one left-aligned cluster in DOM and visual order. */
+.ops-latency-head-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.ops-latency-trend-filters {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.ops-latency-trend-filter {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  text-align: center;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  height: 32px;
+  width: 132px;
+  box-sizing: border-box;
+  align-items: center;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ops-latency-trend-filter.ast-pill--pos[aria-pressed='false'] {
+  color: color-mix(in srgb, var(--ast-pos-text) 78%, var(--ast-text));
+  border-color: color-mix(in srgb, var(--ast-pos-border) 62%, var(--ast-border-input));
+  background: color-mix(in srgb, var(--ast-pos-fill) 72%, transparent);
+  opacity: 1;
+}
+
+.ops-latency-trend-filter.ast-pill--neg[aria-pressed='false'] {
+  color: color-mix(in srgb, var(--ast-neg-text) 78%, var(--ast-text));
+  border-color: color-mix(in srgb, var(--ast-neg-border) 62%, var(--ast-border-input));
+  background: color-mix(in srgb, var(--ast-neg-fill) 72%, transparent);
+  opacity: 1;
+}
+
+.ops-latency-trend-filter.ast-pill--pos[aria-pressed='true'] {
+  color: var(--ast-pos-text);
+  border-color: var(--ast-pos-border);
+  background: color-mix(in srgb, var(--ast-pos-text) 22%, var(--ast-pos-fill));
+  box-shadow: inset 0 0 0 1px var(--ast-pos-border);
+  font-weight: 700;
+}
+
+.ops-latency-trend-filter.ast-pill--neg[aria-pressed='true'] {
+  color: var(--ast-neg-text);
+  border-color: var(--ast-neg-border);
+  background: color-mix(in srgb, var(--ast-neg-text) 22%, var(--ast-neg-fill));
+  box-shadow: inset 0 0 0 1px var(--ast-neg-border);
+  font-weight: 700;
+}
+
+.ops-latency-trend-filter.ast-pill--pos:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ast-pos-text) 30%, var(--ast-pos-fill));
+  border-color: var(--ast-pos-text);
+}
+
+.ops-latency-trend-filter.ast-pill--neg:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ast-neg-text) 30%, var(--ast-neg-fill));
+  border-color: var(--ast-neg-text);
+}
+
+.ops-latency-trend-filter:active:not(:disabled) {
+  box-shadow:
+    inset 0 0 0 2px currentColor,
+    inset 0 2px 3px color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.ops-latency-trend-filter:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .ops-latency-trend-filter[aria-pressed='true'] {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}
+
+.ops-latency-trend-filter:disabled,
+.ops-latency-trend-filter:disabled:hover {
+  cursor: not-allowed;
+  color: var(--ast-text-secondary);
+  border-color: var(--ast-border-input);
+  background: var(--ast-neutral-fill);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-latency-trend-filter {
+    transition-duration: 0ms;
+  }
+}
+
+.ops-latency-block .ops-block-head-text {
+  flex: 1 1 auto;
+}
+
+.ops-latency-block .ops-block-head-control {
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 25rem;
+}
+
+.ops-latency-search {
+  width: auto;
+  min-width: 0;
+  height: 32px;
+}
+
+.ops-latency-head-controls .ops-latency-search .monitoring-search-icon {
+  top: 16px;
+}
+
+/*
+ * `.monitoring-search` shrinks to 160px and, below 1180px, takes `flex: 1 1 100%`.
+ * Either floor clips "Search routes or methods…". This pair outranks that rule so
+ * the field can grow into the header rail and cannot shrink below the placeholder.
+ */
+.ops-latency-head-controls .ops-latency-search {
+  flex: 1 1 280px;
+  width: auto;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+/*
+ * AppKit's field is 36px (`h-9`). Refresh is 32px (`size="sm"`). The 36px
+ * box was the one control that stuck up. 32px is the app's control height
+ * (`.app-select-trigger`, `.ast-btn-primary`); the TREND pills on this rail
+ * are the same height so search, Within / Outside, and Refresh share one line.
+ */
+.ops-latency-head-controls .ops-latency-search input {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .ops-latency-block .ops-block-head-text {
+    flex: 1 1 100%;
+  }
+
+  .ops-latency-block .ops-block-head-control {
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .ops-latency-block .ops-latency-search {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ops-block-head-control {
+    width: 100%;
+  }
+  .ops-cost-head-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .ops-health-head-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.ops-latency-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ops-latency-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 760px;
+}
+
+.ops-latency-table-expanded {
+  min-width: 1080px;
+}
+
+.ops-latency-table td {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 8px 6px;
+}
+
+/* Header band: uppercase 11px labels on the card band, right-aligned like the
+   figures beneath them; the two prose columns pull left. */
+.ops-latency-table thead th {
+  background: var(--ast-fill-band);
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  color: var(--ast-text-secondary);
+  text-align: right;
+  padding: 8px 6px;
+}
+
+.ops-latency-table th:first-child,
+.ops-latency-table td:first-child {
+  padding-left: 8px;
+}
+
+.ops-latency-table th:last-child,
+.ops-latency-table td:last-child {
+  padding-right: 8px;
+}
+
+.ops-latency-table thead th.ops-lat-method,
+.ops-latency-table thead th.ops-lat-route {
+  text-align: left;
+}
+
+/* Method chip. GET and POST get the handoff's two tints; anything else takes a
+   neutral chip rather than being mistaken for one of them. */
+.ops-lat-col-method {
+  width: 52px;
+}
+
+.ops-lat-col-route {
+  width: auto;
+}
+
+.ops-lat-col-hit {
+  width: 70px;
+}
+
+.ops-lat-col-spans {
+  width: 56px;
+}
+
+.ops-lat-col-p50 {
+  width: 64px;
+}
+
+.ops-lat-col-bar {
+  width: 150px;
+}
+
+.ops-lat-col-slowest {
+  width: 70px;
+}
+
+.ops-lat-col-percentile {
+  width: 64px;
+}
+
+.ops-lat-col-trend {
+  width: 200px;
+  min-width: 200px;
+}
+
+.ops-lat-method {
+  text-align: left;
+}
+
+.ops-lat-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-11);
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-neutral-fill);
+  color: var(--ast-neutral-text);
+}
+
+.ops-lat-chip-get {
+  background: #e8ecf0;
+  color: #445461;
+}
+
+.ops-lat-chip-post {
+  background: var(--ast-info-fill);
+  color: var(--ast-info-text);
+}
+
+/* Route: one line, ellipsised, full path on `title`. `max-width:0` with the
+   cell allowed to flex is the table idiom that makes text-overflow work. */
+th.ops-lat-route,
+td.ops-lat-route {
+  text-align: left;
+  min-width: 0;
+}
+
+.ops-lat-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--ast-fs-12);
+  font-weight: 500;
+  color: var(--ast-text-long);
+}
+
+/* Last hit: relative time in the secondary face, right-aligned. */
+.ops-lat-hit {
+  font-family: var(--font-sans);
+  font-size: var(--ast-fs-11);
+  color: var(--ast-text-secondary);
+}
+
+.ops-lat-spans,
+.ops-lat-p50 {
+  text-align: right;
+}
+
+.ops-lat-p50 {
+  font-weight: 500;
+}
+
+/* The log-scaled bar. A track and a fill, decorative: the p50 figure to its
+   left is the number a reader acts on, so the bar is aria-hidden and quiet. */
+.ops-lat-bar {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.ops-lat-bar-track {
+  display: inline-block;
+  width: 100%;
+  height: 8px;
+  background: var(--ast-hairline);
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.ops-lat-slowest {
+  text-align: right;
+}
+
+/*
+ * The longest verdict is "Slower than baseline". 200px is the floor that keeps
+ * that pill — padding, border, and rounded end — inside the cell. `nowrap` is
+ * restated on the pill so a later wrap on `.ops-pill` cannot clip it mid-word.
+ */
+.ops-lat-trend {
+  min-width: 200px;
+  white-space: nowrap;
+}
+
+.ops-lat-trend .ops-pill {
+  white-space: nowrap;
+}
+
+.ops-lat-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--db-blue-600);
+  border-radius: 2px;
+}
+
+/* Word + left edge. Colour alone never carries "concerning". */
+.ops-latency-row-slower {
+  box-shadow: inset 3px 0 0 var(--ast-neg-text);
+}
+
+/*
+ * A page at a time, in the block's own foot.
+ *
+ * The count on the left and the two carets on the right, which is the way round
+ * every paged table is read: what you are looking at, then how to move. It wraps
+ * rather than compressing, because the count is the half that must stay legible.
+ */
+.ops-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+/* "1-20 of 84", which is prose for the same reason the date line is: it renders
+   once, nothing stacks under it, and the property was inert on DM Sans anyway.
+   If the pager ever repeats down a list it becomes columnar and takes `.ast-num`. */
+.ops-pager-range {
+  white-space: nowrap;
+}
+
+.ops-pager-steps {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* The withheld mark, which is deliberately quiet: it is the absence of a figure
+   and must not read as one. `abbr` carries the reason on hover and to a screen
+   reader, so the border the user agent adds would be the only visible hint that
+   there is something to hover, and it is too loud for a dash. */
+.ops-latency-table abbr {
+  text-decoration: none;
+  border-bottom: 0;
+  color: var(--ast-text-secondary);
+  cursor: help;
+}

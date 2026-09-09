@@ -1,0 +1,542 @@
+/**
+ * The roster, read and edited by this deployment's super administrator.
+ *
+ * One endpoint family, `/api/users`, and it is super-admin-only through the prefix
+ * list in admin-roles.ts rather than through a guard written here. Nothing in this
+ * file checks a role: the middleware has already refused a consumer AND a plain
+ * administrator with 403 by the time a handler runs, and a second check here would
+ * be a second place for the answer to be wrong.
+ *
+ * EVERY CHANGE TAKES EFFECT WITHOUT A REDEPLOY, which is the entire point of the
+ * file. The role is a row in Lakebase, read on the next request by resolveRole, so
+ * a person appointed here holds the role before the reply reaches the browser.
+ *
+ * A PROMOTION IS ONE ACTION: A ROW IN LAKEBASE. It used to be two, because a
+ * promotion also granted Unity Catalog read on the telemetry schema and the
+ * `system.billing` tables. That is gone. Granting on `system` needs an account
+ * admin who is also a metastore admin, so the ordinary outcome was a
+ * PERMISSION_DENIED beside the name of the person just promoted, for read access
+ * the rank never required. Somebody who needs to read billing gets that from a
+ * metastore admin, not from this screen.
+ *
+ * A DEMOTION STILL HANDS BACK what earlier versions of this app granted, best
+ * effort, under the acting super admin's own forwarded token. That is recorded in
+ * the audit trail rather than on screen, and it never refuses the role change.
+ *
+ * WHAT THE RANK GRANTS is no data at all. A question runs under the asker's own
+ * grants at every rank, and a super admin reading somebody else's conversation in
+ * Monitoring sees what their own grants allow -- appointing themselves does not
+ * change that by one column.
+ */
+import { z } from 'zod';
+import { withdrawAccess } from '../lib/admin-access';
+import {
+  normalizeAdminEmail,
+  recordAdminAction,
+  seedRoles,
+  groupRoleLookupForStore,
+  invalidAdminEmail,
+  type AdminStore,
+} from '../lib/admin-roles';
+import {
+  deleteRosterRow,
+  effectiveRole,
+  readRoster,
+  readRosterForRequest,
+  REFUSAL_DETAIL,
+  removalRefusal,
+  roleChangeRefusal,
+  roleChangeSentence,
+  rosterPayload,
+  writeRole,
+  type StoredRole,
+} from '../lib/user-roster';
+import {
+  opensAdminSurfaces,
+  ROLE_WORD,
+  type Role,
+  type RosterPayload,
+  type RosterRefusal,
+} from '../../shared/user-roster-contract';
+import { runnerFor } from './admin-routes';
+import { userEmail, type InsightsAppKit } from './insights-routes';
+import type { Request, Response } from 'express';
+import { parseOrganizationMappings } from '../../shared/organization-mapping';
+import { deploymentOwnerEmail } from '../lib/app-deployment-lifetime';
+import {
+  ADAPT_ADMIN_GROUP,
+  ADAPT_ADMIN_GROUP_LABEL,
+  ADAPT_USER_GROUP,
+  ADAPT_USER_GROUP_LABEL,
+  groupRoleForRequest,
+  seedRolesWithGroupFloors,
+  type GroupRoleLookup,
+} from '../lib/adapt-group-roles';
+import {
+  listWorkspaceGroups,
+  readAdaptGroupMembers,
+  readWorkspaceGroup,
+  type WorkspaceGroupRead,
+} from '../lib/adapt-group-members';
+import type { GroupMembersResponse } from '../../shared/user-roster-contract';
+import { readGroupRoleMappings, writeGroupRoleMapping } from '../lib/group-role-mappings';
+import { accountConsoleUrlForWorkspace } from '../../shared/databricks-links';
+
+const RoleBody = z.object({ role: z.string().trim().max(32) });
+const AddBody = RoleBody.extend({ email: z.string().trim().max(320) });
+const GroupMappingBody = z.object({
+  groupName: z.string().trim().min(1).max(255),
+  role: z.enum(['admin', 'consumer']),
+});
+
+/**
+ * The roster as read, and whether the stored half answered.
+ *
+ * Two fields rather than an empty roster on failure, because "nobody has been added"
+ * and "the roster could not be read" put the same rows on screen and have different
+ * remedies. Conflating them sends somebody looking for a person who was never
+ * removed.
+ */
+async function read(
+  store: AdminStore,
+  req?: Request
+): Promise<{ rows: StoredRole[]; readable: boolean; roleColumnPresent: boolean }> {
+  try {
+    const { rows, roleColumnPresent } = await (req ? readRosterForRequest(store, req) : readRoster(store));
+    return { rows, readable: true, roleColumnPresent };
+  } catch (error) {
+    console.warn('[admin] The stored roster could not be read for the roster editor:', (error as Error).message);
+    // Reported as present so the screen does not blame a missing column for an
+    // outage. The refusal that matters is the store one, and it is above this.
+    return { rows: [], readable: false, roleColumnPresent: true };
+  }
+}
+
+/** The status one refusal deserves. */
+function statusFor(refusal: RosterRefusal): number {
+  if (refusal === 'not-found') return 404;
+  if (refusal === 'unknown-role') return 400;
+  // seed-floor, last-super-admin, already-holds and no-role-column are all
+  // well-formed requests asking for something that cannot be done. 409, the same
+  // distinction the admin list draws.
+  return 409;
+}
+
+function refuse(res: Response, refusal: RosterRefusal) {
+  res.status(statusFor(refusal)).json({
+    error: `roster_refused_${refusal.replace(/-/g, '_')}`,
+    detail: REFUSAL_DETAIL[refusal],
+  });
+}
+
+/**
+ * Hand back the access an earlier version of this app granted, when a rank falls
+ * below the administrator line.
+ *
+ * NOTHING IS EVER GRANTED HERE. A rise in rank writes a row and stops; see this
+ * file's header. What is left is the debt: a deployment that ran the earlier
+ * version recorded privileges this app added, and somebody who is no longer an
+ * administrator should not keep a privilege they only held because this app handed
+ * it to them.
+ *
+ * Only what the provenance table can show this app granted is revoked, which is the
+ * whole of why a demotion does not take away access somebody holds for a reason we
+ * know nothing about. Never allowed to fail the role change it follows: the role is
+ * what the caller asked for, and this is the tidying up.
+ */
+async function withdrawOnDemotion(input: {
+  req: Request;
+  store: AdminStore;
+  email: string;
+  actor: string;
+  from: Role;
+  to: Role;
+}): Promise<void> {
+  if (!opensAdminSurfaces(input.from) || opensAdminSurfaces(input.to)) return;
+  const { run, unavailable } = runnerFor(input.req);
+  const withdrawal = await withdrawAccess({ run, store: input.store, email: input.email, unavailable });
+  if (withdrawal.revoked === 0 && withdrawal.refused.length === 0) return;
+  await recordAdminAction(input.store, {
+    actor: input.actor,
+    action: 'access-revoked',
+    subject: input.email,
+    detail:
+      `${input.actor} took ${input.email} out of the administrator ranks, and the access an earlier version ` +
+      `of this app had granted them: ${withdrawal.summary} ${withdrawal.note}`.trim(),
+  });
+}
+
+export function setupUserRoutes(
+  appkit: InsightsAppKit,
+  deps: {
+    readDeploymentOwner?: () => Promise<string>;
+    readGroupRole?: GroupRoleLookup;
+    readGroupMembers?: (groupName: string) => Promise<GroupMembersResponse>;
+    readWorkspaceGroup?: (groupName: string) => Promise<WorkspaceGroupRead>;
+  } = {}
+) {
+  const readDeploymentOwner = deps.readDeploymentOwner ?? (() => deploymentOwnerEmail(appkit.lakebase));
+  const readGroupRole = deps.readGroupRole ?? groupRoleLookupForStore(appkit.lakebase);
+  const readGroupMembers = deps.readGroupMembers ?? readAdaptGroupMembers;
+  const confirmWorkspaceGroup = deps.readWorkspaceGroup ?? readWorkspaceGroup;
+  const roleFloors = (req: Request, rows: readonly StoredRole[], extra: readonly string[] = []) => {
+    const base = seedRoles();
+    return seedRolesWithGroupFloors(base, [...rows.map((row) => row.email), ...extra], (email) =>
+      groupRoleForRequest(req, email, readGroupRole)
+    );
+  };
+  const configuredGroups = [
+    { displayName: ADAPT_ADMIN_GROUP_LABEL, groupName: ADAPT_ADMIN_GROUP, role: 'admin' as const },
+    { displayName: ADAPT_USER_GROUP_LABEL, groupName: ADAPT_USER_GROUP, role: 'consumer' as const },
+  ];
+  const isConfiguredGroup = (name: string) =>
+    configuredGroups.some((group) => group.groupName.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
+
+  async function groupRoleDefaults(): Promise<NonNullable<RosterPayload['groupRoleDefaults']>> {
+    const stored = await readGroupRoleMappings(appkit.lakebase).catch((error) => {
+      console.warn('[admin] Stored group mappings could not be read:', (error as Error).message);
+      return [];
+    });
+    const rows = [
+      ...configuredGroups.map((group) => ({ ...group, source: 'bundle' as const, setBy: '', setAt: '' })),
+      ...stored
+        .filter((mapping) => !isConfiguredGroup(mapping.groupName))
+        .map((mapping) => ({
+          displayName: mapping.groupName,
+          groupName: mapping.groupName,
+          role: mapping.role,
+          source: 'stored' as const,
+          setBy: mapping.setBy,
+          setAt: mapping.setAt,
+        })),
+    ];
+    const confirmations = await Promise.all(rows.map((row) => confirmWorkspaceGroup(row.groupName)));
+    const landingPage = accountConsoleUrlForWorkspace(process.env.DATABRICKS_HOST);
+    return rows.map((row, index) => {
+      const scimConfirmed = confirmations[index].readable && confirmations[index].exists;
+      return {
+        ...row,
+        appPermission: row.role === 'admin' ? ('CAN_MANAGE' as const) : ('CAN_USE' as const),
+        scimConfirmed,
+        identityManagementUrl: scimConfirmed ? landingPage : '',
+      };
+    });
+  }
+
+  async function attachIdentityMetadata(payload: RosterPayload): Promise<RosterPayload> {
+    payload.organizations = parseOrganizationMappings(process.env.PLAYER_INSIGHTS_ORGANIZATIONS);
+    payload.groupRoleDefaults = await groupRoleDefaults();
+    return payload;
+  }
+
+  appkit.server.extend((app) => {
+    app.get('/api/users/groups', async (_req, res) => {
+      res.json(await listWorkspaceGroups());
+    });
+
+    app.get('/api/users/groups/:groupName/members', async (req, res) => {
+      const requested = req.params.groupName.trim();
+      let allowed = [ADAPT_ADMIN_GROUP, ADAPT_USER_GROUP].find(
+        (group) => group.toLocaleLowerCase() === requested.toLocaleLowerCase()
+      );
+      if (!allowed) {
+        try {
+          const stored = await readGroupRoleMappings(appkit.lakebase);
+          allowed = stored
+            .map((mapping) => mapping.groupName)
+            .find((group) => group.toLocaleLowerCase() === requested.toLocaleLowerCase());
+        } catch (error) {
+          console.warn('[admin] Stored group mappings could not be read for membership:', (error as Error).message);
+          res.status(503).json({
+            groupName: requested,
+            members: [],
+            readable: false,
+            detail: 'Mapped groups are temporarily unavailable. The deployment access groups can still be expanded.',
+          } satisfies GroupMembersResponse);
+          return;
+        }
+      }
+      if (!allowed) {
+        res.status(404).json({
+          groupName: requested,
+          members: [],
+          readable: false,
+          detail: 'Only a configured ADAPT access group can be expanded.',
+        } satisfies GroupMembersResponse);
+        return;
+      }
+      res.json(await readGroupMembers(allowed));
+    });
+
+    /**
+     * The whole roster: everybody either half of the list knows, with the role each
+     * holds and what may be done to the row.
+     *
+     * Answers 200 with `storedRosterReadable: false` when Lakebase is out, because
+     * the seed rows are still true and still this deployment's administration, and a
+     * 503 would hide them behind the outage they survive.
+     *
+     * A PURE READ. It runs no `GRANT` and no `SHOW GRANTS`, so the roster appears
+     * without waiting on a warehouse that may be cold.
+     */
+    app.get('/api/users', async (req, res) => {
+      const [{ rows, readable, roleColumnPresent }, deploymentOwner] = await Promise.all([
+        read(appkit.lakebase, req),
+        readDeploymentOwner().catch(() => ''),
+      ]);
+      const seed = await roleFloors(req, rows);
+      res.json(
+        await attachIdentityMetadata(
+          rosterPayload({
+            seed,
+            stored: rows,
+            storedRosterReadable: readable,
+            roleColumnPresent,
+            reader: userEmail(req),
+            deploymentOwner,
+          })
+        )
+      );
+    });
+
+    app.post('/api/users/groups', async (req, res) => {
+      const parsed = GroupMappingBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'invalid_group_mapping_body',
+          detail: 'Send one existing workspace group and an ADAPT role of admin or consumer.',
+        });
+        return;
+      }
+      if (isConfiguredGroup(parsed.data.groupName)) {
+        res.status(409).json({
+          error: 'configured_group_immutable',
+          detail: 'That mapping is set by the deployment bundle and cannot be changed here.',
+        });
+        return;
+      }
+      const confirmation = await confirmWorkspaceGroup(parsed.data.groupName);
+      if (!confirmation.readable) {
+        res.status(503).json({
+          error: 'group_confirmation_unavailable',
+          detail: 'SCIM could not confirm that workspace group. No mapping was saved.',
+        });
+        return;
+      }
+      if (!confirmation.exists) {
+        res.status(404).json({
+          error: 'workspace_group_not_found',
+          detail: 'That workspace group does not exist. Create it in Databricks first, then retry.',
+        });
+        return;
+      }
+      const actor = userEmail(req);
+      try {
+        await writeGroupRoleMapping(appkit.lakebase, {
+          groupName: confirmation.groupName,
+          role: parsed.data.role,
+          actor,
+        });
+        await recordAdminAction(appkit.lakebase, {
+          actor,
+          action: 'group-role-mapped',
+          subject: confirmation.groupName,
+          detail:
+            `${actor} mapped existing workspace group ${confirmation.groupName} to ADAPT ` +
+            `${ROLE_WORD[parsed.data.role].toLowerCase()}. Databricks App permissions were not changed.`,
+        });
+        await replyWithRoster(req, res, appkit.lakebase, actor);
+      } catch (error) {
+        console.error('[admin] The workspace group mapping could not be saved:', (error as Error).message);
+        res.status(503).json({
+          error: 'group_mapping_store_unavailable',
+          detail: 'Lakebase could not save the group mapping. No Databricks group or App permission was changed.',
+        });
+      }
+    });
+
+    /**
+     * Put one address on the roster at one role.
+     *
+     * The same route shape as a change, and deliberately so: "add somebody as an
+     * admin" and "make this consumer an admin" are one write and one audit row, and
+     * two routes for them would be two places for the last-super-admin refusal to
+     * be checked. The POST exists because the browser has no row to address yet.
+     */
+    app.post('/api/users', async (req, res) => {
+      const parsed = AddBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'invalid_roster_body', detail: 'Send one email address and one role.' });
+        return;
+      }
+      const invalid = invalidAdminEmail(parsed.data.email);
+      if (invalid) {
+        res.status(400).json({ error: 'invalid_roster_email', detail: invalid });
+        return;
+      }
+      await setRole(req, res, normalizeAdminEmail(parsed.data.email), parsed.data.role, true);
+    });
+
+    /**
+     * Change one person's role.
+     *
+     * PATCH rather than PUT because the address is the row and only the role moves.
+     */
+    app.patch('/api/users/:email', async (req, res) => {
+      const parsed = RoleBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'invalid_roster_body', detail: 'Send one role.' });
+        return;
+      }
+      await setRole(req, res, normalizeAdminEmail(req.params.email), parsed.data.role);
+    });
+
+    /**
+     * Take one person off the roster entirely.
+     *
+     * They become a consumer, because a consumer is what anybody the roster does not
+     * name already is. Access an earlier version of this app granted them is handed
+     * back BEFORE the row goes, because the record of what was granted is keyed by
+     * the address and the withdrawal path has to read it.
+     */
+    app.delete('/api/users/:email', async (req, res) => {
+      const email = normalizeAdminEmail(req.params.email);
+      const actor = userEmail(req);
+      let rows: StoredRole[];
+      try {
+        ({ rows } = await readRosterForRequest(appkit.lakebase, req));
+      } catch (error) {
+        console.error('[admin] The roster could not be read, so no removal was attempted:', (error as Error).message);
+        res.status(503).json({
+          error: 'roster_store_unavailable',
+          detail:
+            'Nobody was removed. The roster could not be read, and removing somebody without knowing who ' +
+            'else is on it could leave this deployment with no super admin.',
+        });
+        return;
+      }
+      const seed = await roleFloors(req, rows, [email]);
+      const refusal = removalRefusal({ email, seed, stored: rows });
+      if (refusal) {
+        refuse(res, refusal);
+        return;
+      }
+      const from = effectiveRole({ seed, stored: rows, email });
+      try {
+        await withdrawOnDemotion({ req, store: appkit.lakebase, email, actor, from, to: 'consumer' });
+        await deleteRosterRow(appkit.lakebase, email);
+        // After the write, so a row here means the change happened. Awaited, and its
+        // own failure never fails the request: see recordAdminAction.
+        await recordAdminAction(appkit.lakebase, {
+          actor,
+          action: 'user-removed',
+          subject: email,
+          detail: `${actor} removed ${email} from this deployment's roster, held as ${ROLE_WORD[from].toLowerCase()}.`,
+        });
+        await replyWithRoster(req, res, appkit.lakebase, actor);
+      } catch (error) {
+        console.error(`[admin] ${email} could not be removed:`, (error as Error).message);
+        res.status(503).json({ error: 'roster_store_unavailable', detail: 'Nobody was removed.' });
+      }
+    });
+
+    /**
+     * The one write path, behind both routes that change a role.
+     *
+     * THE REFUSALS ARE CHECKED AGAINST THE ROSTER AS READ IN THIS REQUEST rather
+     * than against what the screen believed. Two super admins demoting each other at
+     * once would otherwise both pass a check made in a browser and leave the
+     * deployment with none.
+     */
+    async function setRole(req: Request, res: Response, email: string, role: string, allowMissingConsumer = false) {
+      const actor = userEmail(req);
+      let rows: StoredRole[];
+      let roleColumnPresent: boolean;
+      try {
+        ({ rows, roleColumnPresent } = await readRosterForRequest(appkit.lakebase, req));
+      } catch (error) {
+        console.error('[admin] The roster could not be read, so no role was changed:', (error as Error).message);
+        res.status(503).json({
+          error: 'roster_store_unavailable',
+          detail:
+            'No role was changed. The roster could not be read, and changing a role without knowing who ' +
+            'else holds one could leave this deployment with no super admin.',
+        });
+        return;
+      }
+      const seed = await roleFloors(req, rows, [email]);
+      const refusal = roleChangeRefusal({
+        email,
+        role,
+        seed,
+        stored: rows,
+        roleColumnPresent,
+        allowMissingConsumer,
+      });
+      if (refusal) {
+        refuse(res, refusal);
+        return;
+      }
+      // Safe: roleChangeRefusal answered 'unknown-role' for anything else.
+      const to = role as Role;
+      const from = effectiveRole({ seed, stored: rows, email });
+      let roleStored = false;
+      try {
+        await writeRole(appkit.lakebase, { email, role: to, actor, roleColumnPresent });
+        roleStored = true;
+        await recordAdminAction(appkit.lakebase, {
+          actor,
+          action: 'role-changed',
+          subject: email,
+          detail: roleChangeSentence({ actor, email, from, to }),
+        });
+        await withdrawOnDemotion({ req, store: appkit.lakebase, email, actor, from, to });
+        await replyWithRoster(req, res, appkit.lakebase, actor);
+      } catch (error) {
+        console.error(`[admin] ${email} could not be set to ${role}:`, (error as Error).message);
+        if (roleStored) {
+          res.status(503).json({
+            error: 'roster_confirmation_unavailable',
+            detail: 'Lakebase saved the request but could not confirm the roster. Reload before retrying.',
+          });
+          return;
+        }
+        res.status(503).json({
+          error: 'roster_store_unavailable',
+          detail:
+            'The role was not changed. The app keeps the roster in Lakebase, and it is not answering: ' +
+            'reporting success here would leave a role on screen that no reload would keep.',
+        });
+      }
+    }
+
+    /**
+     * Read the roster back and answer with it.
+     *
+     * READ BACK RATHER THAN PATCHED IN MEMORY, so the screen shows the roster as the
+     * store now holds it. A payload assembled from what the handler believed it wrote
+     * is a payload that agrees with the handler rather than with the database.
+     */
+    async function replyWithRoster(req: Request, res: Response, store: AdminStore, reader: string) {
+      // Mutation replies may not degrade to the read route's seed-only payload.
+      // A 200 here means Lakebase confirmed the exact row the browser will draw.
+      const [after, deploymentOwner] = await Promise.all([
+        readRosterForRequest(store, req),
+        readDeploymentOwner().catch(() => ''),
+      ]);
+      const seed = await roleFloors(req, after.rows);
+      res.json(
+        await attachIdentityMetadata(
+          rosterPayload({
+            seed,
+            stored: after.rows,
+            storedRosterReadable: true,
+            roleColumnPresent: after.roleColumnPresent,
+            reader,
+            deploymentOwner,
+          })
+        )
+      );
+    }
+  });
+}

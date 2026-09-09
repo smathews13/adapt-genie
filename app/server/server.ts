@@ -1,0 +1,234 @@
+import { createApp, lakebase, server } from '@databricks/appkit';
+import { lakebasePoolSettings } from './lib/lakebase-pool';
+import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
+import { requestLatencyShutdown } from './lib/request-latency-shutdown';
+import { registerStaticDelivery } from './lib/static-delivery';
+import { readMlflowTokenEvidence } from './lib/mlflow-token-evidence';
+
+// Static ESM imports have completed before this guard runs, so the production
+// artifact has already evaluated AppKit, Lakebase, and pg. Stop here during the
+// release smoke instead of opening a socket or attempting a database connection.
+if (process.argv.includes('--module-smoke')) {
+  console.log('module-smoke ok');
+  process.exit(0);
+}
+
+// The serving() plugin is deliberately NOT registered. Its invoke path runs the
+// request body through two allowlists that drop unknown keys (the plugin's own
+// schema filter, then the SDK's servingEndpoints.query() field list), and
+// custom_inputs survives neither. The insights route talks to the endpoint
+// through apiClient.request() instead, which sends the body verbatim. Adding
+// serving() back would republish POST /api/serving/invoke and
+// /api/serving/:alias/invoke as lossy entry points; server.test.ts fails if it
+// reappears.
+// The pool numbers are stated rather than inherited, so a connection-starvation
+// problem is answerable with an environment variable. Only the fields AppKit
+// actually forwards are passed: it rebuilds the pg config from a fixed field
+// list, so `statement_timeout` given here would type-check and be discarded.
+// That timeout is applied per session by the read funnel instead — see
+// lib/lakebase-pool.ts.
+createApp({
+  plugins: [lakebase({ pool: lakebasePoolSettings() }), requestLatencyShutdown(), server()],
+  async onPluginsReady(appkit) {
+    // Git replaces app.yaml, including a bundle release's private schema value,
+    // but keeps the App identity and its Postgres ownership. Resolve that owned
+    // store before importing modules whose SQL constants capture APP_SCHEMA.
+    await preserveOwnedAppSchema(appkit.lakebase);
+    const [
+      { setupInsightsRoutes, MIGRATIONS },
+      { setupSettingsRoutes },
+      { setupLakebaseMigrationRoutes },
+      { setupLakebaseBindingRoutes },
+      { setupAiGatewayRoutes },
+      { setupBrowseRoutes },
+      { setupArchitectureRoutes },
+      { setupAdminRoutes },
+      { setupAccessGuideRoutes },
+      { setupUserRoutes },
+      { setupMonitoringRoutes },
+      { setupMonitoringFeedbackRoutes },
+      { setupUserSpendReadModelRoutes },
+      { createUserSpendRefreshSource },
+      { startUserSpendHourlyScheduler },
+      { setupOpsRoutes },
+      { setupEgressRoutes },
+      { setupRuntimeSettingsRoutes },
+      { setupExperimentalSettingsRoutes },
+      { setupCostBudgetsRoutes },
+      { setupAppBudgetRoutes },
+      { setupBenchmarkSettingsRoutes },
+      { setupEvalDatasetRoutes },
+      { setupBenchmarkLabRoutes },
+      { setupEnvironmentRoutes },
+      { setupAccountRoutes },
+      { setupRunLabelRoutes },
+      { setupWatchlistRoutes },
+      { setupAskStarterRoutes },
+      { bootstrapSeedRoles, isAdminRoute },
+      { respondToHandlerFailures },
+    ] = await Promise.all([
+      import('./routes/insights-routes'),
+      import('./routes/settings-routes'),
+      import('./routes/lakebase-migration-routes'),
+      import('./routes/lakebase-binding-routes'),
+      import('./routes/ai-gateway-routes'),
+      import('./routes/browse-routes'),
+      import('./routes/architecture-routes'),
+      import('./routes/admin-routes'),
+      import('./routes/access-guide-routes'),
+      import('./routes/user-routes'),
+      import('./routes/monitoring-routes'),
+      import('./routes/monitoring-feedback-routes'),
+      import('./routes/user-spend-read-model-routes'),
+      import('./lib/user-spend-refresh-source'),
+      import('./lib/user-spend-hourly-read-model'),
+      import('./routes/ops-routes'),
+      import('./routes/egress-routes'),
+      import('./routes/runtime-settings-routes'),
+      import('./routes/experimental-settings-routes'),
+      import('./routes/cost-budgets-routes'),
+      import('./routes/app-budget-routes'),
+      import('./routes/benchmark-settings-routes'),
+      import('./routes/eval-dataset-routes'),
+      import('./routes/benchmark-lab-routes'),
+      import('./routes/environment-routes'),
+      import('./routes/account-routes'),
+      import('./routes/run-label-routes'),
+      import('./routes/watchlist-routes'),
+      import('./routes/ask-starter-routes'),
+      import('./lib/admin-roles'),
+      import('./lib/handler-failures'),
+    ]);
+    // Assigned before AppKit can listen. The route closure reads the promise only
+    // when an admin request arrives, so health, static assets and consumer routes
+    // do not wait for Lakebase DDL while role-bearing requests still wait for the
+    // authoritative roster to be settled.
+    const readiness: { roles?: Promise<void> } = {};
+    const { storeReady } = await setupInsightsRoutes(appkit, {
+      rolesReady: () =>
+        readiness.roles ?? Promise.reject(new Error('Role bootstrap was requested before it was scheduled.')),
+      onRequestLatencyRecorder: (recorder) => appkit.requestLatencyShutdown.setRecorder(recorder),
+      traceTokenEvidenceReader: readMlflowTokenEvidence,
+    });
+    readiness.roles = storeReady
+      .then(() => bootstrapSeedRoles(appkit.lakebase))
+      .then(() => undefined)
+      .catch((error: Error) => {
+        // A failed bootstrap must not become an unhandled background rejection.
+        // The role guards still read Lakebase and deny when no role can be
+        // established, preserving the fail-closed posture during an outage.
+        console.error(`[admin] Background role bootstrap failed: ${error.message}`);
+      });
+    // After the insights routes, deliberately: they register the identity gate,
+    // and Express applies middleware to whatever is added afterwards. Registering
+    // the settings routes first would leave the write route unguarded.
+    setupSettingsRoutes(appkit);
+    // Git-based deploys keep the app-owned Lakebase schema but can skip DDL.
+    // This admin-only recovery route uses the same app pool and ordered registry
+    // as boot, and waits for the background boot pass before reporting state.
+    setupLakebaseMigrationRoutes(appkit, { migrations: MIGRATIONS, storeReady });
+    // Bundle-managed resource change only: this stages a desired Postgres
+    // binding and emits the exact resource-update/restart plan. It never swaps
+    // AppKit's startup-bound pool or reports the desired database as active.
+    setupLakebaseBindingRoutes(appkit);
+    // Metadata-only AI Gateway discovery and atomic staging. Registered under
+    // /api/admin so the existing fail-closed role middleware protects every
+    // list, validation and write without a client-side role claim.
+    setupAiGatewayRoutes(appkit);
+    setupRuntimeSettingsRoutes(appkit);
+    setupExperimentalSettingsRoutes(appkit);
+    setupCostBudgetsRoutes(appkit);
+    // The safe status read is consumer-visible; approve/revoke remain under the
+    // existing server-authorized /api/admin role boundary.
+    setupAppBudgetRoutes(appkit);
+    setupBenchmarkSettingsRoutes(appkit);
+    setupWatchlistRoutes(appkit);
+    setupAskStarterRoutes(appkit);
+    setupEvalDatasetRoutes(appkit);
+    setupBenchmarkLabRoutes(appkit);
+    setupEnvironmentRoutes(appkit);
+    // The account menu is user-scoped. Register it after the identity gate so a
+    // message sender always comes from x-forwarded-email rather than the body.
+    setupAccountRoutes(appkit);
+    // After the identity gate: browse calls out as the signed-in user and must
+    // refuse unidentified traffic rather than listing under nobody.
+    setupBrowseRoutes(appkit);
+    // After the identity gate as well, for the same reason: the payload names
+    // the app's own service principal and the endpoint it invokes.
+    setupArchitectureRoutes(appkit);
+    // After the insights routes for a second reason on top of the identity gate:
+    // they also register the admin guard, and Express applies middleware to what
+    // is added afterwards. Registered first, `/api/admins` would serve the admin
+    // list to every consumer who asked for it.
+    setupAdminRoutes(appkit);
+    // A fixed bundled PDF, protected by the same identity, app-session, and
+    // `/api/admin` role gates already registered above. Its availability route
+    // lets public builds omit both the confidential asset and a dead UI control.
+    setupAccessGuideRoutes(appkit);
+    setupRunLabelRoutes(appkit);
+    // After the insights routes for the reason above and for one more: they register
+    // the super-admin guard as well, and Express applies middleware to what is added
+    // afterwards. Registered first, `/api/users` would let any administrator appoint
+    // and remove administrators, which is the one thing the rank exists to reserve.
+    setupUserRoutes(appkit);
+    // After the insights routes for the same reason as the two above: the admin
+    // guard is registered in there, and Express applies middleware to what is
+    // added afterwards. Registered first, Monitoring would serve every person's
+    // questions and answers to any signed-in reader. `setupMonitoringRoutes`
+    // checks that the guard's prefix list covers each of its paths and registers
+    // nothing if it does not, but that check cannot see this ordering, so this is
+    // the half of the protection that lives here.
+    setupMonitoringRoutes(appkit, { isAdminRoute, traceTokenEvidenceReader: readMlflowTokenEvidence });
+    setupMonitoringFeedbackRoutes(appkit, { isAdminRoute });
+    setupUserSpendReadModelRoutes(appkit, {
+      isAdminRoute,
+      sourceForRequest: (req) => createUserSpendRefreshSource(appkit, req),
+    });
+    // The rolling 24-hour projection reads Lakebase only, so it can refresh
+    // under the app identity without retaining a reader's forwarded credential.
+    // Start after migrations settle, and never hold application readiness open.
+    void storeReady.then(
+      () => void startUserSpendHourlyScheduler(appkit.lakebase),
+      () => undefined
+    );
+    // After the insights routes for the same reason again, and worth stating
+    // separately rather than folding into the note above: these report what this
+    // deployment costs and how much of it people use. Registered first, the bill
+    // and the traffic would be readable by any signed-in consumer.
+    // `setupOpsRoutes` makes the same coverage check against the guard's prefix
+    // list and registers nothing if a path is not covered.
+    setupOpsRoutes(appkit, { isAdminRoute });
+    // After the insights routes for the identity gate above all: the recorder
+    // takes the acting person from the request rather than from the body, so a
+    // request that reached it without an established identity would record an
+    // export against nobody. `setupEgressRoutes` also checks that the admin guard
+    // covers its `/api/egress/admin` paths AND leaves the two open ones alone,
+    // and registers nothing if either is wrong.
+    setupEgressRoutes(appkit, { isAdminRoute });
+    // The first-run wizard was removed; configuration comes from the asset
+    // bundle. A stale client bundle still calls these, and without an answer
+    // here they fall through to the SPA catch-all and receive HTML with a 200,
+    // which a `fetch().json()` reports as a parse error rather than as a route
+    // that is gone. 410 rather than 404 so a rolling deploy, where a route
+    // genuinely is not up yet, stays distinguishable in the logs.
+    appkit.server.extend((app) => {
+      app.all(/^\/api\/setup(\/|$)/, (_req, res) => {
+        res.status(410).json({
+          error: 'setup_removed',
+          detail:
+            'First-run setup was removed. This deployment is configured by its Databricks asset ' +
+            'bundle, and saved overrides live on the Connections page.',
+        });
+      });
+    });
+    // AppKit's production server is registered after onPluginsReady. Install
+    // the frontend delivery layer now so it serves immutable Vite assets first,
+    // leaves app-shell HTML revalidating, and wraps neither existing APIs nor
+    // the protected PDF/stream routes above.
+    appkit.server.extend(registerStaticDelivery);
+    // Last, because Express only reaches an error handler that sits after the
+    // route that failed. Handlers that throw are caught by
+    // `answerRatherThanExit` and arrive here to be answered as JSON.
+    appkit.server.extend(respondToHandlerFailures);
+  },
+}).catch(console.error);

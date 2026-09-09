@@ -1,0 +1,311 @@
+.conversation-main {
+  padding: 56px var(--conversation-inset) 32px;
+  max-width: none;
+  width: 100%;
+  height: auto;
+  min-height: calc(100dvh - var(--app-header-h));
+  max-height: none;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: clip;
+  overflow-y: visible;
+  overflow-anchor: none;
+  scrollbar-gutter: auto;
+  background: transparent;
+}
+.ask-layout[data-transcript='empty'] .conversation-main {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding-bottom: 0;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+/*
+ * Active transcripts start on the normal density rhythm below the chrome. The
+ * empty ADAPT hero keeps the roomier 56px opening from the base rule.
+ */
+.ask-layout[data-transcript='active'] .conversation-main {
+  padding-top: var(--density-page-gap);
+  padding-bottom: 0;
+}
+.ask-layout[data-center-state='working'] .conversation-main {
+  min-height: 0;
+}
+.ask-layout[data-center-state='working'] .conversation-main > .answer-card {
+  height: var(--ask-active-card-max-block-size);
+  min-height: var(--ask-active-card-min-block-size);
+  max-height: var(--ask-active-card-max-block-size);
+  margin-bottom: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.ask-layout[data-center-state='working'] .conversation-main > .answer-card > [data-slot='card-content'] {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.ask-layout[data-center-state='working'] .conversation-main > .answer-card .live-progress,
+.ask-layout[data-center-state='working'] .conversation-main > .answer-card .live-steps {
+  flex: 1;
+  min-height: 0;
+}
+.ask-layout[data-center-state='working'] .conversation-main > .answer-card .live-steps {
+  max-height: none;
+}
+.ask-layout[data-center-state='final']
+  .conversation-message:has(.answer-card):not(:has(~ .conversation-message))
+  .answer-card {
+  min-height: calc(100dvh - var(--app-header-h));
+  max-height: none;
+  margin-bottom: 0;
+  overflow: visible;
+}
+.message-pagination {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 22px;
+}
+.message-pagination-error {
+  color: var(--destructive);
+  font-size: var(--ast-fs-12);
+}
+.conversation-message:focus {
+  outline: 2px solid var(--db-blue-600);
+  outline-offset: 4px;
+}
+.conversation-main .answer-card,
+.conversation-main .plan-card {
+  max-width: var(--conversation-measure);
+  margin-inline: auto;
+  width: calc(100% - 16px);
+}
+.conversation-main .answer-card > [data-slot='card-content'] {
+  padding-inline: 20px;
+}
+.conversation-main .stored-answer-loading,
+.conversation-main .stored-answer-error {
+  min-height: min(28rem, 60dvh);
+}
+.conversation-main .answer-card {
+  padding: 0;
+}
+.conversation-main .answer-card > [data-slot='card-header'] {
+  padding: 8px;
+}
+/* Wide enough for the suggestion grid and the composer, both of which cap at 720px. */
+.ask-hero {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+/*
+ * The chip above the headline: the app saying who is about to answer.
+ *
+ * The empty state is the first screen a new user meets and it has no controls on it
+ * yet, so this carries the brand instead. The warm surface and a hairline, per the
+ * design -- it is a label rather than a control, and the black outline it used to
+ * wear made it read as something to press. It was an AppKit Badge, which could not
+ * hold the mark below without fighting the badge's own padding for it.
+ */
+/*
+ * The chip that introduces the agent, on Ice.
+ *
+ * §1: "agent-decision chips carry the small cut (22px chip, #F0F6FB fill)". Ice
+ * replaces the oat this wore, which is the app-wide swap rather than a decision
+ * about this chip; §2 has no oat in it.
+ */
+.ask-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: 999px;
+  background: var(--ast-ice);
+  color: var(--ast-text);
+  font-size: var(--ast-fs-12);
+  font-weight: 500;
+}
+/*
+ * The mark, which is the agent.
+ *
+ * It was the orange robot -- the same drawing the retired loading scene lit up --
+ * and before that a lucide sparkle in a filled orange square. §1 retires both:
+ * the thing that answers and the thing you opened are one thing and were only
+ * ever drawn as two. At 18px the mark is the small cut, without its graduation
+ * ring, which is the drawing that survives being small.
+ */
+.ask-hero-chip-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+/* 32px is the design's hero size, flat rather than fluid: the column it sits in is
+   already fluid between the two rails, and a headline that grew to 42px on a wide
+   screen was competing with the app's own name rather than with the question under
+   it. The tracking comes back two rungs with it -- -0.035em was tight enough at
+   42px to close the gaps between words. */
+.ask-hero h2 {
+  font-size: var(--text-hero);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  margin: 0 auto;
+  max-width: 640px;
+  color: var(--ast-white);
+  font-weight: 700;
+  text-wrap: pretty;
+}
+/*
+ * Dark keeps the white headline on the night sky. Light paints Ask as a wash,
+ * so the same white word would vanish. `--ast-text` is the page ink every other
+ * daylight heading already uses.
+ */
+html:not([data-theme='dark']) .ask-hero h2 {
+  color: var(--ast-text);
+}
+/*
+ * The ADAPT starter questions, under the headline on an empty transcript.
+ *
+ * Four written-out business questions -- sell-through, refund risk, promo
+ * pricing, account pacing -- each a card that asks itself when pressed, through
+ * the same ask() the composer calls. They are the mockup's `.starters` grid: a
+ * business user meeting an empty screen is shown the kinds of question the agent
+ * answers, rather than a blank box. Kept to a two-up grid so the composer stays
+ * within reach below them.
+ */
+.ask-starters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+  margin: 26px auto 0;
+  max-width: 640px;
+  text-align: left;
+}
+.ask-starter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 15px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-ice);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.ask-starter:hover:not(:disabled),
+.ask-starter:focus-visible {
+  border-color: var(--ast-blue);
+  background: color-mix(in srgb, var(--ast-ice) 88%, var(--ast-blue));
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ast-blue) 16%, transparent);
+  transform: translateY(-1px);
+}
+.ask-starter:focus-visible {
+  outline: 2px solid var(--ast-blue);
+  outline-offset: 2px;
+}
+.ask-starter:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.ask-starter-kicker {
+  font-size: var(--ast-fs-11, 11px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ast-blue);
+}
+.ask-starter-question {
+  font-size: var(--ast-fs-13, 13px);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ast-text);
+}
+/* The narrow-viewport single-column fold lives in responsive.css with every
+   other breakpoint; page partials carry no width queries of their own. */
+/* Ask positions the shared question-attribution bubble in the transcript. The
+   shared component owns its single outer surface, wrapping and identity link. */
+.user-message {
+  margin-left: var(--question-stagger);
+  margin-bottom: 22px;
+}
+.conversation-main {
+  --question-stagger: clamp(72px, 14%, 180px);
+}
+.user-message .question-attribution-message {
+  max-width: 80%;
+}
+.user-message .question-attribution-user {
+  max-width: none;
+}
+.user-message .question-attribution-user .identity-chip-text {
+  overflow: visible;
+  text-overflow: clip;
+}
+/*
+ * Selection, per surface.
+ *
+ * There was no ::selection rule anywhere in this app or in AppKit's stylesheet,
+ * so both surfaces got the browser default: a pale wash that leaves the
+ * foreground colour alone. On the bubble, which was near-black then, that was
+ * white text on pale blue, which is the report we had -- the selection works,
+ * copies and pastes, and cannot be seen.
+ *
+ * Each surface gets the inverse of its own background, which is the highest
+ * contrast available on it. Deliberately not the action colour, even though blue
+ * now owns "whatever is currently active or selected" everywhere else: a drag
+ * across three paragraphs is not an affordance, and a blue-on-blue answer card
+ * would be harder to read than the default it replaced.
+ *
+ * The bubble's pair is ink-on-white the same way round as the answer card's now,
+ * because the bubble is a light fill now too. It was white-on-ink while the fill
+ * was the darkest neutral in the app; left that way over the light fill it would
+ * have painted near-white on near-white and reproduced the original bug exactly.
+ * The rule stays separate from the card's rather than merging into it, because
+ * the two surfaces are only the same colour by coincidence and the bubble is the
+ * one the design keeps moving.
+ *
+ * Both the element and its descendants are named: ::selection matches the
+ * element whose text is selected, and a bubble holding a nested span would
+ * otherwise fall through to the default.
+ */
+.question-attribution-message::selection,
+.question-attribution-message ::selection {
+  background: var(--db-ink);
+  color: #ffffff;
+}
+.answer-card::selection,
+.answer-card ::selection,
+.plan-card::selection,
+.plan-card ::selection {
+  background: var(--db-ink);
+  color: #ffffff;
+}
+/* Prose in an answer is as selectable as a question is, and the I-beam is the
+   only thing that says so before the drag starts. Scoped to the text elements
+   rather than the card, so the buttons and links inside keep their pointer. */
+.answer-card p,
+.answer-prose li,
+/* A figure in a table is as copyable as a sentence is, and a reader who wants
+   one column out of a daily table selects it by dragging down the cells. */
+.answer-prose th,
+.answer-prose td,
+.answer-heading,
+.answer-takeaway {
+  cursor: text;
+}

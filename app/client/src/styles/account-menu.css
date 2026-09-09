@@ -1,0 +1,518 @@
+.account-menu-root {
+  position: relative;
+  flex: none;
+}
+
+.account-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  max-width: 250px;
+  padding: 0 10px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.account-menu-trigger.identity-chip:hover,
+.account-menu-trigger.identity-chip:focus-visible {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--ast-surface-chrome) 92%, var(--primary));
+  color: var(--primary);
+}
+
+.account-menu-trigger.identity-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 42%, transparent);
+}
+
+/* The open account and selected conversation are both the reader's current
+   context, so they use the same ADAPT primary colour. */
+.account-menu-trigger.identity-chip[aria-expanded='true'] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+  box-shadow: inset 0 0 0 1px var(--primary);
+  color: var(--primary);
+}
+
+.account-menu-trigger.identity-chip[aria-expanded='true']:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--primary),
+    0 0 0 2px color-mix(in srgb, var(--primary) 42%, transparent);
+}
+
+.account-menu-trigger.identity-chip:is(:hover, :focus-visible, [aria-expanded='true']) > .roster-organization-mark {
+  border-color: currentColor;
+  color: currentColor;
+}
+
+.account-menu-trigger > .roster-organization-mark {
+  flex-basis: 14px;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: transparent;
+  font-size: 7px;
+}
+
+.account-menu-trigger .roster-organization-logo {
+  width: 14px;
+  height: 14px;
+}
+
+.account-menu-trigger .roster-organization-fallback {
+  width: 12px;
+  height: 12px;
+}
+
+.account-menu-trigger > .identity-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-menu-trigger strong {
+  font-weight: 600;
+}
+
+.account-menu {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--radius-md);
+  background: var(--ast-surface-menu);
+  box-shadow: 0 12px 32px color-mix(in oklab, var(--db-ink-deep) 16%, transparent);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.account-menu-portal {
+  width: min(336px, calc(100vw - 24px));
+  max-height: min(640px, var(--radix-popover-content-available-height));
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.account-menu-identity {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  gap: 9px;
+  padding: 14px 18px;
+}
+
+.account-menu-principal {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+}
+
+.account-menu-principal > .roster-organization-mark {
+  flex-basis: 28px;
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+
+.account-menu-principal > .roster-organization-mark .roster-organization-logo {
+  width: 22px;
+  height: 22px;
+}
+
+.account-menu-identity-copy {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  justify-items: start;
+  gap: 4px;
+}
+
+.account-menu-identity > .role-badge {
+  width: max-content;
+  max-width: 100%;
+}
+
+.account-menu-name {
+  font-weight: 600;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The address under the name.
+ *
+ * SELECTED BY CLASS AND NOT AS `.account-menu-identity span`, which is what this
+ * used to be. That selector is a descendant match, so once the row above it held
+ * a wrapper and a role pill -- both spans -- it painted the reader's rank in
+ * 11.5px grey and clipped it to one ellipsised line.
+ */
+.account-menu-address {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--ast-text-secondary);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.account-menu-group {
+  margin: 0 -6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--ast-hairline);
+}
+
+.account-menu-group > button,
+.account-menu-group > a {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu-group > button:hover,
+.account-menu-group > a:hover,
+.account-feedback-menu > a:hover {
+  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 58%, transparent);
+  outline: none;
+}
+
+.account-menu-group > button:focus-visible,
+.account-menu-group > a:focus-visible,
+.account-feedback-menu > a:focus-visible {
+  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.account-menu-group > :is(button, a):is(:hover, :focus-visible) svg,
+.account-feedback-menu > a:is(:hover, :focus-visible) > svg {
+  color: currentColor;
+}
+
+.account-feedback-trigger {
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.account-feedback-trigger > svg {
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.account-feedback-trigger:hover {
+  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  color: var(--primary);
+  outline: none;
+}
+
+.account-feedback-trigger[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+  box-shadow: inset 0 0 0 1px var(--primary);
+  color: var(--primary);
+}
+
+.account-feedback-trigger[aria-expanded='true'] > svg {
+  color: currentColor;
+  transform: rotate(180deg);
+}
+
+.account-feedback-menu {
+  z-index: var(--ast-layer-menu);
+  width: min(264px, calc(100vw - 24px));
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--radius-md);
+  background: var(--ast-surface-menu);
+  box-shadow: 0 12px 32px color-mix(in oklab, var(--db-ink-deep) 22%, transparent);
+  color: var(--foreground);
+  backdrop-filter: none;
+}
+
+.account-feedback-menu > a {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.account-feedback-menu > a > svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--db-slate-icon);
+}
+
+.account-menu-group:not(.account-menu-leave) > :is(button, a) > :last-child {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  flex: none;
+  color: var(--db-slate-icon);
+}
+
+.account-menu .account-menu-databricks,
+.account-composer-recipient .account-menu-databricks {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.account-menu .account-menu-databricks svg,
+.account-composer-recipient .account-menu-databricks svg {
+  width: 14px;
+  height: 14px;
+}
+
+.account-menu-leave svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.account-menu-signout-label {
+  font-weight: 600;
+}
+
+.account-composer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in oklab, var(--db-ink-deep) 50%, transparent);
+}
+
+.account-composer {
+  width: min(420px, 100%);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: 0 16px 48px color-mix(in oklab, var(--db-ink-deep) 35%, transparent);
+  color: var(--foreground);
+}
+
+.account-composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 20px 0 28px;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+
+.account-composer-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.account-composer-header button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  place-items: center;
+  background: transparent;
+  color: var(--db-slate-icon);
+  cursor: pointer;
+}
+
+.account-composer-header svg {
+  width: 18px;
+  height: 18px;
+}
+
+.account-composer-body {
+  display: grid;
+  gap: 8px;
+  padding: 22px 28px 20px;
+}
+
+.account-composer-body label {
+  color: var(--ast-text-secondary);
+  font-size: 12px;
+}
+
+.account-composer-recipient {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--ast-fill-band);
+}
+
+.account-composer-recipient img,
+.account-composer-recipient svg {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.account-composer-recipient strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-composer-recipient span {
+  color: var(--ast-text-secondary);
+  font-size: 12px;
+}
+
+.account-composer textarea {
+  min-height: 72px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.account-composer textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+.account-composer-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0 0;
+  color: var(--ast-text-secondary);
+  font-size: 12px;
+}
+
+.account-composer-context svg {
+  width: 14px;
+  height: 14px;
+}
+
+.account-composer-error {
+  margin: 4px 0 0;
+  color: var(--destructive);
+  font-size: 12px;
+}
+
+.account-composer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--ast-hairline);
+  background: var(--muted);
+}
+
+.account-composer-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  gap: 7px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-composer-cancel {
+  border: 1px solid var(--input);
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.account-composer-send {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--ast-white);
+}
+
+.account-composer-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.account-composer-send svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (forced-colors: active) {
+  .account-menu-trigger.identity-chip:is(:hover, :focus-visible, [aria-expanded='true']) {
+    border-color: Highlight;
+    color: Highlight;
+  }
+
+  .account-menu-trigger.identity-chip:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .account-feedback-trigger:is(:hover, :focus-visible, [aria-expanded='true']),
+  .account-feedback-menu > a:is(:hover, :focus-visible) {
+    color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-menu-trigger,
+  .account-feedback-trigger,
+  .account-feedback-trigger > svg,
+  .account-feedback-menu > a {
+    transition: none;
+  }
+}

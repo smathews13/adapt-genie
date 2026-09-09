@@ -1,0 +1,239 @@
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  configurationFromBaked,
+  forgetBakedModelConfig,
+  parseModelConfigDocument,
+  readBakedModelConfig,
+  type BakedConfigTransport,
+} from './baked-model-config';
+
+const MLMODEL = `
+artifact_path: agent
+flavors:
+  python_function:
+    python_version: 3.11.13
+    loader_module: mlflow.pyfunc.model
+    config:
+      llm_endpoint: databricks-claude-sonnet-4-6
+      declared_manifest:
+      - a_catalog.a_schema.data_dictionary
+      - a_catalog.a_schema.gold_player_180d_summary
+      - a_catalog.a_schema.gold_title_daily_summary
+      - a_catalog.a_schema.silver_gameplay_activity
+      - a_catalog.a_schema.silver_player_profiles
+      - a_catalog.a_schema.silver_purchases
+      - a_catalog.a_schema.extra_one
+      - a_catalog.a_schema.extra_two
+      - a_catalog.a_schema.extra_three
+      - a_catalog.a_schema.extra_four
+      - a_catalog.a_schema.extra_five
+      - a_catalog.a_schema.extra_six
+      catalog: a_catalog
+      schema: a_schema
+`;
+
+function serving(version = '39') {
+  return {
+    config: {
+      traffic_config: { routes: [{ served_model_name: `agent_${version}`, traffic_percentage: 100 }] },
+      served_entities: [
+        {
+          name: `agent_${version}`,
+          entity_name: 'a_catalog.a_schema.an_agent',
+          entity_version: version,
+        },
+      ],
+    },
+  };
+}
+
+function implicitServing(version = '39') {
+  return {
+    config: {
+      served_entities: [
+        {
+          name: `agent_${version}`,
+          entity_name: 'a_catalog.a_schema.an_agent',
+          entity_version: version,
+        },
+      ],
+    },
+  };
+}
+
+function transport(over: Partial<{ runId: string; document: string; failRun: boolean }> = {}): BakedConfigTransport {
+  const runId = over.runId ?? 'run-abc';
+  const document = over.document ?? MLMODEL;
+  return {
+    getJson: (path, query = {}) => {
+      if (path.includes('/unity-catalog/models/') || path.includes('model-versions/get')) {
+        if (over.failRun) return Promise.reject(new Error('no version'));
+        return Promise.resolve({ model_version: { run_id: runId } });
+      }
+      if (path.includes('/mlflow/artifacts/get')) {
+        expect(query.run_id).toBe(runId);
+        return Promise.resolve({ content: document });
+      }
+      if (path.includes('/mlflow/artifacts/list')) {
+        return Promise.resolve({ files: [{ path: 'agent/MLmodel', is_dir: false }] });
+      }
+      return Promise.reject(new Error(`unexpected path ${path}`));
+    },
+  };
+}
+
+afterEach(() => {
+  forgetBakedModelConfig();
+});
+
+describe('reading model_config out of an MLmodel document', () => {
+  it('finds the foundation model and the twelve-table list', () => {
+    const config = parseModelConfigDocument(MLMODEL);
+    expect(config.llm_endpoint).toBe('databricks-claude-sonnet-4-6');
+    expect(config.declared_manifest).toEqual(expect.arrayContaining(['a_catalog.a_schema.extra_six']));
+    expect((config.declared_manifest as string[]).length).toBe(12);
+  });
+
+  it('also reads a JSON document the artifact API sometimes wraps', () => {
+    const config = parseModelConfigDocument(
+      JSON.stringify({
+        llm_endpoint: 'databricks-claude-sonnet-4-6',
+        declared_manifest: ['a.b.one', 'a.b.two'],
+      })
+    );
+    expect(config.llm_endpoint).toBe('databricks-claude-sonnet-4-6');
+    expect(config.declared_manifest).toEqual(['a.b.one', 'a.b.two']);
+  });
+
+  it('does not invent keys from an empty or unreadable document', () => {
+    expect(parseModelConfigDocument('')).toEqual({});
+    expect(parseModelConfigDocument('flavors:\n  python_function:\n    python_version: 3.11\n')).toEqual({});
+  });
+});
+
+describe('turning the map into configuration entries', () => {
+  it('marks them as artifact-baked and drops empties', () => {
+    const entries = configurationFromBaked({
+      llm_endpoint: 'databricks-claude-sonnet-4-6',
+      llm_gateway: null,
+      declared_manifest: ['a.b.one', 'a.b.two'],
+    });
+    const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry]));
+    expect(byKey.llm_endpoint).toMatchObject({
+      value: 'databricks-claude-sonnet-4-6',
+      source: 'artifact',
+      baked: true,
+    });
+    expect(byKey.declared_manifest.value).toEqual(['a.b.one', 'a.b.two']);
+    expect(byKey.llm_gateway).toBeUndefined();
+  });
+});
+
+describe('reading the served version as the app', () => {
+  it('follows endpoint → model version → MLmodel without invoking serving', async () => {
+    const entries = await readBakedModelConfig({
+      endpointName: 'an-endpoint',
+      readEndpoint: () => Promise.resolve(serving()),
+      transport: transport(),
+    });
+    const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry]));
+    expect(byKey.llm_endpoint.value).toBe('databricks-claude-sonnet-4-6');
+    expect(byKey.declared_manifest.value).toHaveLength(12);
+  });
+
+  it('reads the MLflow 3 Logged Model served by an implicit route', async () => {
+    const paths: string[] = [];
+    const entries = await readBakedModelConfig({
+      endpointName: 'an-endpoint',
+      readEndpoint: () => Promise.resolve(implicitServing()),
+      transport: {
+        getJson: (path) => {
+          paths.push(path);
+          if (path.includes('/unity-catalog/models/')) {
+            return Promise.resolve({
+              run_id: 'source-run',
+              source: 'models:/m-logged-model',
+            });
+          }
+          if (path === '/api/2.0/mlflow/logged-models/m-logged-model') {
+            return Promise.resolve({
+              model: {
+                info: {
+                  artifact_uri: 'dbfs:/databricks/mlflow-tracking/experiment-1/logged_models/m-logged-model/artifacts',
+                },
+              },
+            });
+          }
+          return Promise.reject(new Error(`unexpected path ${path}`));
+        },
+        downloadText: (path) => {
+          paths.push(path);
+          return Promise.resolve(MLMODEL);
+        },
+      },
+    });
+
+    const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry]));
+    expect(byKey.llm_endpoint.value).toBe('databricks-claude-sonnet-4-6');
+    expect(byKey.declared_manifest.value).toHaveLength(12);
+    expect(paths).toContain('/api/2.0/mlflow/logged-models/m-logged-model');
+    expect(paths).toContain(
+      '/WorkspaceInternal/Mlflow/Artifacts/experiment-1/LoggedModels/m-logged-model/artifacts/MLmodel'
+    );
+    expect(paths).not.toContain('/api/2.0/mlflow/artifacts/get');
+  });
+
+  it('invalidates cached configuration when the endpoint promotes a new model version', async () => {
+    const endpointReads: string[] = [];
+    const first = await readBakedModelConfig({
+      endpointName: 'an-endpoint',
+      now: 1_000,
+      readEndpoint: () => {
+        endpointReads.push('39');
+        return Promise.resolve(serving('39'));
+      },
+      transport: transport({
+        runId: 'run-39',
+        document: MLMODEL.replace('databricks-claude-sonnet-4-6', 'model-version-39'),
+      }),
+    });
+    const second = await readBakedModelConfig({
+      endpointName: 'an-endpoint',
+      now: 2_000,
+      readEndpoint: () => {
+        endpointReads.push('40');
+        return Promise.resolve(serving('40'));
+      },
+      transport: transport({
+        runId: 'run-40',
+        document: MLMODEL.replace('databricks-claude-sonnet-4-6', 'model-version-40'),
+      }),
+    });
+
+    expect(Object.fromEntries(first.map((entry) => [entry.key, entry.value])).llm_endpoint).toBe('model-version-39');
+    expect(Object.fromEntries(second.map((entry) => [entry.key, entry.value])).llm_endpoint).toBe('model-version-40');
+    expect(endpointReads).toEqual(['39', '40']);
+  });
+
+  it('returns nothing rather than throwing when the version cannot be read', async () => {
+    expect(
+      await readBakedModelConfig({
+        endpointName: 'an-endpoint',
+        readEndpoint: () => Promise.reject(new Error('no endpoint')),
+        transport: transport(),
+      })
+    ).toEqual([]);
+    expect(
+      await readBakedModelConfig({
+        endpointName: 'an-endpoint',
+        readEndpoint: () => Promise.resolve(serving()),
+        transport: transport({ failRun: true }),
+      })
+    ).toEqual([]);
+  });
+
+  it('returns nothing when no serving endpoint is configured', async () => {
+    expect(await readBakedModelConfig({ endpointName: '' })).toEqual([]);
+  });
+});

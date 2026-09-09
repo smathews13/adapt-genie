@@ -1,0 +1,553 @@
+/**
+ * The Build and telemetry card's rows, decided away from the markup.
+ *
+ * The card had two rows and the design asks it for nine, arranged as two
+ * columns: what this deployment IS on the left -- its host, its description, its
+ * compute, its tags -- and what it was BUILT FROM on the right, which is the two
+ * commits, the exporter, the release and how long it has been up.
+ *
+ * A ROW THAT HAS NOTHING TO SAY IS NOT DRAWN. Every fact here comes from a
+ * workspace that may not report it, and the page's rule is that an absence reads
+ * as a fact nobody established rather than as a fault. Six rows saying "not
+ * reported" would be the prose this tab had deleted, in a grid.
+ *
+ * Deciding it here rather than in `ConnectionsPage.tsx` is what makes the rules
+ * assertable: which rows appear on a deployment whose workspace answered
+ * nothing, whether an unrecognised compute size prints a DBU rate, and whether
+ * the uptime and the release can disagree, are all questions about this module.
+ */
+import { PUBLIC_SOURCE_REPO_URL, type AppFacts } from '../../shared/app-facts';
+import type { StatusTone } from './StatusBadge';
+import type { DateBadgeValue, DateRangeValue } from './DateBadge';
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * One row of either grid.
+ *
+ * `kind` is what the row is, not how it looks: the card draws a `badge` as a
+ * mono status chip, a `text` row as plain type and a `chips` row as one neutral
+ * chip per entry. Keeping the three apart here is what stops a table name and a
+ * sentence ending up in the same typeface.
+ */
+export type BuildRow =
+  | {
+      kind: 'badge';
+      key: string;
+      label: string;
+      /** What renders. Truncated values keep their whole self in `full`. */
+      value: string;
+      /** The whole value, for `title` and for the clipboard. */
+      full: string;
+      tone: StatusTone;
+      /** Concise explanation rendered inline after the badge. */
+      description?: string;
+      /** Whether the row offers a copy button for `full`. */
+      copyable?: boolean;
+      /** Whether the row offers a link that opens `full`. */
+      openable?: boolean;
+    }
+  | {
+      kind: 'text';
+      key: string;
+      label: string;
+      value: string;
+      /** A quieter clause after the value. */
+      aside?: string;
+      /** A measured interval rendered as two semantic date badges. */
+      dateRange?: DateRangeValue;
+      /** A person associated with this fact, rendered by the shared identity chip. */
+      identity?: string;
+      /**
+       * The exact figures behind a rounded or shortened value.
+       *
+       * The tab's own rule is that full timestamps and full ids are `title` or
+       * clipboard content and not page text, and the telemetry span is the row
+       * that broke it: two Delta stamps to the millisecond, printed whole, wrapped
+       * the row over three lines.
+       */
+      title?: string;
+    }
+  | {
+      kind: 'date';
+      key: string;
+      label: string;
+      date: DateBadgeValue;
+      /** A person associated with this date, rendered after its badge. */
+      identity?: string;
+    }
+  | {
+      kind: 'link';
+      key: string;
+      label: string;
+      /** What the anchor reads, which is the destination in a person's terms. */
+      value: string;
+      /** Where it goes. A row is never built without one; see `sourceRows`. */
+      href: string;
+      /**
+       * Whose mark the anchor wears.
+       *
+       * The two destinations belong to two different organisations, and a
+       * reader scanning this card decides which one to click by the logo before
+       * they read the label. `apps` is the official Databricks Apps mark from
+       * `brand-icons.ts`; `github` is the octocat the login gate already uses.
+       */
+      mark: 'apps' | 'github';
+      title?: string;
+    }
+  | { kind: 'chips'; key: string; label: string; values: string[] };
+
+/** The host somebody is actually on, without the scheme that is on every row. */
+export function endpointHost(url: string): string {
+  return url
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '');
+}
+
+/**
+ * How long the running deployment has been up, in the two units that matter.
+ *
+ * Days and hours, because the question is "is this the release I deployed this
+ * morning" and neither minutes nor weeks answer it. Returns '' rather than "0d
+ * 0h" for an unreadable or absent stamp: an uptime of nothing is not an uptime.
+ */
+export function uptimeSince(deployedAt: string, now: number): string {
+  const at = Date.parse(deployedAt);
+  if (!deployedAt || Number.isNaN(at)) return '';
+  const elapsed = Math.max(0, now - at);
+  const days = Math.floor(elapsed / DAY_MS);
+  const hours = Math.floor((elapsed % DAY_MS) / HOUR_MS);
+  return days > 0 ? `${days}d ${hours}h` : `${hours}h`;
+}
+
+/**
+ * When the running deployment was created, as a reader's own local time.
+ *
+ * Date and time to the minute, and no seconds and no year: this is read beside
+ * an uptime, so the part that carries meaning is which day and roughly when.
+ * The whole stamp goes in the row's `title`.
+ */
+export function dateBadgeValue(stamp: string): DateBadgeValue | null {
+  const full = stamp.trim();
+  if (!full) return null;
+  const dateTime = full.includes('T') ? full : full.replace(' ', 'T');
+  const at = new Date(dateTime);
+  if (Number.isNaN(at.getTime())) return null;
+  return {
+    dateTime,
+    label: at.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    full,
+  };
+}
+
+export function deployedAtLabel(deployedAt: string): string {
+  return dateBadgeValue(deployedAt)?.label ?? '';
+}
+
+/**
+ * The compute clause, from a size the workspace named.
+ *
+ * The envelope is only ever printed for a size this app has a published figure
+ * for. An unrecognised size prints its own name and stops, because the reader of
+ * this row is reconciling a bill and a DBU rate this app inferred would look
+ * exactly like one the workspace reported.
+ */
+export function computeAside(compute: AppFacts['compute']): string {
+  if (!compute?.envelope) return '';
+  const { vcpus, memoryGb, dbuPerHour } = compute.envelope;
+  return ` \u00b7 up to ${vcpus} vCPUs \u00b7 ${memoryGb} GB memory \u00b7 ${dbuPerHour} DBU/hour`;
+}
+
+/**
+ * The states the platform reports for an app that is serving.
+ *
+ * Matched case-insensitively and compared as whole words. Anything else is a
+ * state this app does not recognise, and an unrecognised state is reported as
+ * unrecognised rather than assumed to be trouble or assumed to be fine.
+ */
+const SERVING_APP_STATE = 'running';
+const SERVING_COMPUTE_STATE = 'active';
+
+/** The states that mean it is not going to answer, whatever else is true. */
+const BROKEN_APP_STATES = ['crashed', 'error', 'unavailable'];
+
+/**
+ * The endpoint badge's tone, from what the workspace reported.
+ *
+ * THIS ROW WAS HARDCODED GREEN. Any deployment whose workspace answered at all
+ * drew a green endpoint, including a crashed app on stopped compute, because
+ * the tone was a literal and not a reading. That is the third instance in this
+ * codebase of one pattern -- the exporter row asserted its own tables were
+ * empty, and the MLflow probe badged a deleted experiment OK while every trace
+ * was dropped -- so it is worth naming as a pattern: a surface that states
+ * health it never measured is worse than one that states nothing, because a
+ * reader cannot tell the claim from a finding.
+ *
+ * Green requires BOTH halves to be good. The platform reports the application
+ * and the container it runs in separately, and an app reported running on
+ * compute that has stopped is not a green endpoint. Where the workspace said
+ * nothing, this tints nothing: no reading is not a bad reading.
+ */
+export function endpointTone(serving: AppFacts['serving']): StatusTone {
+  const app = serving.app.trim().toLowerCase();
+  const compute = serving.compute.trim().toLowerCase();
+  if (!app && !compute) return 'plain';
+  if (BROKEN_APP_STATES.includes(app)) return 'blocked';
+  const appOk = app === SERVING_APP_STATE;
+  const computeOk = compute === SERVING_COMPUTE_STATE;
+  // Both halves reported, both good. The only case that earns green.
+  if (appOk && computeOk) return 'reachable';
+  // Something was reported and it is not the serving pair: starting, stopped,
+  // deploying, or a word this app has not met. Drawn as worth a look rather
+  // than as broken, because most of those states are transitional.
+  return 'drifted';
+}
+
+/**
+ * The serving state as a row, where it is worth reading.
+ *
+ * Suppressed on the healthy pair: a green badge already says it, and a row
+ * reading "RUNNING · ACTIVE" under it is the "not reported" prose this card
+ * exists without. Drawn whenever the state is anything else, carrying the
+ * platform's own message, because that is when a reader needs the words.
+ */
+export function servingActivity(serving: AppFacts['serving']): { value: string; aside: string } | null {
+  if (endpointTone(serving) === 'reachable' || endpointTone(serving) === 'plain') return null;
+  const states = [serving.app, serving.compute].filter(Boolean).join(' \u00b7 ');
+  return { value: states, aside: serving.message ? ` \u00b7 ${serving.message}` : '' };
+}
+
+/**
+ * The exporter row's tone, from what was counted.
+ *
+ * THIS ROW USED TO BE HARDCODED PLAIN, under a comment asserting that the two
+ * tables an exporter writes were "permanently empty on every deployment" of
+ * this app. That was reasoned from our own dependencies rather than measured,
+ * and it was wrong: appkit bundles the OpenTelemetry Node SDK with
+ * auto-instrumentation, so an exporter runs without this source starting one.
+ * Both tables have been filling since 2026-08-16.
+ *
+ * The tone is now a reading and never a claim. Green means rows were counted.
+ * An unreadable count is red and says so rather than passing for empty, which
+ * is the substitution that produced two of this app's shipped defects: a table
+ * reported empty while its query was failing, and a badge reading OK on a
+ * deleted experiment.
+ */
+export function exporterTone(reading: AppFacts['otelExport']): StatusTone {
+  if (reading.state === 'exporting') return 'reachable';
+  if (reading.state === 'unreadable') return 'blocked';
+  if (reading.state === 'silent') return 'drifted';
+  // Nothing was counted. An untinted row claims nothing, which is the honest
+  // rendering of a measurement nobody took.
+  return 'plain';
+}
+
+/** `5,469` rather than `5469`, on a row read beside other figures. */
+function countOf(rows: number): string {
+  return rows.toLocaleString();
+}
+
+/**
+ * A telemetry stamp, short enough to read beside a count.
+ *
+ * These arrive as Delta strings to the millisecond -- `2026-08-16 19:30:59.09` --
+ * and the row printed two of them verbatim, which is 46 characters of precision
+ * to answer "roughly when did this start". Day and time to the minute answers it;
+ * the exact pair goes in the row's `title`, on the tab's rule that a full
+ * timestamp is `title` content and not page text. An unparseable stamp is handed
+ * back as it came rather than guessed at.
+ */
+export function stampLabel(stamp: string): string {
+  const trimmed = stamp.trim();
+  if (!trimmed) return '';
+  return dateBadgeValue(trimmed)?.label ?? trimmed;
+}
+
+/**
+ * What the count found, as a line and a quieter clause.
+ *
+ * THE CLAUSE IS NOT DECORATION. It names the first and last stamp the rows
+ * actually carry, because telemetry does not backfill: the platform begins
+ * writing at the deploy that switches it on, so on a deployment that has been
+ * up for months the figures may cover hours. A count printed without its span
+ * reads as a total for the life of the app, and that reading would be wrong by
+ * orders of magnitude. Returns null when nothing was measured, so the card
+ * draws no row rather than a row saying nothing.
+ */
+export function exporterActivity(
+  reading: AppFacts['otelExport']
+): { value: string; aside?: string; dateRange?: DateRangeValue } | null {
+  if (reading.state === 'unmeasured') return null;
+  if (reading.state === 'unreadable') {
+    return {
+      value: 'Could not be counted',
+      aside: reading.error ? ` \u00b7 ${reading.error}` : '',
+    };
+  }
+  const counted = reading.tables.map((entry) => `${countOf(entry.rows)} ${entry.table.replace(/^otel_/, '')}`);
+  const first =
+    reading.tables
+      .map((entry) => entry.firstAt)
+      .filter(Boolean)
+      .sort()[0] ?? '';
+  const last =
+    reading.tables
+      .map((entry) => entry.lastAt)
+      .filter(Boolean)
+      .sort()
+      .pop() ?? '';
+  if (reading.state === 'silent') {
+    return {
+      value: counted.join(' \u00b7 ') || 'Nothing written',
+      aside: ' \u00b7 the tables exist and hold no rows',
+    };
+  }
+  const start = dateBadgeValue(first);
+  const end = dateBadgeValue(last);
+  return {
+    value: counted.join(' \u00b7 '),
+    dateRange: start && end ? { start, end } : undefined,
+  };
+}
+
+/**
+ * The left column: what this deployment is, and where its code can be opened.
+ *
+ * The endpoint leads, because it is the one fact on the card that answers "am I
+ * looking at the deployment I think I am". It is drawn only where the workspace
+ * reported a URL: this app cannot tell an app with no URL from an app it was
+ * never able to ask about, and a red "not set" on the second would accuse a
+ * healthy deployment.
+ *
+ * THE TWO SOURCE LINKS SIT HERE, under the compute row, rather than closing the
+ * built-from column as they used to. Two reasons, and the second is the one that
+ * decided it. They belong with this side's subject: where the running code is
+ * opened is a property of the deployment, not of the two commit stamps it was
+ * built from. And the card is read as two columns, so seven rows on the right
+ * against three on the left is a shape a reader scans as one list with a hole in
+ * it -- moving these two makes it five and five on the deployment this app runs
+ * on.
+ *
+ * They land BEFORE the tags row, which stays last: tags are the loosest fact
+ * the workspace reports and the design has them closing the column.
+ */
+export function deploymentRows(app: AppFacts): BuildRow[] {
+  // No left column at all where the workspace established nothing about the
+  // app. The source links are not enough to make one: the repository row is a
+  // product fact rather than a reading, so a column built out of it would be
+  // this card claiming a workspace answered when none did.
+  if (!hasDeploymentFacts(app)) return [];
+  const rows: BuildRow[] = [];
+  const host = endpointHost(app.url);
+  if (host) {
+    rows.push({
+      kind: 'badge',
+      key: 'endpoint',
+      label: 'App endpoint',
+      value: host,
+      full: app.url,
+      tone: endpointTone(app.serving),
+      copyable: true,
+      openable: true,
+    });
+    const serving = servingActivity(app.serving);
+    if (serving) {
+      rows.push({
+        kind: 'text',
+        key: 'endpoint-state',
+        label: 'App state',
+        value: serving.value,
+        aside: serving.aside,
+      });
+    }
+  }
+  if (app.description) {
+    rows.push({ kind: 'text', key: 'description', label: 'Description', value: app.description });
+  }
+  if (app.compute) {
+    rows.push({
+      kind: 'text',
+      key: 'compute',
+      label: 'Compute',
+      value: app.compute.size,
+      aside: computeAside(app.compute),
+    });
+  }
+  rows.push(...sourceRows(app));
+  if (app.tags.length > 0) {
+    rows.push({ kind: 'chips', key: 'tags', label: 'Tags', values: app.tags });
+  }
+  return rows;
+}
+
+/**
+ * The right column: what it was built from, and how long it has been running.
+ *
+ * The two commit rows are NOT built here. They come from `buildFacts`, which
+ * owns the `+dirty` suffix and the two-commit comparison and must stay the only
+ * thing that does; the card renders them ahead of these.
+ *
+ * The two source links used to end this column and are now under Compute on the
+ * left, which is what makes the card read five rows against five rather than
+ * three against seven.
+ *
+ * ## There is no Compute hours row, and it is not an oversight
+ *
+ * The design asks for one, reading `6.2h · warehouse, last 24 h`. Three separate
+ * things stop it, and the first is the one that matters:
+ *
+ * 1. **Billing is admin-only, and this page is not.** The read lives behind
+ *    `/api/ops/cost`, and `/api/ops` is in `ADMIN_ROUTE_PREFIXES`, so the guard
+ *    refuses a consumer before the handler runs. `/api/settings`, which feeds
+ *    this card, is deliberately consumer-visible and has a test saying so.
+ *    Calling the Ops route from here would 403 for most of the people who open
+ *    this tab; widening the prefix list to fix that would publish the
+ *    deployment's spend to every signed-in reader. That is the app's permission
+ *    model, not a wiring detail.
+ * 2. **Ops does not compute hours.** `ops-billing.ts` prices
+ *    `usage_quantity * list_price` and selects `SUM(spend)` in currency.
+ *    `usage_quantity` is DBUs, and DBUs become hours only by dividing by a
+ *    per-SKU DBU/hour rate -- the "ratio invented in this file" its own opening
+ *    paragraph forbids. The quantity is not even in the result set, so the
+ *    arithmetic has nothing to work from without editing another surface's query.
+ * 3. **"Last 24 h" is not a window Ops can produce.** `CostRange.to` is the last
+ *    COMPLETE day, never today, so a rolling 24 hours is structurally outside
+ *    what that query answers.
+ *
+ * A figure assembled around any of those would be a number nobody could trust,
+ * on the row a reader takes to a bill. If somebody wants it, the honest version
+ * is a quantity column added to the Ops statement and a consumer-safe route in
+ * front of it, and that is its own piece of work with its own permission
+ * decision. Not a row quietly added here.
+ */
+/**
+ * Where the code this deployment is running can be opened, as two links.
+ *
+ * DRAWN IN THE LEFT COLUMN, under Compute. `deploymentRows` composes them; this
+ * function only decides what the two rows say. The one exception is a deployment
+ * whose workspace reported nothing at all, which has no left column for them to
+ * sit in and where `telemetryRows` carries them instead.
+ *
+ * TWO DESTINATIONS, AND THEY ANSWER DIFFERENT QUESTIONS. The workspace link
+ * goes to whatever the Apps API says the RUNNING deployment was made from -- the
+ * workspace folder holding its source, or the app's own page where a Git
+ * connection is managed -- and the repository link goes to the published
+ * product. An operator looking at a deployment that is behaving oddly wants the
+ * first; somebody reading the code wants the second.
+ *
+ * THE WORKSPACE ROW IS DROPPED WHERE NOTHING RESOLVED IT, on this card's
+ * standing rule that an unestablished fact draws nothing rather than a dead
+ * link -- a deployment whose workspace reported no source path, or a container
+ * with no `DATABRICKS_HOST`, has no honest destination. The repository row is
+ * always drawn, because it is not a reading: this product publishes to one
+ * public repository whether or not the workspace answered, and it is the same
+ * URL the login gate names.
+ */
+export function sourceRows(app: AppFacts): BuildRow[] {
+  const rows: BuildRow[] = [];
+  if (app.source.workspaceUrl) {
+    rows.push({
+      kind: 'link',
+      key: 'app-source',
+      label: 'App source',
+      // The path, where the workspace named one. It is what makes this row
+      // worth reading at a glance -- an operator can see which folder or
+      // subdirectory is live without following the link.
+      value: app.source.path || 'Open in the workspace',
+      href: app.source.workspaceUrl,
+      mark: 'apps',
+      title: app.source.path || app.source.workspaceUrl,
+    });
+  }
+  rows.push({
+    kind: 'link',
+    key: 'github',
+    label: 'GitHub',
+    // The ref only where the running deployment came from Git. On an uploaded
+    // deployment nothing establishes which commit is serving, and naming a
+    // branch there would be this card asserting something it did not read.
+    value: `${repoLabel(PUBLIC_SOURCE_REPO_URL)}${app.source.gitRef ? ` \u00b7 ${app.source.gitRef}` : ''}`,
+    href: PUBLIC_SOURCE_REPO_URL,
+    mark: 'github',
+    title: PUBLIC_SOURCE_REPO_URL,
+  });
+  return rows;
+}
+
+/** `owner/repo`, so the row reads as a repository rather than as a URL. */
+function repoLabel(url: string): string {
+  return endpointHost(url).replace(/^github\.com\//, '');
+}
+
+export function telemetryRows(app: AppFacts, now: number): BuildRow[] {
+  const rows: BuildRow[] = [];
+  if (app.otelExporter) {
+    rows.push({
+      kind: 'badge',
+      key: 'otel',
+      label: 'OTel exporter',
+      value: endpointHost(app.otelExporter),
+      full: app.otelExporter,
+      tone: exporterTone(app.otelExport),
+      description: 'Exports app traces, metrics, and logs.',
+      copyable: true,
+    });
+  }
+  const activity = exporterActivity(app.otelExport);
+  if (activity) {
+    rows.push({
+      kind: 'text',
+      // Labelled for what it is when it stands alone. A deployment can be
+      // exporting with no `OTEL_EXPORTER_OTLP_ENDPOINT` set -- appkit starts the
+      // SDK itself -- and the badge row above is drawn off that variable, so
+      // this must be able to carry the finding on its own.
+      key: 'otel-activity',
+      label: app.otelExporter ? 'OTel activity' : 'OTel exporter',
+      value: activity.value,
+      aside: activity.aside,
+      ...(activity.dateRange ? { dateRange: activity.dateRange } : {}),
+    });
+  }
+  // ONLY WHERE THERE IS NO LEFT COLUMN. The two source links live under Compute
+  // now; a deployment whose workspace reported nothing about the app draws no
+  // left column, and dropping the links entirely on that one would lose the
+  // repository row -- which is a product fact and was never a reading.
+  if (!hasDeploymentFacts(app)) rows.push(...sourceRows(app));
+  const deployed = dateBadgeValue(app.deployedAt);
+  if (deployed) {
+    rows.push({
+      kind: 'date',
+      key: 'deployed',
+      label: 'Last deployed',
+      date: deployed,
+      identity: app.deployedBy || undefined,
+    });
+  }
+  // Read off the SAME stamp as the row above, rather than from a second field,
+  // because the handoff requires the two to agree and two sources are two
+  // chances to disagree.
+  const uptime = uptimeSince(app.deployedAt, now);
+  if (uptime) {
+    rows.push({ kind: 'text', key: 'uptime', label: 'Uptime', value: uptime, aside: ' \u00b7 since last deploy' });
+  }
+  return rows;
+}
+
+/**
+ * Whether the workspace established anything about the app itself.
+ *
+ * Two callers, one question. The card uses it to decide the two-column layout --
+ * one column of hashes is a list, and putting it in a grid with an empty half
+ * beside it draws attention to the half that is empty -- and `telemetryRows`
+ * uses it to decide whether the source links have a left column to go in.
+ *
+ * Asked of the app's OWN facts rather than of `deploymentRows`, because
+ * `deploymentRows` now includes the source links and the repository link is
+ * always drawn: reading the answer off that list would say every deployment
+ * reported something.
+ */
+export function hasDeploymentFacts(app: AppFacts): boolean {
+  return Boolean(endpointHost(app.url) || app.description || app.compute || app.tags.length > 0);
+}

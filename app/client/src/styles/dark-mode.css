@@ -1,0 +1,784 @@
+/*
+ * Dark-theme surface treatment. ADAPT tokens live in the compatibility-named token partial.
+ * This file only paints: sky, blur, ghost actions, overlays, and the lockup on navy.
+ * Layout, copy, and control structure are unchanged.
+ */
+
+html[data-theme='dark'] .app-frame {
+  position: relative;
+  z-index: var(--ast-layer-page);
+  isolation: isolate;
+}
+
+/*
+ * Filled destruction on the night sky.
+ *
+ * `--ast-neg-text` becomes the pale on-dark negative rung, which is exactly what
+ * a warning sentence and a one-pixel failure edge need. It is not a button fill:
+ * white on that pale pink is low contrast and the mass reads hot before it reads
+ * dangerous. The base `--destructive` is also used as error TEXT in six places,
+ * so remapping it would make those labels dark on navy. A control-only semantic
+ * token takes the existing deep red rung instead; negative text, borders, washes
+ * and chart marks keep their deliberately lighter treatment.
+ */
+html[data-theme='dark'] {
+  --ast-destructive-control: var(--db-red-700);
+}
+
+html[data-theme='dark'] .ask-layout {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* Sticky chrome is the near-opaque plane above every route. The base rule owns
+   its safe-area geometry and layer; dark mode only chooses semantic paint. */
+html[data-theme='dark'] .app-header {
+  background: var(--ast-surface-chrome);
+  backdrop-filter: none;
+  border-bottom-color: var(--ast-border-input);
+}
+
+html[data-theme='dark'] .ast-mark--light {
+  --ast-mark-ink: var(--ast-white);
+  --ast-mark-accent: var(--ast-blue-on-dark);
+}
+
+/*
+ * The wordmark, which the rule above cannot reach: it is type beside the drawing
+ * rather than part of it, and the ADAPT mark partial only whitens it inside a lockup
+ * that contains the dark or mono mark. The dark theme seats the LIGHT mark, so
+ * the name kept the navy it takes on a white page -- and navy here is the page.
+ */
+html[data-theme='dark'] .ast-wordmark {
+  color: var(--ast-white);
+}
+
+/*
+ * The corporate lockup, reversed.
+ *
+ * The committed asset paints its wordmark in #0B2026, as the full-colour logo
+ * should on white, and a presentation attribute loses to any rule at all -- so
+ * the type goes to currentColor and the bricks are restated. The bricks keep
+ * their own colour because that is what "reversed" means in the Databricks
+ * brand: the mark is never recoloured, only what surrounds it.
+ *
+ * --db-orange IS the brand red, #FF3621, which is why this does not reach past
+ * the token block for a hex the palette already holds.
+ */
+html[data-theme='dark'] .fo-databricks-logo {
+  color: var(--ast-white);
+}
+
+html[data-theme='dark'] .fo-databricks-logo svg path {
+  fill: currentColor;
+}
+
+html[data-theme='dark'] .fo-databricks-logo svg path:first-of-type {
+  fill: var(--db-orange);
+}
+
+/*
+ * The reader's own name, everywhere it is drawn.
+ *
+ * --db-ink-deep is the darkest fill in the palette -- scrims, drop shadows, the
+ * dark chips -- and it is deliberately NOT remapped for dark, because those uses
+ * still need to be black on a night sky. It is also, at six call sites across
+ * shell.css, gate.css, rail.css and time-range.css, a TEXT colour, and those are
+ * what this corrects: without it a person's own address is #11171C on #11171C in
+ * the header, on the login gate, in the conversation rail's filter chips, in Run
+ * Explorer, in Monitoring and on Connections. The chip's own fill was the page
+ * background, which drew a black box where a name goes.
+ *
+ * Mirrored selectors rather than one loose rule, because each original is more
+ * specific than a bare `.identity-chip` and would otherwise keep winning.
+ *
+ * The chip's border is left alone: --db-line-strong already remaps to the same
+ * 22% white this file would have asked for by name.
+ */
+html[data-theme='dark'] .identity-chip {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+/*
+ * "Live agent response" is a chip, not an action.
+ *
+ * AppKit's default Badge is `bg-primary`. On the night sky that is the same
+ * neon slab the conversation-rail Live pill used to be. Quiet fill, hairline,
+ * ink -- the same register Complete / Partial / Asked-by already wear.
+ */
+html[data-theme='dark'] .answer-card [data-slot='badge'].provenance-chip[data-tone='live'] {
+  background: rgba(255, 255, 255, 0.07);
+  background-color: rgba(255, 255, 255, 0.07);
+  color: var(--ast-ink-on-dark);
+  border-color: var(--ast-border-input);
+}
+
+/*
+ * The gear is the operable member of the identity cluster, not a primary action.
+ *
+ * Its previous AppKit default left a solid blue square between the Signed in
+ * badge and the attribution. Matching the badge's 30px surface, hairline, radius
+ * and ink makes the two neighbours one quiet group while the hover, press and
+ * focus states preserve the fact that only the gear can be activated.
+ */
+html[data-theme='dark'] .header-settings {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--foreground);
+  transition:
+    background-color 220ms ease-out,
+    color 220ms ease-out;
+}
+
+html[data-theme='dark'] .header-settings:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ast-white);
+}
+
+html[data-theme='dark'] .header-settings:active:not(:disabled) {
+  background: rgba(127, 220, 209, 0.28);
+  color: var(--ast-white);
+  transition-duration: 0ms;
+}
+
+html[data-theme='dark'] .header-settings:focus-visible {
+  outline: 1px solid var(--ast-ice-accent);
+  outline-offset: 1px;
+}
+
+html[data-theme='dark'] .access-gate-actions button:not(.refresh-button) {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+/*
+ * The super rank, on the identity chip's colours rather than on its own.
+ *
+ * In light the two administrator pills are the info family, and the super rank is
+ * that family inverted: the deep rung #0E538B as the fill with white on it, which
+ * says "more of what Admin says" without adding a hue. Inverted stops meaning
+ * that here. --ast-info-text is the ICE ACCENT on the night sky, so the same rule
+ * paints a pale blue lozenge with white type on it -- the loudest object in the
+ * header, and barely readable -- immediately left of the reader's own name.
+ *
+ * So it takes the chip beside it: the same fill, the same border rung, the same
+ * ink. The two members of the cluster then read as one pair, which is what they
+ * are, and rank is carried by the shield and the word rather than by being the
+ * brightest thing on the page.
+ *
+ * THE BORDER DOES NOT PUT THIS BACK IN THE BUTTON FAMILY, which is the one thing
+ * role-badge.md asks of this pill. That rule turns on the geometry: every button
+ * in this app is 4px, and the 999px radius in shell.css is untouched. The chip
+ * this now matches is bordered, is 4px, and is not a button either.
+ */
+html[data-theme='dark'] .role-badge[data-role-state='super_admin'] {
+  background: var(--card);
+  border: 1px solid var(--ast-border-input);
+  color: var(--foreground);
+}
+
+html[data-theme='dark'] .app-nav-tab[aria-current='page'],
+html[data-theme='dark'] .app-nav-tab.active {
+  color: var(--ast-ice-accent);
+}
+
+/* The conversation rail is a reading surface. The trace inspector remains the
+   deliberate decorative sky region beside it. */
+html[data-theme='dark'] .conversation-rail {
+  background: var(--ast-surface-primary);
+  background-image: none;
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+}
+
+/*
+ * The live step list is INSIDE the working card, not beside the transcript.
+ *
+ * It was grouped with the rail and the harness column above, which are panes
+ * with the sky directly behind them. This list is not: Ask draws it inside a
+ * `[data-slot='card']` that already carries the pane, so the 3% frost here
+ * was a second layer and each row's own card fill was a third. Three white
+ * layers is the milky wash that was reported. The card is the pane, this is a
+ * bordered region inside it, and the rows are rows.
+ */
+html[data-theme='dark'] .live-steps {
+  background: transparent;
+  background-image: none;
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+}
+
+/* The in-flow composer uses the same opaque reading surface as the rail. */
+html[data-theme='dark'] .composer {
+  background: var(--ast-surface-primary);
+  background-image: none;
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+}
+
+html[data-theme='dark'] .ast-sky {
+  background-color: transparent;
+  background-image: none;
+}
+
+/*
+ * The login overlay is a backdrop, not a scrim, and in dark it is the night sky.
+ *
+ * `--ast-ice` is the AI-context surface and it is 3% white here, so the Ice
+ * backdrop first-open.css asks for was effectively transparent: the reader met
+ * the entire app shell through the card that is supposed to be holding them at
+ * the door. `.on-sky` is left alone -- the opening sequence's own navy is behind
+ * it and the constellation goes on drawing through the card.
+ */
+html[data-theme='dark'] .first-open:not(.on-sky) {
+  background: var(--ast-sky-fill);
+}
+
+/* Every primary card reads the shared 95% paper. Child bands can use quiet
+   tints because this parent has already attenuated the page sky. */
+html[data-theme='dark'] .answer-card,
+html[data-theme='dark'] .plan-card,
+html[data-theme='dark'] .first-open-card,
+html[data-theme='dark'] .access-gate-panel,
+html[data-theme='dark'] [data-slot='card'] {
+  background: var(--card);
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+}
+
+html[data-theme='dark'] .first-open-card,
+html[data-theme='dark'] .access-gate-panel,
+html[data-theme='dark'] .app-session-card {
+  background: var(--ast-surface-elevated);
+}
+
+/*
+ * THE SKY STAYS BEHIND THE PAGE, INCLUDING THE TILES AND THE RED BANNERS.
+ *
+ * `.app-sky` is already `z-index: -1`. That is not enough on Run Explorer and
+ * the other working tabs: a 5% `--card` fill and a 2px frost leave the
+ * twinkling glyphs readable through KPI tiles and through `--ast-neg-fill` /
+ * `--db-red-wash` (both 10% pink). Readers reported those dots sitting ON the
+ * cards and ON the warning banner.
+ *
+ * Named siblings only. The earlier `.app-frame > :not(.app-sky)` lift replaced
+ * `position: fixed` on the gate, Settings, and the header, and trapped the
+ * account menu. `main`, the storage banner and the role-lost strip are the
+ * documents; overlays keep the z-index they already declared.
+ *
+ * The mix is toward `--ast-sky-fill` so the field is behind the chrome rather
+ * than drawn on it. 10px frost then washes any leftover point into the pane.
+ *
+ * Run Explorer and Connections are not on that mix. Fourteen percent white
+ * over the sky is the washed gray slab Overview was reported as -- and the
+ * same sheet then showed up on Connections: Build and telemetry, Identity,
+ * the Configuration rows and the Unity Catalog block. Those surfaces take
+ * `--ast-pane` below, the same token the answer card uses. Other working
+ * tabs keep the mix so this change cannot retint their cards. Menus stay
+ * on `--ast-surface-solid`. Settings stays glass for menus; only these
+ * page-panel fills move onto the Ask token.
+ */
+html[data-theme='dark'] .app-frame > main,
+html[data-theme='dark'] .storage-banner,
+html[data-theme='dark'] .role-lost-notice {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme='dark'] .page-shell:not(.run-explorer):not(.connections-page) [data-slot='card'] {
+  background: var(--ast-surface-primary);
+  backdrop-filter: none;
+}
+
+html[data-theme='dark'] [data-slot='alert'],
+html[data-theme='dark'] .role-lost-notice,
+html[data-theme='dark'] .storage-banner [data-slot='alert'] {
+  background: color-mix(in srgb, var(--ast-surface-primary) 80%, var(--ast-neg-text));
+  backdrop-filter: none;
+}
+
+/*
+ * The live list is the pane; its rows are not five more panes.
+ *
+ * `.live-steps` already carries the quiet 3% frost above. Giving every
+ * `.live-step` the generic 5% card fill stacked white over that pane and turned
+ * the bounded list into alternating smoky slabs. Keep ordinary rows clear so
+ * the list has one surface. Outcome and in-progress rows still retain their
+ * semantic red/blue edge, which carries the state without another fill.
+ */
+html[data-theme='dark'] .live-step {
+  background: transparent;
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+}
+
+/*
+ * A pane inside a pane is not another pane.
+ *
+ * The run process sits inside the answer card. Giving its timeline and Gantt the
+ * generic 5% pane again compounded the white alpha, and each KPI tile added a
+ * third layer. The map had the same problem on its node and open-detail cards.
+ * De-stack the containers, then give only the actual readable tiles the rail's
+ * quiet 3% frost.
+ *
+ * THESE ARE MATCHED ON THE COMPONENT'S OWN CLASSES RATHER THAN UNDER
+ * `.run-process`, and that is the whole fix for a second reported bug. The same
+ * `TraceTimeline` is drawn in two places -- inside the answer card's run process
+ * on Ask, and bare on the Run Explorer's Timeline tab -- and scoping the
+ * de-stack to Ask's wrapper meant Explorer kept the compounded 5% panes with
+ * 5% tiles inside them. Only `TraceTimeline` emits `.trace-timeline`,
+ * `.trace-gantt` and `.trace-kpi`, so the unscoped selectors reach every mount
+ * of it, including any future one, and cannot reach anything else. The map
+ * selectors below were already written this way, which is why the Agent map
+ * needed no second rule.
+ */
+html[data-theme='dark'] .trace-timeline,
+html[data-theme='dark'] .trace-gantt {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+html[data-theme='dark'] .trace-kpi,
+html[data-theme='dark'] .trace-dag.map .dag-node,
+html[data-theme='dark'] .trace-dag.map .dag-detail {
+  background: var(--ast-surface-muted);
+}
+
+html[data-theme='dark'] .trace-dag.map .dag-detail-head {
+  background: transparent;
+}
+
+/*
+ * And nothing else inside that panel may add white either.
+ *
+ * `.dag-detail` above is the one layer that carries a fill. Everything drawn
+ * inside it -- the header band, the SQL head, the table heads, the tables note,
+ * the column chips -- resolves through `--ast-fill-band`, which is another 3%
+ * white in dark. Four of those stacked inside a 3% panel is what still read as
+ * a grey slab after the panel itself was de-stacked. Each of these already has
+ * a hairline of its own, so transparent costs them no separation.
+ */
+html[data-theme='dark'] .trace-dag.map .dag-sql-head,
+html[data-theme='dark'] .trace-dag.map .dag-tables-note,
+html[data-theme='dark'] .trace-dag.map .dag-result-table th,
+html[data-theme='dark'] .trace-dag.map .dag-grid th,
+html[data-theme='dark'] .trace-dag.map .dag-col-chip {
+  background: transparent;
+}
+
+/*
+ * The payload blocks DEEPEN instead of lightening.
+ *
+ * A recorded argument, a quoted question and a Markdown code block do need a
+ * boundary, and none of them has a border to fall back on. On the sky the way
+ * to give a block one is to let more night through rather than less: a wash
+ * pulled towards `--ast-scrim` reads as a recess in the panel, where a fourth
+ * white layer read as a slab laid on it.
+ */
+html[data-theme='dark'] .trace-dag.map .dag-block,
+html[data-theme='dark'] .trace-dag.map .dag-md-code,
+html[data-theme='dark'] .trace-dag.map .dag-asked,
+html[data-theme='dark'] .trace-dag.map .dag-inline-code {
+  background: color-mix(in srgb, var(--ast-scrim) 45%, transparent);
+}
+
+/*
+ * Overlays cover prose; panes sit beside it.
+ *
+ * A menu, modal or drawer is temporarily the reader's foreground. The previous
+ * 6-7% white fills blurred the page but did not remove it: headings, connector
+ * lines and constellation marks remained legible through the control's own
+ * labels. Blur cannot promise that two glyphs will not coincide, so these use the
+ * 98.5% menu token. The page panes above use the 95% reading rung because they
+ * sit on the sky rather than over another readable interface.
+ *
+ * `.monitoring-chip-menu` also has to restate its INK. It sets `--background` as
+ * its fill and `--ast-navy` as its text, which on white is a white menu with navy
+ * options and here is navy on navy: the filter list opened empty. It is the one
+ * surface in the app whose contents disappeared completely.
+ */
+html[data-theme='dark'] .app-select-content,
+html[data-theme='dark'] [data-slot='select-content'],
+html[data-theme='dark'] [data-slot='dropdown-menu-content'],
+html[data-theme='dark'] [data-slot='popover-content'] {
+  background: var(--ast-surface-menu);
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+  color: var(--foreground);
+}
+html[data-theme='dark'] .app-menu-content {
+  background: var(--background);
+  backdrop-filter: none;
+}
+
+html[data-theme='dark'] .account-menu {
+  background: var(--background);
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme='dark'] [data-slot='sheet-content'] {
+  background: var(--ast-surface-elevated);
+  backdrop-filter: none;
+  border-color: var(--ast-border-input);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme='dark'] .trace-empty-mark {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ast-white);
+}
+
+/*
+ * The selected settings section is a quiet tint of the pane, same family as a
+ * selected conversation, not a second accent colour. Ice text and an ice edge
+ * here were the leftover "blue highlight" the rest of this sheet had already
+ * been asked to drop.
+ */
+/*
+ * The footer has one action and one dismissal. Cancel stays in the same quiet
+ * surface-and-hairline family as the modal chrome; Save alone enters the shared
+ * primary recipe above.
+ */
+/*
+ * Environment is a table inside the modal, not a second branded surface. Its
+ * tab keeps the header navigation's thin ice rule, while the toolbar, column
+ * head and copy affordance remain on ordinary dark surfaces and hairlines.
+ */
+html[data-theme='dark'] .ast-flick-row {
+  background: var(--card);
+}
+
+html[data-theme='dark'] .trace-dag.map .dag-sql-more {
+  background: linear-gradient(to bottom, transparent, var(--card) 60%);
+}
+
+/*
+ * Two controls inherited light-theme emphasis as literal brightness.
+ *
+ * Agent step indices alone use `--db-blue-700`; tool indices use secondary
+ * on-dark ink. The former stays deep blue in this theme, so decisions looked
+ * disabled while calls remained readable. Match the figures and leave the agent
+ * distinction in its blue border, Ice fill and ADAPT mark.
+ *
+ * Rendered | Raw used to inherit `--ast-blue` → ice here. That fill now lives
+ * on `--ast-seg-pressed`, remapped in the dark token block, so this file does
+ * not restyle the pills.
+ */
+html[data-theme='dark'] .trace-dag.map .dag-index.agent {
+  color: var(--muted-foreground);
+}
+
+/*
+ * One dark primary button, wherever AppKit seats it.
+ *
+ * THE ACTION BLUE IS THE EDGE, NOT THE MASS. A solid #2272B4 button is the
+ * brightest panel in a dark interface and makes every Save, Add and submit
+ * action compete with the answer it acts on. The Ask home mockup establishes
+ * the opposite relationship: a deep navy raised panel with a lighter blue
+ * hairline and near-white type. The two named tokens make that relationship one
+ * app-wide recipe rather than a Settings correction that the next primary
+ * button misses.
+ *
+ * AppKit 0.38 emits no variant attribute, so its `bg-primary` utility is the
+ * stable marker for the default button; newer builds expose `default` or
+ * `primary`. The selector deliberately accepts all three representations.
+ * Ghost, outline and destructive controls never enter this rule, so a
+ * dismissal or deletion cannot inherit the action treatment.
+ *
+ * THE HOVER AND PRESS STATES ARE HERE BECAUSE THIS RULE TAKES APPKIT'S AWAY.
+ * AppKit states hover as a Tailwind utility, and this unlayered stylesheet wins
+ * that cascade. Mixing the same fill toward the border gives the control a
+ * visible rise on hover and an immediate press without turning it back into the
+ * saturated blue slab this rule removes.
+ */
+html[data-theme='dark'] .ast-btn-primary,
+html[data-theme='dark'] [data-slot='button'].bg-primary,
+html[data-theme='dark'] [data-slot='button'][data-variant='default'],
+html[data-theme='dark'] [data-slot='button'][data-variant='primary'] {
+  background: var(--ast-primary-control-fill);
+  border: 1px solid var(--ast-primary-control-border);
+  border-radius: var(--ast-radius-control);
+  color: var(--ast-ink-on-dark);
+  transition:
+    background-color 220ms ease-out,
+    border-color 220ms ease-out;
+}
+
+html[data-theme='dark'] .ast-btn-primary:hover:not(:disabled),
+html[data-theme='dark'] [data-slot='button'].bg-primary:hover:not(:disabled),
+html[data-theme='dark'] [data-slot='button'][data-variant='default']:hover:not(:disabled),
+html[data-theme='dark'] [data-slot='button'][data-variant='primary']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ast-primary-control-fill) 82%, var(--ast-primary-control-border));
+  border-color: var(--ast-ice-accent);
+}
+
+html[data-theme='dark'] .ast-btn-primary:active:not(:disabled),
+html[data-theme='dark'] [data-slot='button'].bg-primary:active:not(:disabled),
+html[data-theme='dark'] [data-slot='button'][data-variant='default']:active:not(:disabled),
+html[data-theme='dark'] [data-slot='button'][data-variant='primary']:active:not(:disabled) {
+  background: color-mix(in srgb, var(--ast-primary-control-fill) 68%, var(--ast-primary-control-border));
+  border-color: var(--ast-ice-accent);
+  transition-duration: 0ms;
+}
+
+/*
+ * Attach context. The hover wash it has is 5% white, which on the composer's own
+ * 3% pane is a difference of two percent of white: real, and not something a
+ * reader notices happening. Same asymmetric release as the filled action.
+ */
+html[data-theme='dark'] .composer-attach {
+  transition:
+    background-color 220ms ease-out,
+    color 220ms ease-out;
+}
+
+html[data-theme='dark'] .composer-attach:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ast-white);
+}
+
+html[data-theme='dark'] .composer-attach:active:not(:disabled) {
+  background: rgba(127, 220, 209, 0.28);
+  color: var(--ast-white);
+  transition-duration: 0ms;
+}
+
+html[data-theme='dark'] .answer-card:has(.live-progress) {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme='dark'] .trace-bar {
+  opacity: 0.8;
+}
+
+html[data-theme='dark'] :focus-visible {
+  outline: 1px solid var(--ast-ice-accent);
+  outline-offset: 1px;
+}
+
+html[data-theme='dark'] :is(input, textarea, select, .app-select-trigger):focus-visible {
+  border-color: var(--ast-ice-accent);
+  outline: none;
+}
+
+/*
+ * Selecting text, which is the one of these that copies correctly and cannot be
+ * seen at all.
+ *
+ * ask.css records this exact defect happening once already, in the other
+ * direction: there was no ::selection rule anywhere, the browser default left the
+ * foreground alone, and white text on a pale wash was invisible. The rule written
+ * to fix it names `--db-ink` as the fill with white glyphs -- and `--db-ink`
+ * remaps to #F2F6FA here, so the fix reproduces the bug it was written for. The
+ * ice accent with navy on it is the same relationship the light rule has, stated
+ * for a page whose ink is already near-white.
+ */
+html[data-theme='dark'] .question-attribution-message::selection,
+html[data-theme='dark'] .question-attribution-message ::selection,
+html[data-theme='dark'] .answer-card::selection,
+html[data-theme='dark'] .answer-card ::selection,
+html[data-theme='dark'] .plan-card::selection,
+html[data-theme='dark'] .plan-card ::selection {
+  background: var(--ast-ice-accent);
+  color: var(--ast-navy);
+}
+
+/*
+ * Two hovers that paint a light fill and leave light type on it.
+ *
+ * `--ast-white` is not remapped, and it cannot be: it is white, and half the
+ * app's reversed treatments name it. So a hover that reaches for it directly gets
+ * a solid white row under near-white text -- the asset picker's table names
+ * disappeared under the pointer, which is the worst possible moment for them to.
+ * The search field's clear mark went the other way and hovered to navy on navy.
+ */
+html[data-theme='dark'] .asset-picker-row:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--foreground);
+}
+
+/*
+ * ============================================================================
+ * THE MARKS IN AN ANSWER, ON THE NIGHT SKY.
+ * ============================================================================
+ *
+ * The entity colours are a reader's own setting, so each is a token with a
+ * fallback. ONLY THE FALLBACKS MOVE HERE: a deployment that has set a colour
+ * keeps it, because that value is a decision somebody made and not a theme
+ * default. That is why every line below restates `var(--entity-*, ...)` rather
+ * than assigning a colour outright.
+ *
+ * The fallbacks are the same hex pairs Settings ships as defaults — ice or
+ * off-white type on quiet navy/ice fills — so a reader who never opened
+ * Appearance and a reader whose stored row still has the paper leftovers both
+ * see chips that sit on the sky. The paper fills (#e8e8e8, #f4f4f4, #f7f7f7,
+ * #ddeaf4) were the white slabs in answers; they are not written here.
+ *
+ * Kinds stay distinct by hue: catalog is raised navy-blue, schema an ice wash,
+ * table a lifted frost, column a deeper ice, quote the surface itself, tag the
+ * slate that already sat. Custom `--entity-*` values still win.
+ */
+html[data-theme='dark'] {
+  --ast-entity-catalog-fg: var(--entity-catalog-fg, #7fdcd1);
+  --ast-entity-catalog-bg: var(--entity-catalog-bg, #123733);
+  --ast-entity-schema-fg: var(--entity-schema-fg, var(--ast-ink-on-dark));
+  --ast-entity-schema-bg: var(--entity-schema-bg, #183d39);
+  --ast-entity-table-fg: var(--entity-table-fg, #e7c968);
+  --ast-entity-table-bg: var(--entity-table-bg, #2c313a);
+  --ast-entity-column-fg: var(--entity-column-fg, #d9f4f0);
+  --ast-entity-column-bg: var(--entity-column-bg, #15332f);
+  --ast-entity-quote-fg: var(--entity-quote-fg, #9ad6ce);
+  --ast-entity-quote-bg: var(--entity-quote-bg, #182523);
+  --ast-entity-tag-fg: var(--entity-tag-fg, var(--ast-ink-on-dark));
+  --ast-entity-tag-bg: var(--entity-tag-bg, #243f3c);
+}
+
+/*
+ * ON THE SKY, AN IDENTIFIER IS A MARK IN THE PROSE. IT IS NOT A HIGHLIGHT OVER IT.
+ *
+ * Inline code takes the same ice wash the catalog chip uses, so a `table`
+ * mention in a sentence is not a brighter box than the entity marks around it.
+ * Light mode is untouched. Every entity line keeps the `var(--entity-*, …)`
+ * chain, so a colour set in Settings > Appearance still wins.
+ */
+html[data-theme='dark'] .answer-code {
+  background: rgba(127, 220, 209, 0.1);
+  color: var(--ast-ice-accent);
+}
+
+/*
+ * The two inline chips the entity rung above does not reach.
+ *
+ * A source's table name is set in `--ast-neutral-fill`, which is white at twelve
+ * percent here -- twice the rung every entity chip beside it takes, and on the
+ * sky that reads as a white box around one word rather than as a tint under it.
+ * The queried tone keeps its ice fill: that one says the table was actually read.
+ *
+ * The GET chip is the last light literal in the stylesheet, #E8ECF0 on #445461,
+ * which is a daylight recipe painted straight onto the night sky.
+ */
+html[data-theme='dark'] .source-name-pill[data-tone='neutral'] .source-name-short {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/*
+ * Two more controls whose feedback ran backwards, for the reason Refresh did:
+ * the -700 and -800 rungs are hover and press on white and are both darker than
+ * the resting fill, and nothing remaps them, so on a navy page the control
+ * recedes at the moment it is pressed. Explore this run is the way into a trace
+ * and Save is the end of editing settings -- the two presses in the app most
+ * worth confirming.
+ */
+html[data-theme='dark'] .trace-inspector .trace-explore:hover:not(:disabled) {
+  background: var(--db-blue-500);
+  border-color: var(--db-blue-500);
+  color: var(--ast-white);
+}
+
+html[data-theme='dark'] .trace-inspector .trace-explore:active:not(:disabled) {
+  background: var(--ast-ice-accent);
+  border-color: var(--ast-ice-accent);
+  color: var(--ast-navy);
+}
+
+/*
+ * The ghost hover, at a step a reader can see.
+ *
+ * --db-hover-tint is 5% white here and most of these sit on a 3% pane, so the
+ * pointer feedback across the whole app was two percent of white: present in the
+ * computed style and absent on screen. 12% is the same step the pressed chips and
+ * the menus use, so hover, selected and highlighted stay one family.
+ */
+html[data-theme='dark'] .app-select-trigger:hover:not(:disabled),
+html[data-theme='dark'] .app-select-trigger[data-state='open']:not(:disabled) {
+  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+}
+html[data-theme='dark'] .app-menu-option:hover,
+html[data-theme='dark'] .app-menu-option:focus-visible,
+html[data-theme='dark'] .access-gate-actions button:not(.refresh-button):hover:not(:disabled),
+html[data-theme='dark'] .conversation-confirm-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/*
+ * Bespoke destructive controls join AppKit's destructive token.
+ *
+ * Deleting a conversation predates the shared Button component. Restating it
+ * from the control token above gives filled deletion one app-wide colour
+ * without turning negative prose and chart marks into dark, unreadable red.
+ * Hover mixes toward white just enough to confirm the pointer without returning
+ * to the pale pink that prompted this correction.
+ */
+html[data-theme='dark'] .conversation-confirm-delete,
+html[data-theme='dark'] [data-slot='button'].bg-destructive,
+html[data-theme='dark'] [data-slot='button'][data-variant='destructive'] {
+  background: var(--ast-destructive-control);
+  border-color: var(--ast-destructive-control);
+  color: var(--destructive-foreground);
+}
+
+html[data-theme='dark'] .conversation-confirm-delete:hover {
+  background: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+  border-color: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+}
+
+html[data-theme='dark'] [data-slot='button'].bg-destructive:hover:not(:disabled),
+html[data-theme='dark'] [data-slot='button'][data-variant='destructive']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+  border-color: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-theme='dark'] {
+    --card: var(--ast-surface-solid);
+    --popover: var(--ast-surface-solid);
+    --muted: var(--ast-surface-solid);
+    --ast-pane: var(--ast-surface-solid);
+  }
+
+  html[data-theme='dark'] .app-header,
+  html[data-theme='dark'] .conversation-rail,
+  html[data-theme='dark'] .composer,
+  html[data-theme='dark'] .trace-inspector,
+  html[data-theme='dark'] .answer-card,
+  html[data-theme='dark'] .plan-card,
+  html[data-theme='dark'] .trace-dag.map .dag-detail,
+  /* The tiles whose fills are written as literals above rather than taken from
+     `--card`, so a reader who has asked for less transparency still gets the
+     solid stand-in for them. The timeline and Gantt are NOT here: they are
+     de-stacked containers with no fill of their own in the normal path, and
+     handing them one only under this query would grow a pane when an
+     accessibility preference is switched on. */
+  html[data-theme='dark'] .trace-kpi,
+  html[data-theme='dark'] .trace-dag.map .dag-node,
+  html[data-theme='dark'] .first-open-card,
+  html[data-theme='dark'] .access-gate-panel,
+  html[data-theme='dark'] [data-slot='alert'],
+  html[data-theme='dark'] [data-slot='card'],
+  html[data-theme='dark'] .role-lost-notice,
+  html[data-theme='dark'] .storage-banner [data-slot='alert'],
+  html[data-theme='dark'] .account-menu,
+  html[data-theme='dark'] .app-select-content,
+  html[data-theme='dark'] [data-slot='select-content'],
+  html[data-theme='dark'] [data-slot='dropdown-menu-content'],
+  html[data-theme='dark'] [data-slot='popover-content'],
+  html[data-theme='dark'] [data-slot='sheet-content'] {
+    backdrop-filter: none;
+    background: var(--ast-surface-solid);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='dark'] .app-header,
+  html[data-theme='dark'] .conversation-rail,
+  html[data-theme='dark'] .composer,
+  html[data-theme='dark'] [data-slot='card'] {
+    transition: none;
+  }
+}

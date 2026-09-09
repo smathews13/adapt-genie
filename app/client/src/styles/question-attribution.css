@@ -1,0 +1,185 @@
+/*
+ * One question and the person who asked it.
+ *
+ * The wrapper only positions the bubble for each host. The nested surface owns
+ * the one background, border and radius around both pieces of content; the
+ * divider is internal and the question itself is not clickable.
+ */
+.question-attribution-bubble {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/*
+ * This positioning host is deliberately not a glass surface. Keep global
+ * backing or decoration contracts from growing an opaque rectangle around the
+ * real rounded surface.
+ */
+.question-attribution-bubble::before,
+.question-attribution-bubble::after {
+  display: none;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  content: none;
+}
+
+.question-attribution-surface {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  border: 1px solid var(--ast-border-input);
+  border-radius: calc(var(--radius-md) * 2) calc(var(--radius-md) * 2) var(--radius-sm) calc(var(--radius-md) * 2);
+  background: var(--ast-pane);
+  color: var(--foreground);
+}
+
+.question-attribution-surface::after {
+  position: absolute;
+  right: 22px;
+  bottom: -5px;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--ast-border-input);
+  border-bottom: 1px solid var(--ast-border-input);
+  background: inherit;
+  content: '';
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.question-attribution-message {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: var(--density-row-padding-block) 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.question-attribution-meta {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  min-width: 0;
+  border-left: 1px solid var(--ast-border-input);
+  background: transparent;
+  box-shadow: none;
+}
+
+.question-attribution-meta > .user-drilldown-link {
+  align-items: stretch;
+  border-radius: 0;
+}
+
+.question-attribution-bubble .question-attribution-user.identity-chip {
+  max-width: min(180px, 42vw);
+  min-height: 100%;
+  padding: var(--density-row-padding-block) 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+/*
+ * Only the link's name and icon react to hover. Keyboard focus keeps the shared
+ * blue focus ring from shell.css, while the bubble itself never becomes a
+ * control or gains a blue edge.
+ */
+.question-attribution-meta > .user-drilldown-link .identity-chip-name {
+  color: var(--ast-info-text);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+
+.question-attribution-meta > .user-drilldown-link:is(:hover, :focus-visible) .question-attribution-user.identity-chip {
+  border: 0;
+  background: transparent;
+}
+
+.question-attribution-meta
+  > .user-drilldown-link:is(:hover, :focus-visible)
+  :is(.identity-chip-name, .question-attribution-user > svg) {
+  color: var(--foreground);
+}
+
+.question-attribution-meta > .user-drilldown-link:is(:hover, :focus-visible) .identity-chip-name {
+  text-decoration-color: currentColor;
+}
+
+html[data-theme='dark'] .question-attribution-surface {
+  background: var(--card);
+}
+
+@media (max-width: 480px) {
+  .question-attribution-surface {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .question-attribution-bubble .question-attribution-message {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .question-attribution-meta {
+    width: 100%;
+    justify-content: flex-end;
+    border-top: 1px solid var(--ast-border-input);
+    border-left: 0;
+  }
+
+  .question-attribution-bubble .question-attribution-user.identity-chip {
+    max-width: min(100%, 240px);
+  }
+}
+
+@media (forced-colors: active) {
+  .question-attribution-surface {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .question-attribution-surface::after,
+  .question-attribution-meta {
+    border-color: CanvasText;
+  }
+
+  .question-attribution-bubble .question-attribution-user.identity-chip,
+  .question-attribution-meta > .user-drilldown-link .identity-chip-name {
+    color: CanvasText;
+  }
+
+  .question-attribution-meta
+    > .user-drilldown-link:is(:hover, :focus-visible)
+    :is(.identity-chip-name, .question-attribution-user > svg) {
+    color: Highlight;
+  }
+}

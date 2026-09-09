@@ -1,0 +1,763 @@
+/**
+ * The roster over HTTP, and the refusal that is the whole feature.
+ *
+ * THE ENFORCEMENT TESTS ASSERT A REFUSED CALLER, NOT A HIDDEN CONTROL. A test that
+ * checked the roster panel was not drawn for an administrator would pass on a
+ * deployment where any administrator could appoint themselves super admin by
+ * calling the endpoint, which is the failure this file exists to make impossible.
+ *
+ * Every address here is invented. The people this feature exists for are at a
+ * customer domain, and a real address in a test file is a real address in the
+ * published tree.
+ */
+import express from 'express';
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setupUserRoutes } from './user-routes';
+import { userEmail, type InsightsAppKit } from './insights-routes';
+import {
+  ADAPT_SUPER_ADMIN_EMAILS,
+  announceSeedAdmins,
+  requireAdmin,
+  requireSuperAdmin,
+  type AdminStore,
+  type GroupRoleLookup,
+} from '../lib/admin-roles';
+import { ADDED_ADMINS_TABLE, ADMIN_AUDIT_TABLE, ADMIN_GRANTS_TABLE } from '../lib/admin-roles-schema';
+import { GROUP_ROLE_MAPPINGS_TABLE } from '../lib/group-role-mappings';
+import type { GroupMembersResponse, RosterPayload } from '../../shared/user-roster-contract';
+import type { WorkspaceGroupRead } from '../lib/adapt-group-members';
+
+const LEAD = 'lead@example.invalid';
+const DEPUTY = 'deputy@example.invalid';
+const ANALYST = 'analyst@example.invalid';
+const STRANGER = 'stranger@example.invalid';
+/** A schema an earlier version of this app granted on. Invented, as every name here is. */
+const TELEMETRY = 'example_catalog.adapt_telemetry';
+
+interface Rows {
+  roster: { email: string; role: string; added_by: string; added_at: string }[];
+  audit: { actor: string; action: string; subject: string; detail: string }[];
+  grants: { email: string; object: string; privilege: string; provenance: string }[];
+  groups: { group_name: string; role: string; added_by: string; added_at: string }[];
+}
+
+/** Enough Lakebase for the three tables this family touches, so the real SQL runs. */
+function fakeLakebase(seedRows: Rows['roster'] = []): AdminStore & { rows: Rows } {
+  const rows: Rows = { roster: [...seedRows], audit: [], grants: [], groups: [] };
+  return {
+    rows,
+    query(text: string, params: unknown[] = []) {
+      const sql = text.replace(/\s+/g, ' ').trim();
+      const values = params as string[];
+      if (sql.includes(GROUP_ROLE_MAPPINGS_TABLE)) {
+        if (sql.startsWith('INSERT')) {
+          const row = {
+            group_name: values[0],
+            role: values[1],
+            added_by: values[2],
+            added_at: '2026-09-08T00:00:00.000Z',
+          };
+          const at = rows.groups.findIndex((existing) => existing.group_name === row.group_name);
+          if (at >= 0) rows.groups[at] = row;
+          else rows.groups.push(row);
+          return Promise.resolve({ rows: [{ group_name: row.group_name }] });
+        }
+        return Promise.resolve({ rows: rows.groups as unknown as Record<string, unknown>[] });
+      }
+      if (sql.includes(ADDED_ADMINS_TABLE)) {
+        if (sql.startsWith('INSERT')) {
+          const at = rows.roster.findIndex((row) => row.email === values[0]);
+          const row = { email: values[0], role: values[1], added_by: values[2], added_at: '2026-08-17T00:00:00.000Z' };
+          if (at >= 0) rows.roster[at] = row;
+          else rows.roster.push(row);
+          return Promise.resolve({ rows: [{ email: values[0] }] });
+        }
+        if (sql.startsWith('DELETE')) {
+          const at = rows.roster.findIndex((row) => row.email === values[0]);
+          if (at < 0) return Promise.resolve({ rows: [] });
+          rows.roster.splice(at, 1);
+          return Promise.resolve({ rows: [{ email: values[0] }] });
+        }
+        return Promise.resolve({ rows: rows.roster as unknown as Record<string, unknown>[] });
+      }
+      if (sql.includes(ADMIN_AUDIT_TABLE)) {
+        rows.audit.push({ actor: values[1], action: values[2], subject: values[3], detail: values[4] });
+        return Promise.resolve({ rows: [] });
+      }
+      if (sql.includes(ADMIN_GRANTS_TABLE)) {
+        if (sql.startsWith('INSERT')) {
+          const row = { email: values[0], object: values[2], privilege: values[3], provenance: values[4] };
+          const at = rows.grants.findIndex(
+            (existing) =>
+              existing.email === row.email && existing.object === row.object && existing.privilege === row.privilege
+          );
+          if (at >= 0) rows.grants[at] = row;
+          else rows.grants.push(row);
+          return Promise.resolve({ rows: [] });
+        }
+        if (sql.startsWith('DELETE')) {
+          const at = rows.grants.findIndex(
+            (row) => row.email === values[0] && row.object === values[1] && row.privilege === values[2]
+          );
+          if (at >= 0) rows.grants.splice(at, 1);
+          return Promise.resolve({ rows: [] });
+        }
+        return Promise.resolve({
+          rows: rows.grants.filter((row) => row.email === values[0]) as unknown as Record<string, unknown>[],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    },
+  };
+}
+
+/** The `error` field of a refusal, typed, so an assertion is not reading `unknown`. */
+async function errorOf(response: Response): Promise<string> {
+  return ((await response.json()) as { error?: string }).error ?? '';
+}
+
+function statementResponse(body: Record<string, unknown>, status = 200) {
+  return { ok: status < 400, status, json: () => Promise.resolve(body) } as unknown as Response;
+}
+
+const SUCCEEDED = statementResponse({ status: { state: 'SUCCEEDED' }, result: { data_array: [] } });
+const REFUSED = statementResponse({ message: 'PERMISSION_DENIED: User is not an owner of Schema' }, 403);
+
+/**
+ * Every statement the app ran, with the bearer token it presented.
+ *
+ * The token is recorded because it is the security property of the whole mechanism:
+ * a grant made under the app's own credential would be a way to hand out Unity
+ * Catalog privileges from inside the app, and the tests below assert it is the
+ * signed-in super admin's token instead.
+ */
+function stubStatements(respond: (statement: string) => Response) {
+  const calls: { statement: string; token: string }[] = [];
+  const realFetch = globalThis.fetch;
+  const fetchStub = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+    const target = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    if (!target.includes('/api/2.0/sql/statements')) return realFetch(url, init);
+    const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as { statement?: string };
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    calls.push({ statement: body.statement ?? '', token: headers.authorization ?? '' });
+    return Promise.resolve(respond(body.statement ?? ''));
+  });
+  vi.stubGlobal('fetch', fetchStub);
+  return calls;
+}
+
+let server: Server | undefined;
+
+async function startApp(
+  store: AdminStore,
+  readGroupRole: GroupRoleLookup = () => Promise.resolve(null),
+  readGroupMembers: (groupName: string) => Promise<GroupMembersResponse> = (groupName) =>
+    Promise.resolve({
+      groupName,
+      members: [],
+      readable: true,
+      detail: '',
+    }),
+  readWorkspaceGroup: (groupName: string) => Promise<WorkspaceGroupRead> = (groupName) =>
+    Promise.resolve({ groupName, groupId: `id-${groupName}`, exists: true, readable: true })
+) {
+  const app = express();
+  app.use(express.json());
+  const appkit = { lakebase: store, server: { extend: (fn: (a: express.Application) => void) => fn(app) } };
+  // The same order server.ts uses, both guards, because that ordering is half of
+  // the protection: Express applies middleware to whatever is added afterwards, so
+  // registering the routes first would serve the roster to everybody.
+  app.use(requireAdmin(store, userEmail, readGroupRole));
+  app.use(requireSuperAdmin(store, userEmail, readGroupRole));
+  setupUserRoutes(appkit as unknown as InsightsAppKit, {
+    readDeploymentOwner: () => Promise.resolve(LEAD),
+    readGroupRole,
+    readGroupMembers,
+    readWorkspaceGroup,
+  });
+
+  server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server?.once('listening', resolve));
+  const { port } = server.address() as AddressInfo;
+  const base = `http://127.0.0.1:${port}`;
+
+  const headers = (email: string, token: string | null = 'forwarded-user-token') => ({
+    'content-type': 'application/json',
+    'x-forwarded-email': email,
+    ...(token ? { 'x-forwarded-access-token': token } : {}),
+  });
+
+  return {
+    list: (email: string) => fetch(`${base}/api/users`, { headers: headers(email) }),
+    listGroups: (email: string) => fetch(`${base}/api/users/groups`, { headers: headers(email) }),
+    groupMembers: (email: string, groupName: string) =>
+      fetch(`${base}/api/users/groups/${encodeURIComponent(groupName)}/members`, { headers: headers(email) }),
+    add: (email: string, target: string, role: string) =>
+      fetch(`${base}/api/users`, {
+        method: 'POST',
+        headers: headers(email),
+        body: JSON.stringify({ email: target, role }),
+      }),
+    change: (email: string, target: string, role: string) =>
+      fetch(`${base}/api/users/${encodeURIComponent(target)}`, {
+        method: 'PATCH',
+        headers: headers(email),
+        body: JSON.stringify({ role }),
+      }),
+    remove: (email: string, target: string) =>
+      fetch(`${base}/api/users/${encodeURIComponent(target)}`, { method: 'DELETE', headers: headers(email) }),
+    mapGroup: (email: string, groupName: string, role: string) =>
+      fetch(`${base}/api/users/groups`, {
+        method: 'POST',
+        headers: headers(email),
+        body: JSON.stringify({ groupName, role }),
+      }),
+  };
+}
+
+beforeEach(() => {
+  process.env.DATABRICKS_HOST = 'https://workspace.example.com';
+  process.env.DATABRICKS_SQL_WAREHOUSE_ID = 'wh-1';
+  // One seeded super admin and one seeded plain admin, which is the shape a
+  // customer deployment has: the marker names the person who runs it.
+  announceSeedAdmins(`super:${LEAD}, ${DEPUTY}`);
+});
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete process.env.DATABRICKS_SQL_WAREHOUSE_ID;
+  server?.closeAllConnections();
+  await new Promise((resolve) => server?.close(resolve));
+  server = undefined;
+});
+
+describe('an administrator who is not the super admin is refused', () => {
+  it('is refused the roster, having been allowed every other admin surface', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.list(DEPUTY);
+    expect(response.status).toBe(403);
+    expect(await errorOf(response)).toBe('super_admin_role_required');
+  });
+
+  it('is refused every method that changes a role', async () => {
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    const attempts = [
+      await app.add(DEPUTY, ANALYST, 'admin'),
+      await app.change(DEPUTY, ANALYST, 'admin'),
+      await app.remove(DEPUTY, ANALYST),
+    ];
+    expect(attempts.map((response) => response.status)).toEqual([403, 403, 403]);
+    // Nothing was written by any of them, which is the fact that matters: a guard
+    // that answered 403 after the write would be no guard.
+    expect(store.rows.roster).toEqual([]);
+    expect(store.rows.audit).toEqual([]);
+  });
+
+  it('cannot appoint itself', async () => {
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    expect((await app.change(DEPUTY, DEPUTY, 'super_admin')).status).toBe(403);
+    expect(store.rows.roster).toEqual([]);
+  });
+});
+
+describe('a consumer is refused', () => {
+  it('is refused by the admin guard, before the super-admin one', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.list(STRANGER);
+    expect(response.status).toBe(403);
+    // The first guard's body, so the reader is told the thing that is true of them.
+    expect(await errorOf(response)).toBe('admin_role_required');
+  });
+});
+
+describe('the super admin reads the roster', () => {
+  it('lists both halves with the role each holds', async () => {
+    const app = await startApp(fakeLakebase([{ email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '' }]));
+    const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
+    expect(payload.entries.map((entry) => [entry.email, entry.role])).toEqual([
+      ...[...ADAPT_SUPER_ADMIN_EMAILS, LEAD].sort().map((email) => [email, 'super_admin']),
+      [DEPUTY, 'admin'],
+      [ANALYST, 'consumer'],
+    ]);
+    expect(payload.entries.filter((entry) => entry.isDeploymentOwner).map((entry) => entry.email)).toEqual([LEAD]);
+    expect(payload.superAdminCount).toBe(ADAPT_SUPER_ADMIN_EMAILS.length + 1);
+    expect(payload.groupRoleDefaults).toEqual([
+      {
+        displayName: 'S_TK2_Databricks_adapt_genie_admins',
+        groupName: 'S_TK2_Databricks_adapt_genie_admins',
+        role: 'admin',
+        appPermission: 'CAN_MANAGE',
+        source: 'bundle',
+        identityManagementUrl: 'https://accounts.cloud.databricks.com',
+        scimConfirmed: true,
+        setBy: '',
+        setAt: '',
+      },
+      {
+        displayName: 'S_TK2_Databricks_adapt_genie_users',
+        groupName: 'S_TK2_Databricks_adapt_genie_users',
+        role: 'consumer',
+        appPermission: 'CAN_USE',
+        source: 'bundle',
+        identityManagementUrl: 'https://accounts.cloud.databricks.com',
+        scimConfirmed: true,
+        setBy: '',
+        setAt: '',
+      },
+    ]);
+  });
+
+  it('expands only configured group membership for a super admin', async () => {
+    const readGroupMembers = vi.fn((groupName: string) =>
+      Promise.resolve({
+        groupName,
+        readable: true,
+        detail: '',
+        members: [{ email: ANALYST, displayName: 'Example Analyst' }],
+      })
+    );
+    const app = await startApp(fakeLakebase(), undefined, readGroupMembers);
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
+    expect(configured.status).toBe(200);
+    expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
+    expect(readGroupMembers).toHaveBeenCalledWith('S_TK2_Databricks_adapt_genie_users');
+
+    const unknown = await app.groupMembers(LEAD, 'unrelated');
+    expect(unknown.status).toBe(404);
+    expect(readGroupMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it('expands deployment access groups even when stored group mappings are unavailable', async () => {
+    const base = fakeLakebase();
+    const store: AdminStore = {
+      query(text: string, params?: unknown[]) {
+        if (text.includes(GROUP_ROLE_MAPPINGS_TABLE)) return Promise.reject(new Error('mapping table unavailable'));
+        return base.query(text, params);
+      },
+    };
+    const readGroupMembers = vi.fn((groupName: string) =>
+      Promise.resolve({
+        groupName,
+        readable: true,
+        detail: '',
+        members: [{ email: ANALYST, displayName: 'Example Analyst' }],
+      })
+    );
+    const app = await startApp(store, undefined, readGroupMembers);
+
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
+    expect(configured.status).toBe(200);
+    expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
+
+    const mapped = await app.groupMembers(LEAD, 'stored-team');
+    expect(mapped.status).toBe(503);
+    const mappedBody = (await mapped.json()) as GroupMembersResponse;
+    expect(mappedBody.readable).toBe(false);
+    expect(mappedBody.detail).toContain('Mapped groups are temporarily unavailable');
+  });
+
+  it('validates and stores an existing workspace group without creating it or changing App access', async () => {
+    const store = fakeLakebase();
+    const members = vi.fn((groupName: string) =>
+      Promise.resolve({ groupName, members: [], readable: true, detail: '' })
+    );
+    const confirm = vi.fn((groupName: string) =>
+      Promise.resolve({
+        groupName,
+        groupId: groupName === 'existing-team' ? 'group-existing' : '',
+        exists: groupName === 'existing-team',
+        readable: true,
+      })
+    );
+    const app = await startApp(store, undefined, members, confirm);
+
+    const missing = await app.mapGroup(LEAD, 'missing-team', 'admin');
+    expect(missing.status).toBe(404);
+    expect(store.rows.groups).toEqual([]);
+
+    const response = await app.mapGroup(LEAD, 'existing-team', 'admin');
+    expect(response.status).toBe(200);
+    expect(store.rows.groups).toEqual([
+      {
+        group_name: 'existing-team',
+        role: 'admin',
+        added_by: LEAD,
+        added_at: '2026-09-08T00:00:00.000Z',
+      },
+    ]);
+    const payload = (await response.json()) as RosterPayload;
+    expect(payload.groupRoleDefaults?.find((row) => row.groupName === 'existing-team')).toMatchObject({
+      source: 'stored',
+      role: 'admin',
+      appPermission: 'CAN_MANAGE',
+      scimConfirmed: true,
+    });
+    expect(store.rows.audit.find((row) => row.action === 'group-role-mapped')?.detail).toContain(
+      'Databricks App permissions were not changed'
+    );
+
+    expect((await app.groupMembers(LEAD, 'existing-team')).status).toBe(200);
+    expect(members).toHaveBeenCalledWith('existing-team');
+
+    const immutable = await app.mapGroup(LEAD, 'S_TK2_Databricks_adapt_genie_admins', 'consumer');
+    expect(immutable.status).toBe(409);
+    expect(store.rows.groups).toHaveLength(1);
+  });
+
+  it('runs no grant, so the roster appears without waiting on a warehouse', async () => {
+    const calls = stubStatements(() => SUCCEEDED);
+    const app = await startApp(fakeLakebase());
+    await app.list(LEAD);
+    expect(calls).toEqual([]);
+  });
+
+  it('reads the full Lakebase roster once across both guards and the handler', async () => {
+    announceSeedAdmins('');
+    const store = fakeLakebase([{ email: LEAD, role: 'super_admin', added_by: LEAD, added_at: '' }]);
+    const query = vi.spyOn(store, 'query');
+    const app = await startApp(store);
+
+    expect((await app.list(LEAD)).status).toBe(200);
+
+    const rosterReads = query.mock.calls.filter(
+      ([sql]) => String(sql).trim().startsWith('SELECT') && String(sql).includes(ADDED_ADMINS_TABLE)
+    );
+    expect(rosterReads).toHaveLength(1);
+  });
+
+  it('shows an ADAPT group administrator at the group floor with no lower mutation', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '' }]);
+    const readGroupRole = vi.fn((email: string) => Promise.resolve(email === ANALYST ? ('admin' as const) : null));
+    const app = await startApp(store, readGroupRole);
+
+    const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
+    const analyst = payload.entries.find((entry) => entry.email === ANALYST);
+
+    expect(analyst).toMatchObject({ role: 'admin', seedFloor: 'admin', canRemove: false });
+    expect(analyst?.assignable).toEqual(['super_admin']);
+    expect(readGroupRole).toHaveBeenCalledOnce();
+    expect(readGroupRole).toHaveBeenCalledWith(ANALYST);
+  });
+});
+
+describe('appointing an administrator', () => {
+  it('stores the role and asks Unity Catalog for nothing', async () => {
+    const calls = stubStatements(() => SUCCEEDED);
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    const response = await app.add(LEAD, ANALYST, 'admin');
+    const payload = (await response.json()) as RosterPayload;
+
+    expect(response.status).toBe(200);
+    expect(store.rows.roster).toEqual([
+      { email: ANALYST, role: 'admin', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+    ]);
+    expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
+      role: 'admin',
+      setBy: LEAD,
+      setAt: '2026-08-17T00:00:00.000Z',
+    });
+    // A promotion used to grant read on the telemetry schema and the
+    // `system.billing` tables. Read access to billing needs a metastore admin, so
+    // the ordinary promotion reported a refusal for access the rank never required.
+    expect(calls).toHaveLength(0);
+  });
+
+  it('creates an explicit consumer row and returns its normalized confirmed facts', async () => {
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    const response = await app.add(LEAD, `  ${ANALYST.toUpperCase()}  `, 'consumer');
+    const payload = (await response.json()) as RosterPayload;
+
+    expect(response.status).toBe(200);
+    expect(store.rows.roster).toEqual([
+      { email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+    ]);
+    expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
+      role: 'consumer',
+      setBy: LEAD,
+      setAt: '2026-08-17T00:00:00.000Z',
+    });
+  });
+
+  it('rejects a same-role duplicate but lets POST update an existing role', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'consumer', added_by: DEPUTY, added_at: '' }]);
+    const app = await startApp(store);
+
+    const duplicate = await app.add(LEAD, ANALYST, 'consumer');
+    expect(duplicate.status).toBe(409);
+    expect(await errorOf(duplicate)).toBe('roster_refused_already_holds');
+
+    const update = await app.add(LEAD, ANALYST, 'admin');
+    const payload = (await update.json()) as RosterPayload;
+    expect(update.status).toBe(200);
+    expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
+      role: 'admin',
+      setBy: LEAD,
+      setAt: '2026-08-17T00:00:00.000Z',
+    });
+    expect(store.rows.roster).toHaveLength(1);
+  });
+
+  /**
+   * The operator is not a metastore admin, so Unity Catalog refuses everything. A
+   * promotion still has to work: nothing about the rank depends on it.
+   */
+  it('promotes somebody even when Unity Catalog would refuse every statement', async () => {
+    const calls = stubStatements(() => REFUSED);
+    const store = fakeLakebase();
+    const app = await startApp(store);
+
+    const response = await app.add(LEAD, ANALYST, 'admin');
+    const payload = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(store.rows.roster[0].role).toBe('admin');
+    expect(calls).toHaveLength(0);
+    // Nothing on the response for the panel to draw as a failure, and no grant
+    // state at all: this screen is people and roles.
+    expect(payload).not.toHaveProperty('access');
+    expect(JSON.stringify(payload)).not.toContain('PERMISSION_DENIED');
+    expect(JSON.stringify(payload)).not.toContain('billing');
+  });
+
+  it('records who changed whose role, and to what', async () => {
+    stubStatements(() => SUCCEEDED);
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    await app.add(LEAD, ANALYST, 'admin');
+
+    const change = store.rows.audit.find((row) => row.action === 'role-changed');
+    expect(change?.actor).toBe(LEAD);
+    expect(change?.subject).toBe(ANALYST);
+    expect(change?.detail).toContain('consumer');
+    expect(change?.detail).toContain('admin');
+  });
+
+  it('appoints another super admin, so one person leaving is not the end of it', async () => {
+    stubStatements(() => SUCCEEDED);
+    const store = fakeLakebase();
+    const app = await startApp(store);
+    expect((await app.add(LEAD, ANALYST, 'super_admin')).status).toBe(200);
+    expect(store.rows.roster[0].role).toBe('super_admin');
+    const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
+    expect(payload.entries.filter((entry) => entry.role === 'super_admin')).toHaveLength(
+      ADAPT_SUPER_ADMIN_EMAILS.length + 2
+    );
+    expect(payload.entries.filter((entry) => entry.isDeploymentOwner).map((entry) => entry.email)).toEqual([LEAD]);
+  });
+
+  it('invalidates the request snapshot after mutation and reads back the new role', async () => {
+    announceSeedAdmins('');
+    const store = fakeLakebase([
+      { email: LEAD, role: 'super_admin', added_by: LEAD, added_at: '' },
+      { email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '' },
+    ]);
+    const query = vi.spyOn(store, 'query');
+    const app = await startApp(store);
+
+    const response = await app.change(LEAD, ANALYST, 'admin');
+    const payload = (await response.json()) as RosterPayload;
+
+    expect(payload.entries.find((entry) => entry.email === ANALYST)?.role).toBe('admin');
+    const rosterReads = query.mock.calls.filter(
+      ([sql]) => String(sql).trim().startsWith('SELECT') && String(sql).includes(ADDED_ADMINS_TABLE)
+    );
+    // One snapshot for both guards and the precondition; one authoritative read
+    // after writeRole increments the store generation.
+    expect(rosterReads).toHaveLength(2);
+  });
+
+  it('refuses an address that is not one', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.add(LEAD, 'not-an-address', 'admin');
+    expect(response.status).toBe(400);
+    expect(await errorOf(response)).toBe('invalid_roster_email');
+  });
+
+  it('refuses a role that is not one of the three', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.add(LEAD, ANALYST, 'owner');
+    expect(response.status).toBe(400);
+    expect(await errorOf(response)).toBe('roster_refused_unknown_role');
+  });
+});
+
+describe('changing and removing', () => {
+  it('hands back the access an earlier version granted when somebody stops being an admin', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' }]);
+    // The record an earlier version of this app wrote when it still granted.
+    store.rows.grants.push({ email: ANALYST, object: TELEMETRY, privilege: 'SELECT', provenance: 'app-granted' });
+    const app = await startApp(store);
+    const calls = stubStatements(() => SUCCEEDED);
+
+    await app.change(LEAD, ANALYST, 'consumer');
+
+    expect(store.rows.roster[0].role).toBe('consumer');
+    const revokes = calls.filter((call) => call.statement.startsWith('REVOKE'));
+    expect(revokes).toHaveLength(1);
+    // Under the acting super admin's own token. Never the app's.
+    expect(revokes.every((call) => call.token === 'Bearer forwarded-user-token')).toBe(true);
+    expect(store.rows.audit.some((row) => row.action === 'access-revoked')).toBe(true);
+  });
+
+  it('asks Unity Catalog for nothing when there is nothing recorded to hand back', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' }]);
+    const app = await startApp(store);
+    const calls = stubStatements(() => SUCCEEDED);
+
+    await app.change(LEAD, ANALYST, 'consumer');
+
+    expect(store.rows.roster[0].role).toBe('consumer');
+    expect(calls).toEqual([]);
+  });
+
+  it('asks Unity Catalog for nothing when the rank does not cross the admin line', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' }]);
+    const app = await startApp(store);
+    const calls = stubStatements(() => SUCCEEDED);
+
+    await app.change(LEAD, ANALYST, 'super_admin');
+
+    // A rise in rank grants nothing, and this one does not lose the admin surfaces
+    // either, so there is nothing to take back.
+    expect(calls).toEqual([]);
+  });
+
+  it('records a removal with the role the person held', async () => {
+    stubStatements(() => SUCCEEDED);
+    const store = fakeLakebase([{ email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' }]);
+    const app = await startApp(store);
+    expect((await app.remove(LEAD, ANALYST)).status).toBe(200);
+    expect(store.rows.roster).toEqual([]);
+    const removal = store.rows.audit.find((row) => row.action === 'user-removed');
+    expect(removal?.subject).toBe(ANALYST);
+    expect(removal?.detail).toContain('admin');
+  });
+
+  it('refuses to lower a role the deployment configuration sets', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.change(LEAD, DEPUTY, 'consumer');
+    expect(response.status).toBe(409);
+    expect(await errorOf(response)).toBe('roster_refused_seed_floor');
+  });
+
+  it('refuses to store or remove a role below an ADAPT group floor', async () => {
+    announceSeedAdmins('');
+    const store = fakeLakebase([
+      { email: LEAD, role: 'super_admin', added_by: LEAD, added_at: '' },
+      { email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' },
+    ]);
+    const readGroupRole = vi.fn((email: string) => Promise.resolve(email === ANALYST ? ('admin' as const) : null));
+    const app = await startApp(store, readGroupRole);
+
+    const demotion = await app.change(LEAD, ANALYST, 'consumer');
+    const removal = await app.remove(LEAD, ANALYST);
+
+    expect(demotion.status).toBe(409);
+    expect(await errorOf(demotion)).toBe('roster_refused_seed_floor');
+    expect(removal.status).toBe(409);
+    expect(await errorOf(removal)).toBe('roster_refused_seed_floor');
+    expect(store.rows.roster.find((row) => row.email === ANALYST)?.role).toBe('admin');
+  });
+
+  it('refuses to lower the immutable ADAPT super admin', async () => {
+    const app = await startApp(fakeLakebase());
+    const response = await app.change(LEAD, ADAPT_SUPER_ADMIN_EMAILS[0], 'admin');
+    expect(response.status).toBe(409);
+    expect(await errorOf(response)).toBe('roster_refused_immutable_super_admin');
+  });
+
+  it('allows a stored super admin to step down while the immutable operator remains', async () => {
+    announceSeedAdmins('');
+    const store = fakeLakebase([{ email: LEAD, role: 'super_admin', added_by: LEAD, added_at: '' }]);
+    const app = await startApp(store);
+    const response = await app.change(LEAD, LEAD, 'admin');
+    expect(response.status).toBe(200);
+    expect(store.rows.roster[0].role).toBe('admin');
+  });
+
+  it('lets a super admin edit a promoted peer when another remains', async () => {
+    announceSeedAdmins('');
+    stubStatements(() => SUCCEEDED);
+    const store = fakeLakebase([
+      { email: LEAD, role: 'super_admin', added_by: LEAD, added_at: '' },
+      { email: ANALYST, role: 'super_admin', added_by: LEAD, added_at: '' },
+    ]);
+    const app = await startApp(store);
+    expect((await app.change(LEAD, LEAD, 'admin')).status).toBe(200);
+    expect(store.rows.roster[0].role).toBe('admin');
+  });
+
+  it('answers 404 for an address the roster does not name', async () => {
+    const app = await startApp(fakeLakebase());
+    expect((await app.remove(LEAD, STRANGER)).status).toBe(404);
+  });
+});
+
+describe('when Lakebase is not answering', () => {
+  const broken: AdminStore = { query: () => Promise.reject(new Error('connection terminated')) };
+
+  it('changes nothing rather than guessing who else holds a role', async () => {
+    const app = await startApp(broken);
+    // The seeded super admin resolves from the environment, so the guard admits
+    // them; the write refuses, because a role changed without knowing who else
+    // holds one could leave the deployment with no super admin.
+    const response = await app.change(LEAD, ANALYST, 'admin');
+    expect(response.status).toBe(503);
+    expect(await errorOf(response)).toBe('roster_store_unavailable');
+  });
+
+  it('returns 503 when adding cannot read the authoritative roster', async () => {
+    const app = await startApp(broken);
+    const response = await app.add(LEAD, ANALYST, 'consumer');
+    expect(response.status).toBe(503);
+    expect(await errorOf(response)).toBe('roster_store_unavailable');
+  });
+
+  it('does not report success when Lakebase cannot confirm a completed write', async () => {
+    const store = fakeLakebase();
+    const query = store.query.bind(store);
+    let rosterReads = 0;
+    store.query = (text, params) => {
+      if (text.trim().startsWith('SELECT') && text.includes(ADDED_ADMINS_TABLE) && ++rosterReads === 2) {
+        return Promise.reject(new Error('read-back unavailable'));
+      }
+      return query(text, params);
+    };
+    const app = await startApp(store);
+
+    const response = await app.add(LEAD, ANALYST, 'consumer');
+
+    expect(response.status).toBe(503);
+    expect(await errorOf(response)).toBe('roster_confirmation_unavailable');
+    expect(store.rows.roster).toHaveLength(1);
+  });
+
+  it('still shows the roster the environment names', async () => {
+    const app = await startApp(broken);
+    const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
+    expect(payload.storedRosterReadable).toBe(false);
+    expect(payload.entries.map((entry) => entry.email)).toEqual([
+      ...[...ADAPT_SUPER_ADMIN_EMAILS, LEAD].sort(),
+      DEPUTY,
+    ]);
+  });
+
+  it('fails closed with one store read when no test-only seed floor can admit the caller', async () => {
+    announceSeedAdmins('');
+    const query = vi.fn(() => Promise.reject(new Error('connection terminated')));
+    const app = await startApp({ query });
+
+    const response = await app.list(LEAD);
+
+    expect(response.status).toBe(403);
+    expect(await errorOf(response)).toBe('admin_role_required');
+    expect(query).toHaveBeenCalledOnce();
+  });
+});

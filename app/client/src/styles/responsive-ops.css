@@ -1,0 +1,101 @@
+@media (max-width: 800px) {
+  .ops-page-controls {
+    grid-template-columns: minmax(0, 18rem);
+    align-items: stretch;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+  .ops-admin-action,
+  .ops-stop-all {
+    width: auto;
+    margin-left: 0;
+  }
+  .ops-forecast-horizons {
+    grid-template-columns: 1fr;
+  }
+  .ops-cost-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .ops-cost-resource-budgets {
+    grid-column: auto;
+  }
+  .ops-ticker-assumption-grid[data-columns='6'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ops-ticker-assumption-grid[data-columns='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ops-methodology-rows > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+}
+
+@container (max-width: 640px) {
+  .ops-ticker-assumption-grid[data-columns='6'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .ops-page-controls,
+  .ops-admin-action,
+  .ops-stop-all {
+    width: 100%;
+  }
+  .ops-cost-loading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-cost-summary-peers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-cost-summary-peer + .ops-cost-summary-peer {
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid var(--ast-border-input);
+    border-left: 0;
+  }
+  .ops-ticker-assumption-grid[data-columns='6'],
+  .ops-ticker-assumption-grid[data-columns='4'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-cost-total .ops-ticker-input-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ops-app-budget-status {
+    grid-column: 1 / -1;
+  }
+  .ops-number-ticker-wide,
+  .ops-ticker-assumption {
+    width: 100%;
+  }
+  .ops-cost-summary-budget {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-cost-summary-budget .ast-num {
+    text-align: left;
+  }
+  .ops-cost-summary-budget-mtd {
+    grid-column: auto;
+  }
+  .ops-scope-dialog-overlay {
+    padding: 8px;
+  }
+  .ops-scope-dialog {
+    max-height: calc(100vh - 16px);
+    padding: 12px;
+  }
+  .ops-scope-pagination {
+    justify-content: space-between;
+  }
+  .ops-scope-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .ops-scope-search,
+  .ops-scope-type-filter .app-select-trigger {
+    width: 100%;
+  }
+}

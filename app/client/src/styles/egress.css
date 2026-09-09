@@ -1,0 +1,231 @@
+/*
+ * The egress panel: stacked lists on the Settings page.
+ *
+ * Written against the astrolabe tokens rather than the DuBois set, because this
+ * surface is new. Nothing here restates a rule `settings.css` already carries --
+ * the rows reuse `.settings-row` and `.settings-row-label`, and only the parts
+ * those two do not cover are declared. A second opinion about row geometry is how
+ * a page ends up with two kinds of row that are nearly the same.
+ */
+
+/* A row that is a list item rather than a single control, so it needs its own
+   rhythm: `.settings-row` is one row in a card and these come in a set. */
+.egress-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ast-hairline);
+}
+
+.egress-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.egress-row:first-child {
+  padding-top: 0;
+}
+
+/* The label and its facts, which must not be pushed around by the switch beside
+   them when a pill makes one row taller than the next. */
+.egress-row-body {
+  min-width: 0;
+}
+
+/* The pill sits on the label line, and a label with a pill on it must not ride
+   up when the pill is taller than the text. */
+.egress-row .settings-row-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/*
+ * The facts line: where the affordance is, how many items, what the catalog
+ * carries. Joined by ' · ' in the component rather than by a rule, because these
+ * are separate strings decided in `egress-panel.ts` and generated content cannot
+ * sit between array members.
+ */
+.egress-facts {
+  margin: 2px 0 0;
+  font-size: var(--ast-fs-12);
+  color: var(--ast-text-secondary);
+  max-width: 60ch;
+}
+
+.egress-mode-info {
+  border-color: var(--ast-info-fill);
+  background: var(--ast-info-fill);
+  color: var(--ast-info-text);
+}
+
+.egress-mode-warn {
+  border-color: var(--ast-warn-border);
+  background: var(--ast-warn-fill);
+  color: var(--ast-warn-text);
+}
+
+.egress-mode-neutral {
+  border-color: var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.egress-boundary {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: var(--ast-fs-12);
+}
+
+.egress-boundary summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--foreground);
+}
+
+.egress-boundary p,
+.egress-compact-note,
+.egress-ledger-head p,
+.egress-record-state p {
+  margin: 4px 0 0;
+  max-width: 78ch;
+  color: var(--muted-foreground);
+  font-size: var(--ast-fs-12);
+}
+
+.egress-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.egress-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+
+.egress-summary span,
+.egress-storage dt {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.egress-summary strong {
+  font-size: var(--ast-fs-12);
+  font-weight: 600;
+}
+
+.egress-ledger {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.egress-ledger h4 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.egress-storage {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.egress-storage > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border);
+}
+
+.egress-storage > div:first-child {
+  border-top: 0;
+}
+
+.egress-storage dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--ast-fs-12);
+  overflow-wrap: anywhere;
+}
+
+.egress-storage code,
+.egress-record-table {
+  font-family: var(--font-mono);
+}
+
+.egress-records,
+.egress-record-state {
+  display: grid;
+  gap: 8px;
+}
+
+.egress-record-actions,
+.egress-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.egress-record-actions {
+  justify-content: space-between;
+}
+
+.egress-record-button {
+  width: max-content;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--ast-fs-12);
+}
+
+.egress-record-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.egress-record-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.egress-record-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.egress-record-table th,
+.egress-record-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.egress-record-table th {
+  background: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 10px;
+}
+
+.egress-record-table tr:last-child td {
+  border-bottom: 0;
+}

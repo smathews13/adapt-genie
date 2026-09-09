@@ -1,0 +1,310 @@
+import { readFileSync } from 'node:fs';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+
+import { Dialog } from './Dialog';
+import { partial } from './styles/stylesheet';
+
+const source = (name: string) => readFileSync(new URL(name, import.meta.url), 'utf8');
+const withoutComments = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, ' ');
+const bodyFor = (css: string, selector: string): string => {
+  for (const match of withoutComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (match[1].split(',').some((candidate) => candidate.trim() === selector)) return match[2];
+  }
+  return '';
+};
+const tokenNumber = (css: string, name: string): number =>
+  Number.parseInt(css.match(new RegExp(`${name}:\\s*(-?\\d+)`))?.[1] ?? 'NaN', 10);
+const tokenMix = (css: string, name: string): number =>
+  Number.parseFloat(
+    css.match(new RegExp(`${name}:\\s*color-mix\\([^;]*?\\s([\\d.]+)%,\\s*transparent\\)`))?.[1] ?? 'NaN'
+  );
+const channel = (hex: string, offset: number): number => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+const relativeLuminance = (hex: string): number => {
+  const linear = (value: number) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear(channel(hex, 1)) + 0.7152 * linear(channel(hex, 3)) + 0.0722 * linear(channel(hex, 5));
+};
+const contrast = (foreground: string, background: string): number => {
+  const first = relativeLuminance(foreground);
+  const second = relativeLuminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+};
+
+describe('primary surface occlusion', () => {
+  const astrolabe = partial('astrolabe-tokens.css');
+  const tokens = partial('tokens.css');
+  const contract = partial('surface-contract.css');
+
+  it('defines an ordered translucent glass hierarchy with AA text contrast', () => {
+    const muted = tokenMix(astrolabe, '--ast-surface-muted');
+    const primary = tokenMix(astrolabe, '--ast-surface-primary');
+    const elevated = tokenMix(astrolabe, '--ast-surface-elevated');
+    const menu = tokenMix(astrolabe, '--ast-surface-menu');
+    const chrome = tokenMix(astrolabe, '--ast-surface-chrome');
+    expect(muted).toBe(92);
+    expect(primary).toBe(95);
+    expect(elevated).toBe(97);
+    expect(menu).toBe(98.5);
+    expect(chrome).toBe(99);
+    expect(muted).toBeLessThan(primary);
+    expect(primary).toBeLessThan(elevated);
+    expect(elevated).toBeLessThan(menu);
+    expect(menu).toBeLessThan(chrome);
+    expect(chrome).toBeLessThan(100);
+    expect(astrolabe).toContain('--ast-pane: var(--ast-surface-primary)');
+
+    const darkAstrolabe = bodyFor(astrolabe, "html[data-theme='dark']");
+    for (const [name, amount] of [
+      ['--ast-surface-muted', 92],
+      ['--ast-surface-primary', 95],
+      ['--ast-surface-elevated', 97],
+      ['--ast-surface-menu', 98.5],
+      ['--ast-surface-chrome', 99],
+    ] as const) {
+      expect(tokenMix(darkAstrolabe, name), name).toBe(amount);
+    }
+    expect(darkAstrolabe).toMatch(/--ast-pane:\s*var\(--ast-surface-primary\)/);
+
+    const darkTokens = bodyFor(tokens, "html[data-theme='dark']");
+    expect(darkTokens).toMatch(/--card:\s*var\(--ast-surface-primary\)/);
+    expect(darkTokens).toMatch(/--popover:\s*var\(--ast-surface-menu\)/);
+    expect(bodyFor(tokens, ':root')).toMatch(/--card:\s*var\(--ast-surface-primary\)/);
+    expect(bodyFor(tokens, ':root')).toMatch(/--popover:\s*var\(--ast-surface-menu\)/);
+
+    expect(contrast('#f2f6fa', '#181e23')).toBeGreaterThanOrEqual(4.5);
+    expect(contrast('#161616', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+
+    for (const [selector, role] of [
+      ['.ast-surface-primary', '--ast-surface-primary'],
+      ['.ast-surface-elevated', '--ast-surface-elevated'],
+      ['.ast-surface-menu', '--ast-surface-menu'],
+      ['.ast-surface-chrome', '--ast-surface-chrome'],
+      ['.ast-dialog-panel', '--ast-surface-elevated'],
+    ] as const) {
+      const body = bodyFor(contract, selector);
+      expect(body).toContain(`background-color: var(${role})`);
+      expect(body).toMatch(/backdrop-filter:\s*none/);
+      expect(body).not.toMatch(/rgba|blur\(/);
+    }
+    const overlay = bodyFor(contract, '.ast-dialog-overlay:not(.first-open)');
+    expect(overlay).toMatch(/background:\s*var\(--ast-overlay-occlusion\)/);
+    expect(overlay).toMatch(/backdrop-filter:\s*none/);
+  });
+
+  it('marks Run Explorer, Monitoring, and conversation rail reading surfaces', () => {
+    const runs = source('RunExplorer.tsx');
+    expect(runs).toContain('className="run-list ast-surface-primary"');
+    expect(runs).toContain('className="run-detail ast-surface-primary"');
+
+    const monitoring = source('MonitoringPage.tsx');
+    expect(monitoring).toContain("'monitoring-tile', 'ast-surface-primary'");
+    expect(monitoring).toContain('monitoring-outcomes-tile ast-surface-primary');
+    expect(monitoring).toContain('className="monitoring-filters"');
+    expect(monitoring).not.toContain('monitoring-filters ast-surface-primary');
+    expect(monitoring).toContain('monitoring-list-pane ast-surface-primary');
+
+    const home = source('HomePage.tsx');
+    expect(home).toContain('<aside className="conversation-rail">');
+    expect(home).toContain('className={`conversation-row');
+    expect(bodyFor(partial('rail.css'), '.conversation-rail')).toMatch(/background:\s*var\(--background\)/);
+  });
+
+  it('routes shipped reading surfaces through high-alpha semantic paint', () => {
+    const selectors = [
+      ['dark-runs.css', "html[data-theme='dark'] .run-explorer .run-detail", '--ast-pane'],
+      ['dark-monitoring.css', "html[data-theme='dark'] .monitoring-tile", '--card'],
+      ['dark-monitoring.css', "html[data-theme='dark'] .monitoring-list-pane", '--card'],
+      ['dark-connections.css', "html[data-theme='dark'] .connections-page .connection-block", '--ast-pane'],
+      ['dark-architecture.css', "html[data-theme='dark'] .arch-flow", '--card'],
+      ['dark-ops.css', "html[data-theme='dark'] .ops-block", '--card'],
+      ['dark-benchmark.css', "html[data-theme='dark'] .bench-surface", '--ast-surface-primary'],
+      ['dark-settings.css', "html[data-theme='dark'] .settings-page.settings-modal", '--ast-surface-elevated'],
+    ] as const;
+
+    for (const [file, selector, token] of selectors) {
+      const body = bodyFor(partial(file), selector);
+      expect(body, selector).toContain(`background: var(${token})`);
+      expect(body, selector).toMatch(/backdrop-filter:\s*none/);
+      expect(body, selector).not.toMatch(/background:[^;]*(?:rgba|transparent)|blur\(/);
+    }
+  });
+
+  it('uses stronger paint for menus, pickers, dialogs, and portaled controls', () => {
+    const base = partial('base.css');
+    expect(bodyFor(base, '.app-menu-content')).toMatch(
+      /background:\s*var\(--background\)[\s\S]*backdrop-filter:\s*none/
+    );
+    const darkMonitoring = partial('dark-monitoring.css');
+    expect(bodyFor(darkMonitoring, "html[data-theme='dark'] .monitoring-chip-menu")).toMatch(
+      /background:\s*var\(--ast-surface-menu\)/
+    );
+    expect(bodyFor(darkMonitoring, "html[data-theme='dark'] .user-profile-modal")).toMatch(
+      /background:\s*var\(--ast-surface-elevated\)/
+    );
+
+    const connections = partial('connections.css');
+    expect(bodyFor(connections, '.asset-picker')).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
+
+    const settings = partial('settings.css');
+    expect(bodyFor(settings, '.sp-resource-menu')).toMatch(/background:\s*var\(--popover\)/);
+
+    const account = partial('account-menu.css');
+    expect(bodyFor(account, '.account-menu')).toMatch(/background:\s*var\(--ast-surface-menu\)/);
+
+    const dark = partial('dark-mode.css');
+    for (const selector of ["html[data-theme='dark'] .app-menu-content", "html[data-theme='dark'] .account-menu"]) {
+      expect(bodyFor(dark, selector), selector).toMatch(/background:\s*var\(--background\)/);
+    }
+  });
+
+  it('keeps informational token and login panels neutral while actions retain blue', () => {
+    const timeline = partial('timeline.css');
+    const tokenTile = bodyFor(timeline, '.trace-kind-kpis .trace-token-kpi');
+    expect(tokenTile).toMatch(/border-color:\s*var\(--ast-border-input\)/);
+    expect(tokenTile).toMatch(/background:\s*var\(--card\)/);
+    expect(tokenTile).not.toMatch(/--(?:ast-blue|primary)|box-shadow/);
+
+    const gate = partial('gate.css');
+    const firstOpen = partial('first-open.css');
+    const session = partial('app-session.css');
+    for (const [css, selector] of [
+      [gate, '.access-gate-panel'],
+      [firstOpen, '.first-open-card'],
+      [session, '.app-session-card'],
+    ] as const) {
+      const panel = bodyFor(css, selector);
+      expect(panel, selector).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
+      expect(panel, selector).toMatch(/border:\s*1px solid var\(--ast-(?:border-input|hairline)\)/);
+      expect(panel, selector).not.toMatch(/border-top|--(?:ast-blue|primary)/);
+    }
+    expect(bodyFor(gate, '.access-gate-primary')).toMatch(
+      /border-color:\s*var\(--primary\)[\s\S]*background:\s*var\(--primary\)/
+    );
+    const sessionAction = session.match(/\.app-session-card :is\(button, a\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(sessionAction).toMatch(/border:\s*1px solid var\(--primary\)[\s\S]*background:\s*var\(--primary\)/);
+
+    for (const [css, selector] of [
+      [firstOpen, '.first-open-card.ast-dialog-panel:focus'],
+      [firstOpen, '.first-open-card.ast-dialog-panel:focus-visible'],
+      [gate, '.access-gate-panel.ast-dialog-panel:focus'],
+      [gate, '.access-gate-panel.ast-dialog-panel:focus-visible'],
+      [contract, '.ast-dialog-panel[data-ast-dialog-panel]:focus'],
+      [contract, '.ast-dialog-panel[data-ast-dialog-panel]:focus-visible'],
+    ] as const) {
+      expect(bodyFor(css, selector), selector).toMatch(/outline:\s*none/);
+    }
+
+    expect(partial('base.css')).toMatch(/\n:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-blue\)/);
+    expect(partial('dark-mode.css')).toMatch(
+      /html\[data-theme='dark'\] :focus-visible\s*\{[^}]*outline:\s*1px solid var\(--ast-ice-accent\)/
+    );
+    expect(bodyFor(firstOpen, '.fo-continue')).toMatch(/background:\s*var\(--ast-blue\)/);
+    const loginChrome = bodyFor(contract, '.ast-login-panel');
+    expect(loginChrome).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
+    expect(loginChrome).toMatch(/border:\s*1px solid var\(--ast-border-input\)/);
+    expect(loginChrome).toMatch(/outline:\s*none/);
+    expect(loginChrome).toMatch(
+      /box-shadow:\s*0 18px 48px color-mix\(in oklab, var\(--db-ink-deep\) 16%, transparent\)/
+    );
+    expect(loginChrome).not.toMatch(/--(?:ast|db)-blue|--primary/);
+    for (const selector of [
+      '.ast-login-panel:focus',
+      '.ast-login-panel:focus-visible',
+      '.ast-login-panel:focus-within',
+      ".ast-login-panel[aria-busy='true']",
+    ]) {
+      expect(bodyFor(contract, selector), selector).toBe(loginChrome);
+    }
+    for (const selector of ['.ast-login-panel::before', '.ast-login-panel::after']) {
+      const pseudo = bodyFor(contract, selector);
+      expect(pseudo, selector).toMatch(/background:\s*none/);
+      expect(pseudo, selector).toMatch(/border:\s*0/);
+      expect(pseudo, selector).toMatch(/outline:\s*none/);
+      expect(pseudo, selector).toMatch(/box-shadow:\s*none/);
+    }
+    const outlineSuppressions = [...withoutComments(`${firstOpen}\n${contract}`).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, , body]) => /outline:\s*none/.test(body))
+      .flatMap(([, selectors]) => selectors.split(',').map((selector) => selector.trim()));
+    expect(outlineSuppressions).toEqual(
+      expect.arrayContaining([
+        '.ast-dialog-panel[data-ast-dialog-panel]:focus',
+        '.ast-dialog-panel[data-ast-dialog-panel]:focus-visible',
+        '.first-open-card.ast-dialog-panel:focus',
+        '.first-open-card.ast-dialog-panel:focus-visible',
+        '.ast-login-panel',
+      ])
+    );
+    expect(outlineSuppressions.every((selector) => !/\b(?:button|a|input|select|textarea)\b/.test(selector))).toBe(
+      true
+    );
+  });
+});
+
+describe('static background and chrome layers', () => {
+  const astrolabe = partial('astrolabe-tokens.css');
+  const shell = partial('shell.css');
+  const base = partial('base.css');
+
+  it('orders page, sticky chrome, dialogs, and menus explicitly without a starfield layer', () => {
+    const sky = tokenNumber(astrolabe, '--ast-layer-sky');
+    const page = tokenNumber(astrolabe, '--ast-layer-page');
+    const chrome = tokenNumber(astrolabe, '--ast-layer-chrome');
+    const dialog = tokenNumber(astrolabe, '--ast-layer-dialog');
+    const menu = tokenNumber(astrolabe, '--ast-layer-menu');
+    expect(sky).toBeLessThan(page);
+    expect(page).toBeLessThan(chrome);
+    expect(chrome).toBeLessThan(dialog);
+    expect(dialog).toBeLessThan(menu);
+
+    const layout = source('Layout.tsx');
+    expect(layout).not.toContain('<StarField');
+    expect(layout).not.toContain('data-star-motion-field');
+    expect(layout).not.toContain('ConstellationField');
+    expect(bodyFor(base, '[data-radix-popper-content-wrapper]')).toMatch(/z-index:\s*var\(--ast-layer-menu\)/);
+  });
+
+  it('practically occludes scrolled content across the header and safe-area edge', () => {
+    const header = bodyFor(shell, '.app-header');
+    expect(header).toMatch(/position:\s*sticky/);
+    expect(header).toMatch(/inset-block-start:\s*0/);
+    expect(header).toMatch(/z-index:\s*var\(--ast-layer-chrome\)/);
+    expect(header).toMatch(/isolation:\s*isolate/);
+    expect(header).toMatch(/width:\s*100%/);
+    expect(header).toMatch(/padding:\s*var\(--app-header-safe-top\)/);
+    expect(header).toMatch(/background-color:\s*var\(--ast-surface-chrome\)/);
+    expect(header).toMatch(/backdrop-filter:\s*none/);
+    expect(header).not.toMatch(/background[^;]*rgba|blur\(/);
+
+    const occlusion = bodyFor(shell, '.app-header::before');
+    expect(occlusion).toMatch(/inset:\s*0/);
+    expect(occlusion).toMatch(/z-index:\s*-1/);
+    expect(occlusion).toMatch(/background:\s*var\(--ast-surface-chrome\)/);
+    expect(occlusion).toMatch(/pointer-events:\s*none/);
+    expect(bodyFor(base, 'html')).toMatch(/scroll-padding-top:\s*var\(--app-header-h\)/);
+    const chromeTransmission = (1 - tokenMix(astrolabe, '--ast-surface-chrome') / 100) ** 2;
+    expect(chromeTransmission).toBeLessThanOrEqual(0.00011);
+  });
+
+  it('keeps Ask on a single static fill regardless of animation preferences', () => {
+    const rail = partial('rail.css');
+    expect(bodyFor(rail, '.ask-layout')).toMatch(/background-color:\s*var\(--ast-sky-fill\)/);
+    expect(rail).not.toContain('background-image: radial-gradient');
+    expect(source('Layout.tsx')).not.toContain('data-background-graphics');
+  });
+
+  it('gives every body-portal dialog a strong shared overlay and elevated panel', () => {
+    const markup = renderToStaticMarkup(
+      <Dialog overlayClassName="sample-overlay" contentClassName="sample-panel" labelledBy="dialog-title">
+        <h2 id="dialog-title">Dialog</h2>
+      </Dialog>
+    );
+    expect(markup).toContain('sample-overlay ast-dialog-overlay');
+    expect(markup).toContain('data-ast-dialog-overlay=""');
+    expect(markup).toContain('sample-panel ast-dialog-panel');
+    expect(markup).toContain('data-ast-dialog-panel=""');
+    expect(markup).toContain('tabindex="-1"');
+    const dialog = source('Dialog.tsx');
+    expect(dialog).toContain('(initialFocusRef?.current ?? content).focus()');
+    expect(dialog).toContain('tabIndex: -1');
+  });
+});

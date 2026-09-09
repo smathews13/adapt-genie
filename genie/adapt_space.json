@@ -1,0 +1,72 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {"id": "10000000000000000000000000000001", "question": ["What were total net revenue and units sold by label over the last 90 days?"]},
+      {"id": "10000000000000000000000000000002", "question": ["Which titles have the most wishlist additions this quarter?"]},
+      {"id": "10000000000000000000000000000003", "question": ["Show wishlist adds, deletes, and purchases by country for WWE 2K25"]},
+      {"id": "10000000000000000000000000000004", "question": ["Which languages drive the most wishlist activity across the catalog?"]},
+      {"id": "10000000000000000000000000000005", "question": ["Compare impressions, visits, and click-through rate by title for the last month"]}
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {"identifier": "<catalog>.<schema>.pub_steam_visibility_with_t2_rollup"},
+      {"identifier": "<catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier"},
+      {"identifier": "<catalog>.<schema>.pub_steam_wishlist_by_language_with_t2_hier"},
+      {"identifier": "<catalog>.<schema>.txn_steam_analytics_with_sales"},
+      {"identifier": "<catalog>.<schema>.txn_steam_sales_with_analytics"}
+    ]
+  },
+  "instructions": {
+    "example_question_sqls": [
+      {
+        "id": "20000000000000000000000000000001",
+        "question": ["What were total net revenue and units sold by label over the last 90 days?"],
+        "sql": [
+          "SELECT LABEL,\n",
+          "       ROUND(SUM(NET_REV_USD_AMT), 2) AS net_revenue_usd,\n",
+          "       SUM(UNIT_QTY) AS units_sold\n",
+          "FROM <catalog>.<schema>.txn_steam_sales_with_analytics\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM <catalog>.<schema>.txn_steam_sales_with_analytics), 90)\n",
+          "GROUP BY LABEL\n",
+          "ORDER BY net_revenue_usd DESC"
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000002",
+        "question": ["Which titles have the most wishlist additions this quarter?"],
+        "sql": [
+          "SELECT TITLE_ROLL_UP_DESC,\n",
+          "       SUM(WISHLIST_ADDS) AS wishlist_adds\n",
+          "FROM <catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM <catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier), 90)\n",
+          "GROUP BY TITLE_ROLL_UP_DESC\n",
+          "ORDER BY wishlist_adds DESC\n",
+          "LIMIT 10"
+        ]
+      }
+    ],
+    "text_instructions": [
+      {
+        "id": "30000000000000000000000000000001",
+        "content": [
+          "This space answers digital-storefront sales, marketing, and demand questions for the customer publishing labels (2K, Rockstar Games, Private Division, Ghost Story Games) on the Steam platform. Return aggregates, name the source table and grain, and never invent whether the data is real, demo, or generated.\n",
+          "\n",
+          "TABLE GUIDE.\n",
+          "- txn_steam_sales_with_analytics: the sales fact. One row per DATE, item (ITEM_NUM / ITEM_DESC), and title. Use this for revenue (NET_REV_USD_AMT, USD, already net) and units (UNIT_QTY). It also carries the marketing columns (impressions, visits, click_thru_rate, wishlist_*) joined to each sold item. This is the DEFAULT table for revenue and 'sales' questions.\n",
+          "- txn_steam_analytics_with_sales: the marketing-analytics fact at the same date/item/title grain, currently all PRODUCT_TYPE_DESC = 'Full Game - Digital'. Prefer it for storefront funnel metrics (IMPRESSIONS, VISITS, CLICK_THRU_RATE, PERCENT_TOTAL_IMPRESSIONS, PERCENT_TOTAL_VISITS, OUTSTANDING_WISHES). For pure revenue prefer txn_steam_sales_with_analytics; do not sum revenue across both tables.\n",
+          "- pub_steam_wishlist_by_country_with_t2_hier: wishlist demand by DATE, APP_ID, and COUNTRY (COUNTRY_CODE, COUNTRY_NAME, REGION). Metrics: WISHLIST_ADDS, WISHLIST_DELETES, WISHLIST_PURCHASES, WISHLIST_GIFTS, plus per-OS adds (WISHLIST_ADDS_WINDOWS / _MAC / _LINUX). Use for geography and platform questions.\n",
+          "- pub_steam_wishlist_by_language_with_t2_hier: the same wishlist demand by DATE, APP_ID, and LANGUAGE (LANGUAGE_ID, LANGUAGE_NAME). Use for language questions. Do NOT add country and language totals together; they are two breakdowns of the same underlying wishlist activity.\n",
+          "- pub_steam_visibility_with_t2_rollup: store-page visibility by DATE, APP_ID, APPLICATION, PAGE_CATEGORY, PAGE_FEATURE. Metrics: IMPRESSIONS, VISITS, OWNER_IMPRESSIONS, OWNER_VISITS. Use for store-surface exposure questions.\n",
+          "\n",
+          "PRODUCT HIERARCHY (all tables share it, as code + description pairs): LABEL/LABEL_DESC is the publishing label; FRANCHISE_CODE/FRANCHISE_DESC; BRAND_CODE/BRAND_DESC; TITLE_ROLL_UP_CODE/TITLE_ROLL_UP_DESC groups editions of one game; and in the txn tables TITLE_CODE/TITLE_DESC is the specific SKU/edition. Note the sales/analytics tables expose the label as LABEL (a plain string), while the pub_* tables expose LABEL_CODE/LABEL_DESC. Resolve a title the user names against TITLE_DESC or TITLE_ROLL_UP_DESC (read the distinct values first) rather than guessing an abbreviation, and state which grain you grouped by.\n",
+          "\n",
+          "TIME. The data spans roughly 2025-09-01 through the latest DATE in each table. Anchor every relative window ('last 30 days', 'this quarter', 'recent') to the MAX(DATE) in the table being queried, never to current_date(): measured from today the window would silently cover only the aged part of itself, or none of it. Never sum a daily count across dates when a question is asked at title or label grain without first stating the grain; totals over date are fine for cumulative metrics like adds or revenue but are per-day counts otherwise.\n",
+          "\n",
+          "METRIC DEFINITIONS. NET_REV_USD_AMT is net revenue in USD and is already netted, so do not re-net or filter it further. CLICK_THRU_RATE is a ratio already computed per row; average it weighted by IMPRESSIONS rather than taking a plain mean across rows. The wishlist funnel is ADDS (intent) minus DELETES, with PURCHASES and GIFTS as conversions and OUTSTANDING_WISHES as the standing backlog; when asked about 'wishlist conversion' relate PURCHASES to ADDS. Region membership lives in REGION on the country table; state it rather than assuming which countries a region contains."
+        ]
+      }
+    ]
+  }
+}

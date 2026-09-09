@@ -310,7 +310,7 @@ describe('fast read semantics', () => {
     expect(page.freshness).toMatchObject({
       isRefreshing: false,
       isStale: false,
-      calculationVersion: 1,
+      calculationVersion: USER_SPEND_CALCULATION_VERSION,
       billingCompleteThrough: '2026-08-31',
     });
     expect(READ_USER_SPEND_SUMMARY_QUERY).toContain('FROM player_insights.admin_emails');

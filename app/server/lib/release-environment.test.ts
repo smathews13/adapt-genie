@@ -126,6 +126,10 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
       PLAYER_INSIGHTS_TELEMETRY_SCHEMA: 'customer_catalog.adapt_telemetry',
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
+      PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
+      PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'true',
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
     };
     const releaseEnv: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: 'customer',

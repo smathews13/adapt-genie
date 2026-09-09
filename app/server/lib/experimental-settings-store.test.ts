@@ -36,6 +36,7 @@ describe('deployment-wide Experimental settings', () => {
       benchmarkLab: false,
       egressControls: false,
       forecasting: true,
+      genieCodeMcp: false,
       notebookAgentSync: false,
     });
     expect(db.row).toBeNull();
@@ -53,13 +54,13 @@ describe('deployment-wide Experimental settings', () => {
     const db = new MemoryExperimentalDb();
     const on = await writeExperimentalSettings(
       db as never,
-      { benchmarkLab: true, egressControls: true, forecasting: true, notebookAgentSync: true },
+      { benchmarkLab: true, egressControls: true, forecasting: true, genieCodeMcp: true, notebookAgentSync: true },
       0,
       'admin'
     );
     const off = await writeExperimentalSettings(
       db as never,
-      { benchmarkLab: false, egressControls: false, forecasting: false, notebookAgentSync: false },
+      { benchmarkLab: false, egressControls: false, forecasting: false, genieCodeMcp: false, notebookAgentSync: false },
       on.revision,
       'admin'
     );
@@ -67,6 +68,7 @@ describe('deployment-wide Experimental settings', () => {
       benchmarkLab: false,
       egressControls: false,
       forecasting: false,
+      genieCodeMcp: false,
       notebookAgentSync: false,
     });
   });
@@ -88,6 +90,7 @@ describe('deployment-wide Experimental settings', () => {
       benchmarkLab: true,
       egressControls: false,
       forecasting: true,
+      genieCodeMcp: false,
       notebookAgentSync: false,
     });
     const saved = await writeExperimentalSettings(db as never, { forecasting: false }, 7, 'admin');

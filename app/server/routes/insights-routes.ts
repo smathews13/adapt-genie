@@ -5552,18 +5552,17 @@ export function setupInsightsRoutes(
         // facts this server knows about the request and neither is part of the
         // agent's answer contract: folding them in would make every stored run
         // report fields the answer schema does not declare.
+        // The answer message and run ledger must agree before success reaches
+        // the caller. Deferring this until after the response can strand a
+        // successful run as nonterminal when the process exits or the write
+        // fails, leaving Run Explorer and attempt accounting inconsistent.
+        await settleRun(appkit, admission, settlement);
         reply.json({
           type: 'answer',
           ...disclosed,
           runStored,
           runId: admission.run?.runId ?? identity.requestId,
           execution_identity: executionIdentityClaim(identity),
-        });
-        // The answer and its durable message are complete. Advancing the run
-        // ledger through synthetic intermediate states must not hold the answer
-        // behind several additional Lakebase round trips.
-        void settleRun(appkit, admission, settlement).catch((error) => {
-          console.warn('[runs] Post-response settlement failed:', (error as Error).message);
         });
       } finally {
         clearTimeout(deadlineTimer);

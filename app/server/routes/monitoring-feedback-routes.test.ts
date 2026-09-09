@@ -219,6 +219,8 @@ describe('Monitoring feedback route', () => {
       'consumer',
       'example.com',
       'Approved the proposed analysis plan.',
+      expect.any(Array),
+      expect.any(Array),
     ]);
     expect(responseBody).toMatchObject({
       summary: { total: 1, helpful: 0, notHelpful: 1, comments: 1 },

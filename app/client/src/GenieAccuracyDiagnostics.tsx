@@ -4,6 +4,7 @@ import { BenchButton, GenieStatTiles, LabSurface } from './BenchmarkLabChrome';
 import { MATCHING_POLICY_REFERENCE, mlflowTraceHref } from '../../shared/benchmark-lab-v3';
 import type { GenieAccuracyCaseView, GenieAccuracyRunView } from '../../shared/eval-genie-run';
 import type { EvaluationLabModel } from './use-evaluation-lab';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 
 function formatSuiteDuration(startedAt: string, finishedAt: string): string {
   const ms = Date.parse(finishedAt) - Date.parse(startedAt);
@@ -171,7 +172,7 @@ export function GenieStageControls({ lab }: { lab: EvaluationLabModel }) {
           disabled={lab.busy === 'genie' || !lab.spaceId}
           title={!lab.spaceId ? 'Connect a Genie space on Connections first.' : undefined}
         >
-          {lab.busy === 'genie' ? 'Asking Genie' : 'Run complete suite'}
+          <AdaptBusyButtonContent busy={lab.busy === 'genie'} label="Run complete suite" busyLabel="Asking Genie" />
         </BenchButton>
         <BenchButton
           onClick={() => void lab.runSuite('partial')}

@@ -11,7 +11,7 @@ import type { ConnectionReading } from './connection-model';
 import { AppSelect } from './AppSelect';
 import { BrandIcon } from './BrandIcon';
 import { Badge, Button, Input } from './ui';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { ConnectionStateBadge } from './ConnectionStateBadge';
 
 const CAPABILITIES: Array<[keyof AiGatewayCandidate['capabilities'], string]> = [
@@ -195,9 +195,8 @@ export function AiGatewayConnection({
           </span>
         </span>
         {refreshing ? (
-          <AstrolabeLoadingLabel
+          <AdaptLoader
             as="span"
-            seat="status"
             announce={false}
             className="connection-row-status-loader"
             label="Checking AI Gateway"
@@ -218,7 +217,7 @@ export function AiGatewayConnection({
       {open ? (
         <div className="connection-row-detail">
           {refreshing ? (
-            <AstrolabeLoadingLabel label="Checking AI Gateway" className="connection-detail-status-loader" />
+            <AdaptLoader label="Checking AI Gateway" className="connection-detail-status-loader" />
           ) : (
             <dl className="connection-details">
               <div className="connection-detail">
@@ -346,11 +345,7 @@ export function AiGatewayConnection({
                   aria-busy={busy || undefined}
                   onClick={() => void stage()}
                 >
-                  {busy ? (
-                    <AstrolabeLoadingLabel as="span" announce={false} label="Validating" />
-                  ) : (
-                    'Stage for agent release'
-                  )}
+                  <AdaptBusyButtonContent busy={busy} label="Stage for agent release" busyLabel="Validating" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
                   Cancel

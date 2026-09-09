@@ -82,7 +82,7 @@ import { useSessionChecks } from './session-checks';
 import { fetchWithTimeout } from './fetch-timeout';
 import { databricksLink, type DatabricksObject } from '../../shared/databricks-links';
 import { entityHref } from './data-entities';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 
 interface ArchitecturePayload {
   workspaceHost: string;
@@ -230,7 +230,7 @@ function ArchitectureNodeCard({
       </span>
       <span className="arch-node-pills">
         {checking && node.presence === 'connection' ? (
-          <AstrolabeLoadingLabel
+          <AdaptLoader
             as="span"
             announce={false}
             className="arch-node-status-loader"

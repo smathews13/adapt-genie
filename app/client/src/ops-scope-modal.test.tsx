@@ -70,7 +70,8 @@ describe('the Ops catalog scope modal', () => {
   it('keeps a table shell, compact loader, and close control during the first page', () => {
     const markup = renderToStaticMarkup(<OpsScopeModal {...props({ rows: [], page: null, busy: true })} />);
     expect(markup).toContain('ops-scope-skeleton-row');
-    expect(markup).toContain('Checking…');
+    expect(markup).toContain('Checking scopes');
+    expect(markup).toContain('adapt-button-mark');
     expect(markup).toContain('Close Catalog scopes');
     expect(markup).not.toContain('No matching catalog assets.');
     expect(STYLES).toMatch(/\.ops-scope-skeleton-row td\s*\{[^}]*height:/);
@@ -110,9 +111,10 @@ describe('the Ops catalog scope modal', () => {
     const idle = renderToStaticMarkup(<CheckScopesButton busy={false} onClick={() => {}} />);
     const busy = renderToStaticMarkup(<CheckScopesButton busy onClick={() => {}} />);
     expect(idle).toContain('Check all scopes');
-    expect(idle).toContain('data-variant="default"');
-    expect(busy).toContain('Checking…');
-    expect(busy).toContain('ast-flick-slot--button');
+    expect(idle).toContain('data-variant="destructive"');
+    expect(busy).toContain('Checking');
+    expect(busy).toContain('adapt-button-mark');
+    expect(busy).not.toContain('ast-flick-slot');
     expect(STYLES).toMatch(/\.ops-scope-check-button\s*\{[^}]*width:\s*132px[^}]*min-width:\s*132px/);
     expect(STYLES).toMatch(/\.ops-scope-status\[data-scope-status='in'\][^]*var\(--ast-pos-text\)/);
     expect(STYLES).toMatch(/\.ops-scope-status\[data-scope-status='out'\][^]*var\(--ast-neg-text\)/);

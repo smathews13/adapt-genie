@@ -96,7 +96,9 @@ describe('the admin cancellation control', () => {
     expect(source).toContain(
       '<AdaptBusyButtonContent busy={busy} label="Stop all active runs" busyLabel="Stopping" />'
     );
-    expect(OPS_STYLES).toMatch(/\.ops-stop-all strong\s*\{[^}]*color:\s*var\(--db-red-700\)/);
+    expect(OPS_STYLES).toMatch(
+      /\.ops-stop-all strong,\s*\.ops-admin-action strong\s*\{[^}]*color:\s*var\(--db-red-700\)/
+    );
     expect(OPS_STYLES).toMatch(/\.ops-stop-all strong,\s*\.ops-admin-action strong\s*\{[^}]*font-weight:\s*800/);
   });
 
@@ -109,14 +111,13 @@ describe('the admin cancellation control', () => {
     expect(source).toContain("fetch('/api/admin/runs/cancel-all'");
   });
 
-  it('puts the only scope action in its neutral admin box', () => {
+  it('puts the only scope action in its red admin box', () => {
     const admin = markupOf(<ScopeAdminControl action={<CheckScopesButton busy={false} onClick={() => {}} />} />);
     expect(admin).toContain('ADMIN');
     expect(admin).toContain('Compare user and app catalog access.');
-    expect(admin.match(/Check all scopes/g)).toHaveLength(1);
+    expect(admin.match(/ops-scope-check-button/g)).toHaveLength(1);
     expect(admin).toContain('ops-admin-action-scope');
-    expect(admin).toContain('data-variant="default"');
-    expect(admin).not.toContain('data-variant="destructive"');
+    expect(admin).toContain('data-variant="destructive"');
     const toolbar = render(<HealthBody block={block(health())} />);
     expect(toolbar).not.toContain('Check all resources');
     expect(toolbar).not.toContain('Check all scopes');

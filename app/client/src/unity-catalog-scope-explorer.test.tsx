@@ -33,10 +33,10 @@ describe('the Unity Catalog scope explorer', () => {
     expect(markup).toContain('Live Genie curation remains the model manifest source of truth');
     expect(markup).toContain('until the agent is logged again');
     expect(markup).toContain('placeholder="Search names or qualified paths"');
-    expect(markup).toContain('aria-label="Filter Unity Catalog results by type"');
+    expect(markup).toContain('aria-label="Filter Unity Catalog results by type: All asset types"');
     expect(markup).toContain('All asset types');
-    expect(markup).toContain('Schemas only');
-    expect(markup).toContain('Tables and views only');
+    expect(SOURCE).toContain("{ value: 'schema', label: 'Schemas only' }");
+    expect(SOURCE).toContain("{ value: 'table', label: 'Tables and views only' }");
     expect(markup).toContain('>Cancel<');
     expect(markup).toContain('>Save<');
     expect(markup).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*?Save[\s\S]*?<\/button>/);
@@ -55,11 +55,11 @@ describe('the Unity Catalog scope explorer', () => {
   });
 
   it('selects and unselects by normalized logical identity without writing', () => {
-    const selection = { resourceType: 'schema' as const, value: 'Main.Analytics_Data', label: 'Analytics data' };
+    const selection = { resourceType: 'schema' as const, value: 'Main.CMEG_Demos', label: 'CMEG Demos' };
     const selected = toggledUnityCatalogSelection(new Map(), selection);
-    expect(selected.has('schema:main.analytics_data')).toBe(true);
+    expect(selected.has('schema:main.cmeg_demos')).toBe(true);
     expect(toggledUnityCatalogSelection(selected, selection).size).toBe(0);
-    expect(unityCatalogSelectionKey(selection)).toBe('schema:main.analytics_data');
+    expect(unityCatalogSelectionKey(selection)).toBe('schema:main.cmeg_demos');
   });
 
   it('derives each canonical resource value only from its hierarchy level', () => {

@@ -1,0 +1,1 @@
+var e=new Set([`judge-endpoint`,`genie-dictionary`]);function t(t){return e.has(t)}function n(t,n){return e.has(t)}export{n,t};

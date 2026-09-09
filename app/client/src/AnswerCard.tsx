@@ -37,6 +37,7 @@ import {
   TabsList,
   TabsTrigger,
 } from './ui';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import { Check, ChevronDown, CircleAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { AnswerEvidence } from './AnswerEvidence';
 import { AstrolabeMark } from './AstrolabeMark';
@@ -500,7 +501,7 @@ export function AnswerCard({
                   aria-label="Tell us what could be better"
                 />
                 <Button size="sm" disabled={feedback.saving} onClick={() => void saveFeedback('down')}>
-                  {feedback.saving ? 'Saving…' : 'Save feedback'}
+                  <AdaptBusyButtonContent busy={feedback.saving} label="Save feedback" busyLabel="Saving" />
                 </Button>
               </div>
             )}

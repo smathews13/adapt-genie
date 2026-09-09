@@ -87,7 +87,7 @@
     grid-template-columns: 1fr;
     margin: 10px 14px 0;
   }
-  .uc-explorer-type-filter select {
+  .uc-explorer-type-filter {
     width: 100%;
   }
   .uc-explorer-footer {

@@ -369,8 +369,8 @@ describe('the super admin reads the roster', () => {
     const confirm = vi.fn((groupName: string) =>
       Promise.resolve({
         groupName,
-        groupId: groupName === 'existing-team' ? 'group-existing' : '',
-        exists: groupName === 'existing-team',
+        groupId: groupName === 'missing-team' ? '' : `group-${groupName}`,
+        exists: groupName !== 'missing-team',
         readable: true,
       })
     );
@@ -404,9 +404,13 @@ describe('the super admin reads the roster', () => {
     expect((await app.groupMembers(LEAD, 'existing-team')).status).toBe(200);
     expect(members).toHaveBeenCalledWith('existing-team');
 
-    const immutable = await app.mapGroup(LEAD, 'S_TK2_Databricks_Adapt_Genie_Admins', 'consumer');
-    expect(immutable.status).toBe(409);
-    expect(store.rows.groups).toHaveLength(1);
+    const configured = await app.mapGroup(LEAD, 'S_TK2_Databricks_Adapt_Genie_Admins', 'consumer');
+    expect(configured.status).toBe(200);
+    expect(store.rows.groups).toHaveLength(2);
+    const configuredPayload = (await configured.json()) as RosterPayload;
+    expect(
+      configuredPayload.groupRoleDefaults?.find((row) => row.groupName === 'S_TK2_Databricks_Adapt_Genie_Admins')
+    ).toMatchObject({ source: 'stored', role: 'consumer', appPermission: 'CAN_USE' });
   });
 
   it('runs no grant, so the roster appears without waiting on a warehouse', async () => {

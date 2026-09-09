@@ -497,7 +497,8 @@ describe('resource discovery loading', () => {
   it('shows one concise live ADAPT loading state', () => {
     const markup = panel('sql-warehouse', null, { loading: true });
     expect(markup).toContain('role="status"');
-    expect(markup).toContain('ast-anim-flick');
+    expect(markup).toContain('adapt-button-mark');
+    expect(markup).not.toContain('ast-anim-flick');
     expect(text(markup)).toContain('Finding resources your sign-in can access');
     expect(markup).not.toContain('asset-picker-rows');
   });

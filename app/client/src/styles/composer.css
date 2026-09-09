@@ -383,7 +383,7 @@
    * it to move.
    */
   transform: none !important;
-  animation: pia-progress-sweep 1.4s ease-in-out infinite;
+  animation: adapt-progress-sweep 1.4s ease-in-out infinite;
   /* Blue, because §1 moves the whole agent-at-work register there: "the in-flight
      bar" is named in the same breath as the live pill and the active step edge,
      and §2 has no orange in the palette at all. The note here used to argue that
@@ -393,7 +393,7 @@
      better on AppKit's track than it did, and it is still a filled mass. */
   background: var(--ast-blue);
 }
-@keyframes pia-progress-sweep {
+@keyframes adapt-progress-sweep {
   0% {
     margin-inline-start: -40%;
   }

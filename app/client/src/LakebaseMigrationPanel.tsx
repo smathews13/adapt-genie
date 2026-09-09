@@ -2,7 +2,7 @@ import { CircleAlert } from 'lucide-react';
 
 import type { LakebaseMigrationReadiness } from '../../shared/lakebase-migrations';
 import type { LakebaseMigrationClientState } from './lakebase-migration-status';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import { Badge, Button } from './ui';
 
 function safeFailure(value: LakebaseMigrationReadiness): string {
@@ -59,11 +59,7 @@ export function LakebaseMigrationPanel({
           {state.error ? <p className="lakebase-migration-error">{state.error}</p> : null}
         </div>
         <Button disabled={applying || !value.canApply} onClick={onApply}>
-          {applying ? (
-            <AstrolabeLoadingLabel as="span" announce={false} label="Updating Lakebase" />
-          ) : (
-            'Update Lakebase'
-          )}
+          <AdaptBusyButtonContent busy={applying} label="Update Lakebase" busyLabel="Updating Lakebase" />
         </Button>
       </div>
     );
@@ -87,11 +83,7 @@ export function LakebaseMigrationPanel({
       </div>
       {value.canApply ? (
         <Button disabled={applying} onClick={onApply}>
-          {applying ? (
-            <AstrolabeLoadingLabel as="span" announce={false} label="Updating Lakebase" />
-          ) : (
-            'Update Lakebase'
-          )}
+          <AdaptBusyButtonContent busy={applying} label="Update Lakebase" busyLabel="Updating Lakebase" />
         </Button>
       ) : null}
     </div>

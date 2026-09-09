@@ -64,6 +64,7 @@ import { runRuntimeUsedFromStored, type RunRuntimeUsed } from '../../shared/run-
 import { organizationForEmail, parseOrganizationMappings } from '../../shared/organization-mapping';
 import {
   isAdminRoute,
+  groupRoleLookupForStore,
   recordAdminAction,
   requireAdmin,
   requireSuperAdmin,
@@ -147,7 +148,6 @@ import { createAskResponder } from '../lib/ask-responder';
 import { allowAdaptUserApiScopes } from '../lib/app-user-api-scopes';
 import { isOptionalUserApiScope } from '../../shared/optional-user-api-scopes';
 import { readControlPlaneIdentityMetadata, type ControlPlaneReader } from '../lib/control-plane-identity';
-import { adaptGroupRole } from '../lib/adapt-group-roles';
 import {
   accessDecisionFor,
   accessModeFor,
@@ -3416,10 +3416,7 @@ export function setupInsightsRoutes(
 
   const storeReady = prepareStore(appkit);
   const idleConfig = options.appSessionConfig ?? resolveIdleTimeout();
-  const readGroupRole = (email: string) =>
-    options.identityControlPlaneReader
-      ? adaptGroupRole(email, options.identityControlPlaneReader)
-      : adaptGroupRole(email);
+  const readGroupRole = groupRoleLookupForStore(appkit.lakebase, options.identityControlPlaneReader);
 
   // Reads are what the pages depend on, and a `CREATE TABLE IF NOT EXISTS` that
   // succeeds says nothing about whether the store still answers minutes later.

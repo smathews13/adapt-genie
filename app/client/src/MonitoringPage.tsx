@@ -1985,7 +1985,7 @@ export function UserMonitoringPanel({
                 Clear filters
               </Button>
             ) : null}
-            {refreshing ? <span className="monitoring-users-refreshing">Refreshing…</span> : null}
+            {refreshing ? <AdaptLoader label="Refreshing users" className="monitoring-users-refreshing" /> : null}
           </div>
         </div>
 
@@ -1994,10 +1994,7 @@ export function UserMonitoringPanel({
             {state.error}
           </p>
         ) : state.status === 'loading' || state.status === 'idle' ? (
-          <div className="monitoring-users-loading" role="status">
-            <Users className="monitoring-users-loading-icon ast-anim-center-pulse" aria-hidden="true" />
-            <span>Loading users</span>
-          </div>
+          <AdaptLoader label="Loading users" className="monitoring-users-loading" />
         ) : !payload ? (
           <p className="monitoring-users-state" role="status">
             User activity is available only when the server-authorized spend snapshot can be read.

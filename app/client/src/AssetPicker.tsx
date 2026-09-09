@@ -36,7 +36,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, Search } from 'lucide-react';
 import { Button, Input } from './ui';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import type { BrowseItem, BrowseResponse } from '../../shared/browse-contract';
 import {
   pickerForField,
@@ -370,7 +370,11 @@ export function AssetPickerPanel({
 
       {loading ? (
         <div data-testid="asset-picker-loading">
-          <AstrolabeLoadingLabel label="Finding resources your sign-in can access" className="asset-picker-loading" />
+          <AdaptLoader
+            label="Finding resources your sign-in can access"
+            variant="compact"
+            className="asset-picker-loading"
+          />
         </div>
       ) : null}
 
@@ -478,7 +482,7 @@ export function AssetPickerPanel({
             aria-label={`Load more ${spec.title.toLowerCase()}`}
             onClick={onMore}
           >
-            {loadingMore ? 'Loading\u2026' : 'Load more'}
+            <AdaptBusyButtonContent busy={loadingMore} label="Load more" busyLabel="Loading" />
           </Button>
         </div>
       ) : null}

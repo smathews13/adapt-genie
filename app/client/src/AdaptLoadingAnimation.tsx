@@ -89,21 +89,23 @@ export function AdaptLoader({
   variant = 'inline',
   className = '',
   announce = true,
+  as: Element = 'div',
 }: {
   label: string;
   variant?: 'inline' | 'compact' | 'panel';
   className?: string;
   announce?: boolean;
+  as?: 'div' | 'span';
 }) {
   return (
-    <div
+    <Element
       className={`adapt-loader adapt-loader--${variant}${className ? ` ${className}` : ''}`}
       role={announce ? 'status' : undefined}
       aria-label={announce ? label : undefined}
     >
       <AdaptBusyMark />
       <span aria-hidden="true">{label}</span>
-    </div>
+    </Element>
   );
 }
 

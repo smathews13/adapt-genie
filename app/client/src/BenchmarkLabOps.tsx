@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { astPill } from './astrolabe-pill';
 import { BenchButton, LabSurface } from './BenchmarkLabChrome';
 import { EntityText } from './DataEntityLinks';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import {
   applyLabCandidate,
   cancelJudgeRun,
@@ -292,7 +293,7 @@ export function BenchmarkApplyStage({
           disabled={!canApply || applying}
           title={!canApply ? applyBlockedReason || undefined : undefined}
         >
-          {applying ? 'Applying…' : 'Apply candidate'}
+          <AdaptBusyButtonContent busy={applying} label="Apply candidate" busyLabel="Applying" />
         </BenchButton>
         <BenchButton onClick={onViewRollback} title="Shows the restore path. Does not roll anything back.">
           View rollback path

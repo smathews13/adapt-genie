@@ -343,7 +343,17 @@ function GroupIdentityLink({ entry, label }: { entry: GroupRoleEntry; label: str
   );
 }
 
-function GroupRoleRow({ entry }: { entry: GroupRoleEntry }) {
+function GroupRoleRow({
+  entry,
+  canManage,
+  busy,
+  onRoleChange,
+}: {
+  entry: GroupRoleEntry;
+  canManage: boolean;
+  busy: boolean;
+  onRoleChange?: (entry: GroupRoleEntry, role: Extract<Role, 'admin' | 'consumer'>) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState<Array<{ email: string; displayName: string }> | null>(null);
@@ -404,7 +414,23 @@ function GroupRoleRow({ entry }: { entry: GroupRoleEntry }) {
           </div>
         </td>
         <td className="roster-role">
-          <RoleBadgePill state={entry.role} />
+          {canManage && onRoleChange ? (
+            <AppSelect
+              label="Group role"
+              ariaLabel={`ADAPT role for ${entry.displayName}`}
+              value={entry.role}
+              disabled={busy}
+              onValueChange={(role) => onRoleChange(entry, role)}
+              options={(['admin', 'consumer'] as const).map((role) => ({
+                value: role,
+                label: roleWord(role),
+                content: <RoleBadgePill state={role} />,
+              }))}
+              className="roster-control roster-role-select group-role-select"
+            />
+          ) : (
+            <RoleBadgePill state={entry.role} />
+          )}
         </td>
         <td>{entry.appPermission === 'CAN_MANAGE' ? 'Can manage' : 'Can use'}</td>
       </tr>
@@ -562,10 +588,14 @@ export function GroupMappingAddRow({
 export function GroupRoleDefaults({
   payload,
   canManage = false,
+  busy = false,
+  onRoleChange,
   footer,
 }: {
   payload: RosterPayload;
   canManage?: boolean;
+  busy?: boolean;
+  onRoleChange?: (entry: GroupRoleEntry, role: Extract<Role, 'admin' | 'consumer'>) => void;
   footer?: ReactNode;
 }) {
   if (!payload.groupRoleDefaults?.length && !footer) return null;
@@ -585,7 +615,13 @@ export function GroupRoleDefaults({
         </thead>
         <tbody>
           {payload.groupRoleDefaults?.map((entry) => (
-            <GroupRoleRow key={entry.groupName} entry={entry} />
+            <GroupRoleRow
+              key={entry.groupName}
+              entry={entry}
+              canManage={canManage}
+              busy={busy}
+              onRoleChange={onRoleChange}
+            />
           ))}
         </tbody>
         {footer ? <tfoot>{footer}</tfoot> : null}
@@ -707,6 +743,16 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     if (added) setGroupDraft('');
   }
 
+  async function changeGroupMapping(entry: GroupRoleEntry, role: Extract<Role, 'admin' | 'consumer'>) {
+    if (entry.role === role || busy) return;
+    setGroupAddError('');
+    await run(
+      () => writeGroupRoleMapping(entry.groupName, role),
+      `${entry.displayName} now maps to ADAPT ${roleWord(role).toLowerCase()}. Databricks App access was not changed.`,
+      { apply: setPayload, onError: setGroupAddError }
+    );
+  }
+
   return (
     <div className="identity-table-content">
       <section className="settings-identity-section" aria-labelledby="human-roles-title">
@@ -717,6 +763,8 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
           <GroupRoleDefaults
             payload={payload}
             canManage={canManageHumanRoles}
+            busy={busy}
+            onRoleChange={(entry, role) => void changeGroupMapping(entry, role)}
             footer={
               canManageHumanRoles ? (
                 <GroupMappingAddRow

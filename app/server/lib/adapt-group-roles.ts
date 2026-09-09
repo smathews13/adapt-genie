@@ -60,6 +60,19 @@ export function configuredGroupRoleMappings(): GroupRoleMapping[] {
   ];
 }
 
+/** Apply stored edits by group name while preserving configured row order. */
+export function mergeGroupRoleMappings(
+  configured: readonly GroupRoleMapping[],
+  stored: readonly GroupRoleMapping[]
+): GroupRoleMapping[] {
+  const merged = new Map(configured.map((mapping) => [normalized(mapping.groupName), { ...mapping }]));
+  for (const mapping of stored) {
+    const key = normalized(mapping.groupName);
+    if (key) merged.set(key, { groupName: mapping.groupName.trim(), role: mapping.role });
+  }
+  return [...merged.values()];
+}
+
 export function roleFromGroupMappings(
   groups: readonly string[],
   mappings: readonly GroupRoleMapping[] = configuredGroupRoleMappings()

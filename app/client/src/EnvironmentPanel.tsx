@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { Check, Copy, ExternalLink, Search } from 'lucide-react';
 import type { EnvironmentInfo, EnvironmentPackage, EnvironmentVariable } from '../../shared/environment-info';
 import { accountConsoleUrlForWorkspace } from '../../shared/databricks-links';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 import { AccessGuideDownload } from './AccessGuideDownload';
 import { AgentCodeRow } from './AgentCodeRow';
 import { filterEnvironmentItems } from './environment-filter';
@@ -238,7 +239,7 @@ export function EnvironmentPanel({
         </>
       ) : null}
 
-      {state === 'loading' ? <p className="settings-status">Loading environment.</p> : null}
+      {state === 'loading' ? <AdaptLoader label="Loading environment" className="settings-status" /> : null}
       {state === 'failed' ? (
         <p className="settings-status settings-error" role="alert">
           Runtime details are not available just now.

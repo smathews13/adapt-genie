@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CONNECTED_RESOURCES, connectedResource } from '../../shared/deployment-config';
 import { isAdaptHiddenConnection } from '../../shared/adapt-surface';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 import type { CheckSession } from './check-session';
 import {
   connectionLoadErrorLabel,
@@ -135,15 +135,15 @@ describe('canonical ADAPT loading geometry', () => {
   it('uses one stable primary loader and no generic skeleton bars', () => {
     expect(connections.match(/data-testid="connections-primary-loader"/g)).toHaveLength(1);
     expect(connections).not.toContain('<Skeleton');
-    const markup = renderToStaticMarkup(<AstrolabeLoadingLabel label="Loading connections" />);
-    expect(markup.match(/class="adapt-button-mark /g)).toHaveLength(1);
+    const markup = renderToStaticMarkup(<AdaptLoader label="Loading connections" variant="compact" />);
+    expect(markup.match(/class="adapt-button-mark"/g)).toHaveLength(1);
   });
 
   it('gives every resource a useful row-local loading label', () => {
     for (const resource of CONNECTED_RESOURCES) {
       const markup = renderToStaticMarkup(<ConnectionLoadRow reading={reading(resource.id)} state="loading" />);
       expect(markup).toContain(`Loading ${resource.label}`);
-      expect(markup.match(/class="adapt-button-mark /g)).toHaveLength(1);
+      expect(markup.match(/class="adapt-button-mark"/g)).toHaveLength(1);
     }
   });
 

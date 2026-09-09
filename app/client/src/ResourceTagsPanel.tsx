@@ -123,7 +123,7 @@ export function ResourceTagResults({
             Recheck
           </Button>
           <Button type="button" variant="outline" disabled={running || clearing} onClick={onClear}>
-            {clearing ? 'Clearing…' : 'Clear'}
+            <AdaptBusyButtonContent busy={clearing} label="Clear" busyLabel="Clearing" />
           </Button>
         </div>
       </div>

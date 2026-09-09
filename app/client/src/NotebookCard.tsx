@@ -21,6 +21,7 @@ import type { NotebookPanel } from './connection-model';
 import { AssetPicker } from './AssetPicker';
 import type { AssetPickerSpec } from './asset-picker';
 import { Button } from './ui';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import { notebookPathView, persistNotebookPath } from './notebook-card-state';
 
 const NOTEBOOK_PICKER: AssetPickerSpec = {
@@ -187,14 +188,14 @@ function NotebookCardContent({
                     <span className="plane-row-value ast-mono" title={draft}>
                       {draft}
                     </span>
-                    <button
+                    <Button
                       type="button"
-                      className="plane-button-primary"
+                      size="sm"
                       disabled={saving || draft === configuredPath}
                       onClick={() => void saveNotebookPath()}
                     >
-                      {saving ? 'Saving…' : 'Save notebook'}
-                    </button>
+                      <AdaptBusyButtonContent busy={saving} label="Save notebook" busyLabel="Saving" />
+                    </Button>
                   </div>
                 ) : null}
                 {saveError ? <span className="plane-error">{saveError}</span> : null}

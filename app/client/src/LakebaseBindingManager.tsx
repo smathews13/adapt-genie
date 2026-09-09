@@ -3,7 +3,7 @@ import { ExternalLink, Pencil, Save } from 'lucide-react';
 
 import { isLakebaseRedeployPlan, type LakebaseRedeployPlan } from '../../shared/lakebase-binding';
 import { AssetPickerField } from './AssetPicker';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { canStageLakebaseBinding, lakebaseBindingDraft } from './lakebase-binding-manager-state';
 import { Button } from './ui';
 
@@ -122,8 +122,12 @@ export function LakebaseBindingPanel({
           <AssetPickerField field="lakebase" current={draft} onPick={onDraft} />
           <div className="lakebase-binding-editor-actions">
             <Button disabled={saving || !canSave} onClick={onSave}>
-              <Save className="size-3.5" aria-hidden="true" />
-              {saving ? 'Staging…' : 'Save redeploy plan'}
+              <AdaptBusyButtonContent
+                busy={saving}
+                label="Save redeploy plan"
+                busyLabel="Staging"
+                icon={<Save className="size-3.5" aria-hidden="true" />}
+              />
             </Button>
             <Button variant="outline" disabled={saving} onClick={onCancel}>
               Cancel
@@ -173,7 +177,7 @@ export function LakebaseBindingManager({ enabled }: LakebaseBindingManagerProps)
 
   if (!enabled) return null;
   if (!plan && !message) {
-    return <AstrolabeLoadingLabel label="Loading Lakebase binding" className="lakebase-binding-loading" />;
+    return <AdaptLoader label="Loading Lakebase binding" className="lakebase-binding-loading" />;
   }
   if (!plan) {
     return (

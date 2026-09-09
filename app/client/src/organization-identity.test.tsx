@@ -71,13 +71,13 @@ describe('organization identity assets', () => {
     );
   });
 
-  it('uses the unframed Take-Two vector mark for every Take-Two email', () => {
+  it('uses the supplied unaltered Take-Two logo for every Take-Two email', () => {
     const organization = organizationForEmail('person@take2games.com');
     const markup = renderToStaticMarkup(<OrganizationAvatar organization={organization} />);
     expect(organization.logoKey).toBe('take-two');
-    expect(markup).toContain(ORGANIZATION_LOGOS['take-two']);
+    expect(markup).toContain(ORGANIZATION_LOGO_IMAGES['take-two']);
     expect(markup).toContain('roster-organization-mark--take-two');
-    expect(markup).not.toContain('roster-organization-logo-image');
+    expect(markup).toContain('roster-organization-logo-image');
   });
 });
 

@@ -7,6 +7,7 @@ import { RunRatingBadge } from './RunRatingBadge';
 import { runFeedbackDirection } from './run-rating';
 import { formatMs } from './trace-timeline';
 import { Button, Card, CardContent, Input } from './ui';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import type { TokenReconciliation } from '../../shared/llm-token-usage';
 import type { FeedbackDirection } from '../../shared/feedback-direction';
 import { runTokenUsageView } from './token-usage-view';
@@ -210,7 +211,7 @@ export function RunOverviewKpis({
                 disabled={feedbackControls.saving}
                 onClick={feedbackControls.onSaveComment}
               >
-                {feedbackControls.saving ? 'Saving…' : 'Save feedback'}
+                <AdaptBusyButtonContent busy={feedbackControls.saving} label="Save feedback" busyLabel="Saving" />
               </Button>
             </div>
           ) : null}

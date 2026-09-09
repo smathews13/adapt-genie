@@ -1115,7 +1115,7 @@ describe('the detail modal', () => {
 
     expect(rendered).toContain('first.person');
     expect(rendered).not.toContain('Asked by');
-    expect(rendered).toContain("Data read under first.person's own Unity Catalog grants.");
+    expect(rendered).not.toContain("Data read under first.person's own Unity Catalog grants.");
   });
 
   it('says nothing about identity when the run recorded none, and leaves no dangling separator', () => {
@@ -1194,7 +1194,7 @@ describe('the detail modal', () => {
     // The always-shown set is not.
     expect(rendered).toContain('first.person');
     expect(rendered).not.toContain('Asked by');
-    expect(rendered).toContain("Data read under first.person's own Unity Catalog grants.");
+    expect(rendered).not.toContain("Data read under first.person's own Unity Catalog grants.");
     expect(rendered).toContain('1,200 tokens recorded on this run.');
     expect(rendered).toContain('Not helpful');
     expect(rendered).toContain('Exactly what I needed.');
@@ -1463,8 +1463,8 @@ describe('the User Monitoring browser', () => {
     );
     expect(markup).toContain('monitoring-users-loading');
     expect(text(markup)).toContain('Loading users');
-    expect(markup.match(/monitoring-users-loading-icon/g)).toHaveLength(1);
-    expect(markup).toContain('lucide-users');
+    expect(markup.match(/<svg class="adapt-button-mark"/g)).toHaveLength(1);
+    expect(markup).not.toContain('ast-anim-center-pulse');
     expect(markup).not.toContain('monitoring-users-loading-list');
     expect(markup).not.toContain('monitoring-users-table-frame');
     expect(markup).not.toContain('data-slot="skeleton"');
@@ -1779,9 +1779,9 @@ describe('the per-user panel', () => {
     expect(text(loading)).toContain('Loading user spend');
     expect(text(loading).match(/Estimated/g)).toHaveLength(5);
     expect(loading.match(/user-profile-modal-spend-kpi(?: |")/g)).toHaveLength(5);
-    expect(loading.match(/ast-flick-slot--inline/g)).toHaveLength(1);
-    expect(loading.match(/ast-anim-flick/g)).toHaveLength(4);
-    expect(loading).toContain('data-ast-rest');
+    expect(loading.match(/<svg class="adapt-button-mark/g)).toHaveLength(5);
+    expect(loading.match(/user-profile-modal-spend-static-mark/g)).toHaveLength(4);
+    expect(loading).not.toContain('ast-anim-flick');
     expect(loading).not.toContain('lucide-wallet');
     expect(loading).not.toContain('user-profile-modal-spend-loading-icon');
     expect(loading).not.toContain('skeleton');
@@ -1848,7 +1848,7 @@ describe('the per-user panel', () => {
     );
     const rendered = text(markup);
     expect(rendered).toContain('Total user spend Estimated 9.55 USD');
-    expect(rendered).toContain('Cost / question Estimated 0.382 USD 25 submitted questions');
+    expect(rendered).toContain('Cost / question Estimated 0.382 USD 25 completed questions');
     expect(rendered).toContain('Average daily spend Estimated 1.364 USD');
     expect(rendered).not.toMatch(/covered days?|days? covered|covered billing days?/i);
     expect(rendered).toContain('Average tokens Estimated 84.6K / run 126.9K / question');
@@ -1894,7 +1894,7 @@ describe('the per-user panel', () => {
       expect(text(markup)).toContain(label);
     }
     expect(markup.match(/user-profile-modal-spend-kpi(?: |")/g)).toHaveLength(5);
-    expect(markup.match(/ast-flick-slot--inline/g)).toHaveLength(1);
+    expect(markup.match(/<svg class="adapt-button-mark/g)).toHaveLength(4);
     expect(text(markup)).not.toContain('Refreshing');
     expect(text(markup)).not.toMatch(
       /week over week|month over month|comparable period|prior 7 days|prior matched month/i
@@ -1991,8 +1991,8 @@ describe('the per-user panel', () => {
 
   it('renders each ranked source table as a counted governed entity', () => {
     const rows = [
-      { table: 'sample_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
-      { table: 'sample_catalog.player_insights_demo.data_dictionary', runs: 9 },
+      { table: 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
+      { table: 'cmegdemos_catalog.player_insights_demo.data_dictionary', runs: 9 },
     ];
     const markup = render(<TablesReadMost rows={rows} />);
     const rendered = text(markup);

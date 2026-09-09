@@ -19,6 +19,19 @@ describe('application loading treatment', () => {
       './AdminListEditor.tsx',
       './ResourceTagsPanel.tsx',
       './DeclaredConnectionsCard.tsx',
+      './ConnectionsPage.tsx',
+      './UnityCatalogScopeExplorer.tsx',
+      './AssetPicker.tsx',
+      './AiGatewayConnection.tsx',
+      './ArchitecturePage.tsx',
+      './OpsScopeModal.tsx',
+      './LakebaseBindingManager.tsx',
+      './LakebaseMigrationPanel.tsx',
+      './FeedbackBrowserPanel.tsx',
+      './EnvironmentPanel.tsx',
+      './EgressPanel.tsx',
+      './WatchlistSettingsPanel.tsx',
+      './AskStartersSettingsPanel.tsx',
     ];
 
     for (const file of files) {
@@ -26,13 +39,13 @@ describe('application loading treatment', () => {
       expect(contents, file).not.toContain('Loader2');
       expect(contents, file).not.toContain('animate-spin');
       expect(contents, file).not.toContain('<ConceptFlicker');
+      expect(contents, file).not.toContain('AstrolabeLoadingLabel');
     }
 
     expect(source('./OpsLoadingState.tsx')).toContain('<AdaptLoader variant="panel"');
     expect(source('./HomePage.tsx')).toContain('className="attachment-progress-loader"');
     expect(source('./EvalFlywheel.tsx')).toContain('<AdaptBusyButtonContent');
     expect(source('./BenchmarkLab.tsx')).toContain('<AdaptLoader variant="inline" label="Run in progress"');
-    expect(source('./AstrolabeLoadingLabel.tsx')).toContain('<AdaptBusyMark');
   });
 
   it('renders a branded Preparing answer header for follow-up runs', () => {

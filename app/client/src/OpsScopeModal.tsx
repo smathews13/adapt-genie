@@ -8,7 +8,7 @@ import type {
   OpsScopeStatus,
 } from '../../shared/ops-scope-contract';
 import { AppSelect } from './AppSelect';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { Dialog } from './Dialog';
 import { Button, Input } from './ui';
 
@@ -40,7 +40,7 @@ export function CheckScopesButton({ busy, onClick }: { busy: boolean; onClick: (
       aria-busy={busy || undefined}
       onClick={onClick}
     >
-      {busy ? <AstrolabeLoadingLabel as="span" seat="button" announce={false} label="Checking…" /> : 'Check all scopes'}
+      <AdaptBusyButtonContent busy={busy} label="Check all scopes" busyLabel="Checking" />
     </Button>
   );
 }
@@ -62,11 +62,7 @@ function SkeletonRows() {
       {Array.from({ length: 4 }, (_, index) => (
         <tr className="ops-scope-skeleton-row" key={index} aria-hidden="true">
           <td>
-            {index === 0 ? (
-              <AstrolabeLoadingLabel as="span" seat="button" announce label="Checking…" />
-            ) : (
-              <span className="ops-scope-skeleton-line" />
-            )}
+            {index === 0 ? <AdaptLoader label="Checking scopes" /> : <span className="ops-scope-skeleton-line" />}
           </td>
           <td>
             <span className="ops-scope-skeleton-line" />
@@ -219,11 +215,7 @@ export function OpsScopeModal({
         <span>{rows.length.toLocaleString()} assets loaded</span>
         {page?.nextCursor ? (
           <Button type="button" variant="outline" size="sm" disabled={loadingMore} onClick={onMore}>
-            {loadingMore ? (
-              <AstrolabeLoadingLabel as="span" seat="button" announce={false} label="Checking…" />
-            ) : (
-              'More results'
-            )}
+            <AdaptBusyButtonContent busy={loadingMore} label="More results" busyLabel="Loading more" />
           </Button>
         ) : null}
       </div>

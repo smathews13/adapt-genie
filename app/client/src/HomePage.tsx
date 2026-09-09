@@ -2052,7 +2052,11 @@ export function HomePage() {
                         onClick={() => void deleteConversation(conversation.id)}
                         disabled={deletingConversation !== null}
                       >
-                        {deletingConversation === conversation.id ? 'Deleting…' : 'Delete'}
+                        <AdaptBusyButtonContent
+                          busy={deletingConversation === conversation.id}
+                          label="Delete"
+                          busyLabel="Deleting"
+                        />
                       </button>
                     </div>
                   </div>
@@ -2257,7 +2261,11 @@ export function HomePage() {
                   aria-busy={olderMessagesLoading || undefined}
                   onClick={() => void loadOlderMessages()}
                 >
-                  {olderMessagesLoading ? 'Loading older messages…' : 'Load older messages'}
+                  <AdaptBusyButtonContent
+                    busy={olderMessagesLoading}
+                    label="Load older messages"
+                    busyLabel="Loading older messages"
+                  />
                 </Button>
               ) : null}
               {olderMessagesError ? (
@@ -2332,16 +2340,9 @@ export function HomePage() {
                   over a database read is the same invention as a progress bar
                   that fills on a timer. */}
                 {conversationLoading ? (
-                  <div className="flex items-center gap-3">
-                    <div className="ask-loading-mark">
-                      <AstrolabeMark size={26} />
-                    </div>
-                    <div>
-                      <p className="font-medium">Loading conversation</p>
-                      <p className="text-sm text-muted-foreground">
-                        Restoring the saved answer and trace from Lakebase.
-                      </p>
-                    </div>
+                  <div>
+                    <AdaptLoader label="Loading conversation" variant="compact" />
+                    <p className="text-sm text-muted-foreground">Restoring the saved answer and trace from Lakebase.</p>
                   </div>
                 ) : workingSeat === 'splash' ? (
                   <>
@@ -2574,7 +2575,7 @@ export function HomePage() {
                 carried is gone with the rest of the glyphs that stood in for the
                 agent -- the mark is the agent. */}
             <Button type="submit" disabled={loading ? false : !canAsk}>
-              {loading ? 'Stop' : parsing ? 'Reading files…' : 'Ask ADAPT'}
+              {loading ? 'Stop' : <AdaptBusyButtonContent busy={parsing} label="Ask ADAPT" busyLabel="Reading files" />}
             </Button>
           </div>
         </form>
@@ -2599,7 +2600,7 @@ export function HomePage() {
                 reachability; a blocked or unchecked table says so in words too,
                 because a dot alone is a claim carried by colour. */}
             {scopeLoading ? (
-              <p className="insight-note">Checking the tables in scope…</p>
+              <AdaptLoader label="Checking the tables in scope" className="insight-note" />
             ) : scopeTables.length > 0 ? (
               scopeTables.map((table) => (
                 <div className="insight-table" key={table.name} title={table.name}>
@@ -2694,7 +2695,7 @@ export function HomePage() {
                 content timestamp any of them reported, and who the checks ran as.
                 A signal the report did not carry is a line this does not draw. */}
             {scopeLoading ? (
-              <p className="insight-note">Checking data sources…</p>
+              <AdaptLoader label="Checking data sources" className="insight-note" />
             ) : scopeConfidence.length > 0 ? (
               scopeConfidence.map((line) => (
                 <div className="insight-trust" key={line.text}>

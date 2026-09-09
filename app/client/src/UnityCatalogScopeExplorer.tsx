@@ -8,11 +8,12 @@ import type {
   UnityCatalogSearchType,
 } from '../../shared/browse-contract';
 import type { DeclaredResourceType } from '../../shared/notebook-declaration';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { BrowseGrantPrompt, mergeBrowseItems } from './AssetPicker';
 import { browseUrl, type PickerCursor } from './asset-picker';
 import { Dialog } from './Dialog';
 import { Button } from './ui';
+import { AppSelect } from './AppSelect';
 
 export type UnityCatalogScopeType = Extract<DeclaredResourceType, 'catalog' | 'schema' | 'table'>;
 
@@ -489,7 +490,7 @@ function ExplorerLevel({
         </ul>
       ) : null}
       {state.status === 'loading' ? (
-        <AstrolabeLoadingLabel
+        <AdaptLoader
           className="uc-explorer-loading"
           label={`Loading ${kind === 'tables' ? 'tables and views' : kind}`}
         />
@@ -614,7 +615,7 @@ function ExplorerSearchResults({
   return (
     <div className="uc-explorer-search-results" aria-live="polite">
       {result.status === 'loading' ? (
-        <AstrolabeLoadingLabel label="Searching catalogs, schemas, and tables" className="uc-explorer-loading" />
+        <AdaptLoader label="Searching catalogs, schemas, and tables" className="uc-explorer-loading" />
       ) : null}
       {(['catalog', 'schema', 'table'] as const).map((resourceType) => {
         const group = items.filter((item) => item.resourceType === resourceType);
@@ -747,19 +748,19 @@ export function UnityCatalogScopeExplorer({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <label className="uc-explorer-type-filter">
-            <span className="sr-only">Filter Unity Catalog results by type</span>
-            <select
-              aria-label="Filter Unity Catalog results by type"
-              value={resourceType}
-              onChange={(event) => setResourceType(event.target.value as UnityCatalogSearchType)}
-            >
-              <option value="all">All asset types</option>
-              <option value="catalog">Catalogs only</option>
-              <option value="schema">Schemas only</option>
-              <option value="table">Tables and views only</option>
-            </select>
-          </label>
+          <AppSelect<UnityCatalogSearchType>
+            label="All asset types"
+            ariaLabel="Filter Unity Catalog results by type"
+            value={resourceType}
+            onValueChange={(value) => setResourceType(value)}
+            options={[
+              { value: 'all', label: 'All asset types' },
+              { value: 'catalog', label: 'Catalogs only' },
+              { value: 'schema', label: 'Schemas only' },
+              { value: 'table', label: 'Tables and views only' },
+            ]}
+            className="uc-explorer-type-filter"
+          />
         </div>
         <div className="uc-explorer-body">
           <div hidden={query.trim().length >= 2}>
@@ -819,7 +820,7 @@ export function UnityCatalogScopeExplorer({
                 });
             }}
           >
-            {submitting ? <AstrolabeLoadingLabel as="span" announce={false} label="Saving" /> : 'Save'}
+            <AdaptBusyButtonContent busy={submitting} label="Save" busyLabel="Saving" />
           </Button>
         </footer>
       </div>

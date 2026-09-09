@@ -164,10 +164,10 @@ describe('what the control says while it is working', () => {
    * nothing else.
    */
   it('keeps the state readable with the animation switched off', () => {
-    const css = partial('page-shell.css');
+    const css = partial('adapt-loading.css');
 
-    expect(css).toMatch(/@keyframes refresh-spin/);
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.refresh-spin \{\s*animation: none;/);
+    expect(css).toMatch(/@keyframes adapt-button-/);
+    expect(css).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*\.adapt-button-mark__/);
   });
 });
 

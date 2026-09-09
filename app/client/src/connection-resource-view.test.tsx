@@ -86,8 +86,8 @@ function check(id: string, state: State): PreflightCheck | undefined {
               }
             : id === 'agent-endpoint'
               ? {
-                  served_model: 'app v7',
-                  traffic: 'app-7 100%',
+                  served_model: 'player-insights-agent v7',
+                  traffic: 'player-insights-agent-7 100%',
                   readiness: 'READY',
                 }
               : undefined,
@@ -216,7 +216,9 @@ describe('canonical Connections resource views', () => {
         />
       </MemoryRouter>
     );
-    expect(markup.match(/Checking SQL warehouse/g)).toHaveLength(2);
+    expect(markup.match(/connection-row-status-loader/g)).toHaveLength(1);
+    expect(markup.match(/connection-detail-status-loader/g)).toHaveLength(1);
+    expect(markup).toContain('adapt-button-mark');
     expect(markup).not.toContain('connection status:');
     expect(markup).not.toMatch(/>(Connected|Disconnected|Reachable|Ready|Running|Not checked)</);
   });

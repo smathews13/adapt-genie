@@ -21,6 +21,7 @@ import {
 import { EgressRecordsError, egressControlsFromResponse, fetchEgressRecordsPage } from './egress-settings-api';
 import type { SettingsSaveState } from './settings-save-state';
 import { StateSwitch } from './StateSwitch';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 
 export const EGRESS_SETTINGS_FORM_ID = 'settings-egress-form';
 
@@ -92,11 +93,7 @@ export function EgressRecordsViewer({
     );
   }
   if (state === 'loading') {
-    return (
-      <p className="settings-status" role="status">
-        Loading egress records.
-      </p>
-    );
+    return <AdaptLoader label="Loading egress records" className="settings-status" />;
   }
   if (state === 'authorization') {
     return (
@@ -384,7 +381,7 @@ export function EgressPanel({
           }}
         />
       </section>
-      {state === 'loading' ? <p className="settings-status">Loading controls.</p> : null}
+      {state === 'loading' ? <AdaptLoader label="Loading controls" className="settings-status" /> : null}
       {stored === false && failure?.operation !== 'load' ? (
         <p className="settings-status">Stored policy is unavailable. Build defaults are shown.</p>
       ) : null}

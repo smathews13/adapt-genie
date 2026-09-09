@@ -67,7 +67,7 @@ import { CONNECTED_RESOURCES } from '../../shared/deployment-config';
 import { isAdaptHiddenConnection } from '../../shared/adapt-surface';
 import { IdentityCard } from './IdentityPanel';
 import { useDeploymentIdentity } from './identity-panel-state';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import {
   connectionLoadErrorLabel,
   connectionPlaceholderReadings,
@@ -790,9 +790,8 @@ export function DeclaredTablesTable({
                   </TableCell>
                   <TableCell>
                     {pending ? (
-                      <AstrolabeLoadingLabel
+                      <AdaptLoader
                         as="span"
-                        seat="status"
                         announce={false}
                         className="connections-table-status-loader"
                         label={`Checking ${entry.connection.label || entry.connection.value}`}
@@ -846,14 +845,12 @@ export function DeclaredTablesTable({
                             aria-busy={management.busy || undefined}
                             onClick={() => management.onRemove(entry)}
                           >
-                            {management.busy ? (
-                              <AstrolabeLoadingLabel as="span" announce={false} label="Deleting" />
-                            ) : (
-                              <>
-                                <Trash2 className="size-4" aria-hidden="true" />
-                                {DELETE_CONNECTION_LABEL}
-                              </>
-                            )}
+                            <AdaptBusyButtonContent
+                              busy={management.busy}
+                              label={DELETE_CONNECTION_LABEL}
+                              busyLabel="Deleting"
+                              icon={<Trash2 className="size-4" aria-hidden="true" />}
+                            />
                           </Button>
                           <Button variant="outline" size="sm" disabled={management.busy} onClick={management.onCancel}>
                             Keep
@@ -921,9 +918,8 @@ export function DeclaredTablesTable({
                 function so the two cannot disagree. */}
                     <TableCell>
                       {declared?.pending ? (
-                        <AstrolabeLoadingLabel
+                        <AdaptLoader
                           as="span"
-                          seat="status"
                           announce={false}
                           className="connections-table-status-loader"
                           label={`Checking ${check.label || check.name}`}
@@ -993,14 +989,12 @@ export function DeclaredTablesTable({
                               aria-busy={management.busy || undefined}
                               onClick={() => management.onRemove(connection)}
                             >
-                              {management.busy ? (
-                                <AstrolabeLoadingLabel as="span" announce={false} label="Deleting" />
-                              ) : (
-                                <>
-                                  <Trash2 className="size-4" aria-hidden="true" />
-                                  {DELETE_CONNECTION_LABEL}
-                                </>
-                              )}
+                              <AdaptBusyButtonContent
+                                busy={management.busy}
+                                label={DELETE_CONNECTION_LABEL}
+                                busyLabel="Deleting"
+                                icon={<Trash2 className="size-4" aria-hidden="true" />}
+                              />
                             </Button>
                             <Button
                               variant="outline"
@@ -1275,7 +1269,7 @@ export function DeclaredTablesSection({
       }
     >
       {readState === 'loading' ? (
-        <AstrolabeLoadingLabel label="Loading Unity Catalog scope" className="connections-primary-loader-row" />
+        <AdaptLoader label="Loading Unity Catalog scope" variant="compact" className="connections-primary-loader-row" />
       ) : null}
       {readState === 'unavailable' ? (
         <p className="connections-table-empty" role="alert">
@@ -1760,9 +1754,8 @@ export function ConnectionRow({
           ) : null}
         </span>
         {primaryState === 'loading' ? (
-          <AstrolabeLoadingLabel
+          <AdaptLoader
             as="span"
-            seat="status"
             announce={false}
             className="connection-row-status-loader"
             label={`Checking ${resource.label}`}
@@ -1797,7 +1790,7 @@ export function ConnectionRow({
       {open ? (
         <div className="connection-row-detail">
           {restating ? (
-            <AstrolabeLoadingLabel label={`Checking ${resource.label}`} className="connection-detail-status-loader" />
+            <AdaptLoader label={`Checking ${resource.label}`} className="connection-detail-status-loader" />
           ) : null}
           {resource.id === 'lakebase' && lakebaseMigration ? (
             <LakebaseMigrationPanel state={lakebaseMigration.state} onApply={lakebaseMigration.apply} />
@@ -1921,14 +1914,12 @@ export function ConnectionRow({
                   aria-busy={saving || undefined}
                   onClick={() => void commit()}
                 >
-                  {saving ? (
-                    <AstrolabeLoadingLabel as="span" announce={false} label="Saving" />
-                  ) : (
-                    <>
-                      <Save className="size-3.5" />{' '}
-                      {resource.changedBy === 'app-runtime' ? 'Save and apply' : 'Save for model release'}
-                    </>
-                  )}
+                  <AdaptBusyButtonContent
+                    busy={saving}
+                    label={resource.changedBy === 'app-runtime' ? 'Save and apply' : 'Save for model release'}
+                    busyLabel="Saving"
+                    icon={<Save className="size-3.5" />}
+                  />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
                   Cancel
@@ -1953,7 +1944,7 @@ export function ConnectionLoadRow({ reading, state }: { reading: ConnectionReadi
       <div className="connection-row-summary">
         <span className="connection-row-loader-chevron" aria-hidden="true" />
         {state === 'loading' ? (
-          <AstrolabeLoadingLabel label={label} className="connection-row-loader" />
+          <AdaptLoader label={label} className="connection-row-loader" />
         ) : (
           <div className="connection-row-load-error" role="alert">
             <CircleAlert className="size-4" aria-hidden="true" />
@@ -2280,7 +2271,7 @@ export function ConnectionsPage() {
 
       {firstRun ? (
         <Card className="connections-primary-loader" data-testid="connections-primary-loader">
-          <AstrolabeLoadingLabel label="Loading connections" className="connections-primary-loader-row" />
+          <AdaptLoader label="Loading connections" variant="compact" className="connections-primary-loader-row" />
         </Card>
       ) : null}
 

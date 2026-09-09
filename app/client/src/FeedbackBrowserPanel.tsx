@@ -8,6 +8,7 @@ import type { PanelLoadState } from './monitoring-detail-state';
 import type { FeedbackBrowserFilters } from './feedback-browser-session';
 import { monitoringQuestionRowHandlers } from './monitoring-row-activation';
 import { AppSelect, type AppSelectOption } from './AppSelect';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 import { AstrolabeMark } from './AstrolabeMark';
 import { Button, Input, Skeleton } from './ui';
 import { Dialog } from './Dialog';
@@ -112,10 +113,7 @@ function submittedAt(value: string): string {
 function FeedbackRowsLoading() {
   return (
     <div className="monitoring-feedback-loading" role="status" aria-label="Loading submitted feedback">
-      <div className="monitoring-feedback-loading-label">
-        <AstrolabeMark size={18} ink="light" className="ast-anim-center-pulse" />
-        <span>Loading feedback</span>
-      </div>
+      <AdaptLoader label="Loading feedback" className="monitoring-feedback-loading-label" announce={false} />
       <div className="monitoring-feedback-skeleton" aria-hidden="true">
         {[0, 1, 2, 3, 4].map((row) => (
           <div key={row}>

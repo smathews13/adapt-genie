@@ -49,6 +49,7 @@ import {
   adaptGroupRole,
   configuredGroupRoleMappings,
   groupRoleForRequest,
+  mergeGroupRoleMappings,
   type GroupRoleLookup,
 } from './adapt-group-roles';
 import { readGroupRoleMappings } from './group-role-mappings';
@@ -138,7 +139,7 @@ export function groupRoleLookupForStore(
 ): GroupRoleLookup {
   return async (email) => {
     const stored = await readGroupRoleMappings(store).catch(() => []);
-    return adaptGroupRole(email, reader, Date.now(), [...configuredGroupRoleMappings(), ...stored]);
+    return adaptGroupRole(email, reader, Date.now(), mergeGroupRoleMappings(configuredGroupRoleMappings(), stored));
   };
 }
 

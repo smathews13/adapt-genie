@@ -7,6 +7,7 @@ import { UserIdentityChip } from './UserIdentityChip';
 import { tableCountLine } from './access-gate-state';
 import { identityRequest } from './app-state';
 import { Dialog } from './Dialog';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 
 /**
  * Asks, once per session, under whose authority the answers should be taken.
@@ -722,7 +723,7 @@ export function AccessGate({
         ) : (
           <button type="button" className="access-gate-primary" disabled={busy} onClick={() => void verify()}>
             <span className="access-gate-action-label">
-              {busy ? 'Checking your access\u2026' : 'Verify my access first'}
+              <AdaptBusyButtonContent busy={busy} label="Verify my access first" busyLabel="Checking your access" />
             </span>
             {/* One line, because the result says the rest of it. The second
                   sentence here promised that the result would report what was

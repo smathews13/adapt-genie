@@ -17,7 +17,7 @@ describe('watchlist settings and rail', () => {
     expect(panel).toContain("fetch('/api/watchlist-titles')");
     expect(panel).toContain('placeholder="Search games"');
     expect(panel).toContain("if (event.key === 'Enter') event.preventDefault()");
-    expect(panel).toContain('Rail visuals');
+    expect(panel).toContain('Insights Rail (righthand bar)');
     expect(panel).not.toContain("['savedQueries', 'Saved queries']");
     expect(panel).toContain("disabled={state === 'loading' || state === 'saving' || !saved}");
     expect(panel).toContain('<VisitInDatabricks');

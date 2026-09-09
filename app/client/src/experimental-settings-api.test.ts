@@ -17,7 +17,13 @@ describe('Experimental settings durable API', () => {
       )
     );
     await expect(loadExperimentalSettings()).resolves.toEqual({
-      settings: { benchmarkLab: true, egressControls: false, forecasting: true, notebookAgentSync: false },
+      settings: {
+        benchmarkLab: true,
+        egressControls: false,
+        forecasting: true,
+        genieCodeMcp: false,
+        notebookAgentSync: false,
+      },
       revision: 7,
     });
   });

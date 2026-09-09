@@ -14,6 +14,7 @@ import {
   watchlistTitlesFromResponse,
 } from './watchlist-api';
 import { VisitInDatabricks } from './DataEntityLinks';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 
 export const WATCHLIST_SETTINGS_FORM_ID = 'settings-watchlist-form';
 
@@ -144,7 +145,9 @@ export function WatchlistSettingsPanel({
           </div>
         ))}
       </section>
-      {state === 'loading' ? <p className="settings-status">Loading titles from the sales table…</p> : null}
+      {state === 'loading' ? (
+        <AdaptLoader label="Loading titles from the sales table" className="settings-status" />
+      ) : null}
       {state !== 'loading' && availableTitles.length > 0 ? (
         <section className="watchlist-games-settings" aria-labelledby="watchlist-games-title">
           <div className="watchlist-games-heading insights-settings-heading">

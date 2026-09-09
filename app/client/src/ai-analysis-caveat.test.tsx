@@ -116,7 +116,7 @@ describe('the shared reader-facing AI caveat', () => {
     );
 
     expect(caveatTexts(markup)).toEqual([AI_ANALYSIS_CAVEAT]);
-    expect(markup).toContain('Data read under your own Unity Catalog grants.');
+    expect(markup).not.toContain('Data read under your own Unity Catalog grants.');
     expect(caveatTexts(markup)[0]).not.toMatch(/Unity Catalog|sources|model/i);
     expect(visibleText(markup)).toContain(
       'Validation: Verify document-based claims against the attached reports before using them.'

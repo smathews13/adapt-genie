@@ -755,10 +755,8 @@ export function AgentPathConstellation({
           running band the only thing on the surface not saying the run was going:
           lines drawing, star beating, ring breathing, and a still mark under them.
 
-          `ConceptFlicker` rather than a fifth thing that cycles: it is the app's
-          working loader, `ast-anim-flick` and the four concepts, and the reader
-          has already met it on the splash and in the strip. A second cycle
-          written here would drift from that one the first time either is retuned.
+          `AdaptBusyMark` is the app's shared working mark, so this status stays
+          visually consistent with the splash, buttons, and inline loading seats.
 
           `flickering` is not `inFlight` alone, because the line does not always
           name the step the run is on. A pinned step is a settled step the reader

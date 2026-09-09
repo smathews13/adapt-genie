@@ -137,9 +137,9 @@ describe('Monitoring feedback entry card', () => {
 });
 
 describe('feedback corpus modal', () => {
-  it('renders six ordered columns with Role separate from User', () => {
+  it('renders seven ordered columns with Role and Organization separate from User', () => {
     const markup = panel({ status: 'ready', key: 'feedback', requestId: 1, data: payload, error: null });
-    const headers = ['Question', 'User', 'Role', 'Feedback', 'Comment', 'Submitted'];
+    const headers = ['Question', 'User', 'Role', 'Organization', 'Feedback', 'Comment', 'Submitted'];
     const headerPositions = headers.map((header) => markup.indexOf(`>${header}</th>`));
     const tbody = markup.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? '';
     const rows = tbody.match(/<tr[\s\S]*?<\/tr>/g) ?? [];
@@ -147,10 +147,10 @@ describe('feedback corpus modal', () => {
     expect(markup).toContain('2 total · 1 helpful · 1 not helpful');
     expect(headerPositions.every((position) => position >= 0)).toBe(true);
     expect(headerPositions).toEqual([...headerPositions].sort((left, right) => left - right));
-    expect(markup.match(/<th scope="col">/g)).toHaveLength(6);
+    expect(markup.match(/<th scope="col">/g)).toHaveLength(7);
     expect(rows).toHaveLength(2);
     for (const row of rows) {
-      expect(row.match(/<td /g)).toHaveLength(6);
+      expect(row.match(/<td /g)).toHaveLength(7);
       expect([...row.matchAll(/data-label="([^"]+)"/g)].map((match) => match[1])).toEqual(headers);
       const userCell = row.match(/<td data-label="User"[\s\S]*?<\/td>/)?.[0] ?? '';
       const roleCell = row.match(/<td data-label="Role"[\s\S]*?<\/td>/)?.[0] ?? '';
@@ -218,10 +218,10 @@ describe('feedback corpus modal', () => {
 
   it('uses one compact desktop filter row and deliberate responsive reflow', () => {
     expect(CSS).toMatch(
-      /\.monitoring-feedback-filter-row\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(5,\s*136px\)[^}]*justify-content:\s*start/s
+      /\.monitoring-feedback-filter-row\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(104px,\s*118px\)\)[^}]*justify-content:\s*start/s
     );
     expect(CSS).toMatch(
-      /\.monitoring-feedback-filter-trigger\s*\{[^}]*width:\s*136px[^}]*min-width:\s*136px[^}]*max-width:\s*136px[^}]*height:\s*32px/s
+      /\.monitoring-feedback-filter-trigger\s*\{[^}]*width:\s*100%[^}]*min-width:\s*104px[^}]*max-width:\s*118px[^}]*height:\s*32px/s
     );
     expect(RESPONSIVE).toMatch(
       /@media \(max-width: 800px\)[\s\S]*?\.monitoring-feedback-filter-row\s*\{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)[\s\S]*?\.monitoring-feedback-filter-trigger\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/
@@ -253,7 +253,8 @@ describe('feedback corpus modal', () => {
       data: { ...payload, rows: [], summary: { total: 0, helpful: 0, notHelpful: 0, comments: 0 } },
       error: null,
     });
-    expect(loading).toContain('ast-mark');
+    expect(loading).toContain('adapt-button-mark');
+    expect(loading).not.toContain('ast-anim-center-pulse');
     expect(loading).toContain('Loading feedback');
     expect(loading).toContain('data-slot="skeleton"');
     expect(loading.match(/monitoring-feedback-kpi-skeleton/g)).toHaveLength(5);

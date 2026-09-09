@@ -207,11 +207,6 @@ html[data-animations='off'] .run-status.is-alive .run-status-dot {
   animation: none;
 }
 
-html[data-animations='off'] .refresh-spin,
-html[data-animations='off'] .asset-picker-spinner {
-  animation: none !important;
-}
-
 html[data-animations='off'] [data-slot='progress'][data-state='indeterminate'] > [data-slot='progress-indicator'] {
   width: 40%;
   animation: none !important;

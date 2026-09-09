@@ -15,6 +15,7 @@ import type { NotebookPanel } from './connection-model';
 import { RefreshButton } from './RefreshControl';
 import { showsAdminSurfaces, useRole } from './role';
 import { Button } from './ui';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 import {
   NOTEBOOK_REQUIRED_ACTION,
   applyActionState,
@@ -164,9 +165,13 @@ export function ApplyDeclarationCard({ notebook, onRefresh }: { notebook?: Noteb
       {error ? <p className="plane-card-error">{error}</p> : null}
 
       {knobs.length === 0 ? (
-        <p className="plane-card-note">
-          {notes[0] ?? (busy ? 'Reading staged settings…' : 'Nothing waiting on a re-log.')}
-        </p>
+        notes[0] ? (
+          <p className="plane-card-note">{notes[0]}</p>
+        ) : busy ? (
+          <AdaptLoader label="Reading staged settings" className="plane-card-note" />
+        ) : (
+          <p className="plane-card-note">Nothing waiting on a re-log.</p>
+        )
       ) : (
         <ul className="plane-list">
           {knobs.map((knob) => (

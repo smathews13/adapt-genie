@@ -4,6 +4,7 @@ import { ASK_STARTERS_MAX, type AskStarter } from '../../shared/ask-starters-bro
 import { askStarterSettingsFromResponse, notifyAskStartersChanged } from './ask-starters-api';
 import type { SettingsSaveState } from './settings-save-state';
 import { Button, Input } from './ui';
+import { AdaptLoader } from './AdaptLoadingAnimation';
 
 export const ASK_STARTERS_SETTINGS_FORM_ID = 'settings-ask-starters-form';
 
@@ -127,7 +128,7 @@ export function AskStartersSettingsPanel({
         <h3>Starter questions</h3>
         <p>Configure the question cards everyone sees when they open an empty Ask conversation.</p>
       </div>
-      {state === 'loading' ? <p className="settings-status">Loading starter questions…</p> : null}
+      {state === 'loading' ? <AdaptLoader label="Loading starter questions" className="settings-status" /> : null}
       {saved ? (
         <>
           <div className="ask-starters-settings-list">

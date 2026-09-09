@@ -178,6 +178,10 @@ describe('workspace group defaults', () => {
     expect(markup).toContain('href="https://accounts.cloud.databricks.com"');
     expect(markup).toContain('Open Databricks identity management for customer-admins');
     expect(markup.match(/href=/g)).toHaveLength(1);
+
+    const editable = renderToStaticMarkup(<GroupRoleDefaults payload={payload} canManage onRoleChange={() => {}} />);
+    expect(editable).toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Admins: Admin"');
+    expect(editable).toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Users: Consumer"');
   });
 
   it('offers a simple group browser entry point', () => {

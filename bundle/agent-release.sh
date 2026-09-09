@@ -114,16 +114,55 @@ genie_origin() {
   else printf 'existing space from the bundle variable'; fi
 }
 
+# First agent release creates the endpoint. Counting or listing served
+# entities before that must not die on "does not exist" plus empty JSON.
+read_endpoint_json() {
+  local out err status
+  out="$(mktemp "${TMPDIR:-/tmp}/adapt-endpoint.XXXXXX")"
+  err="$(mktemp "${TMPDIR:-/tmp}/adapt-endpoint-err.XXXXXX")"
+  set +e
+  databricks serving-endpoints get "$ENDPOINT" --profile "$PROFILE" -o json >"$out" 2>"$err"
+  status=$?
+  set -e
+  if (( status == 0 )); then
+    cat "$out"
+    rm -f "$out" "$err"
+    return 0
+  fi
+  if grep -qiE 'does not exist|RESOURCE_DOES_NOT_EXIST' "$err"; then
+    rm -f "$out" "$err"
+    return 2
+  fi
+  cat "$err" >&2
+  rm -f "$out" "$err"
+  return 1
+}
+
 served_entity_count() {
-  databricks serving-endpoints get "$ENDPOINT" --profile "$PROFILE" -o json | python3 -c '
+  local json status
+  json="$(read_endpoint_json)" && status=0 || status=$?
+  case "$status" in
+    0)
+      printf '%s\n' "$json" | python3 -c '
 import json, sys
 body = json.load(sys.stdin)
 print(len((body.get("config") or {}).get("served_entities") or []))
 '
+      ;;
+    2) printf '0\n' ;;
+    *) return 1 ;;
+  esac
 }
 
 print_served_entities() {
-  databricks serving-endpoints get "$ENDPOINT" --profile "$PROFILE" -o json | python3 -c '
+  local json status
+  json="$(read_endpoint_json)" && status=0 || status=$?
+  case "$status" in
+    2)
+      note "endpoint $ENDPOINT does not exist yet. The first deploy creates it."
+      return 0
+      ;;
+    0) printf '%s\n' "$json" | python3 -c '
 import json, sys
 ceiling = sys.argv[1]
 body = json.load(sys.stdin)
@@ -141,6 +180,9 @@ for entity in entities:
     version = entity.get("entity_version") or ""
     print("  %s  version=%s  traffic=%s%%" % (name, version, traffic.get(name, 0)))
 ' "$MAX_SERVED_ENTITIES"
+      ;;
+    *) return 1 ;;
+  esac
 }
 
 wait_until_endpoint_settled() {

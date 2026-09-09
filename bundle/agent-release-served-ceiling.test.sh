@@ -69,8 +69,12 @@ import sys
 scenario, state_file = sys.argv[1:]
 deployed = os.path.exists(state_file + ".deployed")
 count = int(open(state_file).read()) if os.path.exists(state_file) else {
-    "under": 2, "idle": 3, "busy": 3, "list": 3
+    "under": 2, "idle": 3, "busy": 3, "list": 3, "missing": 0
 }[scenario]
+
+if scenario == "missing" and not deployed:
+    print("Error: Endpoint with name 'adapt-orchestrator' does not exist.", file=sys.stderr)
+    sys.exit(1)
 
 if deployed:
     versions = ["8"]
@@ -157,6 +161,18 @@ expect_text "lists entity versions and traffic" "version=1  traffic=100%"
 expect_absent "does not enter model logging" "Logging model"
 expect_absent "does not deploy" "Deploying version"
 
+echo "first release, endpoint absent"
+run_release missing missing --apply --skip-log --model-version 8; status=$?
+expect_status 0 "$status" "missing endpoint still deploys version 8"
+expect_text "deploys without a pre-existing endpoint" "Deploying version 8 to adapt-orchestrator"
+expect_absent "does not treat a missing endpoint as a JSON failure" "JSONDecodeError"
+
+echo "first listing, endpoint absent"
+run_release missing-list missing --served; status=$?
+expect_status 0 "$status" "--served succeeds before the endpoint exists"
+expect_text "explains the endpoint is created on first deploy" "does not exist yet"
+expect_absent "does not list served entities for a missing endpoint" "served_entities:"
+
 echo "below the ceiling"
 run_release under under --apply --skip-log --model-version 8; status=$?
 expect_status 0 "$status" "two existing entities allow deployment"
@@ -204,7 +220,7 @@ fi
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 (( FAIL == 0 )) || exit 1
-readonly MIN_ASSERTIONS=20
+readonly MIN_ASSERTIONS=26
 (( PASS >= MIN_ASSERTIONS )) || {
   printf 'FAIL  only %d assertions ran; at least %d are expected.\n' "$PASS" "$MIN_ASSERTIONS" >&2
   exit 1

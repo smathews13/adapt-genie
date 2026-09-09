@@ -35,6 +35,40 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is not on PATH"
 }
 
+# Python's certifi bundle does not read the macOS keychains. On a corporate
+# VPN, the Databricks CLI therefore works while MLflow and the Python SDK fail
+# certificate verification and retry the SSL error until it looks like an
+# eight-minute timeout. Bridge the trusted macOS roots into Python for this
+# release process. Explicit operator-provided CA bundles always win.
+configure_python_ca() {
+  if [[ -n "${REQUESTS_CA_BUNDLE:-}" || -n "${SSL_CERT_FILE:-}" ]]; then
+    note "Python CA bundle     operator-provided"
+    return 0
+  fi
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+  command -v security >/dev/null 2>&1 || return 0
+
+  local ca_bundle keychain
+  ca_bundle="$(mktemp "${TMPDIR:-/tmp}/adapt-python-ca.XXXXXX.pem")"
+  : >"$ca_bundle"
+  for keychain in \
+    /System/Library/Keychains/SystemRootCertificates.keychain \
+    /Library/Keychains/System.keychain \
+    "$HOME/Library/Keychains/login.keychain-db"; do
+    [[ -r "$keychain" ]] || continue
+    security find-certificate -a -p "$keychain" >>"$ca_bundle" 2>/dev/null || true
+  done
+  if ! grep -qF -- "-----BEGIN CERTIFICATE-----" "$ca_bundle"; then
+    rm -f "$ca_bundle"
+    die "macOS trusted certificates could not be exported for Python.
+Set REQUESTS_CA_BUNDLE and SSL_CERT_FILE to your corporate CA bundle, then retry."
+  fi
+  export REQUESTS_CA_BUNDLE="$ca_bundle"
+  export SSL_CERT_FILE="$ca_bundle"
+  on_exit "rm -f '$ca_bundle'"
+  note "Python CA bundle     macOS trusted keychains"
+}
+
 # Register all cleanup through one EXIT trap.
 # Hooks run in registration order and their failures are swallowed: cleanup runs
 # on the failure paths too, where a hook that exits non-zero would replace the

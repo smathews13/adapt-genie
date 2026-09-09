@@ -32,6 +32,7 @@ chmod +x "$TMP/uv"
 
 run_wrapper() {
   PATH="$TMP:$PATH" CALLS="$TMP/calls" TAG_CALLS="$TMP/tag-calls" \
+    REQUESTS_CA_BUNDLE=/dev/null SSL_CERT_FILE=/dev/null \
     TARGET=wrapper-test PROFILE=test-profile bash "$HERE/deploy.sh" "$@"
 }
 
@@ -74,6 +75,7 @@ import sys
 
 text = Path(sys.argv[1]).read_text()
 assert 'if [[ ! -d "$APP_DIR/node_modules" ]]' in text
+assert "npm-proxy.dev.databricks.com" in text
 assert '(cd "$APP_DIR" && npm ci)' in text
 assert text.index('(cd "$APP_DIR" && npm ci)') < text.rindex('npm run build:deploy)')
 PY

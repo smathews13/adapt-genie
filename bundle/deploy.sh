@@ -12,6 +12,7 @@
 
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+configure_python_ca
 
 FORCE_LOCK=false
 while [[ $# -gt 0 ]]; do

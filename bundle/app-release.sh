@@ -23,6 +23,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/decisions-gate.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/app-source-staging.sh"
+configure_python_ca
 
 APPLY=false; ROLLBACK_TO=""; CERTIFY_RUN=false
 while [[ $# -gt 0 ]]; do
@@ -55,7 +56,7 @@ seed_bundle_cache
 
 APP_NAME="$(bundle_var app_name)"
 SRC_PATH="$(bundle_var app_source_code_path)"
-APP_DIR="$BUNDLE_ROOT/app"
+APP_DIR="$BUNDLE_ROOT/player-insights-agent"
 DEPLOY_TREE="$APP_DIR/build/deploy"
 APP_DB_GRANT="$BUNDLE_ROOT/bundle/app-db-grant.sh"
 
@@ -136,7 +137,7 @@ Dry run. Nothing was built or deployed. Re-run with --apply to:
   9. databricks apps deploy $APP_NAME --source-code-path $SRC_PATH --mode SNAPSHOT
  10. fail if a declared OAuth scope is not in effect. The code is deployed by
      then; the app needs a stop/start, which this prints.
- 11. restore app/build/deploy/app.yaml, which the build wrote
+ 11. restore player-insights-agent/build/deploy/app.yaml, which the build wrote
      this deployment's administrators and experiment id into. Tracked file, and
      it publishes; nothing to remember afterwards.
 
@@ -181,6 +182,11 @@ TARGET="$TARGET" PROFILE="$PROFILE" bash "$RELEASE_GATE" || exit $?
 # dependency tree before invoking TypeScript or Vite rather than failing with
 # `tsc: command not found` halfway through an app release.
 if [[ ! -d "$APP_DIR/node_modules" ]]; then
+  if grep -qF 'npm-proxy.dev.databricks.com' "$APP_DIR/package-lock.json"; then
+    die "app/package-lock.json contains Databricks-internal npm registry URLs.
+This clone cannot install outside the Databricks network. Refresh the lockfile
+against https://registry.npmjs.org/ and commit it before releasing."
+  fi
   step "Installing locked app build dependencies"
   (cd "$APP_DIR" && npm ci)
 fi
@@ -344,7 +350,7 @@ fi
 # build/deploy/app.yaml is TRACKED and PUBLISHES, and the build below writes this
 # deployment's administrators, experiment id, telemetry schema and scopes into it.
 # A routine `git add` afterwards is the whole leak, and
-# app/scripts/deploy-app-yaml.test.ts fails while an address is
+# player-insights-agent/scripts/deploy-app-yaml.test.ts fails while an address is
 # on disk, which is what a passing `npm test` depends on. The upload reads the
 # local tree directly, so restoring it after the upload costs the deployment
 # nothing.
@@ -356,7 +362,7 @@ fi
 # NOT RESTORED IF IT WAS ALREADY MODIFIED. Another agent may be mid-rebuild in
 # this working copy, and `git restore` over their in-flight edit would be a worse
 # failure than the one this prevents. Then it says so instead.
-DEPLOY_APP_YAML_REL="app/build/deploy/app.yaml"
+DEPLOY_APP_YAML_REL="player-insights-agent/build/deploy/app.yaml"
 DEPLOY_APP_YAML_PREBUILT_DIRTY=false
 if git -C "$BUNDLE_ROOT" rev-parse --git-dir >/dev/null 2>&1 \
    && git -C "$BUNDLE_ROOT" ls-files --error-unmatch "$DEPLOY_APP_YAML_REL" >/dev/null 2>&1; then

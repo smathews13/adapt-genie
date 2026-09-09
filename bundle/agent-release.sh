@@ -17,6 +17,7 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/decisions-gate.sh"
+configure_python_ca
 
 APPLY=false; SKIP_LOG=false; MODEL_VERSION=""; ALLOW_WIDENING=false; IGNORE_APP_INTENTIONS=false
 SHOW_SERVED=false

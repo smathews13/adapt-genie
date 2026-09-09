@@ -147,6 +147,7 @@ run_release() {
   LAST_OUT="$OUT_DIR/$name.out"
   local state="$OUT_DIR/$name.state" calls="$OUT_DIR/$name.calls"
   PATH="$STUBS:$PATH" \
+    REQUESTS_CA_BUNDLE=/dev/null SSL_CERT_FILE=/dev/null \
     TARGET=testtarget PROFILE=test-profile \
     SCENARIO="$scenario" STATE_FILE="$state" CALL_LOG="$calls" \
     bash "$SCRIPT" "$@" >"$LAST_OUT" 2>&1

@@ -64,8 +64,14 @@ case "$group ${1:-}" in
     ;;
   "apps get")
     mode="${MOCK_DEPLOYMENT_MODE:-SNAPSHOT}"
-    printf '{"active_deployment":{"mode":"%s","source_code_path":"%s","deployment_artifacts":{"source_code_path":"/Workspace/Users/app-id/src/deployment-id"}}}\n' \
-      "$mode" "$MOCK_SOURCE_PATH"
+    git_source="${MOCK_GIT_SOURCE:-}"
+    if [[ -n "$git_source" ]]; then
+      printf '{"active_deployment":{"mode":"%s","git_source":%s,"deployment_artifacts":{}}}\n' \
+        "$mode" "$git_source"
+    else
+      printf '{"active_deployment":{"mode":"%s","source_code_path":"%s","deployment_artifacts":{"source_code_path":"/Workspace/Users/app-id/src/deployment-id"}}}\n' \
+        "$mode" "$MOCK_SOURCE_PATH"
+    fi
     ;;
   "workspace get-status")
     if [[ -d "$MOCK_REMOTE" ]]; then
@@ -177,6 +183,21 @@ unset MOCK_DELETE_FAIL
 check "failed delete never reaches import or deploy" \
   sh -c "! grep -Eq '^(workspace\\|import-dir|apps\\|deploy)\\|' '$MOCK_LOG'"
 check "failed delete leaves active snapshot untouched" test -f "$WORK/active-snapshot"
+
+mkdir -p "$MOCK_REMOTE"
+printf 'stale Git-era staging\n' > "$MOCK_REMOTE/stale.js"
+: > "$MOCK_LOG"
+export MOCK_GIT_SOURCE='{"repository_url":"https://github.com/smathews13/adapt-genie","branch":"main","source_code_path":"app/build/deploy"}'
+if clean_and_import_app_source "$SOURCE" "$MOCK_SOURCE_PATH" adapt-genie "cmeg demo" \
+  >/dev/null 2>&1; then
+  pass "Git-backed active deployment permits recovery release staging"
+else
+  fail "Git-backed active deployment permits recovery release staging"
+fi
+unset MOCK_GIT_SOURCE
+check "Git transition removes stale mutable staging" test ! -e "$MOCK_REMOTE/stale.js"
+check "Git transition imports the complete release artifact" \
+  diff -qr "$SOURCE" "$MOCK_REMOTE"
 
 mkdir -p "$MOCK_REMOTE"
 : > "$MOCK_LOG"

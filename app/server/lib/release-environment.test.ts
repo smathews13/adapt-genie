@@ -103,4 +103,47 @@ describe('release runtime configuration persistence', () => {
     expect(await restoreReleaseEnvironment(store, env)).toBe(0);
     expect(env.PLAYER_INSIGHTS_CATALOG).toBe('');
   });
+
+  it('round-trips every ADAPT deployment value through a blank Deploy-from-Git manifest', async () => {
+    let persisted: string | null = null;
+    const store: DecisionStore = {
+      query: vi.fn((text: string, params: unknown[] = []) => {
+        if (text.startsWith('SELECT value')) {
+          return Promise.resolve({ rows: persisted === null ? [] : [{ value: persisted }] });
+        }
+        persisted = String(params[1]);
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    const expected = {
+      PLAYER_INSIGHTS_EXPERIMENT_ID: 'experiment-123',
+      PLAYER_INSIGHTS_EXPERIMENT_PATH: '/Shared/customer-adapt',
+      PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
+      PLAYER_INSIGHTS_SCHEMA: 'sales',
+      PLAYER_INSIGHTS_APP_CATALOG: 'customer_catalog',
+      PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.analytics',
+      PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
+      PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
+      PLAYER_INSIGHTS_TELEMETRY_SCHEMA: 'customer_catalog.adapt_telemetry',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
+    };
+    const releaseEnv: Record<string, string | undefined> = {
+      PLAYER_INSIGHTS_TARGET: 'customer',
+      LAKEBASE_ENDPOINT: 'projects/example/branches/production',
+      ...expected,
+    };
+
+    expect(await recordReleaseEnvironment(store, releaseEnv)).toBe(true);
+    const recorded = persisted;
+    const gitEnv: Record<string, string | undefined> = {
+      PLAYER_INSIGHTS_TARGET: '',
+      LAKEBASE_ENDPOINT: releaseEnv.LAKEBASE_ENDPOINT,
+      ...Object.fromEntries(Object.keys(expected).map((key) => [key, ''])),
+    };
+
+    expect(await recordReleaseEnvironment(store, gitEnv)).toBe(false);
+    expect(persisted).toBe(recorded);
+    expect(await restoreReleaseEnvironment(store, gitEnv)).toBe(Object.keys(expected).length);
+    expect(gitEnv).toMatchObject(expected);
+  });
 });

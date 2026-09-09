@@ -59,7 +59,11 @@ if not active:
     raise SystemExit(0)
 
 mode = str(active.get("mode") or "")
+git_source = active.get("git_source") or {}
 artifact = str((active.get("deployment_artifacts") or {}).get("source_code_path") or "")
+if isinstance(git_source, dict) and git_source:
+    print("git-snapshot")
+    raise SystemExit(0)
 if mode != "SNAPSHOT":
     shown_mode = mode or "<empty>"
     raise SystemExit(f"active deployment mode is {shown_mode}, not SNAPSHOT")
@@ -112,6 +116,8 @@ clean_and_import_app_source() {
   snapshot_state="$(printf '%s' "$app_json" | assert_active_deployment_is_snapshotted "$source_path")" || return
   if [[ "$snapshot_state" == "greenfield" ]]; then
     printf '  no active deployment yet; there is no running source dependency to preserve\n'
+  elif [[ "$snapshot_state" == "git-snapshot" ]]; then
+    printf '  active deployment is Git-backed; mutable Workspace staging is not its source and can be replaced safely\n'
   else
     printf '  active deployment uses a platform SNAPSHOT; mutable staging can be replaced safely\n'
   fi

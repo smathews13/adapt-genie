@@ -140,7 +140,7 @@ describe('workspace group defaults', () => {
       entries: [],
       groupRoleDefaults: [
         {
-          displayName: 'S_TK2_Databricks_adapt_genie_admins',
+          displayName: 'S_TK2_Databricks_Adapt_Genie_Admins',
           groupName: 'customer-admins',
           role: 'admin',
           appPermission: 'CAN_MANAGE',
@@ -151,7 +151,7 @@ describe('workspace group defaults', () => {
           setAt: '',
         },
         {
-          displayName: 'S_TK2_Databricks_adapt_genie_users',
+          displayName: 'S_TK2_Databricks_Adapt_Genie_Users',
           groupName: 'customer-users',
           role: 'consumer',
           appPermission: 'CAN_USE',
@@ -170,10 +170,10 @@ describe('workspace group defaults', () => {
     };
     const markup = renderToStaticMarkup(<GroupRoleDefaults payload={payload} />);
     expect(text(markup)).toContain(
-      'S_TK2_Databricks_adapt_genie_admins Workspace mapping: customer-admins Admin Can manage'
+      'S_TK2_Databricks_Adapt_Genie_Admins Workspace mapping: customer-admins Admin Can manage'
     );
     expect(text(markup)).toContain(
-      'S_TK2_Databricks_adapt_genie_users Workspace mapping: customer-users Consumer Can use'
+      'S_TK2_Databricks_Adapt_Genie_Users Workspace mapping: customer-users Consumer Can use'
     );
     expect(markup).toContain('href="https://accounts.cloud.databricks.com"');
     expect(markup).toContain('Open Databricks identity management for customer-admins');

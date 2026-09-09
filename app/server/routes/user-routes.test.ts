@@ -288,8 +288,8 @@ describe('the super admin reads the roster', () => {
     expect(payload.superAdminCount).toBe(ADAPT_SUPER_ADMIN_EMAILS.length + 1);
     expect(payload.groupRoleDefaults).toEqual([
       {
-        displayName: 'S_TK2_Databricks_adapt_genie_admins',
-        groupName: 'S_TK2_Databricks_adapt_genie_admins',
+        displayName: 'S_TK2_Databricks_Adapt_Genie_Admins',
+        groupName: 'S_TK2_Databricks_Adapt_Genie_Admins',
         role: 'admin',
         appPermission: 'CAN_MANAGE',
         source: 'bundle',
@@ -299,8 +299,8 @@ describe('the super admin reads the roster', () => {
         setAt: '',
       },
       {
-        displayName: 'S_TK2_Databricks_adapt_genie_users',
-        groupName: 'S_TK2_Databricks_adapt_genie_users',
+        displayName: 'S_TK2_Databricks_Adapt_Genie_Users',
+        groupName: 'S_TK2_Databricks_Adapt_Genie_Users',
         role: 'consumer',
         appPermission: 'CAN_USE',
         source: 'bundle',
@@ -322,10 +322,10 @@ describe('the super admin reads the roster', () => {
       })
     );
     const app = await startApp(fakeLakebase(), undefined, readGroupMembers);
-    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_Adapt_Genie_Users');
     expect(configured.status).toBe(200);
     expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
-    expect(readGroupMembers).toHaveBeenCalledWith('S_TK2_Databricks_adapt_genie_users');
+    expect(readGroupMembers).toHaveBeenCalledWith('S_TK2_Databricks_Adapt_Genie_Users');
 
     const unknown = await app.groupMembers(LEAD, 'unrelated');
     expect(unknown.status).toBe(404);
@@ -350,7 +350,7 @@ describe('the super admin reads the roster', () => {
     );
     const app = await startApp(store, undefined, readGroupMembers);
 
-    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_Adapt_Genie_Users');
     expect(configured.status).toBe(200);
     expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
 
@@ -404,7 +404,7 @@ describe('the super admin reads the roster', () => {
     expect((await app.groupMembers(LEAD, 'existing-team')).status).toBe(200);
     expect(members).toHaveBeenCalledWith('existing-team');
 
-    const immutable = await app.mapGroup(LEAD, 'S_TK2_Databricks_adapt_genie_admins', 'consumer');
+    const immutable = await app.mapGroup(LEAD, 'S_TK2_Databricks_Adapt_Genie_Admins', 'consumer');
     expect(immutable.status).toBe(409);
     expect(store.rows.groups).toHaveLength(1);
   });

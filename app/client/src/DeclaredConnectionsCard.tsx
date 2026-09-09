@@ -42,7 +42,7 @@ import type { DeclaredResourceType } from '../../shared/notebook-declaration';
 import { Button } from './ui';
 import { useDeclaredConnectionController } from './declared-connection-controller';
 import { ConnectionRemovalStatus } from './ConnectionRemovalStatus';
-import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
+import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 
 function ConnectionProvenance({ connection }: { connection: ConnectionEntry['connection'] }) {
   const created = connection.createdAt ? new Date(connection.createdAt) : null;
@@ -275,14 +275,12 @@ export function DeclaredConnectionsCard({
                     aria-busy={busy || undefined}
                     onClick={() => void remove(entry)}
                   >
-                    {busy ? (
-                      <AstrolabeLoadingLabel as="span" announce={false} label="Deleting" />
-                    ) : (
-                      <>
-                        <Trash2 className="size-4" aria-hidden="true" />
-                        {DELETE_CONNECTION_LABEL}
-                      </>
-                    )}
+                    <AdaptBusyButtonContent
+                      busy={busy}
+                      label={DELETE_CONNECTION_LABEL}
+                      busyLabel="Deleting"
+                      icon={<Trash2 className="size-4" aria-hidden="true" />}
+                    />
                   </Button>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirming('')}>
                     Keep
@@ -416,29 +414,24 @@ export function DeclaredConnectionsCard({
           ) : null}
 
           <div className="plane-form-actions" data-sticky="true">
-            <button
+            <Button
               type="button"
-              className="plane-button"
+              size="sm"
               disabled={!chosenKind || Boolean(disabledReason)}
               aria-busy={busy || undefined}
               aria-describedby={disabledReason ? `${formId}-add-reason` : undefined}
               onClick={() => void add()}
             >
-              {busy ? (
-                <AstrolabeLoadingLabel
-                  as="span"
-                  announce={false}
-                  label={chosenKind ? `Adding ${chosenKind.label.toLowerCase()}` : 'Adding connection'}
-                />
-              ) : chosenKind ? (
-                `Add ${chosenKind.label.toLowerCase()}`
-              ) : (
-                'Add connection'
-              )}
-            </button>
-            <button
+              <AdaptBusyButtonContent
+                busy={busy}
+                label={chosenKind ? `Add ${chosenKind.label.toLowerCase()}` : 'Add connection'}
+                busyLabel={chosenKind ? `Adding ${chosenKind.label.toLowerCase()}` : 'Adding connection'}
+              />
+            </Button>
+            <Button
               type="button"
-              className="plane-button-quiet"
+              variant="outline"
+              size="sm"
               disabled={busy}
               onClick={() => {
                 setAdding(false);
@@ -449,7 +442,7 @@ export function DeclaredConnectionsCard({
               }}
             >
               Cancel
-            </button>
+            </Button>
             {disabledReason ? (
               <span className="plane-add-reason" id={`${formId}-add-reason`}>
                 {disabledReason}

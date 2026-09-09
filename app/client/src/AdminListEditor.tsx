@@ -15,8 +15,7 @@
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Copy, Trash2, UserPlus } from 'lucide-react';
-import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
-import { ConceptFlicker } from './ConceptFlicker';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { Button, Input } from './ui';
 import { addedOn, canSubmit, listSummary, originLabel, type AdminListEntry } from './admin-list';
 import { reportEgress } from './egress-policy';
@@ -230,11 +229,7 @@ export function AdminListEditor() {
 
   return (
     <div className="identity-table-content">
-      {loading ? (
-        <div className="admin-list-note" role="status">
-          <ConceptFlicker seat="inline" /> <span>Reading the administrator list</span>
-        </div>
-      ) : null}
+      {loading ? <AdaptLoader label="Reading the administrator list" className="admin-list-note" /> : null}
 
       {error ? (
         <p className="admin-list-note admin-list-error">

@@ -153,7 +153,7 @@ describe('the ranged cost route', () => {
           { status: 200, headers: { 'content-type': 'application/json' } }
         )
       );
-    }) as typeof fetch;
+    });
 
     setupOpsRoutes(
       {
@@ -164,7 +164,9 @@ describe('the ranged cost route', () => {
       {
         isAdminRoute: () => true,
         now: () => Date.parse('2026-08-18T12:00:00Z'),
-        fetchImpl,
+        fetchImpl: fetchImpl as typeof fetch,
+        billingAppToken: () =>
+          Promise.resolve({ host: 'https://workspace.example.test', token: 'app-service-principal-token' }),
         readAppBillingTag: () => Promise.resolve('matched'),
         readFirstAppDeployment: () => Promise.resolve({ deployedAt: '2026-01-01T00:00:00Z' }),
         queryHistoryTransport: {
@@ -196,6 +198,14 @@ describe('the ranged cost route', () => {
     expect(payload.period).toBe('current_month');
     expect(payload.range).toEqual({ from: '2026-08-01', to: '2026-08-17' });
     expect(payload.billingLagDays).toBe(1);
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(
+      fetchImpl.mock.calls.every(([, init]) => {
+        const authorization = new Headers(init?.headers).get('authorization');
+        return authorization === 'Bearer app-service-principal-token';
+      })
+    ).toBe(true);
+    expect(JSON.stringify(fetchImpl.mock.calls)).not.toContain('caller-token');
     expect(lakebase).toHaveBeenCalledWith(QUESTION_COST_RUNS_QUERY, ['2026-08-01', '2026-08-17']);
     expect(statementBodies[0].parameters).toEqual(
       expect.arrayContaining([
@@ -412,6 +422,8 @@ describe('the ranged cost route', () => {
         isAdminRoute: () => true,
         now: () => Date.parse('2026-08-18T12:00:00Z'),
         fetchImpl,
+        billingAppToken: () =>
+          Promise.resolve({ host: 'https://workspace.example.test', token: 'app-service-principal-token' }),
         readAppBillingTag: () => Promise.resolve('matched'),
         readFirstAppDeployment: () => Promise.resolve({ deployedAt: '2026-01-01T00:00:00Z' }),
         queryHistoryTransport: { listQueries: () => Promise.resolve({ res: [] }) },

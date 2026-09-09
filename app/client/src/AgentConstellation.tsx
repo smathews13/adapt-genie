@@ -75,7 +75,7 @@ import {
   type BrandTone,
 } from './brand-icons';
 import { BrandIcon } from './BrandIcon';
-import { ConceptFlicker } from './ConceptFlicker';
+import { AdaptBusyMark } from './AdaptLoadingAnimation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { StageStatus, TraceStage } from './answer-shape';
 import { formatDuration } from './benchmark-format';
@@ -768,7 +768,7 @@ export function AgentPathConstellation({
         */}
           <span className="ast-sky-status-mark" aria-hidden="true">
             {flickering ? (
-              <ConceptFlicker seat="status" />
+              <AdaptBusyMark />
             ) : shownProduct ? (
               <BrandIcon product={shownProduct} size={12} tone="dark" />
             ) : (

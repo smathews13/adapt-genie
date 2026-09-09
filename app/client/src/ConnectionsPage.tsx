@@ -1073,12 +1073,29 @@ export function declaredTableNames(configured: string): string[] {
 
 /** One complete, stable inventory for both the resource row and detail table. */
 // eslint-disable-next-line react-refresh/only-export-components -- pure inventory helper shared with focused render tests
-export function canonicalDeclaredTableNames(configured: string, checks: readonly PreflightCheck[]): string[] {
+export function canonicalDeclaredTableNames(
+  configured: string,
+  checks: readonly PreflightCheck[],
+  connections: readonly ConnectionEntry[] = []
+): string[] {
   const names = declaredTableNames(configured);
   for (const check of checks) {
     if (check.kind !== 'table') continue;
     const name = check.name.trim();
     if (name && !names.includes(name)) names.push(name);
+  }
+  for (const entry of connections) {
+    if (
+      entry.connection.state !== 'declared' ||
+      entry.connection.resourceType !== 'table' ||
+      !entry.connection.value.trim()
+    ) {
+      continue;
+    }
+    const name = entry.connection.value.trim();
+    if (!names.some((candidate) => normalizedConnectionValue(candidate) === normalizedConnectionValue(name))) {
+      names.push(name);
+    }
   }
   return names;
 }
@@ -2484,7 +2501,7 @@ export function ConnectionsPage() {
                   tone={GROUP_TONE[group.key]}
                   saving={saving === reading.resource.id}
                   refreshing={refreshing}
-                  declaredTables={canonicalDeclaredTableNames(reading.row.configured, tableChecks)}
+                  declaredTables={canonicalDeclaredTableNames(reading.row.configured, tableChecks, tableConnections)}
                   tableChecks={tableChecks}
                   checkedAt={lastCheckedAt}
                   requested={requestedResource === reading.resource.id}
@@ -2526,9 +2543,12 @@ export function ConnectionsPage() {
         readState={unityCatalogReadState}
         storeAvailable={payload?.storeAvailable ?? true}
         allowMutations={allowMutations}
-        onChanged={async () => {
-          await refresh();
-        }}
+        // The confirmed mutation is already committed into the shared session
+        // cache by the controller. Do not immediately launch a second full
+        // dependency probe: table batches made every new row sit on "Checking"
+        // until the slowest upstream timeout. Explicit Refresh remains the one
+        // action that re-runs reachability.
+        onChanged={() => {}}
       />
     </div>
   );

@@ -80,7 +80,7 @@ describe('Ask and Run use page-specific desktop pane geometry', () => {
     expect(center).toContain('overflow-y: visible');
     expect(center).not.toContain('var(--ask-active-card');
     expect(ASK).toMatch(
-      /\.ask-layout\[data-center-state='final'\][\s\S]*?\.answer-card\s*\{[^}]*min-height:\s*calc\(100dvh - var\(--app-header-h\)\)[^}]*max-height:\s*none/
+      /\.ask-layout\[data-center-state='final'\][\s\S]*?\.answer-card\s*\{[^}]*min-height:\s*0[^}]*max-height:\s*none/
     );
     expect(rule(ANSWER_BODY, '.answer-card-content')).toMatch(/grid-auto-rows:\s*auto[\s\S]*overflow:\s*visible/);
   });

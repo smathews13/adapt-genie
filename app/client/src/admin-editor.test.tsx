@@ -205,8 +205,8 @@ describe('the copy on the card', () => {
 
   it('uses compact branded loaders while identity lists are first read', () => {
     for (const file of [editor, roles]) {
-      expect(file).toContain('<ConceptFlicker seat="inline" />');
-      expect(file).toContain('role="status"');
+      expect(file).toContain('<AdaptLoader');
+      expect(file).not.toContain('<ConceptFlicker');
     }
     expect(editor).toContain('Reading the administrator list');
     expect(roles).toContain('Reading identity settings');

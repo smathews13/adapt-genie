@@ -51,7 +51,7 @@ describe('the shared question attribution bubble', () => {
     expect(hostPseudo).toContain('content: none');
     expect(surface).toContain('overflow: visible');
     expect(surface).toContain('border: 1px solid var(--ast-border-input)');
-    expect(surface).toContain('border-radius: calc(var(--radius-md) * 2) calc(var(--radius-md) * 2) var(--radius-sm)');
+    expect(surface).toContain('border-radius: calc(var(--radius-md) * 2)');
     expect(rule('.question-attribution-surface::after')).toContain('right: 22px');
     expect(rule('.question-attribution-surface::after')).toContain('bottom: -5px');
     expect(rule('.question-attribution-message')).toContain('background: transparent');

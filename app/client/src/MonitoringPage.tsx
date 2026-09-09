@@ -36,8 +36,7 @@ import { astPill, type AstPillFamily } from './astrolabe-pill';
 import { BrandIcon } from './BrandIcon';
 import { Button, Input, Skeleton } from './ui';
 import { AppSelect } from './AppSelect';
-import { ConceptFlicker } from './ConceptFlicker';
-import { AstrolabeMark } from './AstrolabeMark';
+import { AdaptBusyMark, AdaptLoader } from './AdaptLoadingAnimation';
 import { showsAdminSurfaces, type AppOutletContext } from './role';
 import { PageHeading } from './page-chrome';
 import { RefreshControl } from './RefreshControl';
@@ -1261,11 +1260,7 @@ function LoadingSpendMetric({ label, animated = false }: { label: string; animat
         <EstimatedBadge />
       </div>
       <div className="user-profile-modal-spend-kpi-loading-body">
-        {animated ? (
-          <ConceptFlicker seat="inline" />
-        ) : (
-          <AstrolabeMark size={16} ink="light" className="user-profile-modal-spend-static-mark" />
-        )}
+        <AdaptBusyMark className={animated ? '' : 'user-profile-modal-spend-static-mark'} />
       </div>
     </div>
   );
@@ -1845,10 +1840,7 @@ export function PersonPanelShell({
             </Button>
           </div>
         ) : (
-          <div role="status" className="user-profile-modal-profile-loading">
-            <ConceptFlicker seat="inline" />
-            <span>Loading user activity</span>
-          </div>
+          <AdaptLoader label="Loading user activity" className="user-profile-modal-profile-loading" />
         )}
       </div>
     </Dialog>

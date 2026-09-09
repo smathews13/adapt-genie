@@ -136,14 +136,14 @@ describe('canonical ADAPT loading geometry', () => {
     expect(connections.match(/data-testid="connections-primary-loader"/g)).toHaveLength(1);
     expect(connections).not.toContain('<Skeleton');
     const markup = renderToStaticMarkup(<AstrolabeLoadingLabel label="Loading connections" />);
-    expect(markup.match(/class="ast-flick-slot /g)).toHaveLength(1);
+    expect(markup.match(/class="adapt-button-mark /g)).toHaveLength(1);
   });
 
   it('gives every resource a useful row-local loading label', () => {
     for (const resource of CONNECTED_RESOURCES) {
       const markup = renderToStaticMarkup(<ConnectionLoadRow reading={reading(resource.id)} state="loading" />);
       expect(markup).toContain(`Loading ${resource.label}`);
-      expect(markup.match(/class="ast-flick-slot /g)).toHaveLength(1);
+      expect(markup.match(/class="adapt-button-mark /g)).toHaveLength(1);
     }
   });
 

@@ -14,18 +14,25 @@ describe('application loading treatment', () => {
       './OpsLoadingState.tsx',
       './OpsPage.tsx',
       './ForecastingPanel.tsx',
+      './MonitoringPage.tsx',
+      './UserRoleEditor.tsx',
+      './AdminListEditor.tsx',
+      './ResourceTagsPanel.tsx',
+      './DeclaredConnectionsCard.tsx',
     ];
 
     for (const file of files) {
       const contents = source(file);
       expect(contents, file).not.toContain('Loader2');
       expect(contents, file).not.toContain('animate-spin');
+      expect(contents, file).not.toContain('<ConceptFlicker');
     }
 
     expect(source('./OpsLoadingState.tsx')).toContain('<AdaptLoader variant="panel"');
     expect(source('./HomePage.tsx')).toContain('className="attachment-progress-loader"');
     expect(source('./EvalFlywheel.tsx')).toContain('<AdaptBusyButtonContent');
     expect(source('./BenchmarkLab.tsx')).toContain('<AdaptLoader variant="inline" label="Run in progress"');
+    expect(source('./AstrolabeLoadingLabel.tsx')).toContain('<AdaptBusyMark');
   });
 
   it('renders a branded Preparing answer header for follow-up runs', () => {

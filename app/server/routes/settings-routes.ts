@@ -331,15 +331,16 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         app: await readAppFacts(),
       });
       const states = resourceStates({ report, environment, stored });
+      const declaredConnections = await readDeclaredConnections(appkit);
       res.json({
         ...payload,
-        checks: await readReachability(req, { report, environment, stored }),
+        checks: await readReachability(req, { report, environment, stored, declaredConnections }),
         // Assembled here rather than inside `settingsPayload` for the reason that
         // function's own comment gives: it is pure, and both of these need a round
         // trip. The notebook read also needs the request, because it is made as the
         // signed-in user.
         ...(notebookSync ? { notebook: await readNotebook(req, appkit, report, stored) } : {}),
-        connections: await readConnections(appkit, states),
+        connections: readConnections(declaredConnections, states),
       });
     });
 
@@ -1047,12 +1048,11 @@ async function impactFor(appkit: InsightsAppKit, connection: StoredDeclaredConne
   return removalImpact(connection, configuredValues(states));
 }
 
-async function readConnections(
-  appkit: InsightsAppKit,
+function readConnections(
+  connections: readonly StoredDeclaredConnection[],
   states: ReturnType<typeof resourceStates>
-): Promise<ConnectionEntry[]> {
+): ConnectionEntry[] {
   const live = configuredValues(states);
-  const connections = await readDeclaredConnections(appkit);
   return connections.map((connection) => ({
     connection,
     impact: removalImpact(connection, live),
@@ -1100,6 +1100,7 @@ async function readReachability(
     report: PreflightReport | null;
     environment: Record<string, string>;
     stored: Map<string, StoredSetting>;
+    declaredConnections: readonly StoredDeclaredConnection[];
   }
 ): Promise<PreflightCheck[]> {
   try {
@@ -1116,6 +1117,12 @@ async function readReachability(
         env: process.env,
       }).tables,
     ];
+    tables = completeReachabilityTables(
+      tables,
+      input.declaredConnections
+        .filter((connection) => connection.state === 'declared' && connection.resourceType === 'table')
+        .map((connection) => connection.value)
+    );
     const catalog = configured.catalog ?? '';
     const schema = configured.schema ?? '';
     const manifest = configuration.find((entry) => entry.key === 'declared_manifest');

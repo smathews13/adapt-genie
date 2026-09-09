@@ -748,10 +748,12 @@ describe('every addable kind browses', () => {
     expect(CARD_SOURCE).not.toContain('Connection key');
   });
 
-  it('uses one ordinary Cancel action and a neutral selection-gated Add action', () => {
+  it('uses shared app buttons and ADAPT busy content for Add and Cancel', () => {
     expect(CARD_SOURCE.match(/>\s*Cancel\s*</g)).toHaveLength(1);
     expect(CARD_SOURCE).toContain('disabled={!chosenKind || Boolean(disabledReason)}');
     expect(CARD_SOURCE).toContain('`Add ${chosenKind.label.toLowerCase()}`');
+    expect(CARD_SOURCE).toContain('<AdaptBusyButtonContent');
+    expect(CARD_SOURCE).not.toContain('className="plane-button"');
     expect(CARD_SOURCE).toMatch(/!value\.trim\(\)[\s\S]*Choose a warehouse first/);
   });
 

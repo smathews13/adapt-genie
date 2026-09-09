@@ -22,11 +22,12 @@
  * that reports what a deployment costs and who it serves is not one to leave
  * open because a wiring change dropped a middleware.
  *
- * NOTHING HERE WIDENS WHAT ANYBODY MAY READ. The billing query runs on the
- * caller's own forwarded token, so an admin with no grant on
- * `system.billing.usage` is refused by Unity Catalog exactly as they would be in
- * a SQL editor, and the block reports that as a grant somebody makes rather than
- * as a failure. Being an admin opens the tab; it does not open the data.
+ * BILLING RUNS AS THE APP SERVICE PRINCIPAL. Cost is deployment telemetry, not
+ * customer data, and requiring every app administrator to hold account-wide
+ * `system.billing` access both widens human access and makes the same deployment
+ * report different totals to different administrators. Ask, Genie, watchlist,
+ * and catalog browsing remain user-authorized; this boundary applies only to
+ * the Cost route's billing and query-history reads.
  */
 
 import { APP_SCHEMA } from '../../shared/app-schema';
@@ -64,7 +65,7 @@ import {
 } from '../lib/ops-telemetry';
 import { classifyDenial, accessDependenciesFrom, forwardedUserToken, UNKNOWN_PRINCIPAL } from './access-verification';
 import { executionToken } from '../lib/execution-credential';
-import { readOpsScopesPage } from '../lib/ops-scope-check';
+import { mintAppScopeToken, readOpsScopesPage } from '../lib/ops-scope-check';
 import type { OpsScopeFilter } from '../../shared/ops-scope-contract';
 import {
   ANSWER_PATH_ENDPOINT_IDS,
@@ -99,6 +100,7 @@ import {
   userSpendCacheKey,
 } from '../lib/user-spend';
 import { appSessionDeployment } from '../lib/app-session';
+import { appServicePrincipal } from './execution-identity';
 import { buildUserSpendMetrics } from '../lib/user-spend-metrics';
 import { ADMIN_REQUIRED_BODY, recordAdminAction, resolveRoleForRequest, seedRoles } from '../lib/admin-roles';
 import { everyKnownUser, readRosterForRequest } from '../lib/user-roster';
@@ -1398,8 +1400,10 @@ export interface OpsDeps {
   readAppBillingTag?: (appName: string) => Promise<AppBillingTagState>;
   /** Injected by route tests so recovered report resources are deterministic. */
   readOrchestratorReport?: () => Promise<{ report: PreflightReport | null }>;
-  /** Injected by tests; production uses the forwarded user token through the Workspace SDK. */
+  /** Injected by tests; production uses the app service principal through the Workspace SDK. */
   queryHistoryTransport?: WarehouseQueryHistoryTransport;
+  /** Test seam for the Cost route's app service-principal credential. */
+  billingAppToken?: () => Promise<{ host: string; token: string }>;
   /** Test seam for the route's independent capability check. */
   healthCheckRole?: (req: Request) => Promise<string>;
   /** Test seams for the independent scope-comparison authorization and app credential. */
@@ -1693,8 +1697,19 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
       });
       const workspace = host();
       const warehouse = warehouseId();
-      const token = executionToken(req);
-      const workspaceId = token ? await resolveWorkspaceId({ host: workspace, token, fetchImpl: deps.fetchImpl }) : '';
+      const billingCredential = await (
+        deps.billingAppToken ??
+        (() => mintAppScopeToken(requestAbort.signal, { fetchImpl: deps.fetchImpl }))
+      )().catch(() => null);
+      const billingWorkspace = billingCredential?.host || workspace;
+      const billingToken = billingCredential?.token || '';
+      const workspaceId = billingToken
+        ? await resolveWorkspaceId({
+            host: billingWorkspace,
+            token: billingToken,
+            fetchImpl: deps.fetchImpl,
+          })
+        : '';
       const resolved = await costIdentifiersFor(appkit, req, {
         workspaceId,
         warehouse,
@@ -1879,7 +1894,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
           partialReason: reason,
         });
 
-      if (!workspace || !warehouse || !token) {
+      if (!billingWorkspace || !warehouse || !billingToken) {
         const tiles = buildTiles(ids, [], EMPTY_WAREHOUSE_QUERY_ATTRIBUTION, resourceActivity);
         sendCost({
           ...empty,
@@ -1887,8 +1902,8 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
           tiles,
           userMonitoring: userMonitoringFor(unavailableUserSpend(tiles, 'Billing could not be read.')),
           reason:
-            'Billing could not be read because this app has no SQL warehouse, no workspace address, ' +
-            'or no forwarded sign-in to read it with. Nothing about spend was established.',
+            'Billing could not be read because this app has no SQL warehouse, workspace address, ' +
+            'or app service-principal credential. Nothing about spend was established.',
         } satisfies OpsCostPayload);
         return;
       }
@@ -1922,16 +1937,16 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
         ].join('|');
         const [outcome, queryAttribution, genieOutcome, foundationOutcome, recentMonthlySpend] = await Promise.all([
           runStatement({
-            host: workspace,
-            token,
+            host: billingWorkspace,
+            token: billingToken,
             warehouseId: warehouse,
             statement: built.statement,
             parameters: built.parameters,
             fetchImpl: deps.fetchImpl,
           }),
           warehouseQueryAttribution({
-            host: workspace,
-            token,
+            host: billingWorkspace,
+            token: billingToken,
             warehouseId: warehouse,
             range,
             transport: deps.queryHistoryTransport,
@@ -1940,8 +1955,8 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
           }),
           genieStatement
             ? runStatement({
-                host: workspace,
-                token,
+                host: billingWorkspace,
+                token: billingToken,
                 warehouseId: warehouse,
                 statement: genieStatement.statement,
                 parameters: genieStatement.parameters,
@@ -1950,8 +1965,8 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
             : Promise.resolve({ ok: false as const, message: 'No workspace id is configured for Genie billing.' }),
           foundationStatement
             ? runStatement({
-                host: workspace,
-                token,
+                host: billingWorkspace,
+                token: billingToken,
                 warehouseId: warehouse,
                 statement: foundationStatement.statement,
                 parameters: foundationStatement.parameters,
@@ -1975,9 +1990,9 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
                       appkit,
                       ids,
                       range: monthRange,
-                      workspace,
+                      workspace: billingWorkspace,
                       warehouse,
-                      token,
+                      token: billingToken,
                       fetchImpl: deps.fetchImpl,
                       queryHistoryTransport: deps.queryHistoryTransport,
                     }),
@@ -2019,13 +2034,12 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
               ...empty,
               recentMonthlySpend,
               state: 'no-grant',
-              grant: billingGrant(userEmail(req) || UNKNOWN_PRINCIPAL),
+              grant: billingGrant(appServicePrincipal() || '<app-service-principal>'),
               tiles,
               userMonitoring: userMonitoringFor(unavailableUserSpend(tiles, 'Billing access is unavailable.')),
               reason:
-                `You do not have ${denial.permission} on ${denial.object}, so no spend was read. Billing ` +
-                'runs under your own grants rather than this app\u2019s, so being an administrator here ' +
-                'does not grant it. SELECT is needed on both system.billing.usage and system.billing.list_prices.',
+                `The app service principal does not have ${denial.permission} on ${denial.object}, so no spend ` +
+                'was read. Grant it SELECT on both system.billing.usage and system.billing.list_prices.',
             } satisfies OpsCostPayload);
             return;
           }
@@ -2258,9 +2272,9 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
             appkit,
             ids,
             range: lifetimeRange,
-            workspace,
+            workspace: billingWorkspace,
             warehouse,
-            token,
+            token: billingToken,
             fetchImpl: deps.fetchImpl,
             queryHistoryTransport: deps.queryHistoryTransport,
           })

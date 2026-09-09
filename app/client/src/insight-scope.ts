@@ -12,8 +12,9 @@
  * and always carries the tables, which is why Connections reads it and this now
  * does too — so the rail and the Connections matrix cannot disagree.
  *
- * Nothing here invents a figure: a check the probe did not return is a line this
- * does not draw, and the tables are exactly the ones the workspace answered for.
+ * Nothing here invents a figure. Probed tables lead; when no table probe exists,
+ * the rail falls back to table assets explicitly added in Unity Catalog scope
+ * and marks them unverified until Refresh runs.
  */
 import { useEffect, useState } from 'react';
 
@@ -66,6 +67,25 @@ export function insightTables(payload: unknown): InsightTable[] {
     const name = check.name.trim();
     if (!name) continue;
     tables.push({ name, display: shortTableName(name), status: statusOf(check) });
+  }
+  if (tables.length > 0) return tables;
+
+  const connections = (payload as { connections?: unknown } | null)?.connections;
+  if (!Array.isArray(connections)) return tables;
+  const seen = new Set<string>();
+  for (const entry of connections) {
+    if (!entry || typeof entry !== 'object') continue;
+    const connection = (entry as { connection?: unknown }).connection;
+    if (!connection || typeof connection !== 'object') continue;
+    const candidate = connection as Record<string, unknown>;
+    if (candidate.state !== 'declared' || candidate.resourceType !== 'table' || typeof candidate.value !== 'string') {
+      continue;
+    }
+    const name = candidate.value.trim();
+    const key = name.toLocaleLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    tables.push({ name, display: shortTableName(name), status: 'unverified' });
   }
   return tables;
 }

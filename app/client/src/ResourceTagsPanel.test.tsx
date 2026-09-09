@@ -115,12 +115,13 @@ describe('compact Resource Tags results', () => {
 });
 
 describe('Resource Tags controls', () => {
-  it('puts the in-button flicker left of Apply while running', () => {
+  it('uses the ADAPT button mark while applying', () => {
     const idle = renderToStaticMarkup(<ResourceTagsApplyButton running={false} />);
     const busy = renderToStaticMarkup(<ResourceTagsApplyButton running={true} />);
     expect(idle).toContain('Apply tags');
-    expect(busy).toContain('ast-flick-slot--button');
-    expect(busy.indexOf('ast-flick-slot--button')).toBeLessThan(busy.indexOf('Apply tags'));
+    expect(busy).toContain('adapt-button-mark');
+    expect(busy).toContain('Applying tags');
+    expect(busy).not.toContain('ast-flick-slot');
   });
 
   it('reports supported failures and permissions without claiming success', () => {

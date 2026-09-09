@@ -23,8 +23,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ChevronRight, ExternalLink, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import { Button, Input } from './ui';
-import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
-import { ConceptFlicker } from './ConceptFlicker';
+import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
 import { CopyableCommand } from './AdminListEditor';
 import {
   addDisabledReason,
@@ -412,11 +411,7 @@ function GroupRoleRow({ entry }: { entry: GroupRoleEntry }) {
       {open ? (
         <tr className="group-role-members-row">
           <td colSpan={3}>
-            {loading ? (
-              <p className="settings-status">
-                <ConceptFlicker seat="inline" /> <span>Reading group members</span>
-              </p>
-            ) : null}
+            {loading ? <AdaptLoader label="Reading group members" className="settings-status" /> : null}
             {!loading && members ? (
               <div className="group-role-members">
                 <p>
@@ -741,11 +736,7 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
             }
           />
         ) : null}
-        {loading ? (
-          <div className="admin-list-note" role="status">
-            <ConceptFlicker seat="inline" /> <span>Reading identity settings</span>
-          </div>
-        ) : null}
+        {loading ? <AdaptLoader label="Reading identity settings" className="admin-list-note" /> : null}
         {error ? (
           <p className="admin-list-note admin-list-error">
             The roster could not be read. Nobody has lost a role. Reload the page.

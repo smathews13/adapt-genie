@@ -1,4 +1,4 @@
-import { ConceptFlicker } from './ConceptFlicker';
+import { AdaptBusyMark } from './AdaptLoadingAnimation';
 import type { FlickerSeat } from './astrolabe-mark';
 
 /**
@@ -29,7 +29,7 @@ export function AstrolabeLoadingLabel({
       aria-live={announce ? 'polite' : undefined}
       aria-busy="true"
     >
-      <ConceptFlicker seat={seat} />
+      <AdaptBusyMark className={`adapt-loader-seat-${seat}`} />
       <span className="ast-flick-row-say">{label}</span>
     </Element>
   );

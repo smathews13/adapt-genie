@@ -1,6 +1,12 @@
 import { Check, ChevronRight, Database, FolderTree, PanelsTopLeft, Search, Table2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import type { BrowseItem, BrowseKind, BrowseResponse, UnityCatalogSearchResponse } from '../../shared/browse-contract';
+import type {
+  BrowseItem,
+  BrowseKind,
+  BrowseResponse,
+  UnityCatalogSearchResponse,
+  UnityCatalogSearchType,
+} from '../../shared/browse-contract';
 import type { DeclaredResourceType } from '../../shared/notebook-declaration';
 import { AstrolabeLoadingLabel } from './AstrolabeLoadingLabel';
 import { BrowseGrantPrompt, mergeBrowseItems } from './AssetPicker';
@@ -515,7 +521,7 @@ interface SearchState {
   more: boolean;
 }
 
-function useUnityCatalogSearch(query: string): SearchState {
+function useUnityCatalogSearch(query: string, resourceType: UnityCatalogSearchType): SearchState {
   const [state, setState] = useState<SearchState>({ status: 'idle', items: [], detail: '', more: false });
   useEffect(() => {
     const trimmed = query.trim();
@@ -523,9 +529,12 @@ function useUnityCatalogSearch(query: string): SearchState {
     const controller = new AbortController();
     const generation = window.setTimeout(() => {
       setState({ status: 'loading', items: [], detail: '', more: false });
-      void fetch(`/api/browse/unity-catalog/search?q=${encodeURIComponent(trimmed)}`, {
-        signal: controller.signal,
-      })
+      void fetch(
+        `/api/browse/unity-catalog/search?q=${encodeURIComponent(trimmed)}&type=${encodeURIComponent(resourceType)}`,
+        {
+          signal: controller.signal,
+        }
+      )
         .then(async (answer) => (await answer.json()) as UnityCatalogSearchResponse)
         .then((response) => {
           if (controller.signal.aborted) return;
@@ -555,7 +564,7 @@ function useUnityCatalogSearch(query: string): SearchState {
       window.clearTimeout(generation);
       controller.abort();
     };
-  }, [query]);
+  }, [query, resourceType]);
   return query.trim().length < 2 ? { status: 'idle', items: [], detail: '', more: false } : state;
 }
 
@@ -573,6 +582,7 @@ function localSearchMatch(value: string, query: string): boolean {
 
 function ExplorerSearchResults({
   query,
+  resourceType,
   declared,
   staged,
   busy,
@@ -581,6 +591,7 @@ function ExplorerSearchResults({
   onClear,
 }: {
   query: string;
+  resourceType: UnityCatalogSearchType;
   declared: readonly UnityCatalogExplorerSelection[];
   staged: ReadonlySet<string>;
   busy: boolean;
@@ -588,13 +599,16 @@ function ExplorerSearchResults({
   onToggle: (selection: UnityCatalogExplorerSelection) => void;
   onClear: () => void;
 }) {
-  const result = useUnityCatalogSearch(query);
+  const result = useUnityCatalogSearch(query, resourceType);
   const items = [
     ...new Map(
-      [...result.items, ...declared.filter((item) => localSearchMatch(item.value, query))].map((item) => [
-        unityCatalogSelectionKey(item),
-        item,
-      ])
+      [
+        ...result.items,
+        ...declared.filter(
+          (item) =>
+            (resourceType === 'all' || item.resourceType === resourceType) && localSearchMatch(item.value, query)
+        ),
+      ].map((item) => [unityCatalogSelectionKey(item), item])
     ).values(),
   ];
   return (
@@ -678,6 +692,7 @@ export function UnityCatalogScopeExplorer({
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState('');
+  const [resourceType, setResourceType] = useState<UnityCatalogSearchType>('all');
   const [staged, setStaged] = useState<Map<string, UnityCatalogExplorerSelection>>(new Map());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -720,17 +735,32 @@ export function UnityCatalogScopeExplorer({
             <X aria-hidden="true" />
           </Button>
         </header>
-        <label className="uc-explorer-search">
-          <Search aria-hidden="true" />
-          <span className="sr-only">Search catalogs, schemas, and tables</span>
-          <input
-            ref={searchRef}
-            type="search"
-            value={query}
-            placeholder="Search catalogs, schemas, and tables"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+        <div className="uc-explorer-query-controls">
+          <label className="uc-explorer-search">
+            <Search aria-hidden="true" />
+            <span className="sr-only">Search catalogs, schemas, and tables</span>
+            <input
+              ref={searchRef}
+              type="search"
+              value={query}
+              placeholder="Search names or qualified paths"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <label className="uc-explorer-type-filter">
+            <span className="sr-only">Filter Unity Catalog results by type</span>
+            <select
+              aria-label="Filter Unity Catalog results by type"
+              value={resourceType}
+              onChange={(event) => setResourceType(event.target.value as UnityCatalogSearchType)}
+            >
+              <option value="all">All asset types</option>
+              <option value="catalog">Catalogs only</option>
+              <option value="schema">Schemas only</option>
+              <option value="table">Tables and views only</option>
+            </select>
+          </label>
+        </div>
         <div className="uc-explorer-body">
           <div hidden={query.trim().length >= 2}>
             <ExplorerLevel
@@ -749,6 +779,7 @@ export function UnityCatalogScopeExplorer({
           {query.trim().length >= 2 ? (
             <ExplorerSearchResults
               query={query}
+              resourceType={resourceType}
               declared={declared}
               staged={selectedKeys}
               busy={busy || submitting}

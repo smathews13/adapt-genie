@@ -11,6 +11,7 @@
  * what the reader themselves can see.
  */
 import type { Request, Response } from 'express';
+import type { UnityCatalogSearchType } from '../../shared/browse-contract';
 import type { InsightsAppKit } from './insights-routes';
 import { executionToken } from '../lib/execution-credential';
 import {
@@ -98,6 +99,9 @@ export function setupBrowseRoutes(appkit: InsightsAppKit): void {
 
     app.get('/api/browse/unity-catalog/search', async (req, res) => {
       const query = queryString(req, 'q').slice(0, 200);
+      const requestedType = queryString(req, 'type');
+      const resourceType: UnityCatalogSearchType =
+        requestedType === 'catalog' || requestedType === 'schema' || requestedType === 'table' ? requestedType : 'all';
       if (query.length < 2) {
         res.status(400).json({
           status: 'failed',
@@ -107,7 +111,7 @@ export function setupBrowseRoutes(appkit: InsightsAppKit): void {
         });
         return;
       }
-      await sendBrowse(req, res, (ctx) => searchUnityCatalogAssets({ ...ctx, page: 1 }, query));
+      await sendBrowse(req, res, (ctx) => searchUnityCatalogAssets({ ...ctx, page: 1 }, query, resourceType));
     });
 
     app.get('/api/browse/schemas', async (req, res) => {

@@ -28,10 +28,16 @@ import { isBrowseOk, isBrowseUnavailable } from '../../shared/browse-contract';
 
 describe('Unity Catalog search matching', () => {
   it('matches spaces, underscores, hyphens, and compact identifiers without changing display ids', () => {
-    const query = normalizedUnityCatalogSearch('cmeg_demos');
+    const query = normalizedUnityCatalogSearch('analytics_data');
     expect(matchesUnityCatalogSearch('cmeg-demos', query)).toBe(true);
-    expect(matchesUnityCatalogSearch('sample_catalog', query)).toBe(true);
+    expect(matchesUnityCatalogSearch('analytics_catalog', query)).toBe(true);
     expect(matchesUnityCatalogSearch('other_catalog', query)).toBe(false);
+  });
+
+  it('matches separated search words anywhere in a qualified asset name', () => {
+    const query = normalizedUnityCatalogSearch('entapps adapt');
+    expect(matchesUnityCatalogSearch('sf_ent_apps_prod.adapt.sales_summary', query)).toBe(true);
+    expect(matchesUnityCatalogSearch('sf_ent_apps_prod.finance.sales_summary', query)).toBe(false);
   });
 });
 

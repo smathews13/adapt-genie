@@ -20,6 +20,7 @@ import {
   type ConnectionTypesResponse,
   type UnityCatalogSearchItem,
   type UnityCatalogSearchResponse,
+  type UnityCatalogSearchType,
 } from '../../shared/browse-contract';
 import { declaredUserApiScopes } from '../../shared/declared-scopes';
 import { normalizeWorkspaceHost } from '../../shared/databricks-links';
@@ -596,7 +597,11 @@ export function matchesUnityCatalogSearch(
   query: ReturnType<typeof normalizedUnityCatalogSearch>
 ): boolean {
   const candidate = normalizedUnityCatalogSearch(value);
-  return candidate.words.includes(query.words) || candidate.compact.includes(query.compact);
+  if (candidate.words.includes(query.words) || candidate.compact.includes(query.compact)) return true;
+  return query.words
+    .split(' ')
+    .filter(Boolean)
+    .every((word) => candidate.words.includes(word) || candidate.compact.includes(word));
 }
 
 async function browsePages(
@@ -622,7 +627,8 @@ async function browsePages(
 
 export async function searchUnityCatalogAssets(
   options: BrowseCallOptions,
-  rawQuery: string
+  rawQuery: string,
+  resourceType: UnityCatalogSearchType = 'all'
 ): Promise<UnityCatalogSearchResponse> {
   const query = normalizedUnityCatalogSearch(rawQuery);
   if (query.compact.length < 2) return { status: 'ok', items: [], more_results: false };
@@ -640,11 +646,23 @@ export async function searchUnityCatalogAssets(
     };
   }
 
-  const results: UnityCatalogSearchItem[] = catalogs.items
-    .filter((item) => matchesUnityCatalogSearch(item.id, query))
-    .map((item) => ({ resource_type: 'catalog', value: item.id, label: item.label }));
+  const results: UnityCatalogSearchItem[] =
+    resourceType === 'all' || resourceType === 'catalog'
+      ? catalogs.items
+          .filter((item) => matchesUnityCatalogSearch(`${item.id} ${item.label}`, query))
+          .map((item) => ({ resource_type: 'catalog', value: item.id, label: item.label }))
+      : [];
+  if (resourceType === 'catalog') {
+    return {
+      status: 'ok',
+      items: results.slice(0, UC_SEARCH_RESULT_LIMIT),
+      more_results: catalogs.more || results.length > UC_SEARCH_RESULT_LIMIT,
+    };
+  }
   const orderedCatalogs = [...catalogs.items].sort(
-    (a, b) => Number(matchesUnityCatalogSearch(b.id, query)) - Number(matchesUnityCatalogSearch(a.id, query))
+    (a, b) =>
+      Number(matchesUnityCatalogSearch(`${b.id} ${b.label}`, query)) -
+      Number(matchesUnityCatalogSearch(`${a.id} ${a.label}`, query))
   );
   const scannedCatalogs = orderedCatalogs.slice(0, UC_SEARCH_CATALOG_SCAN_LIMIT);
   let more = catalogs.more || orderedCatalogs.length > scannedCatalogs.length;
@@ -664,7 +682,10 @@ export async function searchUnityCatalogAssets(
     for (const item of listed.items) {
       const value = item.secondary || `${listed.catalog}.${item.id}`;
       schemas.push({ catalog: listed.catalog, item, value });
-      if (matchesUnityCatalogSearch(value, query)) {
+      if (
+        (resourceType === 'all' || resourceType === 'schema') &&
+        matchesUnityCatalogSearch(`${value} ${item.label}`, query)
+      ) {
         results.push({ resource_type: 'schema', value, label: item.label });
       }
     }
@@ -675,6 +696,16 @@ export async function searchUnityCatalogAssets(
   );
   const scannedSchemas = orderedSchemas.slice(0, UC_SEARCH_SCHEMA_SCAN_LIMIT);
   more ||= orderedSchemas.length > scannedSchemas.length;
+  if (resourceType === 'schema') {
+    const dedupedSchemas = [
+      ...new Map(results.map((item) => [`${item.resource_type}:${item.value.toLocaleLowerCase()}`, item])).values(),
+    ];
+    return {
+      status: 'ok',
+      items: dedupedSchemas.slice(0, UC_SEARCH_RESULT_LIMIT),
+      more_results: more || dedupedSchemas.length > UC_SEARCH_RESULT_LIMIT,
+    };
+  }
   const tableLists = await Promise.all(
     scannedSchemas.map(async ({ catalog, item }) => {
       const listed = await browsePages(
@@ -688,7 +719,7 @@ export async function searchUnityCatalogAssets(
   for (const listed of tableLists) {
     more ||= listed.more || listed.response.status !== 'ok';
     for (const item of listed.items) {
-      if (matchesUnityCatalogSearch(item.id, query)) {
+      if (matchesUnityCatalogSearch(`${item.id} ${item.label} ${item.secondary}`, query)) {
         results.push({
           resource_type: 'table',
           value: item.id,

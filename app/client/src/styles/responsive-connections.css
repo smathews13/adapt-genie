@@ -83,8 +83,12 @@
   .uc-explorer-header {
     padding: 14px;
   }
-  .uc-explorer-search {
+  .uc-explorer-query-controls {
+    grid-template-columns: 1fr;
     margin: 10px 14px 0;
+  }
+  .uc-explorer-type-filter select {
+    width: 100%;
   }
   .uc-explorer-footer {
     padding: 10px 14px;

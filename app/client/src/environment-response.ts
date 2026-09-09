@@ -11,6 +11,10 @@ export function environmentInfoFromResponse(value: unknown): EnvironmentInfo {
   const payload = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
   const runtime =
     payload.runtime && typeof payload.runtime === 'object' ? (payload.runtime as Record<string, unknown>) : {};
+  const servicePrincipal =
+    payload.appServicePrincipal && typeof payload.appServicePrincipal === 'object'
+      ? (payload.appServicePrincipal as Record<string, unknown>)
+      : {};
   const variables = Array.isArray(payload.variables) ? payload.variables : [];
   const packages = Array.isArray(payload.packages) ? payload.packages : [];
   return {
@@ -32,5 +36,11 @@ export function environmentInfoFromResponse(value: unknown): EnvironmentInfo {
         ? [{ name: candidate.name, version: candidate.version }]
         : [];
     }),
+    appServicePrincipal: {
+      displayName: typeof servicePrincipal.displayName === 'string' ? servicePrincipal.displayName : '',
+      applicationId: typeof servicePrincipal.applicationId === 'string' ? servicePrincipal.applicationId : '',
+      objectId: typeof servicePrincipal.objectId === 'string' ? servicePrincipal.objectId : '',
+      workspaceHost: typeof servicePrincipal.workspaceHost === 'string' ? servicePrincipal.workspaceHost : '',
+    },
   };
 }

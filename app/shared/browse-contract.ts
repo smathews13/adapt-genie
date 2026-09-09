@@ -152,6 +152,8 @@ export interface UnityCatalogSearchItem {
   asset_type?: 'table' | 'view';
 }
 
+export type UnityCatalogSearchType = 'all' | UnityCatalogSearchItem['resource_type'];
+
 export type UnityCatalogSearchResponse =
   | {
       status: 'ok';

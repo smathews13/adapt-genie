@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { Check, Copy, Search } from 'lucide-react';
+import { Check, Copy, ExternalLink, Search } from 'lucide-react';
 import type { EnvironmentInfo, EnvironmentPackage, EnvironmentVariable } from '../../shared/environment-info';
+import { accountConsoleUrlForWorkspace } from '../../shared/databricks-links';
 import { AccessGuideDownload } from './AccessGuideDownload';
 import { AgentCodeRow } from './AgentCodeRow';
 import { filterEnvironmentItems } from './environment-filter';
@@ -79,6 +80,11 @@ export function EnvironmentPanel({
       ? filterEnvironmentItems(data.variables, query)
       : filterEnvironmentItems(data.packages, query);
   }, [active, data, query]);
+  const servicePrincipal = data?.appServicePrincipal;
+  const servicePrincipalId = servicePrincipal?.applicationId || servicePrincipal?.objectId || '';
+  const accountConsoleUrl = servicePrincipal?.workspaceHost
+    ? accountConsoleUrlForWorkspace(servicePrincipal.workspaceHost)
+    : '';
 
   return (
     <div className="settings-pane environment-pane">
@@ -91,6 +97,29 @@ export function EnvironmentPanel({
           of THIS process -- the app container is never told it -- and burying it
           in a hundred-row table is how a fact stops being read. */}
       <AgentCodeRow initialData={initialAgentModel} />
+
+      {data ? (
+        <div className="settings-row environment-service-principal">
+          <div>
+            <p className="settings-row-label">App service principal</p>
+            <p className="settings-row-note">
+              {servicePrincipal?.displayName || 'Name not reported'}
+              {servicePrincipalId ? <code>{servicePrincipalId}</code> : null}
+            </p>
+          </div>
+          {accountConsoleUrl ? (
+            <a
+              className="environment-service-principal-open"
+              href={accountConsoleUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <span>Open Account Console</span>
+              <ExternalLink className="size-3" aria-hidden="true" />
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       {showAccessGuide ? (
         <section className="environment-access-guide" aria-label="Environment operating guide">

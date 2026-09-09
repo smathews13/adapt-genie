@@ -1,1 +1,0 @@
-import{F as e}from"./appkit-ui-Chj_CA-b.js";var t=e(`chevron-right`,[[`path`,{d:`m9 18 6-6-6-6`,key:`mthhwq`}]]);export{t};

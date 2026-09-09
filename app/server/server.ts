@@ -1,6 +1,7 @@
 import { createApp, lakebase, server } from '@databricks/appkit';
 import { lakebasePoolSettings } from './lib/lakebase-pool';
 import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
+import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/release-environment';
 import { requestLatencyShutdown } from './lib/request-latency-shutdown';
 import { registerStaticDelivery } from './lib/static-delivery';
 import { readMlflowTokenEvidence } from './lib/mlflow-token-evidence';
@@ -34,6 +35,16 @@ createApp({
     // but keeps the App identity and its Postgres ownership. Resolve that owned
     // store before importing modules whose SQL constants capture APP_SCHEMA.
     await preserveOwnedAppSchema(appkit.lakebase);
+    // Deploy from Git replaces the generated app.yaml with the public artifact's
+    // empty deployment placeholders. Restore the last bundle release before
+    // route modules capture catalog, schema, Genie, watchlist, or MLflow values.
+    const restoredReleaseValues = await restoreReleaseEnvironment(appkit.lakebase);
+    if (restoredReleaseValues > 0) {
+      console.warn(
+        `[release-config] Deploy from Git restored ${restoredReleaseValues} target runtime values ` +
+          'from the app-owned store.'
+      );
+    }
     const [
       { setupInsightsRoutes, MIGRATIONS },
       { setupSettingsRoutes },
@@ -110,6 +121,17 @@ createApp({
       onRequestLatencyRecorder: (recorder) => appkit.requestLatencyShutdown.setRecorder(recorder),
       traceTokenEvidenceReader: readMlflowTokenEvidence,
     });
+    // A bundle release is authoritative for target-specific values. Persist its
+    // allowlisted snapshot only after the decisions table migration is ready;
+    // source-only Git boots restore but never overwrite it.
+    void storeReady.then(
+      async () => {
+        if (await recordReleaseEnvironment(appkit.lakebase)) {
+          console.log('[release-config] Recorded target runtime configuration for future source-only deploys.');
+        }
+      },
+      () => undefined
+    );
     readiness.roles = storeReady
       .then(() => bootstrapSeedRoles(appkit.lakebase))
       .then(() => undefined)

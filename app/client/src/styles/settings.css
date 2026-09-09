@@ -2314,6 +2314,39 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
   color: var(--ast-blue);
 }
 
+.environment-service-principal {
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.environment-service-principal .settings-row-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.environment-service-principal code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.environment-service-principal-open {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--ast-blue);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .environment-runtime {
   display: flex;
   flex-wrap: wrap;

@@ -1908,7 +1908,8 @@ export function ConnectionRow({
                     <AstrolabeLoadingLabel as="span" announce={false} label="Saving" />
                   ) : (
                     <>
-                      <Save className="size-3.5" /> Save and apply
+                      <Save className="size-3.5" />{' '}
+                      {resource.changedBy === 'app-runtime' ? 'Save and apply' : 'Save for model release'}
                     </>
                   )}
                 </Button>

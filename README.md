@@ -350,14 +350,21 @@ workflow.
 
 **Run the bundle bootstrap above once first.** It creates the telemetry schema,
 experiment, serving endpoint, OAuth scopes, resource bindings, and the app
-itself, and attaches the existing model schema, warehouse, Lakebase database and
-Genie space. Do not start the Git flow before the bundle has created the app and
-`bundle/app-release.sh` has applied its grants and first code release.
+itself. The first `bundle/app-release.sh` also records the release's catalog,
+schema, Genie space, watchlist table, MLflow experiment, and related runtime
+scope in the app-owned Lakebase store. Do not start the Git flow before that
+first app release has completed.
 
 After that, **app-code updates are Deploy from Git onto the existing app**, and
 that is the usual path. UI, server and other TypeScript in
 `app/build/deploy` are pulled from this repository onto the
 live app.
+
+Deploy from Git replaces the generated `app.yaml` with the public artifact's
+customer-neutral placeholders. On startup, ADAPT restores the last recorded
+bundle-release values before Connections, the Insights Rail, watchlist, or
+MLflow routes initialize. A Git update therefore changes source code without
+blanking the deployment's existing scope.
 
 1. Open the **existing** app's detail page, not Create app.
 2. Choose **Deploy → From Git**.
@@ -366,7 +373,7 @@ live app.
 
    | Setting | Value |
    | --- | --- |
-   | Repository | `https://github.com/manish-namburi_data/adapt-genie` |
+   | Repository | `https://github.com/smathews13/adapt-genie` |
    | Provider | **GitHub** |
    | Branch / reference | **`main`** (reference type **Branch**) |
    | Source code path | **`app/build/deploy`** |
@@ -378,10 +385,9 @@ live app.
 the repository root, which has no `app.yaml`, and the deploy fails with "No
 command to run and no Python file found / Failed to load app spec".
 
-**This repository is private.** A "From Git" deploy needs a Git credential
-configured for the app to read it; ADAPT's own deploys ship through
-`bundle/app-release.sh` (a workspace upload), which is the path this project uses
-and needs no Git credential.
+**This repository is public.** Deploy from Git should use
+`https://github.com/smathews13/adapt-genie` and does not require a private Git
+credential.
 
 ### What a Git deploy does not do
 

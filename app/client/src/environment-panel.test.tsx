@@ -16,6 +16,12 @@ const INFO: EnvironmentInfo = {
     { name: 'aiofiles', version: '23.2.1' },
     { name: 'zod', version: '4.3.6' },
   ],
+  appServicePrincipal: {
+    displayName: 'app-123 adapt',
+    applicationId: 'public-client-id',
+    objectId: '9988776655443322',
+    workspaceHost: 'https://workspace.cloud.databricks.com',
+  },
 };
 const PANEL_SOURCE = readFileSync(new URL('./EnvironmentPanel.tsx', import.meta.url), 'utf8');
 
@@ -25,6 +31,15 @@ describe('Environment panel', () => {
     expect(markup).toContain('Python 3.11.15');
     expect(markup).toContain('Node.js v22.16.0');
     expect(markup).not.toContain('Python 3.11.15; Node.js v22.16.0');
+  });
+
+  it('shows the app service principal and links admins to the account console', () => {
+    const markup = renderToStaticMarkup(<EnvironmentPanel initialData={INFO} />);
+    expect(markup).toContain('App service principal');
+    expect(markup).toContain('app-123 adapt');
+    expect(markup).toContain('public-client-id');
+    expect(markup).toContain('href="https://accounts.cloud.databricks.com"');
+    expect(markup).toContain('Open Account Console');
   });
 
   it('shows counted Variables and Installed packages tabs with a searchable list and copy control', () => {
@@ -89,6 +104,12 @@ describe('Environment panel', () => {
       runtime: { python: '', node: '' },
       variables: [{ key: 'SAFE', value: 'yes' }],
       packages: [{ name: 'zod', version: '4.3.6' }],
+      appServicePrincipal: {
+        displayName: '',
+        applicationId: '',
+        objectId: '',
+        workspaceHost: '',
+      },
     });
   });
 });

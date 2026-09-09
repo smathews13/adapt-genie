@@ -55,7 +55,7 @@ describe('the Unity Catalog scope explorer', () => {
   });
 
   it('selects and unselects by normalized logical identity without writing', () => {
-    const selection = { resourceType: 'schema' as const, value: 'Main.CMEG_Demos', label: 'CMEG Demos' };
+    const selection = { resourceType: 'schema' as const, value: 'Main.Analytics_Data', label: 'Analytics data' };
     const selected = toggledUnityCatalogSelection(new Map(), selection);
     expect(selected.has('schema:main.analytics_data')).toBe(true);
     expect(toggledUnityCatalogSelection(selected, selection).size).toBe(0);

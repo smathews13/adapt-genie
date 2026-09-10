@@ -62,7 +62,10 @@ import { invalidAdminEmail, seedRoles } from '../lib/admin-roles';
 import { organizationForEmail, parseOrganizationMappings } from '../../shared/organization-mapping';
 import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import { isMlflowTraceId } from '../../shared/mlflow-trace-id';
+import { failureDefinition, isFailureCode } from '../../shared/failure-taxonomy';
 import type { TokenAttribution } from '../../shared/llm-token-usage';
+import { incompleteAskRecord } from '../../shared/prose-only-answer';
+import { readStageEvents } from '../lib/run-stage-events';
 import { listDeclarableTablesInSchema, unionTableNames } from '../lib/declared-tables';
 
 /**
@@ -365,6 +368,23 @@ export const MONITORING_LEDGER_QUERY = `
   SELECT terminal_message_id AS answer_id, state, terminal_code
   FROM ${APP_SCHEMA}.runs
   WHERE terminal_message_id = ANY($1::text[])
+`;
+
+/**
+ * The run that asked this question, when no assistant answer was stored.
+ *
+ * Deadline and dropped-stream paths used to close the ledger without a message
+ * row. The steps still live on `run_events` under that run. Looked up by
+ * `turn_id` in a second read so an absent ledger cannot take the question list
+ * down — same reason {@link MONITORING_LEDGER_QUERY} is not joined into the
+ * list query.
+ */
+export const MONITORING_RUN_BY_TURN_QUERY = `
+  SELECT run_id, state, terminal_code
+  FROM ${APP_SCHEMA}.runs
+  WHERE turn_id = $1
+  ORDER BY created_at DESC
+  LIMIT 1
 `;
 
 /**
@@ -674,6 +694,23 @@ function stamp(value: unknown): string {
   const raw = text(value);
   const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : '';
+}
+
+/**
+ * Reconstruct a Monitoring answer from the run's stored steps when no assistant
+ * message was written.
+ */
+export function monitoringAnswerFromRunProcess(input: {
+  runId: string;
+  terminalCode: string | null;
+  stages: readonly unknown[];
+}): Record<string, unknown> {
+  const code = isFailureCode(input.terminalCode) ? input.terminalCode : 'RUN_DEADLINE_EXCEEDED';
+  return incompleteAskRecord({
+    id: input.runId,
+    takeaway: failureDefinition(code).uiMessage,
+    stages: input.stages,
+  });
 }
 
 function tableList(value: unknown): string[] {
@@ -1228,9 +1265,40 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         res.status(404).json({ error: 'question_not_found' });
         return;
       }
-      const answerId = text(row.answer_id);
-      const ledger = await readLedger(appkit, answerId ? [answerId] : []);
-      const verdict = answerId ? ledger.get(answerId) : undefined;
+      const storedAnswerId = text(row.answer_id);
+      let responseJson: unknown = row.response_json;
+      let hydratedRunId = '';
+      let hydratedState: string | null = null;
+      let hydratedCode: string | null = null;
+      if (!storedAnswerId) {
+        // Questions that timed out or dropped mid-stream used to have no
+        // assistant row. The steps are still on the run that asked them.
+        const runLookup = await readStored(
+          appkit,
+          'GET /api/monitoring/questions/:id (run)',
+          MONITORING_RUN_BY_TURN_QUERY,
+          [req.params.id]
+        );
+        const run = runLookup.available ? runLookup.rows[0] : undefined;
+        hydratedRunId = text(run?.run_id);
+        hydratedState = text(run?.state) || null;
+        hydratedCode = text(run?.terminal_code) || null;
+        if (hydratedRunId) {
+          const stages = await readStageEvents(appkit, hydratedRunId);
+          responseJson = monitoringAnswerFromRunProcess({
+            runId: hydratedRunId,
+            terminalCode: hydratedCode,
+            stages,
+          });
+        }
+      }
+      const answerId = storedAnswerId || hydratedRunId;
+      const ledger = await readLedger(appkit, storedAnswerId ? [storedAnswerId] : []);
+      const verdict = storedAnswerId
+        ? ledger.get(storedAnswerId)
+        : hydratedState
+          ? { state: hydratedState, code: hydratedCode }
+          : undefined;
       const tables = tableList(row.sources);
       const grants = await resolveGrants({
         key: { admin, window: `${range.from}|${range.to}` },
@@ -1243,7 +1311,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
       });
       const conditioning = conditioningFor(tables, grants);
       const traceId = text(row.trace_id);
-      const storedTrace = traceOf(row.response_json) as Record<string, unknown> | null;
+      const storedTrace = traceOf(responseJson) as Record<string, unknown> | null;
       const stageIds = Array.isArray(storedTrace?.stages)
         ? storedTrace.stages
             .map((stage) => (stage && typeof stage === 'object' ? text((stage as Record<string, unknown>).id) : ''))
@@ -1253,9 +1321,10 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         deps.traceTokenEvidenceReader && isMlflowTraceId(traceId)
           ? await deps.traceTokenEvidenceReader(traceId, stageIds, tokenCount(storedTrace?.total_tokens) ?? undefined)
           : null;
-      const enrichedResponse = responseWithTokenAttribution(row.response_json, attribution);
+      const enrichedResponse = responseWithTokenAttribution(responseJson, attribution);
       const mlflow = traceId ? mlflowReference(traceId, await resolveExperimentId(appkit)) : null;
       const executionMode = text(row.execution_mode);
+      const hasAnswer = storedAnswerId !== '' || Boolean(hydratedRunId);
       const detail: MonitoringDetail = {
         id: text(row.question_id),
         conversationId: text(row.conversation_id),
@@ -1265,7 +1334,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         outcome: applyAdminOutcome(
           classifyOutcome({
             runState: verdict?.state ?? null,
-            hasStoredAnswer: answerId !== '',
+            hasStoredAnswer: hasAnswer,
             traceHasFailedStage: row.trace_failed === true,
             traceHasPartialStage: row.trace_partial === true,
             answerLanded: row.answer_landed === true,
@@ -1305,7 +1374,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         runId: answerId || null,
         // Always sent, even when the answer body is withheld: the budget is a
         // record of the agent, not of anybody's data.
-        runtimeUsed: runRuntimeUsedFromStored(row.response_json),
+        runtimeUsed: runRuntimeUsedFromStored(responseJson),
       };
       res.json(detail);
     });

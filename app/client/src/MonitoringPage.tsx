@@ -1052,6 +1052,7 @@ export function QuestionDrawer({
           saveFeedback={async () => {}}
           showFeedback={false}
           runProcessVariant="monitoring"
+          allowUntracedProcess
           collapseSupportingDetails
           afterEvidence={
             isMlflowTraceId(answer.trace.id) &&

@@ -84,6 +84,7 @@ export function AnswerCard({
   defaultRunProcessOpen = true,
   runProcessPreferenceKey,
   processStages,
+  allowUntracedProcess = false,
   runProcessVariant = 'default',
   afterEvidence,
   headerExtra,
@@ -139,6 +140,15 @@ export function AnswerCard({
    * replaced.
    */
   processStages?: TraceStage[];
+  /**
+   * Whether this surface may draw a run process that was never recorded in
+   * MLflow.
+   *
+   * Ask leaves this off: a finished card must not look traced when there is
+   * nothing to open. Monitoring turns it on so a timed-out or dropped run still
+   * shows the steps that were stored locally.
+   */
+  allowUntracedProcess?: boolean;
   /** Shared Timeline presentation selected by the surface hosting this card. */
   runProcessVariant?: TraceTimelineVariant;
   /**
@@ -182,20 +192,22 @@ export function AnswerCard({
   // reads `mode` rather than looking for the representative caveat.
   //
   // Local stages without an MLflow id are not a recorded run. The live rail
-  // can still narrate them while the turn is in flight; the finished card
-  // must not draw a Gantt that looks traced. `processStages` from the stream
-  // is the same reconstruction and is ignored here unless the id is real.
+  // can still narrate them while the turn is in flight; the finished Ask card
+  // must not draw a Gantt that looks traced. Monitoring is the exception:
+  // the drawer exists to debug those runs, so it keeps the stored steps.
   const recorded = isMlflowTraceId(answer.trace.id);
-  const processTrace = !recorded
-    ? withoutUntracedTimeline(answer.trace)
-    : answer.trace.stages.length > 0 || !processStages?.length
-      ? answer.trace
-      : {
-          ...answer.trace,
-          stages: processStages,
-          toolCalls: processStages.filter((stage) => stage.kind === 'tool').length,
-          totalMs: processStages.reduce((sum, stage) => sum + stage.duration, 0),
-        };
+  const processTrace =
+    !recorded && !allowUntracedProcess
+      ? withoutUntracedTimeline(answer.trace)
+      : answer.trace.stages.length > 0 || !processStages?.length
+        ? answer.trace
+        : {
+            ...answer.trace,
+            stages: processStages,
+            toolCalls: processStages.filter((stage) => stage.kind === 'tool').length,
+            totalMs: processStages.reduce((sum, stage) => sum + stage.duration, 0),
+          };
+  const showProcessPanel = showRunProcess && (recorded || (allowUntracedProcess && processTrace.stages.length > 0));
   const displayed = processTrace === answer.trace ? answer : { ...answer, trace: processTrace };
   const fallbackNotice = answerFallbackNotice(
     displayed === answer ? readerAnswer : { ...readerAnswer, trace: displayed.trace }
@@ -385,7 +397,7 @@ export function AnswerCard({
         {/* The panel's edge is on a wrapper rather than on the Collapsible
             itself, so that trace-panel.test.ts keeps its literal on the element
             whose default state it is there to pin. */}
-        {showRunProcess && recorded && (
+        {showProcessPanel && (
           <div className="run-process">
             <Collapsible open={showProcess} onOpenChange={changeProcessVisibility}>
               <div className="run-process-head">
@@ -423,7 +435,7 @@ export function AnswerCard({
             </Collapsible>
           </div>
         )}
-        {showRunProcess && recorded ? (
+        {showProcessPanel ? (
           <>
             <div className="advanced-row">
               <div>

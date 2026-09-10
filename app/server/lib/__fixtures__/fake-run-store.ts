@@ -133,6 +133,15 @@ export class FakeStore implements LakebaseReader {
     ) {
       return { rows: this.readCancellationTarget(params) };
     }
+    if (/SELECT[\s\S]*FROM player_insights\.runs[\s\S]*WHERE turn_id = \$1/i.test(text)) {
+      const turnId = String(params[0]);
+      const match = [...this.runs]
+        .filter((row) => row.turn_id === turnId)
+        .sort((a, b) => b.created_at - a.created_at)[0];
+      return {
+        rows: match ? [{ run_id: match.run_id, state: match.state, terminal_code: match.terminal_code }] : [],
+      };
+    }
     if (/SELECT[\s\S]*FROM player_insights\.runs WHERE run_id/i.test(text)) return { rows: this.read(params) };
     if (/FROM player_insights\.messages m/i.test(text)) return { rows: this.readMessage(params) };
     if (/INSERT INTO player_insights\.run_attempts/i.test(text)) return { rows: this.insertAttempt(params) };

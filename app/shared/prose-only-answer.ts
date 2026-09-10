@@ -122,6 +122,58 @@ export function foldRecordedStages(stages: readonly unknown[]): {
 }
 
 /**
+ * What Monitoring and the stored card keep when a run stops without a finished
+ * answer.
+ *
+ * Deadline and dropped-stream paths used to settle the ledger and store nothing.
+ * Ask could still show the live steps for a short while; Monitoring then opened
+ * onto "no stored answer" even though the steps were already on the run. This
+ * record is that process plus the taxonomy sentence — not a fabricated finding.
+ * `trace.id` stays empty so nothing here is presented as an MLflow link.
+ */
+export function incompleteAskRecord(args: { id: string; takeaway: string; stages?: readonly unknown[] }): {
+  id: string;
+  type: 'answer';
+  mode: 'live';
+  provenance: 'live';
+  takeaway: string;
+  narrative: string;
+  content: string;
+  figures: [];
+  charts: [];
+  sources: [];
+  document_snippets: [];
+  caveats: string[];
+  derivation: [];
+  sql: string;
+  trace: { id: string; totalMs: number; toolCalls: number; stages: RecordedStage[] };
+} {
+  const folded = foldRecordedStages(args.stages ?? []);
+  return {
+    id: args.id,
+    type: 'answer',
+    mode: 'live',
+    provenance: 'live',
+    takeaway: args.takeaway,
+    narrative: '',
+    content: '',
+    figures: [],
+    charts: [],
+    sources: [],
+    document_snippets: [],
+    caveats: [args.takeaway],
+    derivation: [],
+    sql: '',
+    trace: {
+      id: '',
+      totalMs: folded.totalMs,
+      toolCalls: folded.toolCalls,
+      stages: folded.stages,
+    },
+  };
+}
+
+/**
  * Put recorded steps onto an answer whose own trace is empty, if MLflow recorded it.
  *
  * The prose-only path used to store `stages: []` even when the stream had

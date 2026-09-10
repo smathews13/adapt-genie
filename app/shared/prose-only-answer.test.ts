@@ -3,6 +3,7 @@ import {
   attachRecordedStages,
   carriesEvidence,
   foldRecordedStages,
+  incompleteAskRecord,
   proseOnlyAnswer,
   PROSE_ONLY_ANSWER_CAVEAT,
   PROSE_ONLY_FALLBACK_TAKEAWAY,
@@ -250,6 +251,28 @@ describe('the orchestrator’s internal package', () => {
     expect(answer.takeaway).toBe(PROSE_ONLY_FALLBACK_TAKEAWAY);
     expect(answer.narrative).toBe('');
     expect(answer.takeaway).not.toContain('analysis completed');
+  });
+
+  it('keeps recorded steps on an incomplete ask without inventing an MLflow id', () => {
+    const answer = incompleteAskRecord({
+      id: 'msg-timeout',
+      takeaway: 'This took longer than the time allowed, so it was stopped without a finished answer.',
+      stages: [
+        {
+          id: 'step-before-timeout',
+          name: 'Chose the next step',
+          kind: 'agent',
+          status: 'complete',
+          start: 0,
+          duration: 12,
+          calls: 1,
+        },
+      ],
+    });
+    expect(answer.trace.id).toBe('');
+    expect(answer.trace.stages).toHaveLength(1);
+    expect(answer.trace.stages[0].id).toBe('step-before-timeout');
+    expect(answer.figures).toEqual([]);
   });
 
   it('leaves an ordinary prose reply completely alone', () => {

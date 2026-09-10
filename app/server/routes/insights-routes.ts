@@ -35,7 +35,7 @@ import {
 } from '../../shared/mlflow-trace-id';
 import { conversationTitle, PLACEHOLDER_CONVERSATION_TITLE } from '../../shared/conversation-title';
 import { repairTruncatedTitles } from '../lib/repair-conversation-titles';
-import { attachRecordedStages, proseOnlyAnswer } from '../../shared/prose-only-answer';
+import { attachRecordedStages, incompleteAskRecord, proseOnlyAnswer } from '../../shared/prose-only-answer';
 import { classifiedRunStatusSql, DEADLINE_TRUNCATED_SQL } from '../../shared/run-verdict';
 import { overlayFeedbackSql, overlayJoinSql, overlayStatusSql } from '../lib/run-label-overrides';
 import { parseServedModel, startBenchmarkRun } from '../lib/benchmark-runner';
@@ -86,7 +86,7 @@ import {
   settleRun,
 } from '../lib/run-admission';
 import { readReplay, replayBody } from '../lib/run-replay';
-import { createStageRecorder, readStageEvents } from '../lib/run-stage-events';
+import { createStageRecorder, readStageEvents, type StageRecorder } from '../lib/run-stage-events';
 import { isUsableIdempotencyKey } from '../lib/run-request-hash';
 import { terminalStateFor } from '../lib/run-state';
 import { answerRatherThanExit } from '../lib/handler-failures';
@@ -107,7 +107,7 @@ import {
   type WarehouseCancellationTransport,
 } from '../lib/warehouse-cancellation';
 import { createGenieWarehouseWarmup } from '../lib/genie-warehouse-warmup';
-import { FAILURE_TAXONOMY, type FailureCode } from '../../shared/failure-taxonomy';
+import { FAILURE_TAXONOMY, failureDefinition, type FailureCode } from '../../shared/failure-taxonomy';
 import { type ExecutionIdentityClaim, unavailableHttpStatus, unavailableResult } from '../../shared/terminal-response';
 import { conversationMatchesFilters, parseConversationFilterQuery } from '../../shared/conversation-filters';
 import {
@@ -4994,6 +4994,61 @@ export function setupInsightsRoutes(
         // The runtime this Ask sent. Snapshotted onto the stored row so Monitoring
         // and Run Explorer can show what THIS run used after Settings has moved on.
         let askRuntime: RuntimeSettings | undefined;
+        let stageRecorder: StageRecorder | null = null;
+        /**
+         * Keep the steps that already ran when the turn never produced a finished
+         * answer. Monitoring used to open those questions onto an empty drawer
+         * because the live rail was the only place the process existed.
+         *
+         * Written while the run is still open (`completed_at IS NULL`), then the
+         * ledger is closed with this message id. Stages stay on the stored
+         * trace even without an MLflow id — Ask still hides that Gantt; Monitoring
+         * does not.
+         */
+        const persistIncompleteAsk = async (
+          code: FailureCode
+        ): Promise<{ stored: boolean; messageId: string | null }> => {
+          clearTimeout(deadlineTimer);
+          await stageRecorder?.settled();
+          const messageId = `msg-${crypto.randomUUID()}`;
+          const body = discloseExecutingIdentity(
+            incompleteAskRecord({
+              id: messageId,
+              takeaway: failureDefinition(code).uiMessage,
+              stages: collectedStages,
+            }),
+            ranAsSignedInUser
+          );
+          const persisted = await readStored(
+            appkit,
+            `POST /api/insights/ask (${code})`,
+            `INSERT INTO ${APP_SCHEMA}.messages
+         (id, conversation_id, role, content, response_json, trace_id,
+          app_principal, serving_principal, serving_principal_observed_at, access_mode,
+          execution_mode, execution_identity_verified)
+         SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+          WHERE ${outputFenceSql(13, 14)}
+         RETURNING id`,
+            [
+              body.id,
+              conversationId,
+              'assistant',
+              body.takeaway,
+              JSON.stringify(withAskRuntime(body, askRuntime)),
+              body.trace.id,
+              ...executionIdentityColumns(email, executionIdentityClaim(identity)),
+              ...outputFenceParams,
+            ]
+          );
+          const runStored =
+            persisted.available && conversationAddressable && (!hasOutputFence || persisted.rows.length > 0);
+          await settleRun(appkit, admission, {
+            to: terminalStateFor(code),
+            code,
+            messageId: runStored ? body.id : undefined,
+          });
+          return { stored: Boolean(runStored), messageId: runStored ? body.id : null };
+        };
         try {
           const servingHistory = buildServingHistory(historyResult.rows);
           if (approvedPlanId && servingHistory.length > 0) {
@@ -5044,7 +5099,7 @@ export function setupInsightsRoutes(
            * nothing below waits on this, and a reconnect simply has no steps to
            * replay, which is the behaviour every run had before this existed.
            */
-          const stageRecorder =
+          stageRecorder =
             admission.run && admission.fencingToken !== null
               ? createStageRecorder(appkit, admission.run.runId, {
                   fencingToken: admission.fencingToken,
@@ -5363,18 +5418,15 @@ export function setupInsightsRoutes(
           if (isRunDeadlineExceededError(error)) {
             console.warn(
               `[serving] Run ${admission.run?.runId ?? identity.requestId} reached its ${servingTimeoutMs} ms deadline. ` +
-                'The serving request and response reader were aborted; no partial output will be stored.'
+                'The serving request and response reader were aborted; the steps that ran are stored for Monitoring.'
             );
-            await settleRun(appkit, admission, {
-              to: terminalStateFor('RUN_DEADLINE_EXCEEDED'),
-              code: 'RUN_DEADLINE_EXCEEDED',
-            });
+            const incomplete = await persistIncompleteAsk('RUN_DEADLINE_EXCEEDED');
             reply.status(unavailableHttpStatus('RUN_DEADLINE_EXCEEDED')).json(
               unavailableResult({
                 code: 'RUN_DEADLINE_EXCEEDED',
                 requestId: identity.correlationId,
                 runId: admission.run?.runId ?? null,
-                persistence: admission.run ? 'stored' : 'not_stored',
+                persistence: incomplete.stored ? 'stored' : 'not_stored',
                 executionIdentity: executionIdentityClaim(identity),
                 detail: error.message,
                 evidence: agentEndpointEvidence(error, {
@@ -5408,18 +5460,15 @@ export function setupInsightsRoutes(
           }
           if (error instanceof StreamLimitExceededError) {
             console.error(
-              `[serving] The stream exceeded its ${error.limit} bound. Transport was terminated and partial output was discarded.`
+              `[serving] The stream exceeded its ${error.limit} bound. Transport was terminated; the steps that ran are stored for Monitoring.`
             );
-            await settleRun(appkit, admission, {
-              to: terminalStateFor('STREAM_INTERRUPTED'),
-              code: 'STREAM_INTERRUPTED',
-            });
+            const incomplete = await persistIncompleteAsk('STREAM_INTERRUPTED');
             reply.status(unavailableHttpStatus('STREAM_INTERRUPTED')).json(
               unavailableResult({
                 code: 'STREAM_INTERRUPTED',
                 requestId: identity.correlationId,
                 runId: admission.run?.runId ?? null,
-                persistence: admission.run ? 'stored' : 'not_stored',
+                persistence: incomplete.stored ? 'stored' : 'not_stored',
                 executionIdentity: executionIdentityClaim(identity),
                 detail: error.message,
                 evidence: agentEndpointEvidence(error, {
@@ -5434,16 +5483,13 @@ export function setupInsightsRoutes(
             console.error(
               `[serving] The stream ended after ${error.stages} stage(s). The partial run was kept and no second invocation was started.`
             );
-            await settleRun(appkit, admission, {
-              to: terminalStateFor('STREAM_INTERRUPTED'),
-              code: 'STREAM_INTERRUPTED',
-            });
+            const incomplete = await persistIncompleteAsk('STREAM_INTERRUPTED');
             reply.status(unavailableHttpStatus('STREAM_INTERRUPTED')).json(
               unavailableResult({
                 code: 'STREAM_INTERRUPTED',
                 requestId: identity.correlationId,
                 runId: admission.run?.runId ?? null,
-                persistence: admission.run ? 'stored' : 'not_stored',
+                persistence: incomplete.stored ? 'stored' : 'not_stored',
                 executionIdentity: executionIdentityClaim(identity),
                 detail: error.message,
                 evidence: agentEndpointEvidence(error, {

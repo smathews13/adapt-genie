@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   MONITORING_DETAIL_QUERY,
+  MONITORING_RUN_BY_TURN_QUERY,
+  monitoringAnswerFromRunProcess,
   MONITORING_PERSON_SEEN_QUERY,
   MONITORING_PERSON_TABLE_EVIDENCE_QUERY,
   MONITORING_PERSON_TABLES_QUERY,
@@ -219,6 +221,30 @@ describe('the query reads questions rather than answers', () => {
    */
   it('does not join the run ledger', () => {
     expect(MONITORING_QUESTIONS_QUERY).not.toContain('player_insights.runs');
+  });
+
+  it('hydrates an unanswered question from the run that asked it, in a second read', () => {
+    expect(MONITORING_RUN_BY_TURN_QUERY).toContain('WHERE turn_id = $1');
+    expect(MONITORING_RUN_BY_TURN_QUERY).toContain('ORDER BY created_at DESC');
+    expect(MONITORING_QUESTIONS_QUERY).not.toContain('turn_id');
+    const reconstructed = monitoringAnswerFromRunProcess({
+      runId: 'run-1',
+      terminalCode: 'RUN_DEADLINE_EXCEEDED',
+      stages: [
+        {
+          id: 'step-before-timeout',
+          name: 'Chose the next step',
+          kind: 'agent',
+          status: 'complete',
+          start: 0,
+          duration: 1,
+          calls: 1,
+        },
+      ],
+    });
+    expect(reconstructed.takeaway).toContain('longer than the time allowed');
+    expect((reconstructed.trace as { id: string; stages: { id: string }[] }).id).toBe('');
+    expect((reconstructed.trace as { stages: { id: string }[] }).stages[0].id).toBe('step-before-timeout');
   });
 
   /**

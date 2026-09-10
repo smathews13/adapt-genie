@@ -140,6 +140,25 @@ describe('a Monitoring question opens as a centered modal over the list', () => 
     expect(CARD).toContain('className="answer-card"');
     expect(MONITORING).not.toContain('showRunProcess={false}');
     expect(MONITORING).not.toContain('<TraceTimeline');
+    expect(MONITORING).toContain('allowUntracedProcess');
+  });
+
+  it('still draws the run process when the stored answer has no MLflow id', () => {
+    const local = {
+      ...trace,
+      id: '',
+    };
+    const markup = drawer({
+      outcome: 'failed',
+      outcomeCode: 'RUN_DEADLINE_EXCEEDED',
+      answer: answerWith(local),
+      trace: local,
+    });
+    const rendered = text(markup);
+
+    expect(rendered).toContain('Run process');
+    expect(rendered).toContain('dictionary_genie');
+    expect(rendered).not.toContain('This question produced no stored answer');
   });
 
   it('attaches the organization-marked user to the question before the answer card', () => {
@@ -229,8 +248,8 @@ describe("the modal draws one run view, the card's own", () => {
     expect(rendered.indexOf('A narrative sentence.')).toBeLessThan(
       rendered.indexOf('1,200 tokens recorded on this run.')
     );
-    expect(rendered.indexOf('1,200 tokens recorded on this run.')).toBeLessThan(rendered.indexOf('Sources'));
-    expect(rendered.indexOf('Sources')).toBeLessThan(rendered.indexOf('Caveats'));
+    expect(rendered.indexOf('1,200 tokens recorded on this run.')).toBeLessThan(rendered.indexOf('Data sources'));
+    expect(rendered.indexOf('Data sources')).toBeLessThan(rendered.indexOf('Caveats'));
     expect(rendered.indexOf('Caveats')).toBeLessThan(rendered.indexOf('Run process'));
     expect(markup).toContain('aria-label="Caveats"');
     expect(rendered).not.toContain('Keep in mind');

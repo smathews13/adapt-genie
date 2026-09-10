@@ -84,6 +84,7 @@ import { askStarterSettingsFromResponse, listenForAskStartersChanges } from './a
 import {
   listenForInsightsSettingsChanges,
   watchlistSettingsFromResponse,
+  watchlistTrendDisplay,
   watchlistTrendsFromResponse,
 } from './watchlist-api';
 import {
@@ -2666,29 +2667,27 @@ export function HomePage() {
             ) : null}
             {watchlist?.status === 'ready'
               ? watchlist.trends.map((item) => {
-                  const up = item.trendPercent !== null && item.trendPercent >= 0;
-                  const delta =
-                    item.trendPercent === null
-                      ? 'No prior-period baseline'
-                      : `${item.trendPercent >= 0 ? '+' : '−'}${Math.abs(item.trendPercent).toFixed(1)}%`;
+                  const display = watchlistTrendDisplay(item);
                   return (
                     <div className="insight-watch" key={item.title}>
                       <span className="insight-watch-name">{item.title}</span>
                       <span
-                        className={`insight-watch-val ast-num ${item.trendPercent === null ? '' : up ? 'up' : 'dn'}`}
+                        className={`insight-watch-val ast-num ${
+                          display.direction === 'up' ? 'up' : display.direction === 'down' ? 'dn' : ''
+                        }`}
                         title={WATCHLIST_METRIC_DETAIL}
                         aria-label={
-                          item.trendPercent === null
-                            ? `${item.title}: no prior-period baseline for ${WATCHLIST_METRIC_LABEL}`
-                            : `${item.title}: ${delta} ${WATCHLIST_METRIC_LABEL}`
+                          display.hasBaseline
+                            ? `${item.title}: ${display.text} ${WATCHLIST_METRIC_LABEL}`
+                            : `${item.title}: ${display.text} recent ${WATCHLIST_METRIC_LABEL}; prior-period baseline unavailable`
                         }
                       >
-                        {item.trendPercent === null ? null : up ? (
+                        {!display.hasBaseline ? null : display.direction === 'up' ? (
                           <TrendingUp aria-hidden="true" />
                         ) : (
                           <TrendingDown aria-hidden="true" />
                         )}{' '}
-                        {delta}
+                        {display.text}
                       </span>
                     </div>
                   );

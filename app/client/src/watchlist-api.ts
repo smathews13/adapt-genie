@@ -1,6 +1,7 @@
 import {
   type WatchlistSettings,
   type WatchlistTitlesResponse,
+  type WatchlistTrend,
   type WatchlistTrendsResponse,
 } from '../../shared/watchlist';
 import { DEFAULT_INSIGHT_RAIL_SECTIONS, type InsightRailSections } from '../../shared/insight-rail-sections';
@@ -11,6 +12,38 @@ export interface WatchlistSettingsDocument {
 }
 
 const INSIGHTS_SETTINGS_CHANGED = 'adapt:insights-settings-changed';
+
+export interface WatchlistTrendDisplay {
+  text: string;
+  direction: 'up' | 'down' | 'level';
+  hasBaseline: boolean;
+}
+
+/**
+ * Prefer a comparable percent change, but never hide the measured recent
+ * period merely because the preceding seven days contain no sales.
+ */
+export function watchlistTrendDisplay(item: WatchlistTrend): WatchlistTrendDisplay {
+  if (item.trendPercent !== null) {
+    return {
+      text: `${item.trendPercent >= 0 ? '+' : '−'}${Math.abs(item.trendPercent).toFixed(1)}%`,
+      direction: item.trendPercent >= 0 ? 'up' : 'down',
+      hasBaseline: true,
+    };
+  }
+  if (item.recentRevenuePerSale !== null) {
+    return {
+      text: `${item.recentRevenuePerSale.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2,
+      })} / unit`,
+      direction: 'level',
+      hasBaseline: false,
+    };
+  }
+  return { text: 'No recent sales', direction: 'level', hasBaseline: false };
+}
 
 export function notifyInsightsSettingsChanged(settings: WatchlistSettings): void {
   window.dispatchEvent(new CustomEvent<WatchlistSettings>(INSIGHTS_SETTINGS_CHANGED, { detail: settings }));

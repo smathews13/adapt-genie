@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   watchlistSettingsFromResponse,
+  watchlistTrendDisplay,
   watchlistTitlesFromResponse,
   watchlistTrendsFromResponse,
 } from './watchlist-api';
@@ -32,12 +33,32 @@ describe('watchlist settings and rail', () => {
     expect(home).toContain('WATCHLIST_METRIC_LABEL');
     expect(home).not.toContain('className="insight-watch-metric"');
     expect(home).toContain('Source table');
-    expect(home).toContain('No prior-period baseline');
+    expect(home).toContain('watchlistTrendDisplay(item)');
+    expect(home).not.toContain("'No prior-period baseline'");
     expect(home).not.toContain('INSIGHT_WATCHLIST');
     expect(home).not.toContain('Reading wishlist trends');
     expect(settings).toContain('Watchlist games');
     expect(home).not.toContain('(demo data)');
     expect(home).not.toContain('+41.7%');
+  });
+
+  it('shows the measured recent period when no prior-period baseline exists', () => {
+    expect(
+      watchlistTrendDisplay({
+        title: 'Borderlands 4',
+        recentRevenuePerSale: 64.5,
+        precedingRevenuePerSale: null,
+        trendPercent: null,
+      })
+    ).toEqual({ text: '$64.50 / unit', direction: 'level', hasBaseline: false });
+    expect(
+      watchlistTrendDisplay({
+        title: 'NBA 2K26',
+        recentRevenuePerSale: 20,
+        precedingRevenuePerSale: 25,
+        trendPercent: -20,
+      })
+    ).toEqual({ text: '−20.0%', direction: 'down', hasBaseline: true });
   });
 
   it('parses settings and preserves explicit unavailable trend detail', async () => {

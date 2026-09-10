@@ -170,8 +170,11 @@ function workspaceObject(
       const id = shown || payload?.experimentId || '';
       return id ? { kind: 'experiment', experimentId: id } : null;
     }
-    // Lakebase is addressed by a branch and database rather than by a workspace
-    // path.
+    case 'lakebase':
+      // A Lakebase autoscaling project has no stable per-project workspace URL,
+      // so once a branch is configured the node opens the workspace Apps list --
+      // where "Lakebase Postgres" lives -- rather than a guessed instance path.
+      return shown ? { kind: 'apps-list' } : null;
     default:
       return null;
   }
@@ -236,11 +239,11 @@ function ArchitectureNodeCard({
             className="arch-node-status-loader"
             label={`Checking ${node.label}`}
           />
-        ) : (
+        ) : report.label ? (
           <span className={astPill(NODE_FAMILY[report.tone], 'arch-node-status')} data-tone={report.tone}>
             {report.label}
           </span>
-        )}
+        ) : null}
         {reading && reading.marker !== 'none' ? (
           <span
             className={astPill(reading.marker === 'drift' ? 'warn' : 'neutral-outline', 'arch-node-drift')}

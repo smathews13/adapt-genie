@@ -178,8 +178,8 @@ html:not([data-theme='dark']) .ask-hero h2 {
 /*
  * The ADAPT starter questions, under the headline on an empty transcript.
  *
- * Four written-out business questions -- sell-through, refund risk, promo
- * pricing, account pacing -- each a card that asks itself when pressed, through
+ * Four written-out business questions -- brand sales, 2K26 impressions, Steam
+ * Civilization, T2 net revenue -- each a card that asks itself when pressed, through
  * the same ask() the composer calls. They are the mockup's `.starters` grid: a
  * business user meeting an empty screen is shown the kinds of question the agent
  * answers, rather than a blank box. Kept to a two-up grid so the composer stays

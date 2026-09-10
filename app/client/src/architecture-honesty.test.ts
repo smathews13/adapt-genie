@@ -111,7 +111,10 @@ describe('the page reports live connection readings honestly', () => {
   it('keeps local nodes out of remote connection grading', () => {
     for (const id of ['browser', 'app']) {
       const node = ARCHITECTURE_NODES.find((candidate) => candidate.id === id)!;
-      expect(nodeReport(node, undefined)).toMatchObject({ label: 'Runs here', tone: 'local' });
+      // No status word for the local nodes -- an empty label so no pill renders --
+      // but they stay in the local tone and keep the note for the text equivalent.
+      expect(nodeReport(node, undefined)).toMatchObject({ label: '', tone: 'local' });
+      expect(nodeReport(node, undefined).note).toBeTruthy();
     }
   });
 

@@ -28,7 +28,6 @@ import { ADDED_ADMINS_TABLE, ADMIN_AUDIT_TABLE, ADMIN_GRANTS_TABLE } from '../li
 import { GROUP_ROLE_MAPPINGS_TABLE } from '../lib/group-role-mappings';
 import type { GroupMembersResponse, RosterPayload } from '../../shared/user-roster-contract';
 import type { WorkspaceGroupRead } from '../lib/adapt-group-members';
-import type { AppAccessService } from './user-routes';
 
 const LEAD = 'lead@example.invalid';
 const DEPUTY = 'deputy@example.invalid';
@@ -162,8 +161,7 @@ async function startApp(
       detail: '',
     }),
   readWorkspaceGroup: (groupName: string) => Promise<WorkspaceGroupRead> = (groupName) =>
-    Promise.resolve({ groupName, groupId: `id-${groupName}`, exists: true, readable: true }),
-  admitted: ReadonlySet<string> = new Set([...ADAPT_SUPER_ADMIN_EMAILS, LEAD, DEPUTY, ANALYST])
+    Promise.resolve({ groupName, groupId: `id-${groupName}`, exists: true, readable: true })
 ) {
   const app = express();
   app.use(express.json());
@@ -178,23 +176,6 @@ async function startApp(
     readGroupRole,
     readGroupMembers,
     readWorkspaceGroup,
-    appAccess: {
-      read: () =>
-        Promise.resolve({
-          available: true,
-          principals: [...admitted]
-            .sort((left, right) => left.localeCompare(right))
-            .map((name) => ({
-              kind: 'user' as const,
-              name,
-              displayName: name,
-              directPermission: 'CAN_USE' as const,
-              effectivePermission: 'CAN_USE' as const,
-              inherited: false,
-            })),
-          message: '',
-        }),
-    } satisfies AppAccessService,
   });
 
   server = app.listen(0, '127.0.0.1');
@@ -304,7 +285,9 @@ describe('the super admin reads the roster', () => {
       [ANALYST, 'consumer'],
     ];
     expected.sort(([left], [right]) => left.localeCompare(right));
-    expect(payload.entries.map((entry) => [entry.email, entry.role])).toEqual(expected);
+    expect(
+      payload.entries.map((entry) => [entry.email, entry.role]).sort(([left], [right]) => left.localeCompare(right))
+    ).toEqual(expected);
     expect(payload.entries.filter((entry) => entry.isDeploymentOwner).map((entry) => entry.email)).toEqual([LEAD]);
     expect(payload.superAdminCount).toBe(ADAPT_SUPER_ADMIN_EMAILS.length + 1);
     expect(payload.groupRoleDefaults).toEqual([
@@ -612,20 +595,15 @@ describe('appointing an administrator', () => {
     expect(await errorOf(response)).toBe('roster_refused_unknown_role');
   });
 
-  it('does not store a role for someone outside Databricks App membership', async () => {
+  it('stores an app role without pretending that the role grants Databricks App admission', async () => {
     const store = fakeLakebase();
-    const app = await startApp(
-      store,
-      undefined,
-      undefined,
-      undefined,
-      new Set([...ADAPT_SUPER_ADMIN_EMAILS, LEAD, DEPUTY])
-    );
+    const app = await startApp(store);
     const response = await app.add(LEAD, ANALYST, 'admin');
 
-    expect(response.status).toBe(409);
-    expect(await errorOf(response)).toBe('app_membership_required');
-    expect(store.rows.roster).toEqual([]);
+    expect(response.status).toBe(200);
+    expect(store.rows.roster).toEqual([
+      { email: ANALYST, role: 'admin', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+    ]);
   });
 });
 
@@ -784,8 +762,8 @@ describe('when Lakebase is not answering', () => {
     const app = await startApp(broken);
     const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
     expect(payload.storedRosterReadable).toBe(false);
-    expect(payload.entries.map((entry) => entry.email)).toEqual(
-      [...ADAPT_SUPER_ADMIN_EMAILS, LEAD, DEPUTY, ANALYST].sort((left, right) => left.localeCompare(right))
+    expect(payload.entries.map((entry) => entry.email).sort((left, right) => left.localeCompare(right))).toEqual(
+      [...ADAPT_SUPER_ADMIN_EMAILS, LEAD, DEPUTY].sort((left, right) => left.localeCompare(right))
     );
   });
 

@@ -26,7 +26,7 @@ function row(id: string, executionMs: number | null, application = '') {
 }
 
 describe('Ops Query History attribution', () => {
-  it('counts every app operation for component spend while keeping marginal Ask runs exact', async () => {
+  it('counts only Ask SQL for component spend while keeping marginal Ask runs exact', async () => {
     const tagged = (id: string, surface: string, executionMs: number, extra: Record<string, unknown> = {}) => ({
       ...row(id, executionMs),
       query_tags: { application: 'ADAPT', surface, run_id: 'run-1' },
@@ -53,8 +53,8 @@ describe('Ops Query History attribution', () => {
     });
     expect(result).toMatchObject({
       complete: true,
-      adaptQueries: 5,
-      adaptExecutionMs: 486,
+      adaptQueries: 1,
+      adaptExecutionMs: 30,
       totalQueries: 7,
       totalExecutionMs: 736,
       askRuns: [{ runId: 'run-1', executionMs: 30 }],

@@ -175,6 +175,16 @@
   overflow-wrap: anywhere;
 }
 
+/* These two controls are one identity row, so lock both boxes to the same
+   border-box height instead of allowing either component's internal line-height
+   to enlarge only its own badge. */
+.fo-who > .organization-user-badge,
+.fo-who > .fo-oauth {
+  box-sizing: border-box;
+  height: 30px;
+  min-height: 30px;
+}
+
 /* --- Pills -------------------------------------------------------------- */
 
 /*

@@ -279,30 +279,39 @@ export function AiGatewayConnection({
 
           {editing ? (
             <div className="connection-row-editor ai-gateway-editor">
-              <AppSelect
-                label="Transport"
-                ariaLabel="AI Gateway transport"
-                value={mode || 'direct'}
-                options={[
-                  { value: 'direct', label: 'Direct' },
-                  { value: 'mlflow', label: 'MLflow-compatible' },
-                  { value: 'openai', label: 'OpenAI-compatible' },
-                ]}
-                onValueChange={(value) => {
-                  setMode(value === 'direct' ? '' : (value as AiGatewayMode));
-                  setSelected(value === 'direct' ? summary.active.model : '');
-                  setDiscovery(null);
-                }}
-              />
-              <div className="run-search ai-gateway-search">
-                <Search aria-hidden="true" />
-                <Input
-                  type="search"
-                  aria-label="Search eligible AI Gateway resources"
-                  placeholder="Search model services and endpoints"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
+              <div className="ai-gateway-editor-controls">
+                <div className="ai-gateway-field">
+                  <span className="ai-gateway-field-label">Transport</span>
+                  <AppSelect
+                    label="Transport"
+                    ariaLabel="AI Gateway transport"
+                    className="ai-gateway-transport"
+                    value={mode || 'direct'}
+                    options={[
+                      { value: 'direct', label: 'Direct' },
+                      { value: 'mlflow', label: 'MLflow-compatible' },
+                      { value: 'openai', label: 'OpenAI-compatible' },
+                    ]}
+                    onValueChange={(value) => {
+                      setMode(value === 'direct' ? '' : (value as AiGatewayMode));
+                      setSelected(value === 'direct' ? summary.active.model : '');
+                      setDiscovery(null);
+                    }}
+                  />
+                </div>
+                <label className="ai-gateway-field">
+                  <span className="ai-gateway-field-label">Gateway resource</span>
+                  <span className="ai-gateway-search">
+                    <Search className="ai-gateway-search-icon" aria-hidden="true" />
+                    <Input
+                      type="search"
+                      aria-label="Search eligible AI Gateway resources"
+                      placeholder="Search model services and endpoints"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                  </span>
+                </label>
               </div>
               {selected ? (
                 <p className="connection-row-tier-note">
@@ -338,7 +347,7 @@ export function AiGatewayConnection({
                   {message}
                 </p>
               ) : null}
-              <div className="flex gap-2">
+              <div className="ai-gateway-editor-actions">
                 <Button
                   size="sm"
                   disabled={busy || !selected}

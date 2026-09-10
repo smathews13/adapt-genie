@@ -816,10 +816,6 @@ function CostMethodology() {
             'Through Jan 31, 2027, Genie One and Genie Agents usage is promotional free and does not consume allowance.',
         },
         {
-          label: 'Genie Code',
-          detail: 'Free usage consumes the user’s monthly allowance.',
-        },
-        {
           label: 'Free and charged',
           detail:
             'Free is waived list-price value. Charged is usage actually billed after allowance and promotion rules. Either can be larger.',
@@ -1181,35 +1177,34 @@ export function LatencyBody({
                 </button>
               ) : null}
             </div>
+            {canFilterTrend ? (
+              <div className="ops-latency-trend-filters" role="group" aria-label="Filter by trend">
+                <button
+                  type="button"
+                  className={astPill('pos', 'ops-pill ops-latency-trend-filter')}
+                  aria-pressed={showWithin}
+                  aria-label="Show routes within baseline"
+                  disabled={block.busy}
+                  onClick={() => setShowWithin((on) => !on)}
+                >
+                  Within baseline
+                </button>
+                <button
+                  type="button"
+                  className={astPill('neg', 'ops-pill ops-latency-trend-filter')}
+                  aria-pressed={showOutside}
+                  aria-label="Show routes outside baseline"
+                  disabled={block.busy}
+                  onClick={() => setShowOutside((on) => !on)}
+                >
+                  Outside baseline
+                </button>
+              </div>
+            ) : null}
             <RefreshButton busy={block.busy} onRefresh={block.refresh} />
           </div>
         }
-      >
-        {canFilterTrend ? (
-          <div className="ops-latency-trend-filters" role="group" aria-label="Filter by trend">
-            <button
-              type="button"
-              className={astPill('pos', 'ops-pill ops-latency-trend-filter')}
-              aria-pressed={showWithin}
-              aria-label="Show routes within baseline"
-              disabled={block.busy}
-              onClick={() => setShowWithin((on) => !on)}
-            >
-              Within baseline
-            </button>
-            <button
-              type="button"
-              className={astPill('neg', 'ops-pill ops-latency-trend-filter')}
-              aria-pressed={showOutside}
-              aria-label="Show routes outside baseline"
-              disabled={block.busy}
-              onClick={() => setShowOutside((on) => !on)}
-            >
-              Outside baseline
-            </button>
-          </div>
-        ) : null}
-      </BlockHead>
+      />
 
       {block.busy && !payload ? null : (
         <BlockBody className={!absence && payload && routes.length > 0 ? 'ops-block-body-flush' : ''}>
@@ -1573,16 +1568,10 @@ export function TrafficBody({ block }: { block: Block<OpsTrafficPayload> }) {
               <BarChart
                 title="Tool calls by tool"
                 // Three words where there was a sentence, and no denominator: the
-                // run count is in the band above, once, and the three charts under
-                // it were each repeating it back in a full sentence about nothing
-                // having happened.
+                // run count is in the band above, once. Coverage copy like
+                // "30 of 33 recorded runs have named stage evidence" is the same
+                // kind of noise and is not shown.
                 caption={coverageCaption(payload.breakdownCoverage.toolCalls.state, 'No tool calls')}
-                qualification={
-                  payload.breakdownCoverage.toolCalls.state === 'complete'
-                    ? ''
-                    : payload.breakdownCoverage.toolCalls.reason ||
-                      `${payload.breakdownCoverage.toolCalls.state} tool-call coverage`
-                }
                 series={bars(payload.toolCalls)}
                 tone="tool"
               />

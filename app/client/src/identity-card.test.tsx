@@ -186,7 +186,7 @@ describe('IdentityCard', () => {
     expect(textOf({ identity, failed: false })).toContain('Organization Databricks');
     expect(markup).toContain('data-organization-domain="databricks.com"');
     expect(markup).toContain('aria-label="Organization: Databricks"');
-    expect(markup.match(new RegExp(DATABRICKS_SYMBOL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))).toHaveLength(2);
+    expect(markup.match(new RegExp(DATABRICKS_SYMBOL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))).toHaveLength(3);
   });
 
   it('renders every labelled ID through the shared semibold monospace identifier', () => {
@@ -427,6 +427,8 @@ describe('IdentityCard', () => {
     expect(execution.match(/data-testid="oauth-badge"/g)).toHaveLength(1);
     expect(execution).toContain('aria-label="Open user overview for someone"');
     expect(execution).toContain('class="identity-chip identity-chip--compact"');
+    expect(execution).toContain('data-organization-id="domain:example.com"');
+    expect(execution).toContain('aria-label="Organization: Example Sports"');
     expect(markup).not.toContain('Databricks Apps OAuth');
     expect(markup).not.toContain('Local development fallback');
   });

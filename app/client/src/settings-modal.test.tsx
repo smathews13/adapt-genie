@@ -139,7 +139,7 @@ describe('Settings modal', () => {
     const appearance = render('appearance');
     const experimental = render('experimental');
     expect(identity).toContain('<h3>Identity</h3>');
-    expect(identity).toContain('Databricks App members and ADAPT roles');
+    expect(identity).toContain('Databricks access groups and ADAPT roles');
     expect(identity).not.toMatch(/persona/i);
     expect(appearance).toContain('<h3>Appearance</h3>');
     expect(experimental).toContain('<h3>Experimental</h3>');
@@ -218,7 +218,7 @@ describe('Settings modal', () => {
     expect(SETTINGS_STYLES).not.toMatch(/\.exp-feature-control \{[^}]*display:\s*(?:inline-)?flex/);
   });
 
-  it('puts a distinct icon, title, then one shared Experimental badge on every feature', () => {
+  it('puts a distinct icon, one Experimental badge, then the title on every feature', () => {
     const markup = render('experimental');
     const badges = markup.split('experimental-pane-badge').length - 1;
     expect(badges).toBe(4);
@@ -240,8 +240,8 @@ describe('Settings modal', () => {
       const title = row?.indexOf(`>${feature}</span>`) ?? -1;
       const badge = row?.indexOf('experimental-pane-badge') ?? -1;
       expect(icon, feature).toBeGreaterThan(-1);
-      expect(icon, feature).toBeLessThan(title);
-      expect(title, feature).toBeLessThan(badge);
+      expect(icon, feature).toBeLessThan(badge);
+      expect(badge, feature).toBeLessThan(title);
     }
     expect(SETTINGS_STYLES).toMatch(/\.exp-feature-name \{[^}]*display:\s*inline-flex[^}]*align-items:\s*center/);
     expect(SETTINGS_STYLES).toMatch(
@@ -379,7 +379,7 @@ describe('Settings modal', () => {
     for (const identity of hostileIdentities) {
       const markup = render('identity', roleFrom(identityFromResponse(identity)));
       expect(markup).toContain('<h3>Identity</h3>');
-      expect(markup).toContain('Databricks App members and ADAPT roles');
+      expect(markup).toContain('Databricks access groups and ADAPT roles');
       expect(markup).not.toContain('This view could not be displayed');
     }
   });

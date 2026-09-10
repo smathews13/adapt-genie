@@ -20,8 +20,9 @@ html[data-theme='dark'] .ops-lat-chip-get {
   color: var(--ast-ink-on-dark);
 }
 
-html[data-theme='dark'] .ops-stop-all strong {
-  color: var(--ast-neg-text);
+html[data-theme='dark'] .ops-stop-all strong,
+html[data-theme='dark'] .ops-admin-action strong {
+  color: var(--db-red-700);
   font-weight: 800;
 }
 

@@ -130,11 +130,17 @@ describe('runtime and appearance modal sections', () => {
     expect(markup).not.toMatch(/<h4[^>]*>Interface<\/h4>/);
     expect(display).toContain('<h4 class="runtime-section-label">Display</h4>');
     expect(display).toContain('appearance-display-rows');
-    expect(display).toContain('>Dark mode ');
+    expect(display).toContain('Dark mode');
     expect(display).toContain('Experimental');
     expect(display).toContain('aria-label="Dark mode"');
     expect(display).toContain('>Animations</span>');
-    expect(display).toContain('>Density ');
+    expect(display).toContain('Density');
+    expect(display.lastIndexOf('experimental-pane-badge', display.indexOf('Dark mode'))).toBeLessThan(
+      display.indexOf('Dark mode')
+    );
+    expect(display.lastIndexOf('experimental-pane-badge', display.indexOf('Density'))).toBeLessThan(
+      display.indexOf('Density')
+    );
     expect(display).not.toContain('>Body text</span>');
     expect(display).not.toContain('>Secondary</span>');
     expect(display).toContain('>Tables</span>');

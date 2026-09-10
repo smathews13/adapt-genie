@@ -161,7 +161,14 @@ describe('Architecture reports the shared live readings', () => {
 
   it('keeps browser and app local and links each dependency to Connections', () => {
     const markup = canvasMarkup();
-    for (const id of ['browser', 'app']) expect(text(card(markup, id))).toContain('Runs here');
+    // The two local nodes carry no status pill: "Runs here" was redundant beside
+    // a card that already says what each one does. They still say what they are.
+    for (const id of ['browser', 'app']) {
+      const local = card(markup, id);
+      expect(text(local), id).not.toContain('Runs here');
+      expect(local, id).not.toContain('arch-node-status');
+      expect(text(local), id).toContain(ARCHITECTURE_NODES.find((node) => node.id === id)!.role);
+    }
     for (const node of dependencyNodes()) {
       expect(card(markup, node.id)).toContain(`href="/connections?entity=${node.resourceId!}"`);
     }

@@ -76,7 +76,8 @@ export type DatabricksObject =
   | { kind: 'registered-model'; model: string }
   | { kind: 'model-version'; model: string; version: string }
   | { kind: 'app'; name: string }
-  | { kind: 'job'; jobId: string };
+  | { kind: 'job'; jobId: string }
+  | { kind: 'apps-list' };
 
 /**
  * The Explore path for a three-level name, or null for anything else.
@@ -143,6 +144,12 @@ export function workspacePath(object: DatabricksObject): string | null {
       return object.name.trim() ? `/apps/${part(object.name)}` : null;
     case 'job':
       return object.jobId.trim() ? `/jobs/${part(object.jobId)}` : null;
+    case 'apps-list':
+      // The workspace Apps list, the documented way in to "Lakebase Postgres".
+      // A Lakebase autoscaling project has no stable per-project workspace URL,
+      // and the legacy provisioned instance route was retired, so the node opens
+      // the Apps list rather than a guessed instance path that would 404.
+      return '/apps-v2';
     case 'model-version': {
       // The version page, which is where the Artifacts tab -- and so `agent.py`
       // -- lives. THE TAB ITSELF IS NOT ADDRESSABLE as far as this app can

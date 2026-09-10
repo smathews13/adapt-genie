@@ -36,10 +36,11 @@
   grid-template-columns: repeat(2, fit-content(18rem));
   grid-auto-rows: 1fr;
   align-items: stretch;
-  justify-content: start;
+  justify-content: end;
   gap: 12px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
+  margin-left: auto;
 }
 
 .ops-stop-all,
@@ -1027,7 +1028,8 @@ a.ops-dependency-name:hover {
 }
 
 .ops-cost-resource-budgets .ops-ticker-assumption-grid {
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  grid-template-columns: repeat(var(--ops-assumption-columns), minmax(0, 1fr));
+  column-gap: 20px;
   align-items: start;
 }
 
@@ -2353,9 +2355,8 @@ a.ops-bar-count:hover {
  * digits put the decimal point in a different place on every row. The route is
  * the one prose column and overrides both.
  */
-/* Search and Refresh remain the header's right-hand working controls. The
-   baseline filters live with the title instead, so the heading and the two
-   choices read as one left-aligned cluster in DOM and visual order. */
+/* Search, baseline filters, and Refresh share one right-hand control rail in
+   that order. */
 .ops-latency-head-controls {
   display: flex;
   align-items: center;

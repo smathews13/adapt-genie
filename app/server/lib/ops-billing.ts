@@ -1413,7 +1413,13 @@ function componentTile(
       : {}),
   };
   if (component === 'sql-warehouse') {
-    if (amount === null || !warehouseQueryAttributionUsable(warehouseAttribution)) {
+    // A shared warehouse's dollars are carved to ADAPT by Query History execution
+    // share. `complete` is all-or-nothing: a single still-running query or a run
+    // whose evidence was not fully recorded flips it and blanks the whole tile.
+    // `warehouseQueryAttributionUsable` salvages that partial read when the only
+    // gaps are those two benign reasons and there is real execution time to divide
+    // by, which is why PIA shows a number where a strict `complete` check would not.
+    if (amount === null || !warehouseQueryAttributionUsable(warehouseAttribution) || warehouseAttribution.totalExecutionMs <= 0) {
       return withMeta({
         ...base,
         amount: null,
@@ -1431,7 +1437,7 @@ function componentTile(
       dbus:
         dbus === null ? null : (dbus * warehouseAttribution.adaptExecutionMs) / warehouseAttribution.totalExecutionMs,
       pricing,
-      note: warehouseAttribution.complete ? '' : 'Estimated from the available Query History duration.',
+      note: '',
       unavailable: '',
       remedy: '',
       evidence,

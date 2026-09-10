@@ -64,11 +64,11 @@ describe('Identity table polish', () => {
     expect(CSS).toMatch(
       /\.settings-table-frame \{[^}]*max-width:\s*100%[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s
     );
-    expect(CSS).toMatch(/\.roles-table \{[^}]*min-width:\s*790px/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-organization-column \{[^}]*width:\s*180px/s);
+    expect(CSS).toMatch(/\.roles-table \{[^}]*min-width:\s*898px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-organization-column \{[^}]*width:\s*220px/s);
     expect(CSS).not.toMatch(/\.roles-table--editable \.roster-set-by-column/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*126px/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*112px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*156px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*150px/s);
     expect(CSS).toMatch(
       /\.settings-modal-content \{[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s
     );
@@ -241,6 +241,10 @@ describe('Identity table polish', () => {
     expect(CSS).toMatch(
       /\.settings-page \[data-slot='button'\]\.settings-destructive \{[^}]*background:\s*var\(--db-red-700\)[^}]*color:\s*var\(--destructive-foreground\)/s
     );
+    // The add row keeps its input on the same centre line as the role select and
+    // Add button by lifting the validation line out of flow.
+    expect(CSS).toMatch(/\.roster-add-row td \{[^}]*position:\s*relative[^}]*padding-bottom:\s*24px/s);
+    expect(CSS).toMatch(/\.roster-add-row \.roster-add-feedback \{[^}]*position:\s*absolute[^}]*min-height:\s*0/s);
   });
 
   it('disables destructive controls while a roster mutation is in progress', () => {

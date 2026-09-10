@@ -167,6 +167,13 @@ describe('the list is as long as the answer’s own chart list', () => {
     expect(CSS).not.toContain('@media');
   });
 
+  it('lets a single chart span and center across the full answer width', () => {
+    const rule = ruleFor('.answer-chart-panel:only-of-type {');
+    expect(rule).toContain('grid-column: 1 / -1');
+    expect(rule).toContain('width: 100%');
+    expect(rule).toContain('justify-self: center');
+  });
+
   it('draws nothing at all for an answer that carried no charts', () => {
     // Every representative answer, and every answer from an endpoint predating
     // the tool. An empty grid would still take its gap.

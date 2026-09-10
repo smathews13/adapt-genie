@@ -1,4 +1,5 @@
 import { APP_SCHEMA, appTable } from '../../shared/app-schema';
+import { DEFAULT_ASK_STARTER_SETTINGS } from '../../shared/ask-starters-browser';
 import { ASK_STARTER_SETTINGS_DDL, ASK_STARTER_SETTINGS_TABLE } from './ask-starter-settings-store';
 import { WATCHLIST_SETTINGS_DDL, WATCHLIST_SETTINGS_TABLE } from './watchlist-settings-store';
 import { DEPLOYMENT_DECISIONS_TABLE_NAME, deploymentDecisionsDdl } from './deployment-decisions';
@@ -1062,6 +1063,26 @@ export const LATER_MIGRATIONS: readonly Migration[] = [
     name: 'deployment starter questions',
     statements: [ASK_STARTER_SETTINGS_DDL],
     down: [`DROP TABLE IF EXISTS ${ASK_STARTER_SETTINGS_TABLE}`],
+  },
+  {
+    version: 46,
+    name: 'adapt default starter questions',
+    statements: [
+      `INSERT INTO ${ASK_STARTER_SETTINGS_TABLE} (id, settings, revision, updated_at, updated_by)
+VALUES (
+  'effective',
+  $adapt_starters$${JSON.stringify(DEFAULT_ASK_STARTER_SETTINGS)}$adapt_starters$::jsonb,
+  1,
+  now(),
+  'migration:adapt-default-starters'
+)
+ON CONFLICT (id) DO UPDATE SET
+  settings = EXCLUDED.settings,
+  revision = ${ASK_STARTER_SETTINGS_TABLE}.revision + 1,
+  updated_at = now(),
+  updated_by = EXCLUDED.updated_by`,
+    ],
+    down: null,
   },
 ];
 

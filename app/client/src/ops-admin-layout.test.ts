@@ -6,9 +6,9 @@ const RESPONSIVE_OPS_STYLES = readFileSync(new URL('./styles/responsive-ops.css'
 const OPS_PAGE_SOURCE = readFileSync(new URL('./OpsPage.tsx', import.meta.url), 'utf8');
 
 describe('Ops Admin control geometry', () => {
-  it('uses two capped content-width columns with equal-height bars on desktop', () => {
+  it('uses two capped content-width columns with equal-height bars pinned to the right on desktop', () => {
     expect(OPS_STYLES).toMatch(
-      /\.ops-page-controls\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2,\s*fit-content\(18rem\)\)[^}]*grid-auto-rows:\s*1fr[^}]*justify-content:\s*start[^}]*width:\s*fit-content[^}]*max-width:\s*100%/
+      /\.ops-page-controls\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2,\s*fit-content\(18rem\)\)[^}]*grid-auto-rows:\s*1fr[^}]*justify-content:\s*end[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*margin-left:\s*auto/
     );
     expect(OPS_STYLES).toMatch(
       /\.ops-stop-all,\s*\.ops-admin-action\s*\{[^}]*flex-direction:\s*column[^}]*align-items:\s*stretch[^}]*padding:\s*10px 12px[^}]*border:\s*1px solid[^}]*border-radius:[^}]*width:\s*auto[^}]*min-height:\s*46px/

@@ -124,26 +124,28 @@ export function WatchlistSettingsPanel({
           <h4 id="insights-visibility-title">Insights Rail (righthand bar)</h4>
           <p>Show or hide each section without changing its underlying data.</p>
         </div>
-        {(
-          [
-            ['dataInScope', 'Data in scope'],
-            ['watchlist', 'Watchlist'],
-            ['answerConfidence', 'Answer confidence'],
-          ] as const
-        ).map(([key, label]) => (
-          <div className="watchlist-title-row" key={key}>
-            <span>{label}</span>
-            <Switch
-              checked={sections[key]}
-              disabled={state === 'loading' || state === 'saving' || !saved}
-              aria-label={`${sections[key] ? 'Hide' : 'Show'} ${label} in the Insights rail`}
-              onCheckedChange={(enabled) => {
-                setSections((current) => ({ ...current, [key]: enabled }));
-                onSaveState({ kind: 'idle' });
-              }}
-            />
-          </div>
-        ))}
+        <div className="watchlist-title-list insights-visibility-list" role="group" aria-label="Insights rail sections">
+          {(
+            [
+              ['dataInScope', 'Data in scope'],
+              ['watchlist', 'Watchlist'],
+              ['answerConfidence', 'Answer confidence'],
+            ] as const
+          ).map(([key, label]) => (
+            <div className="watchlist-title-row" key={key}>
+              <span>{label}</span>
+              <Switch
+                checked={sections[key]}
+                disabled={state === 'loading' || state === 'saving' || !saved}
+                aria-label={`${sections[key] ? 'Hide' : 'Show'} ${label} in the Insights rail`}
+                onCheckedChange={(enabled) => {
+                  setSections((current) => ({ ...current, [key]: enabled }));
+                  onSaveState({ kind: 'idle' });
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </section>
       {state === 'loading' ? (
         <AdaptLoader label="Loading titles from the sales table" className="settings-status" />

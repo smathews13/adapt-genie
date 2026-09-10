@@ -86,6 +86,14 @@
   border-bottom: none;
 }
 
+/* The active step keeps its bottom rule even as the last row, so it always reads
+   as an outlined, closed box rather than bleeding into the frame. The blue matches
+   its left edge; on the newest failure rows the red rule below takes over instead. */
+.live-step.running:last-child,
+.live-step.newest:last-child {
+  border-bottom: 1px solid var(--ast-blue);
+}
+
 /* A step that did not finish cleanly. The reserved left edge is what carries it now
    that the rows are ruled rather than boxed: red is readable at any width — 5.33:1
    on white — so unlike the working colour it may also tint the rule below the row. */

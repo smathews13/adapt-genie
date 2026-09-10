@@ -1054,6 +1054,7 @@ describe('the detail modal', () => {
     expect(MONITORING_SOURCE).toContain("import { Dialog } from './Dialog'");
     expect(MONITORING_SOURCE.match(/<Dialog/g)).toHaveLength(5);
     expect(MONITORING_SOURCE).not.toContain("window.addEventListener('keydown'");
+    expect(MONITORING_SOURCE).toContain('collapseSupportingDetails');
 
     const readyQuestion = render(<QuestionDrawer detail={detail()} onClose={() => {}} canOpenUser />);
     const readyPerson = render(
@@ -1991,8 +1992,8 @@ describe('the per-user panel', () => {
 
   it('renders each ranked source table as a counted governed entity', () => {
     const rows = [
-      { table: 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
-      { table: 'cmegdemos_catalog.player_insights_demo.data_dictionary', runs: 9 },
+      { table: 'sample_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
+      { table: 'sample_catalog.player_insights_demo.data_dictionary', runs: 9 },
     ];
     const markup = render(<TablesReadMost rows={rows} />);
     const rendered = text(markup);

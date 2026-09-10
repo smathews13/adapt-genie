@@ -50,7 +50,7 @@ import { RefreshButton } from './RefreshControl';
 import type { Identity } from './app-types';
 import { AstrolabeLockup } from './AstrolabeMark';
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
-import { UserIdentityChip } from './UserIdentityChip';
+import { OrganizationUserBadge } from './OrganizationUserBadge';
 import { DATABRICKS_LOGO, DATABRICKS_SYMBOL } from './brand-icons';
 // The same octocat the Connections tab links its repository with. One copy, so
 // the two seatings cannot come apart. See GithubMark.tsx.
@@ -231,6 +231,8 @@ function DatabricksSymbol() {
 
 export function FirstOpenPanel({
   report,
+  organization,
+  organizations,
   onContinue,
   onRefresh,
   onSkip,
@@ -243,6 +245,8 @@ export function FirstOpenPanel({
   leaving = false,
 }: {
   report: FirstOpenReport;
+  organization?: Identity['organization'];
+  organizations?: Identity['organizations'];
   onContinue: () => void;
   onRefresh: () => void;
   /**
@@ -292,7 +296,13 @@ export function FirstOpenPanel({
       <section className="fo-box fo-identity" id="first-open-description">
         <p className="fo-label">{IDENTITY_LABEL}</p>
         <p className="fo-who">
-          <UserIdentityChip identity={report.signedInAs} className="fo-email" />
+          <OrganizationUserBadge
+            identity={report.signedInAs}
+            organization={organization}
+            organizations={organizations}
+            className="fo-email"
+            canOpen={false}
+          />
           {report.oauthVerified ? (
             <span className="ast-pill ast-pill--pos fo-oauth">
               <Check className="fo-check" aria-hidden="true" />
@@ -509,6 +519,8 @@ export function useFirstOpen(identity: Identity, shellReady = true): FirstOpen {
     gate: (
       <FirstOpenPanel
         report={report}
+        organization={identity.organization}
+        organizations={identity.organizations}
         onContinue={leave(acknowledgeFirstOpen)}
         onAllowRequiredScopes={() => void allowRequiredScopes()}
         onRequestScope={(scope) => void requestOptionalScope(scope)}

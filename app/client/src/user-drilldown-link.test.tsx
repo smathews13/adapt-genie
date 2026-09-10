@@ -67,25 +67,21 @@ describe('shared user drilldown links', () => {
   });
 
   it('keeps direct raw chip imports limited to documented static surfaces and the shared wrapper', () => {
-    const directChipFiles = [
-      'AccessGate.tsx',
-      'FirstOpenGate.tsx',
-      'Layout.tsx',
-      'MonitoringPage.tsx',
-      'UserDrilldownLink.tsx',
-    ];
+    const directChipFiles = ['AccessGate.tsx', 'Layout.tsx', 'MonitoringPage.tsx', 'UserDrilldownLink.tsx'];
     for (const file of directChipFiles) expect(source(file)).toContain('UserIdentityChip');
 
     const migrated = [
       'BenchmarkLab.tsx',
       'ConnectionsPage.tsx',
       'DeclaredConnectionsCard.tsx',
+      'FirstOpenGate.tsx',
       'HomePage.tsx',
       'RunExplorer.tsx',
       'RunHeader.tsx',
       'UserRoleEditor.tsx',
     ];
     for (const file of migrated) expect(source(file)).not.toContain('UserIdentityChip');
+    expect(source('FirstOpenGate.tsx')).toContain('OrganizationUserBadge');
   });
 
   it('defines pointer, hover, focus-visible, and Space activation without dimming links', () => {

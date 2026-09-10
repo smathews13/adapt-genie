@@ -13,24 +13,24 @@ export interface AskStarterSettings {
 export const DEFAULT_ASK_STARTER_SETTINGS: AskStarterSettings = {
   questions: [
     {
-      id: 'sell-through',
-      kicker: 'Sell-through',
-      question: 'How did NBA 2K26 sell through on each platform last week?',
+      id: 'brand-sales',
+      kicker: 'Brand',
+      question: 'Which brand had the most sales yesterday?',
     },
     {
-      id: 'risk',
-      kicker: 'Risk',
-      question: 'Which titles saw refund rates climb after the summer sale?',
+      id: 'nba-2k26-impressions',
+      kicker: '2K26',
+      question: 'For NBA 2K26, how are our homepage impressions doing relative to its daily run rate?',
     },
     {
-      id: 'pricing',
-      kicker: 'Pricing',
-      question: 'Show me discount depth versus units lift for Q1 promos',
+      id: 'civilization-steam',
+      kicker: 'Steam',
+      question: 'Show Steam impressions, visits and click-through rate for Civilization over the last 3 weeks.',
     },
     {
-      id: 'accounts',
-      kicker: 'Accounts',
-      question: 'Which accounts are pacing behind their Q1 target?',
+      id: 't2-net-revenue',
+      kicker: 'Revenue',
+      question: 'Which T2 game titles generated the most net revenue last month?',
     },
   ],
 };

@@ -1,11 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { askStarterSettingsFromResponse } from './ask-starters-api';
-import { ASK_STARTERS_MAX } from '../../shared/ask-starters-browser';
+import { ASK_STARTERS_MAX, DEFAULT_ASK_STARTER_SETTINGS } from '../../shared/ask-starters-browser';
 
 const PANEL_SOURCE = readFileSync(new URL('./AskStartersSettingsPanel.tsx', import.meta.url), 'utf8');
 
 describe('starter question settings response', () => {
+  it('ships the four ADAPT landing questions as deployment defaults', () => {
+    expect(DEFAULT_ASK_STARTER_SETTINGS.questions.map(({ question }) => question)).toEqual([
+      'Which brand had the most sales yesterday?',
+      'For NBA 2K26, how are our homepage impressions doing relative to its daily run rate?',
+      'Show Steam impressions, visits and click-through rate for Civilization over the last 3 weeks.',
+      'Which T2 game titles generated the most net revenue last month?',
+    ]);
+  });
   it('preserves the configured card order', async () => {
     const document = await askStarterSettingsFromResponse(
       new Response(

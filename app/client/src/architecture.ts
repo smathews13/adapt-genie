@@ -293,7 +293,10 @@ export function nodeReport(
   _relatedReading?: ConnectionReading
 ): NodeReport {
   if (node.presence === 'local') {
-    return { label: 'Runs here', tone: 'local', note: LOCAL_NOTE };
+    // The browser and the app server carry no status word: "Runs here" was
+    // redundant beside a card that already says what each one does, so the pill
+    // is dropped and only the note survives for the text equivalent.
+    return { label: '', tone: 'local', note: LOCAL_NOTE };
   }
   if (node.presence === 'unregistered') {
     return {
@@ -362,7 +365,9 @@ export function nodeAccessibleName(
   if (checking && node.presence === 'connection') return `${node.label}: Checking connection`;
   const report = nodeReport(node, reading, relatedReading);
   const value = nodeValue(reading);
-  const parts = [`${node.label}: ${report.label}`];
+  // Local nodes carry no status word, so the accessible name is just the node's
+  // name rather than "<name>: " with an empty verdict trailing it.
+  const parts = [report.label ? `${node.label}: ${report.label}` : node.label];
   if (value) parts.push(value.value);
   if (reading?.marker === 'drift') parts.push('drifted from what it was configured with');
   if (reading?.marker === 'pending') parts.push('a saved value has not been applied');
@@ -397,12 +402,16 @@ export function describeArchitecture(
     const reading = node.resourceId ? readings.get(node.resourceId) : undefined;
     const report = nodeReport(node, reading);
     const value = nodeValue(reading);
-    const parts = [
+    // Local nodes have no status word, so the text equivalent uses the note --
+    // why there is nothing to probe -- as the line's value. That keeps every
+    // line in the "<name>: ..." shape the text equivalent relies on.
+    const statusLine =
       checking && node.presence === 'connection'
         ? `${node.label}: Checking connection.`
-        : `${node.label}: ${report.label}.`,
-      node.role,
-    ];
+        : report.label
+          ? `${node.label}: ${report.label}.`
+          : `${node.label}: ${report.note}`;
+    const parts = [statusLine, node.role];
     if (value) {
       parts.push(
         value.measured

@@ -103,8 +103,8 @@ const APP_ACCESS_LABEL = {
 } as const;
 
 export function AppAccessBadge({ state, detail }: { state: RosterEntry['appAccess']; detail?: string }) {
-  if (!state) return null;
-  const tone = state === 'missing' ? 'ast-pill--neg' : state === 'unknown' ? '' : 'ast-pill--pos';
+  if (!state || state === 'unknown') return null;
+  const tone = state === 'missing' ? 'ast-pill--neg' : 'ast-pill--pos';
   return (
     <span className={`ast-pill roster-app-access ${tone}`.trim()} title={detail || undefined}>
       {APP_ACCESS_LABEL[state]}
@@ -753,7 +753,7 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     <div className="identity-table-content">
       <section className="settings-identity-section" aria-labelledby="human-roles-title">
         <h4 id="human-roles-title" className="settings-section-title">
-          Databricks App members and ADAPT roles
+          Databricks access groups and ADAPT roles
         </h4>
         {payload ? (
           <GroupRoleDefaults
@@ -788,9 +788,8 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
         ) : null}
         {payload ? (
           <>
-            <p className={`admin-list-note ${payload.appAccessAvailable === false ? 'admin-list-error' : ''}`.trim()}>
-              {payload.appAccessMessage ||
-                'Databricks App permissions determine membership. ADAPT determines each member’s app role.'}
+            <p className="admin-list-note">
+              The workspace groups above determine App access. ADAPT roles control what admitted users can do.
             </p>
             <RosterRows
               payload={payload}

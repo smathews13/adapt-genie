@@ -68,6 +68,15 @@
   min-width: 0;
 }
 
+/* A lone figure should use the answer's full measure. `figure:only-of-type`
+   ignores the source `div` above it while preserving the two-up layout whenever
+   the answer actually carries multiple charts. */
+.answer-chart-panel:only-of-type {
+  grid-column: 1 / -1;
+  width: 100%;
+  justify-self: center;
+}
+
 /*
  * The panel's head. An eyebrow, which is what the spec asks for: 10px tracked caps,
  * secondary, one line.

@@ -48,12 +48,13 @@ describe('application loading treatment', () => {
     expect(source('./BenchmarkLab.tsx')).toContain('<AdaptLoader variant="inline" label="Run in progress"');
   });
 
-  it('renders a branded Preparing answer header for follow-up runs', () => {
+  it('renders the branded ask animation for every live run, including follow-ups', () => {
     const home = source('./HomePage.tsx');
-    expect(home).toMatch(
-      /workingSeat === 'splash'[\s\S]*?<AdaptLoadingAnimation[\s\S]*?:\s*\(\s*<AdaptLoader[\s\S]*?label=\{WORKING_STAGE_LABEL\}/
-    );
-    expect(home).toContain('className="answer-preparing-header"');
+    // Follow-ups used a compact "Preparing answer" strip that dropped the branded
+    // animation and clipped the live step in progress. Every live run now seats
+    // the same AdaptLoadingAnimation, so the compact header is gone.
+    expect(home).toContain('<AdaptLoadingAnimation variant="ask"');
+    expect(home).not.toContain('className="answer-preparing-header"');
   });
 
   it('shows the approved plan’s original question and the approval event', () => {

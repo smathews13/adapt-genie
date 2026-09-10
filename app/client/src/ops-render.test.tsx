@@ -122,11 +122,11 @@ describe('the admin cancellation control', () => {
     expect(toolbar).not.toContain('Check all resources');
     expect(toolbar).not.toContain('Check all scopes');
     expect(OPS_STYLES).toMatch(
-      /\.ops-page-controls\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2,\s*fit-content\(18rem\)\)[^}]*grid-auto-rows:\s*1fr[^}]*width:\s*fit-content/
+      /\.ops-page-controls\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2,\s*fit-content\(18rem\)\)[^}]*grid-auto-rows:\s*1fr[^}]*justify-content:\s*end[^}]*width:\s*100%[^}]*margin-left:\s*auto/
     );
     expect(OPS_STYLES).toMatch(/\.ops-stop-all,\s*\.ops-admin-action\s*\{[^}]*width:\s*auto[^}]*min-height:\s*46px/);
     expect(RESPONSIVE_OPS_STYLES).toMatch(
-      /@media \(max-width:\s*800px\)[\s\S]*\.ops-page-controls\s*\{[^}]*width:\s*fit-content[^}]*min-width:\s*0[^}]*margin-left:\s*0/
+      /@media \(max-width:\s*800px\)[\s\S]*\.ops-page-controls\s*\{[^}]*justify-content:\s*end[^}]*width:\s*fit-content[^}]*min-width:\s*0[^}]*margin-left:\s*auto/
     );
   });
 });
@@ -1031,7 +1031,6 @@ describe('the cost block', () => {
       'Genie usage',
       '150 DBU per identified human user each calendar month; resets on the first day of the month.',
       'Through Jan 31, 2027, Genie One and Genie Agents usage is promotional free and does not consume allowance.',
-      'Free usage consumes the user’s monthly allowance.',
       'Free is waived list-price value. Charged is usage actually billed after allowance and promotion rules. Either can be larger.',
       'No free allowance.',
       'Data Genie includes only attributable configured-space usage; unrelated workspace usage is excluded.',
@@ -1507,7 +1506,7 @@ describe('the cost block', () => {
     }
     expect(editor).not.toContain('>Advisory<');
     expect(OPS_STYLES).toMatch(
-      /\.ops-cost-resource-budgets \.ops-ticker-assumption-grid\s*\{[^}]*repeat\(auto-fit,\s*minmax\(15rem,\s*1fr\)\)/
+      /\.ops-cost-resource-budgets \.ops-ticker-assumption-grid\s*\{[^}]*repeat\(var\(--ops-assumption-columns\),\s*minmax\(0,\s*1fr\)\)/
     );
     expect(markup).not.toContain('Actual cost breakdown');
     expect(markup).not.toContain('ops-cost-actual-breakdown');
@@ -1549,6 +1548,9 @@ describe('the cost block', () => {
     expect(OPS_STYLES).toMatch(/\.ops-number-ticker\[data-suffix='true'\] input\s*\{[^}]*padding-right:\s*40px/);
     expect(OPS_STYLES).toMatch(
       /\.ops-ticker-assumption-grid\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--ops-assumption-columns\),\s*minmax\(0,\s*1fr\)\)/
+    );
+    expect(OPS_STYLES).toMatch(
+      /\.ops-cost-resource-budgets \.ops-ticker-assumption-grid\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--ops-assumption-columns\),\s*minmax\(0,\s*1fr\)\)/
     );
   });
 
@@ -2433,6 +2435,28 @@ describe('the traffic block', () => {
       expect(markup).toContain('15');
     });
 
+    it('does not narrate how many runs have named stage evidence', () => {
+      const markup = markupOf(
+        <TrafficBody
+          block={block(
+            traffic({
+              breakdownCoverage: {
+                outcomes: { state: 'complete', coveredRuns: 33, reason: '' },
+                toolCalls: {
+                  state: 'partial',
+                  coveredRuns: 30,
+                  reason: '30 of 33 recorded runs have named stage evidence.',
+                },
+              },
+            })
+          )}
+        />
+      );
+      expect(markup).toContain('Tool calls by tool');
+      expect(text(markup)).not.toMatch(/recorded runs have named stage evidence/);
+      expect(text(markup)).not.toContain('tool-call coverage');
+    });
+
     it('reads as a deliberate empty state when nothing called a tool', () => {
       // The healthy-deployment case. Two words, the same shape as the empty
       // failures and refusals charts, never a drawn bar of length zero. The
@@ -2618,7 +2642,7 @@ describe('the latency block', () => {
     expect(markup).not.toContain('data-testid="ops-latency"');
   });
 
-  it('keeps baseline filters level with the title and working controls at the right', () => {
+  it('keeps baseline filters between search and Refresh on the right control rail', () => {
     const markup = markupOf(<LatencyBody block={block(latency())} />);
     const header = markup.slice(markup.indexOf('ops-block-head'), markup.indexOf('ops-block-body'));
 
@@ -2630,7 +2654,8 @@ describe('the latency block', () => {
     expect(header).toContain('Within baseline');
     expect(header).toContain('Outside baseline');
     expect(header).toContain('Refresh');
-    expect(header.indexOf('ops-latency-trend-filters')).toBeLessThan(header.indexOf('ops-latency-head-controls'));
+    expect(header.indexOf('ops-latency-search')).toBeLessThan(header.indexOf('ops-latency-trend-filters'));
+    expect(header.indexOf('ops-latency-trend-filters')).toBeLessThan(header.indexOf('Refresh'));
     expect(header).not.toContain('ops-latency-toolbar');
 
     const css = readFileSync(new URL('./styles/ops.css', import.meta.url), 'utf8');

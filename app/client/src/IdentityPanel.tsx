@@ -121,10 +121,18 @@ function AttachedResource({ resource }: { resource: AppAttachedResourceMetadata 
 function ExecutionValue({ identity }: { identity: NonNullable<DeploymentIdentity['identity']> }) {
   const mode = identity.analyticalExecution?.mode;
   if (mode === 'signed_in_user') {
+    const organization = identity.signedInAs
+      ? organizationForEmail(identity.signedInAs, identity.organizations ?? [])
+      : null;
     return (
       <>
         <OAuthBadge identity={identity} />
-        <UserDrilldownLink identity={identity.signedInAs} compact role={identity.role ?? 'failed'} />
+        <UserDrilldownLink
+          identity={identity.signedInAs}
+          compact
+          role={identity.role ?? 'failed'}
+          icon={organization ? <OrganizationAvatar organization={organization} /> : undefined}
+        />
       </>
     );
   }

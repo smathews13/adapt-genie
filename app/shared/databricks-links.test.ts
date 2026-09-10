@@ -54,6 +54,7 @@ describe('workspacePath', () => {
     );
     expect(workspacePath({ kind: 'app', name: 'adapt' })).toBe('/apps/adapt');
     expect(workspacePath({ kind: 'job', jobId: '123' })).toBe('/jobs/123');
+    expect(workspacePath({ kind: 'apps-list' })).toBe('/apps-v2');
   });
 
   it('refuses to build a path from a missing identifier', () => {

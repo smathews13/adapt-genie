@@ -139,7 +139,7 @@ describe('Settings modal', () => {
     const appearance = render('appearance');
     const experimental = render('experimental');
     expect(identity).toContain('<h3>Identity</h3>');
-    expect(identity).toContain('Identity roles');
+    expect(identity).toContain('Databricks App members and ADAPT roles');
     expect(identity).not.toMatch(/persona/i);
     expect(appearance).toContain('<h3>Appearance</h3>');
     expect(experimental).toContain('<h3>Experimental</h3>');
@@ -379,7 +379,7 @@ describe('Settings modal', () => {
     for (const identity of hostileIdentities) {
       const markup = render('identity', roleFrom(identityFromResponse(identity)));
       expect(markup).toContain('<h3>Identity</h3>');
-      expect(markup).toContain('Identity roles');
+      expect(markup).toContain('Databricks App members and ADAPT roles');
       expect(markup).not.toContain('This view could not be displayed');
     }
   });

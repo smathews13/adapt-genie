@@ -693,11 +693,8 @@ export function HomePage() {
    */
   const railElapsedMs = runningElapsed({ loading, runningSince, now });
   /*
-   * Which seating the working animation takes: the full panel while the answer
-   * column has nothing in it, the compact strip once there is an answer above to
-   * read. Derived from the transcript rather than from a "first run" flag, so
-   * clearing a conversation puts the splash back without anything having to
-   * remember that it should.
+   * Which seating the working animation takes. Follow-ups use the same splash
+   * as the first question so the live steps keep a real viewport.
    */
   const workingSeat = seatForTranscript(messages);
   const workingLabel = (() => {
@@ -1158,6 +1155,13 @@ export function HomePage() {
     }
     if (prepended) return;
     const newest = messages[messages.length - 1];
+    if (loading && newest?.role === 'user') {
+      document.getElementById(`conversation-message-${newest.id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      return;
+    }
     if (!loading && newest?.role === 'assistant' && newest.id) {
       // An answer is read from its beginning. Scrolling to the transcript end
       // landed on the final trace row and made the result appear to open midway.
@@ -2332,24 +2336,21 @@ export function HomePage() {
 
           {(loading || conversationLoading) && (
             <Card className="answer-card">
-              <CardContent className={workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'}>
+              <CardContent className={conversationLoading ? 'pt-6 space-y-5' : workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'}>
                 {/* The working animation is for a run that is actually running.
                   Restoring a saved conversation from Lakebase is not the agent
                   working -- nothing is being asked and nothing is being read --
                   so that case keeps the still mark it always had. Miming a run
                   over a database read is the same invention as a progress bar
-                  that fills on a timer. */}
+                  that fills on a timer. Follow-ups keep this same splash: the
+                  compact strip clipped the live step in progress. */}
                 {conversationLoading ? (
                   <div>
                     <AdaptLoader label="Loading conversation" variant="compact" />
                     <p className="text-sm text-muted-foreground">Restoring the saved answer and trace from Lakebase.</p>
                   </div>
-                ) : workingSeat === 'splash' ? (
-                  <>
-                    <AdaptLoadingAnimation variant="ask" label={workingLabel} elapsed={elapsed} />
-                  </>
                 ) : (
-                  <AdaptLoader variant="compact" label={WORKING_STAGE_LABEL} className="answer-preparing-header" />
+                  <AdaptLoadingAnimation variant="ask" label={workingLabel} elapsed={elapsed} />
                 )}
                 {/* Still indeterminate, and still for the original reason: the run
                   reports each step on finishing it, so the client knows what has
@@ -2365,7 +2366,7 @@ export function HomePage() {
                   step "as it finishes" -- which is not what the endpoint does.
                   See live-progress.ts. */}
                 {!conversationLoading ? (
-                  <div className={workingSeat === 'splash' ? 'ast-splash-run' : undefined}>
+                  <div className="ast-splash-run">
                     <LiveProgress
                       stages={liveStages}
                       openedAt={streamOpenedAt}

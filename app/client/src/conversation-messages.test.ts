@@ -75,6 +75,30 @@ describe('conversation message pages', () => {
     expect(merged.map((entry) => entry.id)).toEqual(Array.from({ length: 62 }, (_, index) => message(index).id));
     expect(merged.some((entry) => entry.id === 'local-user')).toBe(false);
   });
+
+  it('keeps an in-flight follow-up until the store has actually written that turn', () => {
+    const persisted = [message(0), message(1), message(2), message(3)];
+    const current: ConversationMessage[] = [
+      ...persisted,
+      { id: 'local-follow-up', role: 'user', content: 'How did that compare to last week?' },
+    ];
+    expect(mergeNewestConversationMessages(current, persisted).map((entry) => entry.id)).toEqual([
+      'msg-000',
+      'msg-001',
+      'msg-002',
+      'msg-003',
+      'local-follow-up',
+    ]);
+
+    const storedTurn: ConversationMessage[] = [
+      ...persisted,
+      { ...message(4), role: 'user' as const, content: 'How did that compare to last week?' },
+      { ...message(5), role: 'assistant' as const, content: 'Last week was lower.' },
+    ];
+    expect(mergeNewestConversationMessages(current, storedTurn).map((entry) => entry.id)).toEqual(
+      storedTurn.map((entry) => entry.id)
+    );
+  });
 });
 
 describe('prepend scroll and focus contract', () => {

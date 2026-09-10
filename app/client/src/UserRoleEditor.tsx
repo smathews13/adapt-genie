@@ -20,7 +20,7 @@
  * to billing is a separate request to a metastore admin, and it is not a condition
  * of the role, so it is no longer on this screen.
  */
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronRight, ExternalLink, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import { Button, Input } from './ui';
 import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
@@ -33,7 +33,6 @@ import {
   roleWord,
   rosterEmailError,
   stepsDownFrom,
-  submittedDraftIsCurrent,
   type RosterEntry,
 } from './user-roster';
 import type { Role, RosterPayload } from '../../shared/user-roster-contract';
@@ -92,6 +91,24 @@ function RoleControl({
       }))}
       className="roster-control roster-role-select"
     />
+  );
+}
+
+const APP_ACCESS_LABEL = {
+  can_use: 'Can use app',
+  can_manage: 'Can manage app',
+  inherited: 'Inherited app access',
+  missing: 'No app access',
+  unknown: 'App access not checked',
+} as const;
+
+export function AppAccessBadge({ state, detail }: { state: RosterEntry['appAccess']; detail?: string }) {
+  if (!state) return null;
+  const tone = state === 'missing' ? 'ast-pill--neg' : state === 'unknown' ? '' : 'ast-pill--pos';
+  return (
+    <span className={`ast-pill roster-app-access ${tone}`.trim()} title={detail || undefined}>
+      {APP_ACCESS_LABEL[state]}
+    </span>
   );
 }
 
@@ -271,6 +288,7 @@ export function RosterRows({
                         >
                           {entry.email}
                         </UserDrilldownLink>
+                        <AppAccessBadge state={entry.appAccess} detail={entry.appAccessDetail} />
                       </span>
                       {entry.isYou ? <span className="admin-row-you">you</span> : null}
                       {entry.isDeploymentOwner ? (
@@ -306,10 +324,10 @@ export function RosterRows({
                           size="sm"
                           disabled={busy}
                           onClick={() => onRemove(entry)}
-                          aria-label={`Remove ${entry.email}`}
+                          aria-label={`Reset ${entry.email} to Consumer`}
                         >
                           <Trash2 className="roster-action-icon" aria-hidden="true" />
-                          Remove
+                          Reset role
                         </Button>
                       ) : null}
                     </td>
@@ -634,19 +652,14 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
   const [payload, setPayload] = useState<RosterPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [draft, setDraft] = useState('');
-  const [draftRole, setDraftRole] = useState<Role>('admin');
   const [busyAction, setBusyAction] = useState<'add' | 'other' | null>(null);
   const [writeError, setWriteError] = useState('');
-  const [addError, setAddError] = useState('');
   const [groupDraft, setGroupDraft] = useState('');
   const [groupDraftRole, setGroupDraftRole] = useState<Extract<Role, 'admin' | 'consumer'>>('consumer');
   const [groupAddError, setGroupAddError] = useState('');
   const [notice, setNotice] = useState('');
   const loadGeneration = useRef(0);
   const mutationInFlight = useRef(false);
-  const draftVersion = useRef(0);
-  const addDescriptionId = useId();
   const busy = busyAction !== null;
 
   const load = useCallback(async (showLoading = true) => {
@@ -714,23 +727,6 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     }
   }
 
-  async function add() {
-    const validationError = rosterEmailError(draft);
-    if (validationError || busy) {
-      if (validationError) setAddError(validationError);
-      return;
-    }
-    const email = normalizeRosterEmail(draft);
-    const submittedDraftVersion = draftVersion.current;
-    setAddError('');
-    const added = await run(
-      () => writeHumanRoster('/api/users', 'POST', { email, role: draftRole }),
-      `${email} is now ${roleWord(draftRole).toLowerCase()}.`,
-      { action: 'add', apply: setPayload, onError: setAddError }
-    );
-    if (added && submittedDraftIsCurrent(submittedDraftVersion, draftVersion.current)) setDraft('');
-  }
-
   async function addGroupMapping() {
     const groupName = groupDraft.trim();
     if (!groupName || busy) return;
@@ -757,7 +753,7 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     <div className="identity-table-content">
       <section className="settings-identity-section" aria-labelledby="human-roles-title">
         <h4 id="human-roles-title" className="settings-section-title">
-          Identity roles
+          Databricks App members and ADAPT roles
         </h4>
         {payload ? (
           <GroupRoleDefaults
@@ -791,64 +787,69 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
           </p>
         ) : null}
         {payload ? (
-          <RosterRows
-            payload={payload}
-            busy={busy}
-            manageHumanRoles={canManageHumanRoles}
-            onChange={(entry, role) =>
-              (() => {
-                if (mutationInFlight.current) return;
-                const before = payload;
-                setPayload((current) =>
-                  current
-                    ? {
-                        ...current,
-                        entries: current.entries.map((row) => (row.email === entry.email ? { ...row, role } : row)),
-                      }
-                    : current
-                );
+          <>
+            <p className={`admin-list-note ${payload.appAccessAvailable === false ? 'admin-list-error' : ''}`.trim()}>
+              {payload.appAccessMessage ||
+                'Databricks App permissions determine membership. ADAPT determines each member’s app role.'}
+            </p>
+            <RosterRows
+              payload={payload}
+              busy={busy}
+              manageHumanRoles={canManageHumanRoles}
+              onChange={(entry, role) =>
+                (() => {
+                  if (mutationInFlight.current) return;
+                  const before = payload;
+                  setPayload((current) =>
+                    current
+                      ? {
+                          ...current,
+                          entries: current.entries.map((row) => (row.email === entry.email ? { ...row, role } : row)),
+                        }
+                      : current
+                  );
+                  void run(
+                    () => changeHumanRole(entry.email, role),
+                    [`${entry.email} is now ${roleWord(role).toLowerCase()}.`, stepsDownFrom(entry, role)]
+                      .filter(Boolean)
+                      .join(' '),
+                    {
+                      apply: setPayload,
+                      onError: (message) => {
+                        setPayload(before);
+                        setWriteError(message);
+                      },
+                    }
+                  );
+                })()
+              }
+              onRemove={(entry) =>
                 void run(
-                  () => changeHumanRole(entry.email, role),
-                  [`${entry.email} is now ${roleWord(role).toLowerCase()}.`, stepsDownFrom(entry, role)]
-                    .filter(Boolean)
-                    .join(' '),
-                  {
-                    apply: setPayload,
-                    onError: (message) => {
-                      setPayload(before);
-                      setWriteError(message);
-                    },
-                  }
-                );
-              })()
-            }
-            onRemove={(entry) =>
-              void run(
-                () => writeHumanRoster(`/api/users/${encodeURIComponent(entry.email)}`, 'DELETE', {}),
-                `${entry.email} is off the roster.`,
-                { apply: setPayload }
-              )
-            }
-            footer={
-              canManageHumanRoles ? (
-                <RosterAddRow
-                  draft={draft}
-                  role={draftRole}
-                  busy={busy}
-                  adding={busyAction === 'add'}
-                  error={addError}
-                  descriptionId={addDescriptionId}
-                  onDraftChange={(value) => {
-                    draftVersion.current += 1;
-                    setDraft(value);
-                    setAddError('');
-                  }}
-                  onRoleChange={setDraftRole}
-                  onAdd={() => void add()}
-                />
-              ) : undefined
-            }
-          />
+                  () => writeHumanRoster(`/api/users/${encodeURIComponent(entry.email)}`, 'DELETE', {}),
+                  `${entry.email} is now a Consumer. Their Databricks App access is unchanged.`,
+                  { apply: setPayload }
+                )
+              }
+            />
+            {payload.appAccessPrincipals?.length ? (
+              <div className="roster-app-principals" aria-label="Other Databricks App access">
+                <span className="roster-app-principals-title">Groups and service principals</span>
+                <div className="roster-app-principal-list">
+                  {payload.appAccessPrincipals.map((principal) => (
+                    <span
+                      key={`${principal.kind}:${principal.name}`}
+                      className="ast-pill roster-app-principal"
+                      title={
+                        principal.inherited ? 'Inherited Databricks App permission' : 'Direct Databricks App permission'
+                      }
+                    >
+                      {principal.displayName} · {principal.permission === 'CAN_MANAGE' ? 'Can manage' : 'Can use'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </section>
 

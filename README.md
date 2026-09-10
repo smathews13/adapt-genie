@@ -432,13 +432,15 @@ grant or drop roles, and do not grant a Unity Catalog schema. Until storage is
 fixed, questions still run as stateless turns and say that their history was not
 saved.
 
-**Roles survive every code deploy.** Lakebase is the runtime source of truth for
-super-admin, admin and consumer roles. Deployment configuration can seed the
-first rows only while the roster is genuinely empty. Once any row exists, the app
-ignores `PLAYER_INSIGHTS_ADMIN_EMAILS` entirely: a stale, different or empty
-committed `app.yaml` cannot change anyone's role. Only an explicit action in
-Settings → People and roles does. This is why the committed snapshot carries no
-addresses, and why that absence is harmless.
+**Databricks owns membership; ADAPT owns roles.** The Identity roster reads the
+Databricks App ACL and overlays ADAPT's Lakebase roles on its explicit users.
+Someone added in Databricks therefore appears as a Consumer until an ADAPT super
+admin assigns a higher app role. ADAPT role changes never grant or revoke App
+access. Resetting a stored role returns that member to Consumer while leaving
+Databricks access unchanged. Groups and service principals remain
+Databricks-managed and are shown separately. Lakebase remains the runtime source
+of truth for super-admin, admin and consumer roles, so those roles survive code
+deploys.
 
 ### When you still need something else
 

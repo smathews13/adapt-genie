@@ -24,14 +24,15 @@ export const WORKING_LABEL = PLANNING_STAGE_LABEL;
 export const INLINE_WORKING_LABEL = PLANNING_STAGE_LABEL;
 
 /**
- * One assistant answer on screen is enough to seat the strip in the card.
+ * Every live Ask run uses the splash seating.
  *
- * Read off the transcript rather than off a "first run of the session" flag: a
- * cleared conversation is an empty answer column again, and the panel seating
- * should come back without anything having to remember that it should.
+ * Follow-ups used the compact card strip, which dropped the branded animation,
+ * left the live-step list without a flex viewport, and clipped the step in
+ * progress. A cleared conversation still reads as splash because there is no
+ * other seating left.
  */
-export function seatForTranscript(messages: { role: string }[]): WorkingSeat {
-  return messages.some((message) => message.role === 'assistant') ? 'card' : 'splash';
+export function seatForTranscript(_messages: { role: string }[]): WorkingSeat {
+  return 'splash';
 }
 
 /**

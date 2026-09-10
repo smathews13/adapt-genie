@@ -52,7 +52,9 @@ export function prependConversationMessages(
  *
  * Rows older than the page boundary stay mounted; everything at or after it is
  * replaced by the authoritative page. Local optimistic rows have no timestamp
- * and are discarded once the store returns a page containing their turn.
+ * and are discarded once the store returns a page containing their turn. A
+ * poll that still only has the previous turn must not drop the follow-up the
+ * reader just sent — that row is the only copy of the question on screen.
  */
 export function mergeNewestConversationMessages(
   current: readonly ConversationMessage[],
@@ -61,7 +63,12 @@ export function mergeNewestConversationMessages(
   if (newest.length === 0) return [...current];
   const boundary = messageOrder(newest[0]);
   const older = current.filter((message) => typeof message.created_at === 'string' && messageOrder(message) < boundary);
-  return prependConversationMessages(newest, older);
+  const persistedIds = new Set(
+    current.filter((message) => typeof message.created_at === 'string').map((message) => message.id)
+  );
+  const storeHasNewTurn = newest.some((message) => !persistedIds.has(message.id));
+  const optimistic = storeHasNewTurn ? [] : current.filter((message) => typeof message.created_at !== 'string');
+  return prependConversationMessages([...newest, ...optimistic], older);
 }
 
 export interface PrependAnchor {

@@ -134,13 +134,31 @@ export interface RosterEntry {
   setAt: string;
   /** Whether this row is the person reading the screen. */
   isYou: boolean;
+  /** Admission reported by the Databricks App ACL. */
+  appAccess?: 'can_use' | 'can_manage' | 'inherited' | 'missing' | 'unknown';
+  /** Human-readable provenance or recovery detail for App admission. */
+  appAccessDetail?: string;
   /** The roles this row may be changed to. Empty when it may not be changed. */
   assignable: Role[];
   canRemove: boolean;
 }
 
+export interface RosterAppAccessPrincipal {
+  kind: 'group' | 'service_principal';
+  name: string;
+  displayName: string;
+  permission: 'CAN_USE' | 'CAN_MANAGE';
+  inherited: boolean;
+}
+
 export interface RosterPayload {
   entries: RosterEntry[];
+  /** Whether Databricks returned the App ACL for this request. */
+  appAccessAvailable?: boolean;
+  /** Explains the membership authority or why it could not be read. */
+  appAccessMessage?: string;
+  /** Non-user ACL entries remain separate because group membership is not expanded. */
+  appAccessPrincipals?: RosterAppAccessPrincipal[];
   /** Workspace groups that establish the deployment's read-only role floors. */
   groupRoleDefaults?: Array<{
     /** Customer-facing policy name; may differ from a shared demo workspace mapping. */

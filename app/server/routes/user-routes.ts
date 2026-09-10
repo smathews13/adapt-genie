@@ -49,6 +49,7 @@ import {
   roleChangeSentence,
   rosterPayload,
   writeRole,
+  type SeedRoles,
   type StoredRole,
 } from '../lib/user-roster';
 import {
@@ -80,7 +81,9 @@ import {
 } from '../lib/adapt-group-members';
 import type { GroupMembersResponse } from '../../shared/user-roster-contract';
 import { readGroupRoleMappings, writeGroupRoleMapping } from '../lib/group-role-mappings';
-import { accountConsoleUrlForWorkspace } from '../../shared/databricks-links';
+import { accountConsoleUrlForWorkspace, normalizeWorkspaceHost } from '../../shared/databricks-links';
+import { alignRosterWithAppAccess, readAppAccess, type AppAccessOptions } from '../lib/app-access-roster';
+import { forwardedUserToken } from './access-verification';
 
 const RoleBody = z.object({ role: z.string().trim().max(32) });
 const AddBody = RoleBody.extend({ email: z.string().trim().max(320) });
@@ -88,6 +91,46 @@ const GroupMappingBody = z.object({
   groupName: z.string().trim().min(1).max(255),
   role: z.enum(['admin', 'consumer']),
 });
+
+function appAccessOptions(req: Request): AppAccessOptions | null {
+  const host = normalizeWorkspaceHost(process.env.DATABRICKS_HOST);
+  const appName = (process.env.DATABRICKS_APP_NAME ?? '').trim();
+  const userToken = forwardedUserToken(req) ?? '';
+  return host && appName && userToken ? { host, appName, userToken } : null;
+}
+
+export interface AppAccessService {
+  read(req: Request): ReturnType<typeof readAppAccess>;
+}
+
+const liveAppAccess: AppAccessService = {
+  async read(req) {
+    const options = appAccessOptions(req);
+    return options
+      ? readAppAccess(options)
+      : {
+          available: false,
+          principals: [],
+          message:
+            'Databricks App permissions are unavailable because this session has no forwarded user token or app identity.',
+        };
+  },
+};
+
+function admittedUsers(principals: Awaited<ReturnType<AppAccessService['read']>>['principals']): Set<string> {
+  return new Set(
+    principals
+      .filter((principal) => principal.kind === 'user' && principal.effectivePermission !== null)
+      .map((principal) => principal.name)
+  );
+}
+
+function seedForAdmittedUsers(seed: SeedRoles, admitted: ReadonlySet<string>): SeedRoles {
+  return {
+    superAdmins: seed.superAdmins.filter((email) => admitted.has(email)),
+    admins: seed.admins.filter((email) => admitted.has(email)),
+  };
+}
 
 /**
  * The roster as read, and whether the stored half answered.
@@ -173,12 +216,14 @@ export function setupUserRoutes(
     readGroupRole?: GroupRoleLookup;
     readGroupMembers?: (groupName: string) => Promise<GroupMembersResponse>;
     readWorkspaceGroup?: (groupName: string) => Promise<WorkspaceGroupRead>;
+    appAccess?: AppAccessService;
   } = {}
 ) {
   const readDeploymentOwner = deps.readDeploymentOwner ?? (() => deploymentOwnerEmail(appkit.lakebase));
   const readGroupRole = deps.readGroupRole ?? groupRoleLookupForStore(appkit.lakebase);
   const readGroupMembers = deps.readGroupMembers ?? readAdaptGroupMembers;
   const confirmWorkspaceGroup = deps.readWorkspaceGroup ?? readWorkspaceGroup;
+  const appAccessService = deps.appAccess ?? liveAppAccess;
   const roleFloors = (req: Request, rows: readonly StoredRole[], extra: readonly string[] = []) => {
     const base = seedRoles();
     return seedRolesWithGroupFloors(base, [...rows.map((row) => row.email), ...extra], (email) =>
@@ -294,19 +339,22 @@ export function setupUserRoutes(
         read(appkit.lakebase, req),
         readDeploymentOwner().catch(() => ''),
       ]);
-      const seed = await roleFloors(req, rows);
-      res.json(
-        await attachIdentityMetadata(
-          rosterPayload({
-            seed,
-            stored: rows,
-            storedRosterReadable: readable,
-            roleColumnPresent,
-            reader: userEmail(req),
-            deploymentOwner,
-          })
-        )
+      const appAccess = await appAccessService.read(req);
+      const admitted = appAccess.available ? admittedUsers(appAccess.principals) : null;
+      const visibleRows = admitted ? rows.filter((row) => admitted.has(row.email)) : rows;
+      const resolvedSeed = await roleFloors(req, visibleRows);
+      const seed = admitted ? seedForAdmittedUsers(resolvedSeed, admitted) : resolvedSeed;
+      const payload = await attachIdentityMetadata(
+        rosterPayload({
+          seed,
+          stored: visibleRows,
+          storedRosterReadable: readable,
+          roleColumnPresent,
+          reader: userEmail(req),
+          deploymentOwner,
+        })
       );
+      res.json(alignRosterWithAppAccess(payload, appAccess));
     });
 
     app.post('/api/users/groups', async (req, res) => {
@@ -377,7 +425,7 @@ export function setupUserRoutes(
         res.status(400).json({ error: 'invalid_roster_email', detail: invalid });
         return;
       }
-      await setRole(req, res, normalizeAdminEmail(parsed.data.email), parsed.data.role, true);
+      await setRole(req, res, normalizeAdminEmail(parsed.data.email), parsed.data.role);
     });
 
     /**
@@ -418,7 +466,14 @@ export function setupUserRoutes(
         });
         return;
       }
-      const seed = await roleFloors(req, rows, [email]);
+      const appAccess = await appAccessService.read(req);
+      if (!appAccess.available) {
+        res.status(503).json({ error: 'app_access_unavailable', detail: appAccess.message });
+        return;
+      }
+      const admitted = admittedUsers(appAccess.principals);
+      rows = rows.filter((row) => admitted.has(row.email));
+      const seed = seedForAdmittedUsers(await roleFloors(req, rows, [email]), admitted);
       const refusal = removalRefusal({ email, seed, stored: rows });
       if (refusal) {
         refuse(res, refusal);
@@ -451,7 +506,7 @@ export function setupUserRoutes(
      * once would otherwise both pass a check made in a browser and leave the
      * deployment with none.
      */
-    async function setRole(req: Request, res: Response, email: string, role: string, allowMissingConsumer = false) {
+    async function setRole(req: Request, res: Response, email: string, role: string) {
       const actor = userEmail(req);
       let rows: StoredRole[];
       let roleColumnPresent: boolean;
@@ -467,14 +522,29 @@ export function setupUserRoutes(
         });
         return;
       }
-      const seed = await roleFloors(req, rows, [email]);
+      const appAccess = await appAccessService.read(req);
+      if (!appAccess.available) {
+        res.status(503).json({ error: 'app_access_unavailable', detail: appAccess.message });
+        return;
+      }
+      const admitted = admittedUsers(appAccess.principals);
+      rows = rows.filter((row) => admitted.has(row.email));
+      if (!admitted.has(email)) {
+        res.status(409).json({
+          error: 'app_membership_required',
+          detail:
+            'Grant this person access in Databricks App permissions first, then reload Identity to assign their app role.',
+        });
+        return;
+      }
+      const seed = seedForAdmittedUsers(await roleFloors(req, rows, [email]), admitted);
       const refusal = roleChangeRefusal({
         email,
         role,
         seed,
         stored: rows,
         roleColumnPresent,
-        allowMissingConsumer,
+        allowMissingConsumer: true,
       });
       if (refusal) {
         refuse(res, refusal);
@@ -527,19 +597,22 @@ export function setupUserRoutes(
         readRosterForRequest(store, req),
         readDeploymentOwner().catch(() => ''),
       ]);
-      const seed = await roleFloors(req, after.rows);
-      res.json(
-        await attachIdentityMetadata(
-          rosterPayload({
-            seed,
-            stored: after.rows,
-            storedRosterReadable: true,
-            roleColumnPresent: after.roleColumnPresent,
-            reader,
-            deploymentOwner,
-          })
-        )
+      const appAccess = await appAccessService.read(req);
+      const admitted = appAccess.available ? admittedUsers(appAccess.principals) : null;
+      const visibleRows = admitted ? after.rows.filter((row) => admitted.has(row.email)) : after.rows;
+      const resolvedSeed = await roleFloors(req, visibleRows);
+      const seed = admitted ? seedForAdmittedUsers(resolvedSeed, admitted) : resolvedSeed;
+      const payload = await attachIdentityMetadata(
+        rosterPayload({
+          seed,
+          stored: visibleRows,
+          storedRosterReadable: true,
+          roleColumnPresent: after.roleColumnPresent,
+          reader,
+          deploymentOwner,
+        })
       );
+      res.json(alignRosterWithAppAccess(payload, appAccess));
     }
   });
 }

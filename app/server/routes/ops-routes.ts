@@ -1213,7 +1213,7 @@ export function questionRun(row: Record<string, unknown>): QuestionRunInput {
     runsInRange: count(row.runs_in_range),
     tokenCoveredRuns: count(row.token_covered_runs),
     totalRecordedTokens: count(row.total_recorded_tokens),
-    evidenceComplete: text(row.evidence_complete).toLowerCase() === 'true',
+    evidenceComplete: ['true', 't', '1'].includes(text(row.evidence_complete).toLowerCase()),
   };
 }
 

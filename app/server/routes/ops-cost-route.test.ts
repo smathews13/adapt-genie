@@ -6,6 +6,7 @@ import {
   GENIE_APP_ACTIVITY_QUERY,
   QUESTION_COST_RUNS_QUERY,
   RESOURCE_ACTIVITY_QUERY,
+  questionRun,
   runFoundationCostQuery,
   setupOpsRoutes,
 } from './ops-routes';
@@ -60,6 +61,14 @@ afterEach(() => {
 });
 
 describe('the ranged cost route', () => {
+  it('accepts Postgres boolean forms for complete Ask evidence', () => {
+    expect(questionRun({ evidence_complete: true }).evidenceComplete).toBe(true);
+    expect(questionRun({ evidence_complete: 't' }).evidenceComplete).toBe(true);
+    expect(questionRun({ evidence_complete: 1 }).evidenceComplete).toBe(true);
+    expect(questionRun({ evidence_complete: false }).evidenceComplete).toBe(false);
+    expect(questionRun({ evidence_complete: 'f' }).evidenceComplete).toBe(false);
+  });
+
   it('falls back to the available foundation usage table', async () => {
     const statements: string[] = [];
     const fetchImpl = vi.fn((_input: string | URL | globalThis.Request, init?: RequestInit) => {

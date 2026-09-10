@@ -56,6 +56,7 @@ import { normalizeReaderAnswer } from '../../shared/answer-content-policy';
 import { answerHasGeneratedSql } from './answer-sql';
 import { RunOverviewKpis } from './RunOverviewKpis';
 import { toolStageDurationMs } from './run-explorer-state';
+import { ExportMenu } from './ExportMenu';
 
 /** Shared by Ask and Monitoring, which mounts this same answer card. */
 export function AnswerSql({ sql }: { sql: string }) {
@@ -235,6 +236,7 @@ export function AnswerCard({
   const badge = answerBadge(readerAnswer);
   const usedAttachments = processTrace.stages.some((stage) => stage.id === 'attachment');
   const missingDocumentFootnotes = usedAttachments && readerAnswer.document_snippets.length === 0;
+  const exportLabel = question || headline || 'answer';
   return (
     <Card className="answer-card" id={id}>
       <CardHeader>
@@ -259,6 +261,33 @@ export function AnswerCard({
                 </Badge>
               )}
             </div>
+            <ExportMenu
+              compact
+              label="Export question and answer"
+              actions={[
+                {
+                  label: 'Copy Markdown',
+                  run: async () => {
+                    const { copyAnswerExport } = await import('./export-actions');
+                    await copyAnswerExport(question, readerAnswer);
+                  },
+                },
+                {
+                  label: 'Download Markdown',
+                  run: async () => {
+                    const { downloadAnswerMarkdown } = await import('./export-actions');
+                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
+                  },
+                },
+                {
+                  label: 'Download PDF',
+                  run: async () => {
+                    const { downloadAnswerPdf } = await import('./export-actions');
+                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
+                  },
+                },
+              ]}
+            />
           </div>
           {headline ? (
             <CardTitle className="answer-takeaway">

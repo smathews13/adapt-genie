@@ -26,6 +26,7 @@ PLATFORM_ADDED = ("iam.access-control:read", "iam.current-user:read")
 CLASSIFICATION = {
     "sql": ("sql-warehouse", "governed-rows"),
     "dashboards.genie": ("genie", "governed-rows"),
+    "genie": ("genie", "governed-rows"),
     "catalog": ("unity-catalog", "metadata-only"),
     "workspace": ("workspace-objects", "metadata-only"),
     "serving": ("model-serving", "no-data"),
@@ -130,6 +131,7 @@ def model_scopes() -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for constant, condition in (
         ("GENIE_SCOPE", "the data Genie space is configured"),
+        ("GENIE_MCP_SCOPE", "the data Genie MCP endpoint is configured"),
         ("SQL_SCOPE", "a SQL warehouse is configured"),
     ):
         match = re.search(rf'^{constant}\s*=\s*"([^"]+)"', source, re.M)

@@ -13,6 +13,7 @@ export const USER_API_SCOPE_DETAILS: Readonly<Record<string, string>> = {
   'catalog.schemas:read': 'Allows the app to read schemas in Unity Catalog.',
   'catalog.tables:read': 'Allows the app to read tables in Unity Catalog.',
   'dashboards.genie': 'Allows the app to manage Genie spaces in Databricks.',
+  genie: 'Allows the app to query managed Genie Agent MCP servers.',
   'iam.access-control:read': 'Allows the app to read your access control settings and permissions.',
   'iam.current-user:read': 'Allows the app to read your basic identity information.',
   'model-serving': 'Allows the app to access Databricks Model Serving.',

@@ -169,6 +169,17 @@ variables:
       `user-authorization` runs Genie and SQL as the invoking user. The app and
       logged model must use the same mode and be released together.
     default: system-passthrough
+  genie_mcp_secret_scope:
+    description: >-
+      ADAPT-only Databricks secret scope holding the app's Genie MCP Ed25519
+      private signing key. Release automation creates it when absent and never
+      overwrites an existing key.
+    default: adapt-genie-signing
+  genie_mcp_secret_key:
+    description: >-
+      Versioned key name for the Genie MCP Ed25519 private signing key.
+      Rotation uses a new key name and coordinated app/model releases.
+    default: genie-mcp-ed25519-private-v1
   app_user_api_scopes:
     description: >-
       OAuth scopes requested from each signed-in user. Catalog and workspace
@@ -181,6 +192,7 @@ variables:
       - model-serving
       - sql
       - dashboards.genie
+      - genie
       # Resource-browser scopes accepted by the Apps API.
       - catalog.catalogs:read
       - catalog.schemas:read

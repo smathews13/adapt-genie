@@ -1,5 +1,5 @@
 /**
- * The four OAuth scopes every ADAPT question path needs.
+ * OAuth scopes every ADAPT question path may need.
  *
  * Kept separately from the deployment's broader declared list because the
  * one-click repair must add only the load-bearing set. Optional browse scopes
@@ -11,4 +11,5 @@ export const REQUIRED_USER_API_SCOPES = [
   'model-serving',
   'sql',
   'dashboards.genie',
+  'genie',
 ] as const;

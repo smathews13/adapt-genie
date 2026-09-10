@@ -10,6 +10,11 @@ env:
     valueFrom: postgres
   - name: DATABRICKS_SERVING_ENDPOINT_NAME
     valueFrom: serving-endpoint
+  # Ed25519 private key used only to sign short-lived Genie MCP capabilities.
+  # The value comes from ADAPT's dedicated Databricks secret resource and must
+  # never be logged, returned, or copied into Model Serving configuration.
+  - name: ADAPT_GENIE_MCP_SIGNING_PRIVATE_KEY
+    valueFrom: genie-mcp-signing-key
   # Foundation model the orchestrator calls. Empty in public source;
   # bundle/app-release.sh fills the target value. Git deploys fall back to
   # databricks-claude-sonnet-4-6 in Connections so the row is not blank.
@@ -168,4 +173,4 @@ env:
   # list on its own Connections page.
   #
   - name: PLAYER_INSIGHTS_USER_API_SCOPES
-    value: 'serving.serving-endpoints,model-serving,sql,dashboards.genie,catalog.catalogs:read,catalog.schemas:read,catalog.tables:read,workspace.workspace:read,postgres'
+    value: 'serving.serving-endpoints,model-serving,sql,dashboards.genie,genie,catalog.catalogs:read,catalog.schemas:read,catalog.tables:read,workspace.workspace:read,postgres'

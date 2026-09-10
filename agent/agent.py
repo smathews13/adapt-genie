@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 import correlation
 import execution_identity
+import genie_capability
 import knowledge
 import provenance
 import runtime_settings
@@ -80,6 +81,7 @@ from tools import (
     ToolResult,
     combine_dictionary_questions,
     data_genie_tool,
+    genie_mcp_tool,
     normalise_dictionary_question,
     reports_dependency_unavailable,
 )
@@ -124,6 +126,10 @@ PACKAGED_KNOWLEDGE = knowledge.load_packaged_knowledge()
 ALLOW_UNATTRIBUTED_FIGURES = announce_waiver(
     waiver_from_artifact(baked_config()), at_log_time=False
 )
+
+# Public verification material only. The app's private key is a Databricks App
+# secret and is never logged with, copied into, or available to this model.
+GENIE_MCP_CAPABILITY = genie_capability.from_artifact(baked_config())
 
 # ---------------------------------------------------------------------------
 # Where an attachment goes
@@ -645,6 +651,21 @@ ANALYSIS_TOOLS = [
     REQUEST_CLARIFICATION_TOOL,
 ]
 
+# Same direct metadata/SQL surface, with only the Genie transport replaced.
+# Consumers and deployments with the saved experiment off keep ANALYSIS_TOOLS
+# byte-for-byte; an enabled admin run cannot call direct data_genie because that
+# schema is absent rather than discouraged in prompt text.
+MCP_ANALYSIS_TOOLS = [
+    RESOLVE_TABLE_TOOL,
+    DESCRIBE_TABLE_TOOL,
+    QUERY_NAMED_TABLE_TOOL,
+    RUN_SQL_TOOL,
+    SEARCH_TAGGED_ASSETS_TOOL,
+    LIST_DATA_ASSETS_TOOL,
+    genie_mcp_tool(_SETTINGS.data_genie_space_title),
+    REQUEST_CLARIFICATION_TOOL,
+]
+
 ORCHESTRATOR_INSTRUCTIONS = """# Role
 You are the analysis orchestrator for Take-Two Steam sales, marketing analytics, and
 wishlist demand. Gather a compact EVIDENCE PACKAGE for final synthesis.
@@ -748,6 +769,23 @@ def _custom_inputs(request: ResponsesAgentRequest) -> dict[str, Any]:
     if hasattr(value, "model_dump"):
         value = value.model_dump()
     return value if isinstance(value, dict) else {}
+
+
+def _genie_transport(
+    custom_inputs: dict[str, Any],
+    *,
+    request_id: str,
+    observed_user: str,
+) -> str:
+    """Admit MCP only through a verified, request-bound app signature."""
+
+    verdict = genie_capability.activate(
+        custom_inputs,
+        config=GENIE_MCP_CAPABILITY,
+        request_id=request_id,
+        observed_user=observed_user,
+    )
+    return "mcp" if verdict.authorized else "direct"
 
 
 def _attachment_context(custom_inputs: dict[str, Any]) -> str:
@@ -1469,12 +1507,12 @@ def reasoning_endpoint_failure(error: Exception) -> str:
 #: The tools whose failure can mean "this space was never shared with me".
 #: Only the two Genie tools, because only they reach an object whose sharing is
 #: performed by hand in a UI and can therefore simply never have been done.
-GENIE_TOOLS = ("data_genie",)
+GENIE_TOOLS = ("data_genie", "genie_mcp")
 
 #: The tools that can return rows, as opposed to definitions and column lists.
 #: Read by `RunLog.plot_evidence`, which decides both whether the charting step
 #: runs and what it is handed.
-DATA_RETURNING_TOOLS = frozenset({"data_genie"})
+DATA_RETURNING_TOOLS = frozenset({"data_genie", "genie_mcp"})
 
 #: The tool whose repeated calls in one step are asked as one question. Only this
 #: one: it answers with lists of definitions, so a question naming eight fields
@@ -1765,6 +1803,7 @@ def _tool_arguments(call: Any) -> dict[str, Any] | None:
 #: are kept in `input`/`output`; these are what a stakeholder reads.
 _TOOL_STAGE_NAMES = {
     "data_genie": "Queried governed data",
+    "genie_mcp": "Queried governed data through Genie MCP",
 }
 
 #: The same labels for a call that has been announced and has not returned. Every
@@ -1772,6 +1811,7 @@ _TOOL_STAGE_NAMES = {
 #: finishes reads as two steps, and the rail draws them in one row.
 _TOOL_STAGE_RUNNING = {
     "data_genie": "Querying governed data",
+    "genie_mcp": "Querying governed data through Genie MCP",
 }
 
 #: What a reader should understand was unavailable, per tool. `_TOOL_STAGE_NAMES`
@@ -1779,6 +1819,7 @@ _TOOL_STAGE_RUNNING = {
 #: sentence about what failed, so the surfaces get their own names.
 _TOOL_SURFACES = {
     "data_genie": "the governed data Genie space",
+    "genie_mcp": "the managed Genie MCP server",
     REASONING_MODEL: "the reasoning model",
 }
 
@@ -2142,6 +2183,9 @@ class RunLog:
         #: orchestrator's configuration, so if the run does not record which space
         #: answered it, nothing anywhere does.
         self.genie_spaces: list[GenieSpace] = []
+        #: Selected by the app server from durable settings and authoritative
+        #: role, then copied to the answer and MLflow trace for audit.
+        self.transport = "direct"
         #: What the dictionary space has already answered THIS RUN, keyed by
         #: `normalise_dictionary_question`. A definition does not change while one
         #: question is being answered, and the model asks for the same one twice
@@ -2241,6 +2285,7 @@ class RunLog:
             toolCalls=self.calls,
             stages=self.stages,
             genie_spaces=list(self.genie_spaces),
+            transport=self.transport,
             prompt_tokens=self.prompt_tokens,
             completion_tokens=self.completion_tokens,
             total_tokens=self.total_tokens,
@@ -2942,6 +2987,8 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
 
         if name == "data_genie":
             return tools.data_genie(str(arguments.get("question") or ""))
+        if name == "genie_mcp":
+            return tools.genie_mcp(str(arguments.get("question") or ""))
         if name == "search_tagged_assets":
             return tools.search_tagged_assets(
                 str(arguments.get("tag") or ""), str(arguments.get("value") or "")
@@ -2971,6 +3018,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         *,
         parent_id: str = "",
         depth: int = 0,
+        genie_transport: str = "direct",
     ) -> Generator[TraceStage, None, LoopOutcome]:
         """Let the model choose the steps, and bound what that can cost.
 
@@ -2994,6 +3042,13 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         if self.user_authorization:
             log.executed_as = self._measured_identity(tools.workspace)
         system = knowledge.add_packaged_knowledge(ORCHESTRATOR_INSTRUCTIONS, PACKAGED_KNOWLEDGE)
+        analysis_tools = MCP_ANALYSIS_TOOLS if genie_transport == "mcp" else ANALYSIS_TOOLS
+        if genie_transport == "mcp":
+            system += (
+                "\n\n# Genie transport for this run\n"
+                "The app server selected managed Genie MCP. Use `genie_mcp` where the base "
+                "instructions refer to `data_genie`; direct `data_genie` is not available."
+            )
         runtime_prompt = runtime_settings.prompt_fragment()
         if runtime_prompt:
             system = f"{system}\n\n{runtime_prompt}"
@@ -3079,7 +3134,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                         messages=messages,
                         temperature=0.1,
                         max_tokens=self.settings.max_output_tokens,
-                        tools=ANALYSIS_TOOLS,
+                        tools=analysis_tools,
                         tool_choice="auto",
                         timeout=max(1.0, log.remaining),
                     )
@@ -4556,10 +4611,12 @@ Tables available to this analysis, with their columns:
         """
 
         _TURN_CREDENTIALS.set({})
+        genie_capability.clear()
         try:
             return (yield from self._turn_within_request(request))
         finally:
             _TURN_CREDENTIALS.set(None)
+            genie_capability.clear()
             correlation.clear_query_ids()
 
     def _turn_within_request(
@@ -4575,6 +4632,23 @@ Tables available to this analysis, with their columns:
         """
 
         custom_inputs = _custom_inputs(request)
+        # A capability is bearer-like during its short lifetime. Consume it
+        # immediately, before runtime settings, identity work, request context,
+        # preflight, planning, or any trace/persistence path can inspect it.
+        genie_capability.consume(custom_inputs)
+        try:
+            request.custom_inputs = custom_inputs
+        except (AttributeError, TypeError, ValueError) as error:
+            # ResponsesAgentRequest currently permits replacing custom_inputs.
+            # If that contract changes, stop before any early response or span:
+            # continuing would leave the capability attached to a traceable
+            # request even if MCP itself fell back to direct.
+            if genie_capability.capability_pending():
+                genie_capability.clear()
+                raise genie_capability.CapabilitySanitizationError(
+                    "Genie MCP capability could not be removed from the request; "
+                    "signing material was redacted"
+                ) from error
         runtime_settings.activate(custom_inputs)
         # Before anything that costs a model call: the checks are retired, and an
         # app build still asking for them should not spend an orchestrator turn on
@@ -4622,6 +4696,11 @@ Tables available to this analysis, with their columns:
         )
         if refusal is not None:
             return self._identity_unavailable(required, refusal)
+        genie_transport = _genie_transport(
+            custom_inputs,
+            request_id=required.request_id,
+            observed_user=observed,
+        )
         question, history = _request_context(request)
         attachment_context = _attachment_context(custom_inputs)
         analysis_request = _analysis_request(question, history, attachment_context)
@@ -4648,6 +4727,7 @@ Tables available to this analysis, with their columns:
 
         run_id = uuid.uuid4().hex
         log = RunLog()
+        log.transport = genie_transport
 
         if attachment_context:
             yield log.stage(
@@ -4672,7 +4752,13 @@ Tables available to this analysis, with their columns:
             span.set_inputs(
                 {
                     "question": question,
-                    "tools": ["data_genie"],
+                    "genie_transport": genie_transport,
+                    "tools": [
+                        tool["function"]["name"]
+                        for tool in (
+                            MCP_ANALYSIS_TOOLS if genie_transport == "mcp" else ANALYSIS_TOOLS
+                        )
+                    ],
                 }
             )
             # Attributes rather than inputs, so "whose grants produced this" is
@@ -4699,6 +4785,7 @@ Tables available to this analysis, with their columns:
             # span of this one -- each Genie call and each statement -- is in the
             # trace these tags are on, which joins them to the same question.
             turn_facts = correlation.facts(required, self.settings)
+            turn_facts["adapt.genie_transport"] = genie_transport
             if turn_facts:
                 mlflow.update_current_trace(tags=turn_facts)
                 span.set_attributes(turn_facts)
@@ -4709,6 +4796,7 @@ Tables available to this analysis, with their columns:
                 log,
                 parent_id=orchestrator.id,
                 depth=1,
+                genie_transport=genie_transport,
             )
             package = compact_evidence_package(outcome.answer_text or outcome.capped)
             if outcome.answer_text:
@@ -4725,6 +4813,7 @@ Tables available to this analysis, with their columns:
                     "calls_saved": log.calls_saved,
                     "capped": outcome.capped,
                     "clarified": outcome.clarification is not None,
+                    "genie_transport": genie_transport,
                     "prompt_tokens": log.prompt_tokens,
                     "completion_tokens": log.completion_tokens,
                     "total_tokens": log.total_tokens,

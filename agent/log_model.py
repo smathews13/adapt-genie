@@ -8,9 +8,9 @@ from pathlib import Path
 
 import mlflow
 from databricks.sdk import WorkspaceClient
+from databricks_mcp import DatabricksMCPClient
 from mlflow.models.auth_policy import AuthPolicy, SystemAuthPolicy, UserAuthPolicy
 from mlflow.models.resources import (
-    DatabricksGenieSpace,
     DatabricksServingEndpoint,
     DatabricksSQLWarehouse,
     DatabricksTable,
@@ -21,6 +21,7 @@ from config import (
     DATA_GENIE_ROLE_LABEL,
     Settings,
 )
+from genie_capability import AUDIENCE_CONFIG, AUDIENCE_ENV, PUBLIC_KEY_CONFIG, PUBLIC_KEY_ENV
 from host_metadata_probe import bound as bound_host_metadata_probe
 from preflight import (
     BUILD_SHA_VAR,
@@ -181,9 +182,19 @@ allow_unattributed = announce_waiver(
     resolve_waiver(os.environ.get(ALLOW_UNATTRIBUTED_FIGURES_ENV)), at_log_time=True
 )
 
+mcp_client = DatabricksMCPClient(
+    server_url=(
+        f"{workspace.config.host.rstrip('/')}/api/2.0/mcp/genie/{settings.data_genie_space_id}"
+    ),
+    workspace_client=workspace,
+)
+# Let databricks-mcp derive the managed server's Model Serving resources from
+# the endpoint URL. This remains beside the explicit SQL/table resources because
+# direct Genie is retained for consumers and for the default experiment state.
+mcp_resources = mcp_client.get_databricks_resources()
 resources = [
     DatabricksServingEndpoint(endpoint_name=settings.llm_endpoint),
-    DatabricksGenieSpace(genie_space_id=settings.data_genie_space_id),
+    *mcp_resources,
     DatabricksSQLWarehouse(warehouse_id=settings.warehouse_id),
     *(DatabricksTable(table_name=table) for table in manifest),
 ]
@@ -258,6 +269,10 @@ release_decisions = {
     # answerable from the artifact months later, not from whatever a deployer's
     # environment happens to hold at the time somebody asks.
     ALLOW_UNATTRIBUTED_KEY: allow_unattributed.enabled,
+    # Public verification material only. The app's Ed25519 private key remains
+    # in its Databricks secret resource and never reaches this process.
+    PUBLIC_KEY_CONFIG: os.environ.get(PUBLIC_KEY_ENV, "").strip(),
+    AUDIENCE_CONFIG: os.environ.get(AUDIENCE_ENV, "").strip(),
 }
 
 # The serving container inherits none of this script's environment, so the
@@ -291,6 +306,8 @@ with mlflow.start_run(run_name="log_adapt_orchestrator"):
             # absence indistinguishable from any other import error.
             str(ROOT / "evidence.py"),
             str(ROOT / "failures.py"),
+            str(ROOT / "genie_capability.py"),
+            str(ROOT / "genie_mcp.py"),
             # Stable operating guidance travels with the artifact. The payload
             # deliberately contains no customer facts; knowledge.py reads these
             # markdown files at model load and the prompts keep governed tools
@@ -329,6 +346,8 @@ with mlflow.start_run(run_name="log_adapt_orchestrator"):
         pip_requirements=[
             "mlflow>=3.14.0",
             "databricks-sdk>=0.81.0",
+            "databricks-mcp>=0.9.2",
+            "cryptography",
             # CAPPED BELOW 3.0 ON PURPOSE. openai 3 swapped its transport from
             # `httpx` to `httpx2`, and both clients that reach the reasoning model
             # build an `httpx.Client` and hand it over as `http_client`: the one in

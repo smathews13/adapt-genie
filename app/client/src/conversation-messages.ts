@@ -30,6 +30,26 @@ export async function readConversationMessagePage(
   };
 }
 
+/** Read the newest window and follow every older-page cursor to the beginning. */
+export async function readAllConversationMessages(
+  conversationId: string,
+  options: { signal?: AbortSignal; fetcher?: typeof fetch; limit?: number } = {}
+): Promise<ConversationMessage[]> {
+  let page = await readConversationMessagePage(conversationId, options);
+  let messages = page.messages;
+  const seenCursors = new Set<string>();
+  while (page.hasMore && page.nextCursor) {
+    if (seenCursors.has(page.nextCursor)) throw new Error('Conversation pagination repeated a cursor');
+    seenCursors.add(page.nextCursor);
+    page = await readConversationMessagePage(conversationId, {
+      ...options,
+      cursor: page.nextCursor,
+    });
+    messages = prependConversationMessages(messages, page.messages);
+  }
+  return messages;
+}
+
 function messageOrder(message: ConversationMessage): string {
   return `${typeof message.created_at === 'string' ? message.created_at : '\uffff'}\u0000${message.id}`;
 }

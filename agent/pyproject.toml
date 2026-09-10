@@ -4,7 +4,9 @@ version = "0.1.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "databricks-agents",
+  "databricks-mcp>=0.9.2",
   "databricks-sdk>=0.81.0",
+  "cryptography",
   "mlflow>=3.14.0",
   "openai>=1.66.0",
   "pydantic>=2.10.0",

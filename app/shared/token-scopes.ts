@@ -14,6 +14,7 @@ const OAUTH_FAMILY_BY_SCOPE: Readonly<Record<string, string>> = {
   'workspace.workspace:read': 'workspace',
   'serving.serving-endpoints': 'model-serving',
   'dashboards.genie': 'genie',
+  genie: 'genie',
   sql: 'sql',
   postgres: 'postgres',
 };

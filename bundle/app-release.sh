@@ -113,7 +113,9 @@ if [[ "$APPLY" != true ]]; then
   cat <<EOF
 
 Dry run. Nothing was built or deployed. Re-run with --apply to:
-  0. run bundle/release-gate.sh: the permissions the app declares against the
+  0a. create ADAPT's Genie MCP Ed25519 signing secret when absent, without
+      replacing an existing key
+  0b. run bundle/release-gate.sh: the permissions the app declares against the
      ones it documents and the ones it holds, and every declared resource
      attached to the live app. THIS ONE STOPS THE RELEASE before anything is
      built. ~7s, two workspace reads.
@@ -148,11 +150,20 @@ EOF
   exit 0
 fi
 
-# THE GATE, FIRST, BEFORE ANYTHING IS BUILT OR UPLOADED.
+# The bundle attaches this key as an App secret resource. Create only when
+# absent, before the resource gate asks whether the live app can read it.
+step "Ensuring the Genie MCP signing key"
+GENIE_MCP_KEY_SCRIPT="$BUNDLE_ROOT/bundle/genie-mcp-signing-key.sh"
+[[ -f "$GENIE_MCP_KEY_SCRIPT" ]] || die "bundle/genie-mcp-signing-key.sh is missing"
+TARGET="$TARGET" PROFILE="$PROFILE" bash "$GENIE_MCP_KEY_SCRIPT" --ensure > /dev/null
+
+# THE RESOURCE GATE, BEFORE ANYTHING IS BUILT OR UPLOADED. The only preceding
+# apply-side mutation is idempotent creation of this app's missing signing
+# secret; an existing key is never replaced.
 #
-# Nothing above this line has touched the workspace or the deploy tree, so a
-# refusal here costs the operator seven seconds and leaves the running app exactly
-# as it was. What it asks and -- more importantly -- what it deliberately does NOT
+# Nothing above this line has touched the running app or deploy tree, so a
+# refusal here leaves the active deployment exactly as it was. What it asks and
+# -- more importantly -- what it deliberately does NOT
 # ask is written at the top of bundle/release-gate.sh, in one place, so nobody has
 # to read two scripts to learn which checks gate a release.
 #

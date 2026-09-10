@@ -387,11 +387,10 @@ export function SettingsPage({
                     <ResourceTagsPanel />
                     <tr>
                       <td>
-                        <ExperimentalFeatureName kind="genie-code-mcp">
-                          Genie Code / Genie MCP
-                        </ExperimentalFeatureName>
+                        <ExperimentalFeatureName kind="genie-code-mcp">Genie MCP</ExperimentalFeatureName>
                         <p className="settings-row-note">
-                          Enables experimental Genie coding and MCP integrations for this deployment.
+                          Routes administrator Ask requests through managed Genie MCP only when Model Serving verifies
+                          this app&apos;s short-lived signature.
                         </p>
                       </td>
                       <td className="exp-feature-status">
@@ -403,12 +402,10 @@ export function SettingsPage({
                             checked={showsGenieCodeMcp(draftFeatures)}
                             disabled={!experimentalLoaded}
                             onCheckedChange={(enabled) => {
-                              setDraftFeatures((current) =>
-                                withExperimentalFeature(current, 'genieCodeMcp', enabled)
-                              );
+                              setDraftFeatures((current) => withExperimentalFeature(current, 'genieCodeMcp', enabled));
                               setSaveState(SETTINGS_SAVE_IDLE);
                             }}
-                            aria-label="Enable Genie Code and Genie MCP"
+                            aria-label="Enable Genie MCP for administrators"
                           />
                         </div>
                       </td>

@@ -20,6 +20,7 @@ const GIT_DEPLOY_SCOPES = [
   'model-serving',
   'sql',
   'dashboards.genie',
+  'genie',
   'catalog.catalogs:read',
   'catalog.schemas:read',
   'catalog.tables:read',

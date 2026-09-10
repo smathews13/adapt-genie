@@ -19,6 +19,7 @@ import { sourceRows, splitSourceName } from './source-rows';
 import type { SourceRef } from './answer-shape';
 import { databricksLink, type DatabricksObject } from '../../shared/databricks-links';
 import { useRequestedEntity, useTrackedTables, useWorkspaceHost } from './data-entity-state';
+import { ExportMenu } from './ExportMenu';
 
 /**
  * The rendering half of "an answer names a table, the reader can go and see it".
@@ -646,11 +647,36 @@ function ProseBlock({
       const origin = origins?.get(block.start) ?? [];
       return (
         <div className="answer-table-frame">
-          {origin.length > 0 ? (
-            <div className="answer-table-origin" aria-label="Source table">
-              <AnswerOriginLinks sources={origin} />
-            </div>
-          ) : null}
+          <div className="answer-table-origin" aria-label="Source table">
+            {origin.length > 0 ? <AnswerOriginLinks sources={origin} /> : null}
+            <ExportMenu
+              compact
+              label="Export table"
+              actions={[
+                {
+                  label: 'Copy TSV',
+                  run: async () => {
+                    const { copyTableExport } = await import('./export-actions');
+                    await copyTableExport(block, origin);
+                  },
+                },
+                {
+                  label: 'Download PNG',
+                  run: async () => {
+                    const { downloadTablePng } = await import('./export-actions');
+                    await downloadTablePng(block, origin);
+                  },
+                },
+                {
+                  label: 'Download PDF',
+                  run: async () => {
+                    const { downloadTablePdf } = await import('./export-actions');
+                    await downloadTablePdf(block, origin);
+                  },
+                },
+              ]}
+            />
+          </div>
           <div className="answer-table-wrap">
             <table className="answer-table">
               {block.header ? (

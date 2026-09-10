@@ -54,8 +54,9 @@ resources:
           level: CAN_USE
 
       # These bindings grant the app service principal access to its state
-      # store, serving endpoint, and SQL warehouse. Do not bind governed tables
-      # or Genie spaces; governed reads must use the signed-in user's token.
+      # store, serving endpoint, SQL warehouse, and its private signing key.
+      # Do not bind governed tables or Genie spaces; governed reads must use the
+      # signed-in user's token.
       resources:
         # Bind an existing Lakebase database; this does not create Lakebase.
         - name: postgres
@@ -76,6 +77,14 @@ resources:
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
+        # The app alone reads this Ed25519 private key. Model logging derives
+        # and bakes only its public key; the serving endpoint never receives
+        # this resource or its value.
+        - name: genie-mcp-signing-key
+          secret:
+            scope: ${var.genie_mcp_secret_scope}
+            key: ${var.genie_mcp_secret_key}
+            permission: READ
 
       lifecycle:
         # Destroying the app also removes its service principal and grants.

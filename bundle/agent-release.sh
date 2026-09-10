@@ -594,6 +594,8 @@ if [[ "$APPLY" != true ]]; then
 Dry run. Nothing was logged or deployed.
 
 Re-run with --apply to:
+  0. create ADAPT's Genie MCP Ed25519 signing secret when absent, without
+     replacing an existing key, and derive its public key for model logging
   1. cd agent && uv run --python 3.13 python log_model.py
      (logs a new version, registers it in UC, points the 'prod' alias at it.
       The alias is a signpost; step 2 deploys by explicit version number)
@@ -629,6 +631,15 @@ fi
 
 LOG_SUMMARY=""
 if [[ "$SKIP_LOG" != true ]]; then
+  step "Resolving the Genie MCP verification key"
+  GENIE_MCP_KEY_SCRIPT="$BUNDLE_ROOT/bundle/genie-mcp-signing-key.sh"
+  [[ -f "$GENIE_MCP_KEY_SCRIPT" ]] || die "bundle/genie-mcp-signing-key.sh is missing"
+  GENIE_MCP_PUBLIC_KEY="$(TARGET="$TARGET" PROFILE="$PROFILE" bash "$GENIE_MCP_KEY_SCRIPT" --ensure)"
+  [[ -n "$GENIE_MCP_PUBLIC_KEY" ]] || die "The Genie MCP key provisioner returned no public key"
+  export PLAYER_INSIGHTS_GENIE_MCP_PUBLIC_KEY="$GENIE_MCP_PUBLIC_KEY"
+  export PLAYER_INSIGHTS_GENIE_MCP_AUDIENCE="$ENDPOINT"
+  unset GENIE_MCP_PUBLIC_KEY
+
   step "Logging model"
   LOG_ARGS=()
   [[ "$ALLOW_WIDENING" == true ]] && LOG_ARGS+=(--allow-widening)

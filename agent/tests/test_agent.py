@@ -13,6 +13,7 @@ import json
 import re
 from types import SimpleNamespace
 
+import mlflow
 import pytest
 from mlflow.types.responses import ResponsesAgentRequest
 from mlflow.types.responses import ResponsesAgentRequest as _RawRequest
@@ -21,6 +22,7 @@ import agent
 import config
 import execution_identity
 import failures
+import genie_capability
 from agent import (
     ATTACHMENT_BEGIN,
     ATTACHMENT_END,
@@ -260,6 +262,11 @@ class FakeTools:
                 ),
                 sources=[ACTIVITY],
             ),
+            "genie_mcp": ToolResult(
+                text="Managed Genie MCP returned 8,413 active players.",
+                sql=f"SELECT count(*) FROM {ACTIVITY}",
+                sources=[ACTIVITY],
+            ),
             "dictionary_genie": ToolResult(
                 text="Keep labels separate and return aggregate results only."
             ),
@@ -279,6 +286,9 @@ class FakeTools:
 
     def data_genie(self, question: str):
         return self._answer("data_genie", question=question)
+
+    def genie_mcp(self, question: str):
+        return self._answer("genie_mcp", question=question)
 
     def dictionary_genie(self, question: str):
         return self._answer("dictionary_genie", question=question)
@@ -468,6 +478,148 @@ def test_the_model_is_offered_every_tool_including_the_way_out():
         "data_genie",
         "request_clarification",
     ]
+
+
+def test_spoofed_mcp_transport_is_refused_without_app_signed_authorization():
+    llm = ScriptedLlm("Nothing to look up.")
+
+    answer = ask(build(llm), genie_transport="mcp").custom_outputs["answer"]
+
+    offered = [tool["function"]["name"] for tool in llm.loop_calls[0]["tools"]]
+    assert "data_genie" in offered
+    assert "genie_mcp" not in offered
+    assert answer["trace"]["transport"] == "direct"
+
+
+def test_plan_consumes_capability_before_early_return():
+    marker = {"claims": {"secret": "plan-capability"}, "signature": "plan-signature"}
+    request = app_request(
+        input=[{"role": "user", "content": "Compare active players by label."}],
+        custom_inputs={"genie_transport": "mcp", "genie_mcp_capability": marker},
+    )
+
+    response = build(ScriptedLlm()).predict(request)
+
+    assert response.custom_outputs["type"] == "plan"
+    assert "genie_mcp_capability" not in request.custom_inputs
+    assert "plan-signature" not in json.dumps(response.model_dump())
+    assert genie_capability.capability_pending() is False
+
+
+def test_preflight_consumes_capability_and_clears_request_context():
+    request = app_request(
+        input=[{"role": "user", "content": "preflight"}],
+        custom_inputs={
+            "preflight": True,
+            "genie_transport": "mcp",
+            "genie_mcp_capability": {"signature": "preflight-signature"},
+        },
+    )
+
+    response = build(ScriptedLlm()).predict(request)
+
+    assert response.custom_outputs["type"] == "preflight_retired"
+    assert "genie_mcp_capability" not in request.custom_inputs
+    assert "preflight-signature" not in json.dumps(response.model_dump())
+    assert genie_capability.capability_pending() is False
+
+
+def test_identity_refusal_consumes_capability_before_returning():
+    request = app_request(
+        input=[{"role": "user", "content": "Compare active players by label."}],
+        custom_inputs={
+            "expected_user": "somebody-else@example.test",
+            "genie_transport": "mcp",
+            "genie_mcp_capability": {"signature": "identity-signature"},
+        },
+    )
+
+    response = build(ScriptedLlm()).predict(request)
+
+    assert response.custom_outputs["type"] == "unavailable"
+    assert "genie_mcp_capability" not in request.custom_inputs
+    assert "identity-signature" not in json.dumps(response.model_dump())
+    assert genie_capability.capability_pending() is False
+
+
+def test_malformed_request_fails_closed_after_scrubbing_capability():
+    class ImmutableRequest:
+        def __init__(self):
+            self._custom_inputs = {
+                "genie_transport": "mcp",
+                "genie_mcp_capability": {"signature": "malformed-signature"},
+            }
+
+        @property
+        def custom_inputs(self):
+            return self._custom_inputs
+
+        @custom_inputs.setter
+        def custom_inputs(self, _value):
+            raise TypeError("immutable")
+
+    request = ImmutableRequest()
+    turn = build(ScriptedLlm())._turn(request)  # type: ignore[arg-type]
+
+    with pytest.raises(genie_capability.CapabilitySanitizationError, match="redacted"):
+        next(turn)
+
+    assert "genie_mcp_capability" not in request.custom_inputs
+    assert genie_capability.capability_pending() is False
+
+
+def test_normal_response_scrubs_capability_from_request_response_and_trace(monkeypatch):
+    traced: list[dict] = []
+    monkeypatch.setattr(mlflow, "update_current_trace", lambda *, tags: traced.append(tags))
+    request = app_request(
+        input=[{"role": "user", "content": "Compare active players by label."}],
+        custom_inputs={
+            "execute_plan": True,
+            "genie_transport": "mcp",
+            "genie_mcp_capability": {"signature": "normal-signature"},
+        },
+    )
+
+    response = build(ScriptedLlm("Nothing to look up.")).predict(request)
+
+    assert "genie_mcp_capability" not in request.custom_inputs
+    assert "normal-signature" not in json.dumps(response.model_dump())
+    assert "normal-signature" not in json.dumps(traced)
+    assert genie_capability.capability_pending() is False
+
+
+def test_early_return_capability_cannot_leak_into_the_next_request():
+    first = app_request(
+        input=[{"role": "user", "content": "preflight"}],
+        custom_inputs={
+            "preflight": True,
+            "genie_transport": "mcp",
+            "genie_mcp_capability": {"signature": "first-request-signature"},
+        },
+    )
+    runtime = build(ScriptedLlm("Nothing to look up."))
+    runtime.predict(first)
+
+    second = app_request(
+        input=[{"role": "user", "content": "Compare active players by label."}],
+        custom_inputs={"execute_plan": True, "genie_transport": "mcp"},
+    )
+    response = runtime.predict(second)
+
+    assert response.custom_outputs["answer"]["trace"]["transport"] == "direct"
+    assert "first-request-signature" not in json.dumps(response.model_dump())
+    assert genie_capability.capability_pending() is False
+
+
+def test_unknown_transport_fails_closed_to_direct_genie():
+    llm = ScriptedLlm("Nothing to look up.")
+
+    answer = ask(build(llm), genie_transport="client-says-mcp").custom_outputs["answer"]
+
+    offered = [tool["function"]["name"] for tool in llm.loop_calls[0]["tools"]]
+    assert "data_genie" in offered
+    assert "genie_mcp" not in offered
+    assert answer["trace"]["transport"] == "direct"
 
 
 def test_a_run_where_nothing_failed_carries_no_degradation_caveat():
@@ -3102,6 +3254,7 @@ APP_TRACE_FIELDS = {
     "toolCalls",
     "stages",
     "genie_spaces",
+    "transport",
     "prompt_tokens",
     "completion_tokens",
     "total_tokens",

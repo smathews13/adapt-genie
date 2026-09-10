@@ -171,6 +171,7 @@ import {
   readConversationMessagePage,
   restorePrependAnchor,
 } from './conversation-messages';
+import { ExportMenu } from './ExportMenu';
 import type {
   AgentResponse,
   Answer,
@@ -2180,6 +2181,7 @@ export function HomePage() {
    * the same render that draws the reader's own bubble.
    */
   const transcriptEmpty = messages.length === 0 && !loading && !conversationLoading;
+  const conversationTitle = conversations.find((item) => item.id === conversationId)?.title ?? 'Conversation';
 
   return (
     <div
@@ -2217,6 +2219,36 @@ export function HomePage() {
 
       <div className="conversation-column">
         <section ref={conversationMainRef} className={`conversation-main${transcriptEmpty ? ' is-empty' : ''}`}>
+          {!transcriptEmpty && !conversationLoading && conversations.some((item) => item.id === conversationId) ? (
+            <div className="conversation-export">
+              <ExportMenu
+                label="Export conversation"
+                actions={[
+                  {
+                    label: 'Copy Markdown',
+                    run: async () => {
+                      const { copyConversationExport } = await import('./export-actions');
+                      await copyConversationExport(conversationId, conversationTitle);
+                    },
+                  },
+                  {
+                    label: 'Download Markdown',
+                    run: async () => {
+                      const { downloadConversationMarkdown } = await import('./export-actions');
+                      await downloadConversationMarkdown(conversationId, conversationTitle);
+                    },
+                  },
+                  {
+                    label: 'Download PDF',
+                    run: async () => {
+                      const { downloadConversationPdf } = await import('./export-actions');
+                      await downloadConversationPdf(conversationId, conversationTitle);
+                    },
+                  },
+                ]}
+              />
+            </div>
+          ) : null}
           {transcriptEmpty && (
             <div className="ask-hero">
               {/* The chip that introduces the agent, carrying the small cut of the
@@ -2336,7 +2368,11 @@ export function HomePage() {
 
           {(loading || conversationLoading) && (
             <Card className="answer-card">
-              <CardContent className={conversationLoading ? 'pt-6 space-y-5' : workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'}>
+              <CardContent
+                className={
+                  conversationLoading ? 'pt-6 space-y-5' : workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'
+                }
+              >
                 {/* The working animation is for a run that is actually running.
                   Restoring a saved conversation from Lakebase is not the agent
                   working -- nothing is being asked and nothing is being read --

@@ -21,6 +21,7 @@ import pytest
 from config import Settings
 from tools import GRANTS_DECIDE_NOTE, PlayerInsightTools
 from user_authorization import (
+    GENIE_MCP_SCOPE,
     GENIE_SCOPE,
     MODEL_CONFIG_KEY,
     SQL_SCOPE,
@@ -176,10 +177,10 @@ def test_the_artifact_is_read_with_the_same_closed_fist_as_the_environment(baked
 # ---------------------------------------------------------------------------
 
 
-def test_the_scopes_are_the_two_the_agent_can_justify():
-    """Genie and SQL, because those are the only APIs `tools.py` calls."""
+def test_the_scopes_are_the_three_the_agent_can_justify():
+    """Direct Genie, managed Genie MCP, and SQL are the configured data paths."""
 
-    assert api_scopes(settings()) == (GENIE_SCOPE, SQL_SCOPE)
+    assert api_scopes(settings()) == (GENIE_SCOPE, GENIE_MCP_SCOPE, SQL_SCOPE)
 
 
 def test_the_model_serving_scope_is_not_requested():
@@ -202,7 +203,7 @@ def test_a_deployment_that_uses_no_genie_space_does_not_ask_for_genie():
 
     without_genie = settings(data_genie_space_id="")
     assert api_scopes(without_genie) == (SQL_SCOPE,)
-    assert api_scopes(settings(warehouse_id="")) == (GENIE_SCOPE,)
+    assert api_scopes(settings(warehouse_id="")) == (GENIE_SCOPE, GENIE_MCP_SCOPE)
     # The data Genie space is enough to need the scope.
     assert GENIE_SCOPE in api_scopes(settings())
 

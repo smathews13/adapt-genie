@@ -76,8 +76,10 @@ USER_AUTHORIZATION = "user-authorization"
 # pair the Model Serving on-behalf-of examples use.
 # ---------------------------------------------------------------------------
 
-#: Genie: `start_conversation` and `get_message` on both spaces.
+#: Direct Genie REST: `start_conversation` and `get_message`.
 GENIE_SCOPE = "dashboards.genie"
+#: Managed Genie Agent MCP at `/api/2.0/mcp/genie/{space_id}`.
+GENIE_MCP_SCOPE = "genie"
 #: The Statement Execution API, which is also the only supported route to a
 #: Unity Catalog table under user authorization on Model Serving: there is no
 #: separate table scope, the warehouse enforces the caller's grants.
@@ -200,7 +202,9 @@ def api_scopes(settings: Any) -> tuple[str, ...]:
 
     scopes: list[str] = []
     if settings.data_genie_space_id:
-        scopes.append(GENIE_SCOPE)
+        # Both are retained because the saved experiment is selected per Ask:
+        # consumers/default use direct Genie while enabled admins use MCP.
+        scopes.extend((GENIE_SCOPE, GENIE_MCP_SCOPE))
     if settings.warehouse_id:
         scopes.append(SQL_SCOPE)
     return tuple(scopes)

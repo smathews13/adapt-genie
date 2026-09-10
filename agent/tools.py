@@ -25,6 +25,7 @@ from databricks.sdk.service.sql import ExecuteStatementRequestOnWaitTimeout
 
 import evidence
 import failures
+import genie_mcp
 import runtime_settings
 import sdk_attribution
 from config import Settings, format_genie_space
@@ -1452,6 +1453,91 @@ class PlayerInsightTools:
             space_title=self.settings.data_genie_space_title,
         )
 
+    def genie_mcp(self, question: str) -> ToolResult:
+        """Ask the configured Genie Agent through its managed MCP endpoint.
+
+        The MCP server's result is not trusted as evidence merely because it came
+        from Genie. Statements and result columns are re-admitted through the same
+        gateway as direct Genie. A result that exposes no attributable SQL is
+        withheld under the existing strict-by-default visualization decision.
+        """
+
+        space_id = self.settings.data_genie_space_id
+        space_title = self.settings.data_genie_space_title
+        space_label = format_genie_space(space_id, space_title)
+        with mlflow.start_span(name="orchestrator.genie_mcp", span_type="TOOL") as span:
+            span.set_inputs(
+                {
+                    "question": question,
+                    "space_id": space_id,
+                    "space_title": space_title or None,
+                    "transport": "mcp",
+                    "endpoint": f"/api/2.0/mcp/genie/{space_id}",
+                }
+            )
+            managed = genie_mcp.invoke_managed_genie(
+                self.workspace,
+                space_id,
+                question,
+                timeout_seconds=runtime_settings.remaining_seconds(),
+            )
+            gate = self.gateway()
+            columns = genie_mcp.result_columns(managed.payload)
+            statements = genie_mcp.sql_statements(managed.payload)
+            verdicts: list[Verdict] = []
+            sources: list[str] = []
+
+            for statement in statements:
+                verdict = gate.admit_genie_query("genie_mcp", statement)
+                if verdict.accepted and columns:
+                    verdict = gate.admit_result_schema(verdict, columns)
+                verdicts.append(verdict)
+                if verdict.accepted:
+                    sources.extend(verdict.sources)
+
+            if not statements:
+                verdicts.append(gate.admit_genie_visualization("genie_mcp"))
+
+            rejected = [verdict for verdict in verdicts if not verdict.accepted]
+            if rejected and not any(verdict.accepted for verdict in verdicts):
+                primary = rejected[0]
+                span.set_outputs(
+                    {
+                        "transport": "mcp",
+                        "discovered_tools": list(managed.discovered_tools),
+                        "called_tools": list(managed.called_tools),
+                        "validation": [verdict.as_record() for verdict in verdicts],
+                        "withheld": True,
+                    }
+                )
+                raise EvidenceRefused(primary, verdicts)
+
+            body = genie_mcp.render_result(managed.payload)
+            result = ToolResult(
+                text=(
+                    f"Asking Genie space {space_label} through managed MCP.\n\n"
+                    "Managed MCP result (the actual structured/text response):\n"
+                    f"{body}"
+                ),
+                sql="\n\n".join(statements),
+                sources=list(dict.fromkeys(sources)),
+                attributed=all(verdict.accepted and not verdict.waived for verdict in verdicts),
+                verdicts=tuple(verdicts),
+            )
+            span.set_outputs(
+                {
+                    "transport": "mcp",
+                    "discovered_tools": list(managed.discovered_tools),
+                    "called_tools": list(managed.called_tools),
+                    "text": result.text[:4000],
+                    "sql": result.sql[:4000],
+                    "sources": result.sources,
+                    "attributed": result.attributed,
+                    "validation": [verdict.as_record() for verdict in verdicts],
+                }
+            )
+            return result
+
     # -----------------------------------------------------------------------
     # SQL
     # -----------------------------------------------------------------------
@@ -2054,6 +2140,26 @@ def data_genie_tool(space_title: str = "") -> dict[str, Any]:
 
 
 DATA_GENIE_TOOL = data_genie_tool()
+
+
+def genie_mcp_tool(space_title: str = "") -> dict[str, Any]:
+    """The stable orchestrator-facing adapter over runtime-discovered MCP tools."""
+
+    named = f' "{space_title}"' if space_title.strip() else ""
+    return _one_arg(
+        "genie_mcp",
+        f"Ask the managed Genie Agent MCP server for the configured Genie space{named}. "
+        "Use this MCP route for governed figures and aggregations. Send one self-contained "
+        "natural-language question and ASK FOR ROWS OR GROUPINGS, not only a chart, so the "
+        "managed result exposes the generated read-only SQL required for evidence and source "
+        "attribution. The runtime discovers the managed server's exact tools and schemas; do "
+        "not assume or name an MCP sub-tool yourself.",
+        "question",
+        "A self-contained natural-language question for the managed Genie Agent.",
+    )
+
+
+GENIE_MCP_TOOL = genie_mcp_tool()
 
 RUN_SQL_TOOL = _one_arg(
     "run_sql",

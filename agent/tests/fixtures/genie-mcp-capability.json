@@ -1,0 +1,15 @@
+{
+  "public_key": "MCowBQYDK2VwAyEANnt8-hbFkCmuxZeasg2j3A1ylJQlPt71P0Blxvww5Xk",
+  "claims": {
+    "v": 1,
+    "aud": "adapt-orchestrator",
+    "purpose": "genie:mcp",
+    "sub": "admin@example.test",
+    "request_id": "req-123",
+    "iat": 1789016400,
+    "exp": 1789016430,
+    "transport": "mcp",
+    "kid": "nRHFbER1NmP_qv04Nx-Mbw"
+  },
+  "signature": "DiMSETJPRuwc5DrdTYV7TH7aoNjSQNOZ6VcdUm5ot3yZG2wXvZGgrUxA_pWVgbbcZdEYjr_U9dCkDiYDy7v4BQ"
+}

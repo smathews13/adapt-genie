@@ -165,6 +165,9 @@ class TraceSummary(BaseModel):
     toolCalls: int
     stages: list[TraceStage]
     genie_spaces: list[GenieSpace] = Field(default_factory=list)
+    #: Server-selected Genie transport for this run. ``direct`` is the
+    #: compatibility/default path; ``mcp`` is the admin-only experimental path.
+    transport: Literal["direct", "mcp"] = "direct"
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0

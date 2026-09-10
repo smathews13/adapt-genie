@@ -5,6 +5,7 @@ import {
   capturePrependAnchor,
   mergeNewestConversationMessages,
   prependConversationMessages,
+  readAllConversationMessages,
   readConversationMessagePage,
   restorePrependAnchor,
 } from './conversation-messages';
@@ -38,6 +39,22 @@ describe('conversation message pages', () => {
       nextCursor: null,
       hasMore: false,
     });
+  });
+
+  it('follows every stored page for a complete export', async () => {
+    const pages = [
+      { messages: [message(4), message(5)], nextCursor: 'middle', hasMore: true },
+      { messages: [message(2), message(3)], nextCursor: 'oldest', hasMore: true },
+      { messages: [message(0), message(1)], nextCursor: null, hasMore: false },
+    ];
+    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(new Response(JSON.stringify(pages.shift()))));
+    const all = await readAllConversationMessages('shared/conversation', { fetcher, limit: 2 });
+    expect(all.map((entry) => entry.id)).toEqual(Array.from({ length: 6 }, (_, index) => message(index).id));
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      '/api/conversations/shared%2Fconversation/messages?limit=2',
+      '/api/conversations/shared%2Fconversation/messages?limit=2&cursor=middle',
+      '/api/conversations/shared%2Fconversation/messages?limit=2&cursor=oldest',
+    ]);
   });
 
   it('assembles a 120-message thread in ascending order without duplicates', () => {

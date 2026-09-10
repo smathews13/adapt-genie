@@ -339,8 +339,11 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  justify-self: start;
+  justify-self: stretch;
   gap: 8px;
+}
+.answer-card-identity > .export-menu {
+  margin-left: auto;
 }
 /* Asked-by in this row is a compact chip, the same size as Live. A later
    page rule that lifts the 150px cap would stretch it into a banner again. */
@@ -895,6 +898,10 @@ ol.answer-list {
   align-items: center;
   padding: 6px 14px;
   border-bottom: 1px solid var(--ast-hairline);
+  gap: 8px;
+}
+.answer-table-origin > .export-menu {
+  margin-left: auto;
 }
 .answer-origin-links {
   display: flex;

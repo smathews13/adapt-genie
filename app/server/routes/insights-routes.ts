@@ -51,6 +51,8 @@ import { workspaceLinksAllowed } from '../lib/egress-store';
 import { ADMIN_ROLES_DDL } from '../lib/admin-roles-schema';
 import { readRuntimeSettings } from '../lib/runtime-settings-store';
 import { readBenchmarkSettings } from '../lib/benchmark-settings-store';
+import { readExperimentalSettings } from '../lib/experimental-settings-store';
+import { issueGenieMcpCapability, type GenieMcpCapability } from '../lib/genie-mcp-capability';
 import { loadConversationTurns } from '../lib/eval-conversation';
 import { scheduleLiveAskScore } from '../lib/live-ask-scoring';
 import { CURRENT_AGENT_SIDE } from '../../shared/benchmark-settings';
@@ -339,7 +341,7 @@ export const schemaStatements = [
   ...ADMIN_ROLES_DDL,
 ];
 
-const AskBody = z.object({
+export const AskBody = z.object({
   conversationId: z.string().min(1),
   prompt: z.string().min(2).max(5000),
   approvedPlanId: z.string().min(1).optional(),
@@ -483,6 +485,9 @@ export const TraceSchema = z.looseObject({
    * record resource identity and a current trace that recorded zero calls.
    */
   resource_calls: z.array(ResourceCallSchema).optional(),
+  // Selected by this server from durable Experimental settings plus the
+  // authoritative roster role. Optional keeps older stored runs readable.
+  transport: z.enum(['direct', 'mcp']).optional(),
   // OPTIONAL WITHOUT A DEFAULT, and the difference is the whole point. Optional is
   // what lets an answer stored before the agent metered tokens still parse, and it
   // is enough to keep `undeclaredAnswerKeys` from calling a metered run drift.
@@ -2865,6 +2870,65 @@ interface AskServingInputs {
   evalGuidance?: string;
   /** Which identity mode the agent gate should enforce. */
   identityMode?: string;
+  /**
+   * Server-derived Genie route.
+   *
+   * MCP is emitted only beside a short-lived app signature that Model Serving
+   * verifies independently of caller-controlled input.
+   */
+  genieTransport?: 'direct' | 'mcp';
+  /** Short-lived app signature; never persisted or copied into responses. */
+  genieCapability?: GenieMcpCapability;
+}
+
+/**
+ * Resolve the experimental transport without trusting any client field.
+ *
+ * The saved setting and app role establish eligibility inside this process.
+ * The signed, request-bound capability carries that decision across the
+ * separately invokable Model Serving boundary.
+ */
+export interface GenieAuthorization {
+  transport: 'direct' | 'mcp';
+  capability?: GenieMcpCapability;
+}
+
+export async function resolveGenieAuthorization(
+  appkit: InsightsAppKit,
+  email: string,
+  input: {
+    requestId: string;
+    audience: string;
+    privateKeyValue?: string;
+    now?: Date;
+  }
+): Promise<GenieAuthorization> {
+  try {
+    const [experimental, resolution] = await Promise.all([
+      readExperimentalSettings(appkit),
+      resolveRole(appkit.lakebase, email),
+    ]);
+    const eligible = experimental.settings.genieCodeMcp === true && opensAdminSurfaces(resolution.role);
+    if (!eligible) return { transport: 'direct' };
+    const capability = issueGenieMcpCapability({
+      privateKeyValue: input.privateKeyValue,
+      audience: input.audience,
+      user: email,
+      requestId: input.requestId,
+      now: input.now,
+    });
+    if (!capability) {
+      console.warn('[genie-mcp] Eligible Ask kept on direct Genie because capability signing is unavailable.');
+      return { transport: 'direct' };
+    }
+    return { transport: 'mcp', capability };
+  } catch (error) {
+    console.warn(
+      `[genie-mcp] Capability could not be established for this Ask (${(error as Error).message}); ` +
+        'using the existing direct Genie transport. An unresolved setting or role never enables MCP.'
+    );
+    return { transport: 'direct' };
+  }
 }
 
 /**
@@ -2888,8 +2952,15 @@ export function buildAskServingBody({
   runtimeSettings,
   evalGuidance,
   identityMode,
+  genieTransport = 'direct',
+  genieCapability,
 }: AskServingInputs): Record<string, unknown> {
   const custom_inputs: Record<string, unknown> = { conversation_id: conversationId };
+  // A plain transport input grants nothing: CAN_QUERY callers can construct it
+  // themselves. MCP travels only with the capability the endpoint verifies.
+  const mcpAuthorized = genieTransport === 'mcp' && genieCapability !== undefined;
+  custom_inputs.genie_transport = mcpAuthorized ? 'mcp' : 'direct';
+  if (mcpAuthorized) custom_inputs.genie_mcp_capability = genieCapability;
   if (approvedPlanId) custom_inputs.approved_plan_id = approvedPlanId;
   if (executePlan !== undefined) custom_inputs.execute_plan = executePlan;
   if (attachmentText) custom_inputs.attachment_text = attachmentText;
@@ -4927,8 +4998,16 @@ export function setupInsightsRoutes(
           if (approvedPlanId && servingHistory.length > 0) {
             servingHistory[servingHistory.length - 1] = { role: 'user', content: prompt };
           }
-          askRuntime = await readRuntimeSettings(appkit);
-          const evalGuidance = await resolveAskGuidance(appkit);
+          const endpointAudience = process.env.DATABRICKS_SERVING_ENDPOINT_NAME ?? '';
+          const [resolvedRuntime, evalGuidance, genieAuthorization] = await Promise.all([
+            readRuntimeSettings(appkit),
+            resolveAskGuidance(appkit),
+            resolveGenieAuthorization(appkit, email, {
+              requestId: identity.correlationId,
+              audience: endpointAudience,
+            }),
+          ]);
+          askRuntime = resolvedRuntime;
           const payload = buildAskServingBody({
             history: servingHistory,
             prompt,
@@ -4943,6 +5022,8 @@ export function setupInsightsRoutes(
             deadlineAt: runDeadlineAt.toISOString(),
             runtimeSettings: askRuntime,
             evalGuidance,
+            genieTransport: genieAuthorization.transport,
+            genieCapability: genieAuthorization.capability,
           });
           // Counted on the way past, so a failure can say where the run died
           // rather than only that it did. "It stopped in 'Query

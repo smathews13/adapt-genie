@@ -66,6 +66,19 @@
       "model_equivalent": "dashboards.genie",
       "same_capability_different_spelling": false
     },
+    "genie": {
+      "token": "app: forwarded to the app server as x-forwarded-access-token",
+      "classification": {
+        "surface": "genie",
+        "reads": "governed-rows"
+      },
+      "probe_api_prefixes": [],
+      "declared_by": [
+        "customer"
+      ],
+      "model_equivalent": "genie",
+      "same_capability_different_spelling": false
+    },
     "model-serving": {
       "token": "app: forwarded to the app server as x-forwarded-access-token",
       "classification": {
@@ -148,6 +161,17 @@
       ],
       "app_equivalent": "dashboards.genie"
     },
+    "genie": {
+      "token": "model: downscoped inside the serving container by Model Serving",
+      "classification": {
+        "surface": "genie",
+        "reads": "governed-rows"
+      },
+      "asked_when": [
+        "the data Genie MCP endpoint is configured"
+      ],
+      "app_equivalent": "genie"
+    },
     "sql": {
       "token": "model: downscoped inside the serving container by Model Serving",
       "classification": {
@@ -171,6 +195,7 @@
         "model-serving",
         "sql",
         "dashboards.genie",
+        "genie",
         "catalog.catalogs:read",
         "catalog.schemas:read",
         "catalog.tables:read",

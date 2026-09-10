@@ -88,11 +88,11 @@ def would_bake(target: str, drift, contract_source) -> tuple[set[str], set[str],
     scope-contract.py -- so a rename there cannot pass this silently.
     """
     names = contract_source.model_scopes()
-    genie_scope = next((s for s in names if "genie" in s), None)
+    genie_scopes = {s for s in names if "genie" in s}
     sql_scope = next((s for s in names if s == "sql" or s.startswith("sql")), None)
-    if not (genie_scope and sql_scope) or len(names) != 2:
+    if len(genie_scopes) != 2 or not sql_scope or len(names) != 3:
         raise Unreadable(
-            "ADAPT's model scope source must contain exactly Genie and SQL. "
+            "ADAPT's model scope source must contain direct Genie, Genie MCP, and SQL. "
             f"Found: {sorted(names)}"
         )
 
@@ -112,14 +112,15 @@ def would_bake(target: str, drift, contract_source) -> tuple[set[str], set[str],
         or from_file(drift, "genie_data_space_id", target)
     )
     if data_genie:
-        wanted.add(genie_scope)
-        why.append(f"{genie_scope}: a Genie space is configured")
+        wanted.update(genie_scopes)
+        why.extend(f"{scope}: a Genie space is configured" for scope in sorted(genie_scopes))
     else:
-        undecidable.add(genie_scope)
-        why.append(
-            f"{genie_scope}: NOT DECIDED here. This target declares no Genie space "
+        undecidable.update(genie_scopes)
+        why.extend(
+            f"{scope}: NOT DECIDED here. This target declares no Genie space "
             f"id, so the id comes from the bundle's output at release time and only "
             f"a release can say whether one exists."
+            for scope in sorted(genie_scopes)
         )
 
     # THE WAREHOUSE IS THE GENIE IDS' CASE, for the same reason and by the same

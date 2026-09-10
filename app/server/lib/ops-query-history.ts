@@ -78,6 +78,158 @@ export interface WarehouseQueryHistoryTransport {
   }): Promise<QueryHistoryPage>;
 }
 
+export interface SystemQueryAttributionStatement {
+  statement: string;
+  parameters: Array<{ name: string; value: string; type: string }>;
+}
+
+/**
+ * Aggregate Query History inside Databricks SQL.
+ *
+ * Shared warehouses can produce tens of thousands of statements in a few
+ * days. Reading the REST history row-by-row hits the page/deadline guard before
+ * a denominator exists. The system table computes the same execution-time
+ * proportions server-side and returns only bounded aggregate evidence.
+ */
+export function buildSystemQueryAttributionStatement(input: {
+  warehouseId: string;
+  startTimeMs: number;
+  endTimeMs: number;
+}): SystemQueryAttributionStatement {
+  return {
+    statement: `
+SELECT
+  COALESCE(query_tags['application'], '') AS application,
+  COALESCE(query_tags['surface'], '') AS surface,
+  COALESCE(query_tags['run_id'], '') AS run_id,
+  COALESCE(query_tags['correlation_id'], '') AS correlation_id,
+  COALESCE(query_source.genie_space_id, '') AS genie_space_id,
+  CASE
+    WHEN executed_by LIKE '%@%' AND LOWER(executed_by) = LOWER(executed_as) THEN LOWER(executed_by)
+    ELSE ''
+  END AS user_email,
+  COUNT(*) AS query_count,
+  SUM(COALESCE(execution_duration_ms, total_duration_ms, 0)) AS execution_ms,
+  COUNT_IF(execution_duration_ms IS NULL AND total_duration_ms IS NULL) AS missing_execution_count
+FROM system.query.history
+WHERE compute.warehouse_id = :warehouse_id
+  AND start_time >= :from_timestamp
+  AND start_time < :to_timestamp
+GROUP BY ALL
+`.trim(),
+    parameters: [
+      { name: 'warehouse_id', value: input.warehouseId, type: 'STRING' },
+      { name: 'from_timestamp', value: new Date(input.startTimeMs).toISOString(), type: 'TIMESTAMP' },
+      { name: 'to_timestamp', value: new Date(input.endTimeMs + 1).toISOString(), type: 'TIMESTAMP' },
+    ],
+  };
+}
+
+/** Convert aggregate system-table rows into the existing attribution contract. */
+export function readSystemQueryAttributionRows(
+  rows: unknown,
+  input: {
+    startTimeMs: number;
+    endTimeMs: number;
+    interactiveRuns?: readonly {
+      runId: string;
+      requestId?: string;
+      correlationId: string;
+      evidenceComplete?: boolean;
+    }[];
+  }
+): WarehouseQueryAttribution & { coverage: QueryHistoryCoverage } {
+  const values = Array.isArray(rows) ? rows.filter((row): row is unknown[] => Array.isArray(row)) : [];
+  const runIds = new Map<string, string>();
+  for (const run of input.interactiveRuns ?? []) {
+    for (const id of [run.runId, run.requestId ?? '', run.correlationId]) {
+      if (id) runIds.set(id, run.runId);
+    }
+  }
+  const askRuns = new Map<string, number>();
+  const genieSpaces = new Map<string, { queries: number; executionMs: number }>();
+  const users = new Map<string, { adaptExecutionMs: number; genieSpaces: Map<string, number> }>();
+  let adaptQueries = 0;
+  let totalQueries = 0;
+  let adaptExecutionMs = 0;
+  let totalExecutionMs = 0;
+  let missingExecution = 0;
+
+  for (const row of values) {
+    const application = typeof row[0] === 'string' ? row[0] : '';
+    const surface = typeof row[1] === 'string' ? row[1] : '';
+    const runId = typeof row[2] === 'string' ? row[2] : '';
+    const correlationId = typeof row[3] === 'string' ? row[3] : '';
+    const spaceId = typeof row[4] === 'string' ? row[4] : '';
+    const email = typeof row[5] === 'string' ? row[5] : '';
+    const queries = finiteMilliseconds(row[6]) ?? 0;
+    const executionMs = finiteMilliseconds(row[7]) ?? 0;
+    const missing = finiteMilliseconds(row[8]) ?? 0;
+    const adapt = !spaceId && isSqlQueryTagApplication(application) && surface === 'ask';
+    totalQueries += queries;
+    totalExecutionMs += executionMs;
+    missingExecution += missing;
+    if (adapt) {
+      adaptQueries += queries;
+      adaptExecutionMs += executionMs;
+      const authoritativeRun = runIds.get(runId) ?? runIds.get(correlationId);
+      if (authoritativeRun) askRuns.set(authoritativeRun, (askRuns.get(authoritativeRun) ?? 0) + executionMs);
+    }
+    if (spaceId) {
+      const current = genieSpaces.get(spaceId) ?? { queries: 0, executionMs: 0 };
+      current.queries += queries;
+      current.executionMs += executionMs;
+      genieSpaces.set(spaceId, current);
+    }
+    if (email) {
+      const current = users.get(email) ?? { adaptExecutionMs: 0, genieSpaces: new Map<string, number>() };
+      if (adapt) current.adaptExecutionMs += executionMs;
+      if (spaceId) current.genieSpaces.set(spaceId, (current.genieSpaces.get(spaceId) ?? 0) + executionMs);
+      users.set(email, current);
+    }
+  }
+
+  const reasons: QueryHistoryCoverageReason[] = [];
+  if (missingExecution > 0) reasons.push('missing-execution-time');
+  if (input.interactiveRuns?.some((run) => run.evidenceComplete === false)) reasons.push('interactive-run-coverage');
+  const coverage: QueryHistoryCoverage = {
+    state: reasons.length === 0 ? 'complete' : 'partial',
+    requestedRange: {
+      from: new Date(input.startTimeMs).toISOString(),
+      to: new Date(input.endTimeMs).toISOString(),
+    },
+    queriedRange: {
+      from: new Date(input.startTimeMs).toISOString(),
+      to: new Date(input.endTimeMs).toISOString(),
+    },
+    rowsRead: totalQueries,
+    pagesRead: 1,
+    chunksRead: 1,
+    reasons,
+  };
+  return {
+    complete: coverage.state === 'complete',
+    adaptQueries,
+    totalQueries,
+    adaptExecutionMs,
+    totalExecutionMs,
+    askRuns: [...askRuns]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([runId, executionMs]) => ({ runId, executionMs })),
+    genieSpaces: [...genieSpaces].map(([spaceId, totals]) => ({ spaceId, ...totals })),
+    users: [...users]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([email, totals]) => ({
+        email,
+        adaptExecutionMs: totals.adaptExecutionMs,
+        genieSpaces: [...totals.genieSpaces]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([spaceId, executionMs]) => ({ spaceId, executionMs })),
+      })),
+    coverage,
+  };
+}
+
 function finiteMilliseconds(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
@@ -413,10 +565,15 @@ interface LowLevelApiRequest {
   headers: Headers;
   raw: false;
   query: {
-    filter_by: {
-      warehouse_ids: string[];
-      query_start_time_range: { start_time_ms: number; end_time_ms: number };
-    };
+    /**
+     * Query History follows gRPC-transcoded URL semantics: nested request
+     * fields are separate dotted query parameters. Passing `filter_by` as one
+     * object makes the low-level SDK stringify it, and the API rejects that
+     * value before reading any rows.
+     */
+    'filter_by.warehouse_ids': string[];
+    'filter_by.query_start_time_range.start_time_ms': number;
+    'filter_by.query_start_time_range.end_time_ms': number;
     include_metrics: true;
     max_results: number;
     page_token?: string;
@@ -450,10 +607,9 @@ export function createDatabricksQueryHistoryTransport(
         headers: new Headers({ Accept: 'application/json' }),
         raw: false,
         query: {
-          filter_by: {
-            warehouse_ids: [warehouseId],
-            query_start_time_range: { start_time_ms: startTimeMs, end_time_ms: endTimeMs },
-          },
+          'filter_by.warehouse_ids': [warehouseId],
+          'filter_by.query_start_time_range.start_time_ms': startTimeMs,
+          'filter_by.query_start_time_range.end_time_ms': endTimeMs,
           include_metrics: true,
           max_results: maxResults,
           ...(pageToken ? { page_token: pageToken } : {}),

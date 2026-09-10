@@ -261,9 +261,9 @@
    * and known-unlinked table names a dedicated semantic family without
    * borrowing warning amber or the positive green used by answer findings.
    */
-  --ast-table-ref-text: #664d00;
-  --ast-table-ref-fill: #fff0a8;
-  --ast-table-ref-border: #d6a900;
+  --ast-table-ref-text: #6f5312;
+  --ast-table-ref-fill: #f3e6bd;
+  --ast-table-ref-border: #b28a2e;
 
   /*
    * Entity marks use the same five palette roles as the rest of the answer.
@@ -388,9 +388,9 @@ html[data-theme='dark'] {
   --ast-neutral-fill: rgba(255, 255, 255, 0.12);
   --ast-info-text: var(--ast-ice-accent);
   --ast-info-fill: rgba(127, 220, 209, 0.16);
-  --ast-table-ref-text: #ffdc57;
-  --ast-table-ref-fill: #3b3000;
-  --ast-table-ref-border: #b88f00;
+  --ast-table-ref-text: #d6b65c;
+  --ast-table-ref-fill: #332b1b;
+  --ast-table-ref-border: #9f7f2f;
   --ast-blue: var(--ast-ice-accent);
   --ast-seg-pressed: var(--db-blue-700);
   --ast-seg-pressed-ink: var(--ast-ink-on-dark);

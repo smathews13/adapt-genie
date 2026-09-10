@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  buildSystemQueryAttributionStatement,
   createDatabricksQueryHistoryTransport,
+  readSystemQueryAttributionRows,
   readWarehouseQueryAttribution as readWarehouseQueryAttributionWithEvidence,
   type WarehouseQueryHistoryTransport,
 } from './ops-query-history';
@@ -26,6 +28,50 @@ function row(id: string, executionMs: number | null, application = '') {
 }
 
 describe('Ops Query History attribution', () => {
+  it('aggregates shared-warehouse system history without reading every statement over REST', () => {
+    const startTimeMs = Date.parse('2026-09-01T00:00:00Z');
+    const endTimeMs = Date.parse('2026-09-09T23:59:59.999Z');
+    const built = buildSystemQueryAttributionStatement({ warehouseId: 'warehouse-1', startTimeMs, endTimeMs });
+    expect(built.statement).toContain('FROM system.query.history');
+    expect(built.statement).toContain("query_tags['surface']");
+    expect(built.statement).toContain('GROUP BY ALL');
+    expect(built.parameters).toEqual(
+      expect.arrayContaining([
+        { name: 'warehouse_id', value: 'warehouse-1', type: 'STRING' },
+        { name: 'from_timestamp', value: '2026-09-01T00:00:00.000Z', type: 'TIMESTAMP' },
+        { name: 'to_timestamp', value: '2026-09-10T00:00:00.000Z', type: 'TIMESTAMP' },
+      ])
+    );
+
+    const result = readSystemQueryAttributionRows(
+      [
+        ['ADAPT', 'ask', 'run-1', 'corr-1', '', 'person@example.test', '2', '40', '0'],
+        ['ADAPT', 'ops', '', '', '', '', '20000', '80000', '0'],
+        ['Other', '', '', '', '', '', '30000', '120000', '0'],
+        ['ADAPT', 'ask', '', '', 'space-data', 'person@example.test', '3', '60', '0'],
+      ],
+      { startTimeMs, endTimeMs, interactiveRuns: INTERACTIVE_RUNS }
+    );
+
+    expect(result).toMatchObject({
+      complete: true,
+      adaptQueries: 2,
+      totalQueries: 50_005,
+      adaptExecutionMs: 40,
+      totalExecutionMs: 200_100,
+      askRuns: [{ runId: 'run-1', executionMs: 40 }],
+      genieSpaces: [{ spaceId: 'space-data', queries: 3, executionMs: 60 }],
+      coverage: { state: 'complete', rowsRead: 50_005, pagesRead: 1, chunksRead: 1, reasons: [] },
+    });
+    expect(result.users).toEqual([
+      {
+        email: 'person@example.test',
+        adaptExecutionMs: 40,
+        genieSpaces: [{ spaceId: 'space-data', executionMs: 60 }],
+      },
+    ]);
+  });
+
   it('counts only Ask SQL for component spend while keeping marginal Ask runs exact', async () => {
     const tagged = (id: string, surface: string, executionMs: number, extra: Record<string, unknown> = {}) => ({
       ...row(id, executionMs),
@@ -155,10 +201,9 @@ describe('Ops Query History attribution', () => {
         method: 'GET',
         raw: false,
         query: {
-          filter_by: {
-            warehouse_ids: ['warehouse-1'],
-            query_start_time_range: { start_time_ms: 1_000, end_time_ms: 2_000 },
-          },
+          'filter_by.warehouse_ids': ['warehouse-1'],
+          'filter_by.query_start_time_range.start_time_ms': 1_000,
+          'filter_by.query_start_time_range.end_time_ms': 2_000,
           include_metrics: true,
           max_results: 999,
           page_token: 'next',

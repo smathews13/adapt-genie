@@ -33,15 +33,15 @@ const EXPERIMENTAL_FEATURE_ICONS: Readonly<Record<ExperimentalFeatureKind, Lucid
   benchmarking: FlaskConical,
 };
 
-/** Decorative icon, warning pill, then accessible feature name -- in one shared order. */
+/** Decorative icon, accessible feature name, then status pill -- in one shared order. */
 export function ExperimentalFeatureName({ kind, children }: { kind: ExperimentalFeatureKind; children: ReactNode }) {
   const Icon = EXPERIMENTAL_FEATURE_ICONS[kind];
   return (
     <span className="exp-feature-name">
       <Icon className={`exp-feature-icon exp-feature-icon--${kind}`} aria-hidden="true" />
       <span className="exp-feature-label">
-        <ExperimentalBadge />
         <span className="exp-feature-title">{children}</span>
+        <ExperimentalBadge />
       </span>
     </span>
   );

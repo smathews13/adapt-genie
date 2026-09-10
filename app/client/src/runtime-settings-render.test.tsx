@@ -135,10 +135,10 @@ describe('runtime and appearance modal sections', () => {
     expect(display).toContain('aria-label="Dark mode"');
     expect(display).toContain('>Animations</span>');
     expect(display).toContain('Density');
-    expect(display.lastIndexOf('experimental-pane-badge', display.indexOf('Dark mode'))).toBeLessThan(
+    expect(display.indexOf('experimental-pane-badge', display.indexOf('Dark mode'))).toBeGreaterThan(
       display.indexOf('Dark mode')
     );
-    expect(display.lastIndexOf('experimental-pane-badge', display.indexOf('Density'))).toBeLessThan(
+    expect(display.indexOf('experimental-pane-badge', display.indexOf('Density'))).toBeGreaterThan(
       display.indexOf('Density')
     );
     expect(display).not.toContain('>Body text</span>');

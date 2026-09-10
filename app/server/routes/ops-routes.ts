@@ -110,8 +110,10 @@ import type { CostBudgetUnit } from '../../shared/cost-budgets';
 import { attributableCostBudgets } from '../../shared/cost-budgets';
 import { appSpendFigure } from '../../shared/app-cost-summary';
 import {
+  buildSystemQueryAttributionStatement,
   createWorkspaceQueryHistoryTransport,
   EMPTY_WAREHOUSE_QUERY_ATTRIBUTION,
+  readSystemQueryAttributionRows,
   readWarehouseQueryAttribution,
   warehouseQueryAttributionUsable,
   type WarehouseQueryAttribution,
@@ -1192,6 +1194,7 @@ export async function warehouseQueryAttribution(input: {
   warehouseId: string;
   range: CostRange;
   transport?: WarehouseQueryHistoryTransport;
+  fetchImpl?: typeof fetch;
   signal?: AbortSignal;
   interactiveRuns?: readonly QuestionRunInput[];
 }): Promise<WarehouseQueryAttribution> {
@@ -1208,6 +1211,25 @@ export async function warehouseQueryAttribution(input: {
     return { ...EMPTY_WAREHOUSE_QUERY_ATTRIBUTION };
   }
   try {
+    if (!input.transport) {
+      const built = buildSystemQueryAttributionStatement({ warehouseId: input.warehouseId, startTimeMs, endTimeMs });
+      const outcome = await runStatement({
+        host: input.host,
+        token: input.token,
+        warehouseId: input.warehouseId,
+        statement: built.statement,
+        parameters: built.parameters,
+        fetchImpl: input.fetchImpl,
+      });
+      if (outcome.ok) {
+        return readSystemQueryAttributionRows(outcome.rows, {
+          startTimeMs,
+          endTimeMs,
+          interactiveRuns: input.interactiveRuns,
+        });
+      }
+      console.warn(`[ops] System Query History attribution fell back to REST: ${outcome.message}`);
+    }
     const transport =
       input.transport ??
       (await createWorkspaceQueryHistoryTransport({
@@ -1292,6 +1314,7 @@ async function readLifetimeSpendSnapshot(input: {
       warehouseId: input.warehouse,
       range: effectiveRange,
       transport: input.queryHistoryTransport,
+      fetchImpl: input.fetchImpl,
       signal: AbortSignal.timeout(STATEMENT_TIMEOUT_MS),
       interactiveRuns: runs,
     }),
@@ -1698,8 +1721,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
       const workspace = host();
       const warehouse = warehouseId();
       const billingCredential = await (
-        deps.billingAppToken ??
-        (() => mintAppScopeToken(requestAbort.signal, { fetchImpl: deps.fetchImpl }))
+        deps.billingAppToken ?? (() => mintAppScopeToken(requestAbort.signal, { fetchImpl: deps.fetchImpl }))
       )().catch(() => null);
       const billingWorkspace = billingCredential?.host || workspace;
       const billingToken = billingCredential?.token || '';
@@ -1950,6 +1972,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
             warehouseId: warehouse,
             range,
             transport: deps.queryHistoryTransport,
+            fetchImpl: deps.fetchImpl,
             signal: requestAbort.signal,
             interactiveRuns: questionRunsRead.runs,
           }),

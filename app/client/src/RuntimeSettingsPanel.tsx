@@ -234,7 +234,7 @@ export function RuntimeSettingsPanel({
               <div className="appearance-display-row">
                 <div>
                   <span className="appearance-choice-label">
-                    <ExperimentalBadge /> Dark mode
+                    Dark mode <ExperimentalBadge />
                   </span>
                 </div>
                 <StateSwitch
@@ -267,7 +267,7 @@ export function RuntimeSettingsPanel({
               <div className="appearance-display-row">
                 <div>
                   <span className="appearance-choice-label" id="appearance-density-label">
-                    <ExperimentalBadge /> Density
+                    Density <ExperimentalBadge />
                   </span>
                   <p className="runtime-control-note" id="appearance-density-help">
                     Adjust tables, rails, settings rows, and card spacing.

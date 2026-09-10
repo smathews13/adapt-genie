@@ -1070,11 +1070,11 @@
 }
 
 .roles-table--editable .roster-role-column {
-  width: 156px;
+  width: 196px;
 }
 
 .roles-table--editable .roster-action-column {
-  width: 150px;
+  width: 110px;
 }
 
 .roles-table--assignment-only {

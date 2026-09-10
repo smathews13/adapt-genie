@@ -629,8 +629,8 @@ html[data-theme='dark'] {
   --ast-entity-catalog-bg: var(--entity-catalog-bg, #123733);
   --ast-entity-schema-fg: var(--entity-schema-fg, var(--ast-ink-on-dark));
   --ast-entity-schema-bg: var(--entity-schema-bg, #183d39);
-  --ast-entity-table-fg: var(--entity-table-fg, #e7c968);
-  --ast-entity-table-bg: var(--entity-table-bg, #2c313a);
+  --ast-entity-table-fg: var(--entity-table-fg, #d6b65c);
+  --ast-entity-table-bg: var(--entity-table-bg, #332b1b);
   --ast-entity-column-fg: var(--entity-column-fg, #d9f4f0);
   --ast-entity-column-bg: var(--entity-column-bg, #15332f);
   --ast-entity-quote-fg: var(--entity-quote-fg, #9ad6ce);

@@ -67,8 +67,8 @@ describe('Identity table polish', () => {
     expect(CSS).toMatch(/\.roles-table \{[^}]*min-width:\s*898px/s);
     expect(CSS).toMatch(/\.roles-table--editable \.roster-organization-column \{[^}]*width:\s*220px/s);
     expect(CSS).not.toMatch(/\.roles-table--editable \.roster-set-by-column/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*156px/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*150px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*196px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*110px/s);
     expect(CSS).toMatch(
       /\.settings-modal-content \{[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s
     );

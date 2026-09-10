@@ -22,14 +22,25 @@ case "$1 $2" in
     if [[ -f "$STATE/scope" ]]; then printf '{"scopes":[{"name":"adapt-genie-signing"}]}\n'
     else printf '{"scopes":[]}\n'; fi
     ;;
+  "secrets list-secrets")
+    if [[ -f "$STATE/secret" ]]; then printf '{"secrets":[{"key":"genie-mcp-ed25519-private-v1"}]}\n'
+    else printf '{"secrets":[]}\n'; fi
+    ;;
   "secrets create-scope")
     touch "$STATE/scope"
     printf 'create-scope\n' >>"$STATE/calls"
     ;;
   "secrets put-secret")
+    [[ "$#" == "7" ]]
     JSON_ARG=""
     for arg in "$@"; do [[ "$arg" == @* ]] && JSON_ARG="${arg#@}"; done
-    python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["string_value"])' "$JSON_ARG" >"$STATE/secret"
+    python3 - "$JSON_ARG" "$STATE/secret" <<'PY'
+import json, sys
+body = json.load(open(sys.argv[1]))
+assert body["scope"] == "adapt-genie-signing"
+assert body["key"] == "genie-mcp-ed25519-private-v1"
+open(sys.argv[2], "w").write(body["string_value"])
+PY
     printf 'put-secret\n' >>"$STATE/calls"
     ;;
   *) echo "unexpected databricks call: $*" >&2; exit 2 ;;
@@ -53,12 +64,15 @@ export TARGET=customer
 export PROFILE=test-profile
 export ADAPT_BUNDLE_JSON_CACHE="$TMP/bundle.json"
 
+# A prior failed upload can leave the scope present with no key. Ensure must
+# recover that state without relying on the wording of get-secret's error.
+touch "$STATE/scope"
 FIRST="$(bash "$ROOT/bundle/genie-mcp-signing-key.sh" --ensure)"
 SECOND="$(bash "$ROOT/bundle/genie-mcp-signing-key.sh" --ensure)"
 
 [[ -n "$FIRST" && "$FIRST" == "$SECOND" ]]
 [[ "$FIRST" != "$(cat "$STATE/secret")" ]]
 [[ "$(grep -c '^put-secret$' "$STATE/calls")" == "1" ]]
-[[ "$(grep -c '^create-scope$' "$STATE/calls")" == "1" ]]
+[[ "$(grep -c '^create-scope$' "$STATE/calls" || true)" == "0" ]]
 ! grep -qF "$(cat "$STATE/secret")" "$STATE/calls"
 printf 'ok - Genie MCP signing key is idempotent and non-overwriting\n'

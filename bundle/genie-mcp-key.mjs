@@ -32,9 +32,11 @@ async function protectedWrite(path, value) {
 async function generate() {
   const privateFile = valueAfter('--private-json');
   const publicFile = valueAfter('--public-file');
+  const scope = valueAfter('--scope');
+  const key = valueAfter('--key');
   const { privateKey: generated } = crypto.generateKeyPairSync('ed25519');
   const privateValue = encoded(generated.export({ format: 'der', type: 'pkcs8' }));
-  await protectedWrite(privateFile, `${JSON.stringify({ string_value: privateValue })}\n`);
+  await protectedWrite(privateFile, `${JSON.stringify({ scope, key, string_value: privateValue })}\n`);
   await protectedWrite(publicFile, `${publicValue(privateValue)}\n`);
 }
 

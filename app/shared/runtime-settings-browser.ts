@@ -75,10 +75,16 @@ export const LEGACY_NIGHT_ENTITY_STYLES: RuntimeEntityStyles = {
   tag: { foreground: '#f2f6fa', background: '#243746' },
 };
 
-/** Teal table-reference default shipped before table provenance gained its own yellow family. */
+/** Teal table-reference default shipped before table provenance gained its own gold family. */
 export const TEAL_TABLE_ENTITY_STYLE: RuntimeEntityStyle = {
   foreground: '#f2f6fa',
   background: '#1d4843',
+};
+
+/** Bright-yellow table default upgraded to the quieter gold provenance palette. */
+export const YELLOW_TABLE_ENTITY_STYLE: RuntimeEntityStyle = {
+  foreground: '#ffdc57',
+  background: '#3b3000',
 };
 
 /**
@@ -89,7 +95,7 @@ export const TEAL_TABLE_ENTITY_STYLE: RuntimeEntityStyle = {
 export const DEFAULT_ENTITY_STYLES: RuntimeEntityStyles = {
   catalog: { foreground: '#7fdcd1', background: '#123733' },
   schema: { foreground: '#f2f6fa', background: '#183d39' },
-  table: { foreground: '#ffdc57', background: '#3b3000' },
+  table: { foreground: '#d6b65c', background: '#332b1b' },
   column: { foreground: '#d9f4f0', background: '#15332f' },
   quote: { foreground: '#9ad6ce', background: '#182523' },
   tag: { foreground: '#f2f6fa', background: '#243f3c' },
@@ -203,7 +209,8 @@ export function upgradePaperEntityStyles(styles: RuntimeEntityStyles): RuntimeEn
       kind,
       sameHexStyle(styles[kind], PAPER_ENTITY_STYLES[kind]) ||
       sameHexStyle(styles[kind], LEGACY_NIGHT_ENTITY_STYLES[kind]) ||
-      (kind === 'table' && sameHexStyle(styles[kind], TEAL_TABLE_ENTITY_STYLE))
+      (kind === 'table' &&
+        (sameHexStyle(styles[kind], TEAL_TABLE_ENTITY_STYLE) || sameHexStyle(styles[kind], YELLOW_TABLE_ENTITY_STYLE)))
         ? DEFAULT_ENTITY_STYLES[kind]
         : styles[kind],
     ])

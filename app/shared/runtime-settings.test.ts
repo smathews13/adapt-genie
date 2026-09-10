@@ -33,7 +33,7 @@ describe('runtime settings contract', () => {
     expect(DEFAULT_ENTITY_STYLES).toEqual({
       catalog: { foreground: '#7fdcd1', background: '#123733' },
       schema: { foreground: '#f2f6fa', background: '#183d39' },
-      table: { foreground: '#ffdc57', background: '#3b3000' },
+      table: { foreground: '#d6b65c', background: '#332b1b' },
       column: { foreground: '#d9f4f0', background: '#15332f' },
       quote: { foreground: '#9ad6ce', background: '#182523' },
       tag: { foreground: '#f2f6fa', background: '#243f3c' },
@@ -51,7 +51,7 @@ describe('runtime settings contract', () => {
       '--entity-catalog-fg': '#7fdcd1',
       '--entity-catalog-bg': '#123733',
       '--entity-schema-bg': '#183d39',
-      '--entity-table-bg': '#3b3000',
+      '--entity-table-bg': '#332b1b',
       '--entity-column-bg': '#15332f',
       '--entity-quote-bg': '#182523',
       '--entity-tag-bg': '#243f3c',

@@ -4704,26 +4704,6 @@ Tables available to this analysis, with their columns:
         question, history = _request_context(request)
         attachment_context = _attachment_context(custom_inputs)
         analysis_request = _analysis_request(question, history, attachment_context)
-        # Planning is intentionally metadata-free. Older releases listed and
-        # described tables before every approval, then repeated that work during
-        # the run. The review gate stays, but no warehouse or model preflight runs.
-        if _is_nontrivial(question) and not _is_approved(
-            custom_inputs, _plan_id(question, attachment_context)
-        ):
-            plan = _build_plan(
-                question,
-                history,
-                attachment_context,
-                uses_conversation_context=bool(_preceding_turns(history, question)),
-            )
-            text_item = self.create_text_output_item(
-                text=f"{plan.summary}\n\nReview and approve this plan to run the analysis.",
-                id=f"response-{plan.id}",
-            )
-            return ResponsesAgentResponse(
-                output=[text_item],
-                custom_outputs={"type": "plan", "plan": plan.model_dump()},
-            )
 
         run_id = uuid.uuid4().hex
         log = RunLog()

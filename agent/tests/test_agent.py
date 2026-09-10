@@ -34,6 +34,7 @@ from agent import (
     SYNTHESIS_INSTRUCTIONS,
     SYNTHESIS_PROVENANCE_RULE,
     PlayerInsightsResponsesAgent,
+    _build_plan,
     _needs_dictionary,
     _plan_id,
     reader_facing_evidence,
@@ -491,16 +492,16 @@ def test_spoofed_mcp_transport_is_refused_without_app_signed_authorization():
     assert answer["trace"]["transport"] == "direct"
 
 
-def test_plan_consumes_capability_before_early_return():
+def test_direct_answer_consumes_capability_before_running():
     marker = {"claims": {"secret": "plan-capability"}, "signature": "plan-signature"}
     request = app_request(
         input=[{"role": "user", "content": "Compare active players by label."}],
         custom_inputs={"genie_transport": "mcp", "genie_mcp_capability": marker},
     )
 
-    response = build(ScriptedLlm()).predict(request)
+    response = build(ScriptedLlm("Nothing to look up.")).predict(request)
 
-    assert response.custom_outputs["type"] == "plan"
+    assert response.custom_outputs["type"] == "answer"
     assert "genie_mcp_capability" not in request.custom_inputs
     assert "plan-signature" not in json.dumps(response.model_dump())
     assert genie_capability.capability_pending() is False
@@ -1761,19 +1762,21 @@ def test_streaming_a_clarification_ends_with_the_clarification():
 # ---------------------------------------------------------------------------
 
 
-def test_nontrivial_question_returns_plan_without_querying_data():
+def test_nontrivial_question_runs_immediately_without_plan_approval():
     tools = FakeTools()
-    runtime = build(ScriptedLlm(), tools)
+    runtime = build(
+        ScriptedLlm(
+            [Call("data_genie", {"question": "active-player trends by label and title"})],
+            "Done.",
+        ),
+        tools,
+    )
 
     question = "Compare active-player trends across labels and titles."
     response = runtime.predict(app_request(input=[{"role": "user", "content": question}]))
 
-    assert response.custom_outputs["type"] == "plan"
-    plan = response.custom_outputs["plan"]
-    assert plan["id"].startswith("plan-")
-    assert plan["requires_approval"] is True
-    assert [step["kind"] for step in plan["steps"]][-2:] == ["data", "synthesis"]
-    assert analysis_calls(tools) == []
+    assert response.custom_outputs["type"] == "answer"
+    assert len(tools.named("data_genie")) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -1832,11 +1835,11 @@ def plan_for(question=PLAN_QUESTION, **kwargs):
     return plan.model_dump(), tools, llm
 
 
-def test_each_question_plan_skips_data_preflight_reads():
+def test_each_question_skips_planning_and_answers_directly():
     runtime, tools, llm = planning_runtime()
     response = runtime.predict(app_request(input=[{"role": "user", "content": PLAN_QUESTION}]))
 
-    assert response.custom_outputs["plan"]["requires_approval"] is True
+    assert response.custom_outputs["type"] == "answer"
     assert tools.invocations == []
     assert llm.plan_calls == []
 
@@ -1949,125 +1952,19 @@ def test_discovery_does_not_change_the_id_the_approval_names():
     assert plan["id"] == _plan_id(PLAN_QUESTION, "")
 
 
-def test_an_approved_plan_runs_the_loop():
-    """The approval names the plan it approves, so the id has to be the real one.
-
-    This asserted the loop ran on `approved_plan_id="plan-test"`, a value that is
-    not the id of any plan this question produces. It passed because the id was
-    only checked for truthiness: the test could not fail while the check was
-    missing, and would have kept passing if approval had been deleted outright.
-    """
-
+def test_legacy_plan_approval_inputs_do_not_block_direct_answers():
     tools = FakeTools()
     question = "Analyze activity by label."
-    planned = build(ScriptedLlm(), FakeTools()).predict(
-        app_request(input=[{"role": "user", "content": question}])
-    )
-    issued = planned.custom_outputs["plan"]["id"]
-
     llm = ScriptedLlm([Call("data_genie", {"question": "activity by label"})], "Done.")
     response = build(llm, tools).predict(
         app_request(
             input=[{"role": "user", "content": question}],
-            custom_inputs={"approved_plan_id": issued},
+            custom_inputs={"approved_plan_id": "legacy-plan-id"},
         )
     )
 
     assert response.custom_outputs["type"] == "answer"
     assert len(tools.named("data_genie")) == 1
-
-
-def test_an_approval_for_a_different_question_re_issues_the_plan():
-    """An id is an approval OF something. The something has to be this question."""
-
-    tools = FakeTools()
-    approved_elsewhere = _plan_id("Analyze spend by region.", "")
-
-    response = build(ScriptedLlm(), tools).predict(
-        app_request(
-            input=[{"role": "user", "content": "Analyze churn by title."}],
-            custom_inputs={"approved_plan_id": approved_elsewhere},
-        )
-    )
-
-    assert response.custom_outputs["type"] == "plan"
-    assert response.custom_outputs["plan"]["id"] != approved_elsewhere
-    assert analysis_calls(tools) == [], "unapproved work must not reach an analysis tool"
-
-
-def test_a_stale_approval_carried_from_the_last_turn_does_not_run_unapproved_work():
-    """The visible half of the same defect.
-
-    A client that keeps sending the previous turn's id makes every later
-    analytical question arrive pre-approved, and the approval step disappears
-    from the demo without anything looking broken.
-    """
-
-    tools = FakeTools()
-    first = build(ScriptedLlm(), FakeTools()).predict(
-        app_request(input=[{"role": "user", "content": "Analyze spend by region."}])
-    )
-    stale = first.custom_outputs["plan"]["id"]
-
-    followup = build(ScriptedLlm(), tools).predict(
-        app_request(
-            input=[
-                {"role": "user", "content": "Analyze spend by region."},
-                {"role": "assistant", "content": "Plan."},
-                {"role": "user", "content": "Now compare churn across labels."},
-            ],
-            custom_inputs={"approved_plan_id": stale},
-        )
-    )
-
-    assert followup.custom_outputs["type"] == "plan"
-    assert analysis_calls(tools) == []
-
-
-def test_a_truthy_execute_flag_cannot_rescue_an_approval_for_another_plan():
-    """`approved_plan_id` is authoritative when present, so the OR is not a way in."""
-
-    tools = FakeTools()
-
-    response = build(ScriptedLlm(), tools).predict(
-        app_request(
-            input=[{"role": "user", "content": "Analyze churn by title."}],
-            custom_inputs={"approved_plan_id": "plan-somebody-elses", "execute_plan": True},
-        )
-    )
-
-    assert response.custom_outputs["type"] == "plan"
-    assert analysis_calls(tools) == []
-
-
-def test_the_plan_id_survives_the_round_trip_that_approves_it():
-    """The id is only worth checking if the approving turn can reproduce it.
-
-    The app stores the question, shows the plan, stores that, then posts an
-    approval it also stores, so the history the agent sees when approval
-    arrives is two entries longer than the history it saw when it issued the
-    plan. An id fingerprinted over history could never match its own approval,
-    which is why `_plan_id` is over the question and the attachment only.
-    """
-
-    question = "Analyze active players across labels."
-    issued = build(ScriptedLlm(), FakeTools()).predict(
-        app_request(input=[{"role": "user", "content": question}])
-    )
-
-    approving_history = [
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": "I'll confirm the relevant context and definitions."},
-        {"role": "user", "content": question},
-    ]
-    answered = build(ScriptedLlm("Done."), FakeTools()).predict(
-        app_request(
-            input=approving_history,
-            custom_inputs={"approved_plan_id": issued.custom_outputs["plan"]["id"]},
-        )
-    )
-
-    assert answered.custom_outputs["type"] == "answer"
 
 
 def test_a_follow_up_carries_the_recent_conversation_into_the_loop():
@@ -2109,16 +2006,6 @@ def test_attachment_context_reaches_the_model_and_run_explorer_trace():
     )
     attachment_text = "Focus on the loyalty cohort described in these meeting notes."
     request_input = [{"role": "user", "content": "Analyze active-player trends."}]
-
-    planned = build(llm).predict(
-        app_request(
-            input=request_input,
-            custom_inputs={
-                "conversation_attachments": [{"name": "notes.txt", "text": attachment_text}]
-            },
-        )
-    )
-    assert planned.custom_outputs["plan"]["uses_attachment_context"] is True
 
     answered = build(llm).predict(
         app_request(
@@ -3366,13 +3253,7 @@ def test_clarification_contract_matches_exactly_what_the_app_reads():
 
 
 def test_plan_contract_matches_exactly_what_the_app_reads():
-    response = build(ScriptedLlm()).predict(
-        app_request(
-            input=[{"role": "user", "content": "Compare active-player trends across labels."}]
-        )
-    )
-
-    plan = response.custom_outputs["plan"]
+    plan = _build_plan("Compare active-player trends across labels.", [], "").model_dump()
     assert set(plan) == {
         "id",
         "question",
@@ -3419,13 +3300,8 @@ def test_across_brands_does_not_add_a_definitions_step():
     roughly eighteen seconds in Dictionary Genie to answer nothing.
     """
 
-    response = build(ScriptedLlm()).predict(
-        app_request(
-            input=[{"role": "user", "content": "Compare active-player trends across brands."}]
-        )
-    )
-
-    kinds = [step["kind"] for step in response.custom_outputs["plan"]["steps"]]
+    plan = _build_plan("Compare active-player trends across brands.", [], "")
+    kinds = [step.kind for step in plan.steps]
     assert "definitions" not in kinds
 
 

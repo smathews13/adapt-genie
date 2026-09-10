@@ -9,14 +9,20 @@ const actions = readFileSync(new URL('./export-actions.ts', import.meta.url), 'u
 const menu = readFileSync(new URL('./ExportMenu.tsx', import.meta.url), 'utf8');
 
 describe('export surface wiring', () => {
-  it('offers the required conversation and answer actions', () => {
+  it('offers the required answer actions and retains conversation export support', () => {
     expect(answerCard).toContain("label: 'Copy Markdown'");
     expect(answerCard).toContain("label: 'Download Markdown'");
     expect(answerCard).toContain("label: 'Download PDF'");
     expect(actions).toContain('readAllConversationMessages(conversationId)');
-    expect(home).toContain("label: 'Copy Markdown'");
-    expect(home).toContain("label: 'Download Markdown'");
-    expect(home).toContain("label: 'Download PDF'");
+    expect(actions).toContain('copyConversationExport');
+    expect(actions).toContain('downloadConversationMarkdown');
+    expect(actions).toContain('downloadConversationPdf');
+  });
+
+  it('puts answer export beside completed-answer feedback, not above the question', () => {
+    expect(answerCard.indexOf('<ExportMenu')).toBeGreaterThan(answerCard.indexOf('className="feedback"'));
+    expect(home).not.toContain('label="Export conversation"');
+    expect(home).not.toContain('className="conversation-export"');
   });
 
   it('offers TSV, PNG and PDF directly on parsed answer tables', () => {
@@ -27,7 +33,7 @@ describe('export surface wiring', () => {
   });
 
   it('keeps non-visual export work behind one lazy action boundary', () => {
-    for (const visual of [answerCard, tables, home]) {
+    for (const visual of [answerCard, tables]) {
       expect(visual).toContain("await import('./export-actions')");
       expect(visual).not.toMatch(
         /^import .*from ['"]\.\/(?:export-serializers|export-generators|export-download|conversation-export)['"];?$/m

@@ -14,13 +14,6 @@
   scrollbar-gutter: auto;
   background: transparent;
 }
-.conversation-export {
-  display: flex;
-  justify-content: flex-end;
-  width: calc(100% - 16px);
-  max-width: var(--conversation-measure);
-  margin: 0 auto var(--density-stack-gap);
-}
 .ask-layout[data-transcript='empty'] .conversation-main {
   height: auto;
   min-height: 0;

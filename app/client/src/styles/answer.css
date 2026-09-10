@@ -342,9 +342,6 @@
   justify-self: stretch;
   gap: 8px;
 }
-.answer-card-identity > .export-menu {
-  margin-left: auto;
-}
 /* Asked-by in this row is a compact chip, the same size as Live. A later
    page rule that lifts the 150px cap would stretch it into a banner again. */
 .answer-card-identity .identity-chip {

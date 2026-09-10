@@ -261,33 +261,6 @@ export function AnswerCard({
                 </Badge>
               )}
             </div>
-            <ExportMenu
-              compact
-              label="Export question and answer"
-              actions={[
-                {
-                  label: 'Copy Markdown',
-                  run: async () => {
-                    const { copyAnswerExport } = await import('./export-actions');
-                    await copyAnswerExport(question, readerAnswer);
-                  },
-                },
-                {
-                  label: 'Download Markdown',
-                  run: async () => {
-                    const { downloadAnswerMarkdown } = await import('./export-actions');
-                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
-                  },
-                },
-                {
-                  label: 'Download PDF',
-                  run: async () => {
-                    const { downloadAnswerPdf } = await import('./export-actions');
-                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
-                  },
-                },
-              ]}
-            />
           </div>
           {headline ? (
             <CardTitle className="answer-takeaway">
@@ -489,7 +462,8 @@ export function AnswerCard({
             )}
           </>
         ) : null}
-        {showFeedback && (
+        <AIAnalysisCaveat className="ai-note" />
+        {showFeedback ? (
           <div className="feedback">
             <span>Was this answer useful?</span>
             <Button
@@ -520,6 +494,32 @@ export function AnswerCard({
             >
               <ThumbsDown aria-hidden="true" />
             </Button>
+            <ExportMenu
+              label="Export question and answer"
+              actions={[
+                {
+                  label: 'Copy Markdown',
+                  run: async () => {
+                    const { copyAnswerExport } = await import('./export-actions');
+                    await copyAnswerExport(question, readerAnswer);
+                  },
+                },
+                {
+                  label: 'Download Markdown',
+                  run: async () => {
+                    const { downloadAnswerMarkdown } = await import('./export-actions');
+                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
+                  },
+                },
+                {
+                  label: 'Download PDF',
+                  run: async () => {
+                    const { downloadAnswerPdf } = await import('./export-actions');
+                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
+                  },
+                },
+              ]}
+            />
             {feedback.open && (
               <div className="feedback-comment">
                 <Input
@@ -545,8 +545,36 @@ export function AnswerCard({
               </span>
             )}
           </div>
+        ) : (
+          <div className="feedback answer-export-only">
+            <ExportMenu
+              label="Export question and answer"
+              actions={[
+                {
+                  label: 'Copy Markdown',
+                  run: async () => {
+                    const { copyAnswerExport } = await import('./export-actions');
+                    await copyAnswerExport(question, readerAnswer);
+                  },
+                },
+                {
+                  label: 'Download Markdown',
+                  run: async () => {
+                    const { downloadAnswerMarkdown } = await import('./export-actions');
+                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
+                  },
+                },
+                {
+                  label: 'Download PDF',
+                  run: async () => {
+                    const { downloadAnswerPdf } = await import('./export-actions');
+                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
+                  },
+                },
+              ]}
+            />
+          </div>
         )}
-        <AIAnalysisCaveat className="ai-note" />
       </CardContent>
     </Card>
   );

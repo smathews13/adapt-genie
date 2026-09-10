@@ -54,6 +54,22 @@ export async function readExperimentalSettings(
   return document;
 }
 
+/**
+ * Resolve the managed Genie MCP deployment switch for a new ask.
+ *
+ * This capability fails closed on every unreadable settings snapshot. It grants
+ * an additional data transport to administrators, so remembered process state
+ * must never keep it enabled through a store outage.
+ */
+export async function readGenieMcpEnabled(client: LakebaseReader): Promise<boolean> {
+  try {
+    return (await readExperimentalSettings(client, { maxAgeMs: 0 })).settings.genieCodeMcp === true;
+  } catch {
+    console.warn('[experimental-settings] Genie MCP state could not be read; disabling managed MCP for this ask.');
+    return false;
+  }
+}
+
 export async function writeExperimentalSettings(
   client: LakebaseReader,
   patch: Partial<ExperimentalFeatures>,

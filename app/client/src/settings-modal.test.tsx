@@ -193,7 +193,7 @@ describe('Settings modal', () => {
       'Configures approved outbound network destinations for app requests.',
       'Applies billing attribution tags to supported Databricks resources.',
       'Projects 7- and 30-day costs from configurable usage assumptions.',
-      'Enables experimental Genie coding and MCP integrations for this deployment.',
+      'Routes governed data questions from eligible administrators through the configured managed Genie Agent MCP server.',
     ]) {
       expect(featureTable).toContain(description);
     }
@@ -218,7 +218,7 @@ describe('Settings modal', () => {
     expect(SETTINGS_STYLES).not.toMatch(/\.exp-feature-control \{[^}]*display:\s*(?:inline-)?flex/);
   });
 
-  it('puts a distinct icon, one Experimental badge, then the title on every feature', () => {
+  it('puts a distinct icon, title, then one shared Experimental badge on every feature', () => {
     const markup = render('experimental');
     const badges = markup.split('experimental-pane-badge').length - 1;
     expect(badges).toBe(4);
@@ -227,7 +227,7 @@ describe('Settings modal', () => {
       ['Egress controls panel', 'egress-controls', 'lucide-network'],
       ['Resource tags', 'resource-tags', 'lucide-tags'],
       ['Forecasting', 'forecasting', 'lucide-trending-up'],
-      ['Genie Code / Genie MCP', 'genie-code-mcp', 'lucide-bot'],
+      ['Genie MCP', 'genie-mcp', 'lucide-bot'],
     ] as const) {
       const row = rows.find((candidate) => candidate.includes(`>${feature}</span>`));
       expect(row, feature).toBeDefined();
@@ -240,8 +240,8 @@ describe('Settings modal', () => {
       const title = row?.indexOf(`>${feature}</span>`) ?? -1;
       const badge = row?.indexOf('experimental-pane-badge') ?? -1;
       expect(icon, feature).toBeGreaterThan(-1);
-      expect(icon, feature).toBeLessThan(badge);
-      expect(badge, feature).toBeLessThan(title);
+      expect(icon, feature).toBeLessThan(title);
+      expect(title, feature).toBeLessThan(badge);
     }
     expect(SETTINGS_STYLES).toMatch(/\.exp-feature-name \{[^}]*display:\s*inline-flex[^}]*align-items:\s*center/);
     expect(SETTINGS_STYLES).toMatch(
@@ -281,6 +281,24 @@ describe('Settings modal', () => {
     const markup = render('experimental');
     expect(markup).not.toContain('Notebook agent sync');
     expect(markup).not.toContain('aria-label="Enable Notebook agent sync"');
+  });
+
+  it('locks the Genie MCP switch until settings load and the current role opens admin surfaces', () => {
+    const genieSwitch = (markup: string) => markup.match(/<button[^>]*aria-label="Enable Genie MCP"[^>]*>/)?.[0] ?? '';
+    const consumer = render('experimental', { state: 'consumer', addedAdminsReadable: true });
+    const loading = renderToStaticMarkup(
+      <SettingsPage
+        initialSection="experimental"
+        features={FEATURES}
+        role={roleFrom(NORMAL_IDENTITY)}
+        experimentalLoaded={false}
+      />
+    );
+    const admin = render('experimental');
+
+    expect(genieSwitch(consumer)).toContain('disabled=""');
+    expect(genieSwitch(loading)).toContain('disabled=""');
+    expect(genieSwitch(admin)).not.toContain('disabled=""');
   });
 
   it('keeps the supported ADAPT experiments in a stable order', () => {

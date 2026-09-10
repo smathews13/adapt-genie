@@ -3,14 +3,18 @@ import {
   EXPERIMENTAL_SETTINGS_TABLE,
   forgetExperimentalSettings,
   readExperimentalSettings,
+  readGenieMcpEnabled,
   writeExperimentalSettings,
   withoutLegacySpIdentities,
 } from './experimental-settings-store';
 
 class MemoryExperimentalDb {
   row: { settings: unknown; revision: number } | null = null;
+  failReads = false;
   readonly lakebase = {
     query: (sql: string, values: unknown[] = []) => {
+      if (/^SELECT settings, revision/m.test(sql.trim()) && this.failReads)
+        return Promise.reject(new Error('temporary outage'));
       if (/^SELECT settings, revision/m.test(sql.trim()))
         return Promise.resolve({ rows: this.row ? [{ ...this.row }] : [] });
       if (/^INSERT INTO/m.test(sql.trim())) {
@@ -48,6 +52,14 @@ describe('deployment-wide Experimental settings', () => {
     process.env.PLAYER_INSIGHTS_BUILD_SHA = 'replacement-build';
     forgetExperimentalSettings();
     expect((await readExperimentalSettings(db as never, { maxAgeMs: 0 })).settings.notebookAgentSync).toBe(false);
+  });
+
+  it('fails Genie MCP closed instead of using a previously enabled cache entry', async () => {
+    const db = new MemoryExperimentalDb();
+    await writeExperimentalSettings(db as never, { genieCodeMcp: true }, 0, 'admin');
+    expect(await readGenieMcpEnabled(db as never)).toBe(true);
+    db.failReads = true;
+    await expect(readGenieMcpEnabled(db as never)).resolves.toBe(false);
   });
 
   it('round-trips true and false distinctly for every visible flag', async () => {

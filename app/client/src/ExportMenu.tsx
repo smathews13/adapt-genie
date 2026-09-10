@@ -7,6 +7,8 @@ export interface ExportAction {
   run: () => Promise<void> | void;
 }
 
+const loadExportActions = () => import('./export-actions');
+
 export function ExportMenu({
   label,
   actions,
@@ -77,5 +79,27 @@ export function ExportMenu({
         {notice}
       </span>
     </div>
+  );
+}
+
+export function ConversationExportMenu({ conversationId, title }: { conversationId: string; title: string }) {
+  return (
+    <ExportMenu
+      label="Export whole conversation"
+      actions={[
+        {
+          label: 'Copy Markdown',
+          run: async () => (await loadExportActions()).copyConversationExport(conversationId, title),
+        },
+        {
+          label: 'Download Markdown',
+          run: async () => (await loadExportActions()).downloadConversationMarkdown(conversationId, title),
+        },
+        {
+          label: 'Download PDF',
+          run: async () => (await loadExportActions()).downloadConversationPdf(conversationId, title),
+        },
+      ]}
+    />
   );
 }

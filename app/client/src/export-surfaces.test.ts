@@ -19,9 +19,11 @@ describe('export surface wiring', () => {
     expect(actions).toContain('downloadConversationPdf');
   });
 
-  it('puts answer export beside completed-answer feedback, not above the question', () => {
+  it('puts answer export beside feedback and whole-conversation export after the transcript', () => {
     expect(answerCard.indexOf('<ExportMenu')).toBeGreaterThan(answerCard.indexOf('className="feedback"'));
-    expect(home).not.toContain('label="Export conversation"');
+    expect(home).toContain('<ConversationExportMenu');
+    expect(home.indexOf('<ConversationExportMenu')).toBeGreaterThan(home.indexOf('messages.map'));
+    expect(home).toContain('className="conversation-export-footer"');
     expect(home).not.toContain('className="conversation-export"');
   });
 

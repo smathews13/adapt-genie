@@ -51,7 +51,7 @@ import { workspaceLinksAllowed } from '../lib/egress-store';
 import { ADMIN_ROLES_DDL } from '../lib/admin-roles-schema';
 import { readRuntimeSettings } from '../lib/runtime-settings-store';
 import { readBenchmarkSettings } from '../lib/benchmark-settings-store';
-import { readExperimentalSettings } from '../lib/experimental-settings-store';
+import { readGenieMcpEnabled } from '../lib/experimental-settings-store';
 import { issueGenieMcpCapability, type GenieMcpCapability } from '../lib/genie-mcp-capability';
 import { loadConversationTurns } from '../lib/eval-conversation';
 import { scheduleLiveAskScore } from '../lib/live-ask-scoring';
@@ -2905,14 +2905,11 @@ export async function resolveGenieAuthorization(
   }
 ): Promise<GenieAuthorization> {
   try {
-    const [experimental, resolution] = await Promise.all([
-      readExperimentalSettings(appkit),
+    const [genieMcpEnabled, resolution] = await Promise.all([
+      readGenieMcpEnabled(appkit),
       resolveRole(appkit.lakebase, email),
     ]);
-    const eligible =
-      experimental.settings.genieCodeMcp === true &&
-      opensAdminSurfaces(resolution.role) &&
-      input.identityMode === SIGNED_IN_USER;
+    const eligible = genieMcpEnabled && opensAdminSurfaces(resolution.role) && input.identityMode === SIGNED_IN_USER;
     if (!eligible) return { transport: 'direct' };
     const capability = issueGenieMcpCapability({
       privateKeyValue: input.privateKeyValue,
@@ -2926,10 +2923,10 @@ export async function resolveGenieAuthorization(
       return { transport: 'direct' };
     }
     return { transport: 'mcp', capability };
-  } catch (error) {
+  } catch {
     console.warn(
-      `[genie-mcp] Capability could not be established for this Ask (${(error as Error).message}); ` +
-        'using the existing direct Genie transport. An unresolved setting or role never enables MCP.'
+      '[genie-mcp] Capability could not be established for this Ask; using the existing direct Genie transport. ' +
+        'An unresolved setting or role never enables MCP.'
     );
     return { transport: 'direct' };
   }

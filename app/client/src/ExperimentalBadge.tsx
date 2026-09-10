@@ -21,7 +21,7 @@ export type ExperimentalFeatureKind =
   | 'notebook-agent-sync'
   | 'resource-tags'
   | 'forecasting'
-  | 'genie-code-mcp'
+  | 'genie-mcp'
   | 'benchmarking';
 
 const EXPERIMENTAL_FEATURE_ICONS: Readonly<Record<ExperimentalFeatureKind, LucideIcon>> = {
@@ -29,7 +29,7 @@ const EXPERIMENTAL_FEATURE_ICONS: Readonly<Record<ExperimentalFeatureKind, Lucid
   'notebook-agent-sync': NotebookTabs,
   'resource-tags': Tags,
   forecasting: TrendingUp,
-  'genie-code-mcp': Bot,
+  'genie-mcp': Bot,
   benchmarking: FlaskConical,
 };
 

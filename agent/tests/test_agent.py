@@ -1195,6 +1195,20 @@ def test_request_loop_settings_bound_the_next_analysis_run():
     assert "stopped early" in response.custom_outputs["answer"]["caveats"][0]
 
 
+def test_reasoning_client_disables_hidden_sdk_retries(monkeypatch):
+    """One remaining-time timeout must mean one attempt, not three of them."""
+
+    options = []
+    bounded = object()
+    raw = SimpleNamespace(with_options=lambda **kwargs: options.append(kwargs) or bounded)
+    runtime = PlayerInsightsResponsesAgent(settings=settings(), tools=FakeTools())
+    runtime._system_workspace = lambda: object()
+    monkeypatch.setattr(agent, "open_ai_client", lambda workspace, mode: raw)
+
+    assert runtime._build_llm_client() is bounded
+    assert options == [{"max_retries": 0}]
+
+
 def test_the_wall_clock_budget_stops_a_turn_of_slow_calls():
     """Eighteen seconds per Genie call means the step cap alone permits minutes.
 

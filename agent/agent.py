@@ -2628,7 +2628,15 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         took.
         """
 
-        return open_ai_client(self._system_workspace(), self.settings.llm_gateway)
+        client = open_ai_client(self._system_workspace(), self.settings.llm_gateway)
+        with_options = getattr(client, "with_options", None)
+        if callable(with_options):
+            # The OpenAI client retries timed-out requests twice by default. A
+            # call given the 21 seconds left in this turn therefore occupied 63
+            # seconds in production and escaped the run's wall-clock budget.
+            # The orchestrator owns retries because only it knows that budget.
+            return with_options(max_retries=0)
+        return client
 
     def _system_workspace(self) -> Any:
         """The passthrough client: same credentials for every caller, so cached.

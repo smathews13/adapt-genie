@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -204,6 +205,18 @@ describe('deleting a user-added connection', () => {
 });
 
 describe('what /api/settings makes of this release, without asking the agent', () => {
+  it('keeps the consumer-visible settings read free of Genie scope writes', () => {
+    const source = readFileSync(new URL('./settings-routes.ts', import.meta.url), 'utf8');
+    const settingsRead = source.slice(
+      source.indexOf("app.get('/api/settings'"),
+      source.indexOf("app.put('/api/settings/notebook-path'")
+    );
+    expect(settingsRead).not.toContain('syncGenieTables(');
+    expect(source).toContain(
+      "app.post('/api/settings/connections/sync-genie', requireAdmin(appkit.lakebase, userEmail)"
+    );
+  });
+
   it('unions configured and discovered tables even when their counts do not grow', () => {
     const equalSized = completeReachabilityTables(
       ['a_catalog.a_schema.players', 'a_catalog.a_schema.sessions'],

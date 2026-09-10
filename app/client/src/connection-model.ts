@@ -112,7 +112,7 @@ export interface SettingsPayload {
    * grants nobody anything.
    */
   connections?: ConnectionEntry[];
-  /** Last automatic or manual reconciliation with the connected Genie space. */
+  /** Result of a requested reconciliation with the connected Genie space. */
   genieScopeSync?: {
     status: 'synced' | 'up-to-date' | 'not-configured' | 'unavailable';
     spaceId: string;

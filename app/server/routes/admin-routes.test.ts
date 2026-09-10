@@ -255,6 +255,7 @@ describe('a consumer is refused at the route', () => {
 
     expect((await app.probe('/api/settings/values/sql-warehouse', CONSUMER)).status).toBe(403);
     expect((await app.probe('/api/settings/connections', CONSUMER)).status).toBe(403);
+    expect((await app.probeWithMethod('/api/settings/connections/sync-genie', CONSUMER, 'POST')).status).toBe(403);
     expect((await app.probe('/api/settings/apply', CONSUMER)).status).toBe(403);
   });
 
@@ -268,10 +269,12 @@ describe('a consumer is refused at the route', () => {
     for (const email of [admin, owner, superAdmin]) {
       expect((await app.probeWithMethod('/api/settings/connections', email, 'POST')).status).not.toBe(403);
       expect((await app.probeWithMethod('/api/settings/connections/batch', email, 'POST')).status).not.toBe(403);
+      expect((await app.probeWithMethod('/api/settings/connections/sync-genie', email, 'POST')).status).not.toBe(403);
       expect((await app.probeWithMethod('/api/settings/connections/resource-1', email, 'DELETE')).status).not.toBe(403);
     }
     expect((await app.probeWithMethod('/api/settings/connections', CONSUMER, 'POST')).status).toBe(403);
     expect((await app.probeWithMethod('/api/settings/connections/batch', CONSUMER, 'POST')).status).toBe(403);
+    expect((await app.probeWithMethod('/api/settings/connections/sync-genie', CONSUMER, 'POST')).status).toBe(403);
     expect((await app.probeWithMethod('/api/settings/connections/resource-1', CONSUMER, 'DELETE')).status).toBe(403);
   });
 });

@@ -337,11 +337,6 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         app: await readAppFacts(),
       });
       const states = resourceStates({ report, environment, stored });
-      const genieScopeSync = await syncGenieTables({
-        store: appkit,
-        spaceId: configuredGenieSpaceId(report),
-        actor: 'Automatic Genie sync',
-      });
       const declaredConnections = await readDeclaredConnections(appkit);
       res.json({
         ...payload,
@@ -352,7 +347,6 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         // signed-in user.
         ...(notebookSync ? { notebook: await readNotebook(req, appkit, report, stored) } : {}),
         connections: readConnections(declaredConnections, states),
-        genieScopeSync,
       });
     });
 

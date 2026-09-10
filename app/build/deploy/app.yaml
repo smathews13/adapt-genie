@@ -65,7 +65,7 @@ env:
   - name: PLAYER_INSIGHTS_EXPERIMENT_PATH
     value: '/Shared/adapt-genie'
   - name: PLAYER_INSIGHTS_BUILD_SHA
-    value: 'd1035ee62614df9ff1a508e48a1e2c61d0603067'
+    value: '0c9dc18815e63d5f452d938e95d63cd824b63176'
   # Postgres schema the app creates and owns inside Lakebase. Safe to bake the
   # default: it is the same string in every workspace (`adapt`), and
   # matches var.lakebase_app_schema. bundle/app-release.sh overrides it from the
@@ -97,16 +97,16 @@ env:
   # Workspace groups that form ADAPT's outer App access boundary and role floor.
   # Bundle releases replace these with var.app_admin_group / var.app_user_group.
   - name: ADAPT_ADMIN_GROUP
-    value: 'adapt_genie_admins'
+    value: 'S_TK2_Databricks_Adapt_Genie_Admins'
   - name: ADAPT_USER_GROUP
-    value: 'adapt_genie_users'
+    value: 'S_TK2_Databricks_Adapt_Genie_Users'
   # Customer-facing group names shown in Identity. A shared demo workspace may
   # map these labels through generic workspace groups while preserving the
   # the customer access model the app is demonstrating.
   - name: ADAPT_ADMIN_GROUP_LABEL
-    value: 'adapt_genie_admins'
+    value: 'S_TK2_Databricks_Adapt_Genie_Admins'
   - name: ADAPT_USER_GROUP_LABEL
-    value: 'adapt_genie_users'
+    value: 'S_TK2_Databricks_Adapt_Genie_Users'
   # Greenfield role bootstrap: a comma-separated list of email addresses.
   # The app writes these roles to Lakebase only when the roster is genuinely
   # empty. Once any role row exists, this value is ignored forever: absence or a

@@ -19,12 +19,10 @@ describe('export surface wiring', () => {
     expect(actions).toContain('downloadConversationPdf');
   });
 
-  it('puts answer export beside feedback and whole-conversation export after the transcript', () => {
+  it('keeps the answer-card export as the only transcript export surface', () => {
     expect(answerCard.indexOf('<ExportMenu')).toBeGreaterThan(answerCard.indexOf('className="feedback"'));
-    expect(home).toContain('<ConversationExportMenu');
-    expect(home.indexOf('<ConversationExportMenu')).toBeGreaterThan(home.indexOf('messages.map'));
-    expect(home).toContain('className="conversation-export-footer"');
-    expect(home).not.toContain('className="conversation-export"');
+    expect(home).not.toContain('<ConversationExportMenu');
+    expect(home).not.toContain('conversation-export-footer');
   });
 
   it('offers TSV, PNG and PDF directly on parsed answer tables', () => {

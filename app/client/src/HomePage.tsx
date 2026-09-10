@@ -184,7 +184,6 @@ import type {
 } from './app-types';
 import { QuestionAttributionBubble } from './QuestionAttributionBubble';
 import { OrganizationUserBadge } from './OrganizationUserBadge';
-import { ConversationExportMenu } from './ExportMenu';
 import { organizationForEmail, organizationOptionsForEmails } from '../../shared/organization-mapping';
 import { FeedbackWriteQueue } from './feedback-write-queue';
 import { notifyFeedbackChanged } from './feedback-events';
@@ -2182,10 +2181,6 @@ export function HomePage() {
    * the same render that draws the reader's own bubble.
    */
   const transcriptEmpty = messages.length === 0 && !loading && !conversationLoading;
-  const conversationTitle =
-    conversations.find((item) => item.id === conversationId)?.title ??
-    messages.find((item) => item.role === 'user')?.content ??
-    'Conversation';
 
   return (
     <div
@@ -2403,11 +2398,6 @@ export function HomePage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {!conversationLoading && messages.some((message) => message.role === 'assistant') ? (
-            <div className="conversation-export-footer">
-              <ConversationExportMenu conversationId={conversationId} title={conversationTitle} />
-            </div>
-          ) : null}
           <div ref={transcriptEndRef} aria-hidden="true" />
         </section>
         <form

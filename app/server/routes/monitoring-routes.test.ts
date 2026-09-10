@@ -4,6 +4,7 @@ import {
   MONITORING_DETAIL_QUERY,
   MONITORING_RUN_BY_TURN_QUERY,
   monitoringAnswerFromRunProcess,
+  responseWithRunProcess,
   MONITORING_PERSON_SEEN_QUERY,
   MONITORING_PERSON_TABLE_EVIDENCE_QUERY,
   MONITORING_PERSON_TABLES_QUERY,
@@ -245,6 +246,36 @@ describe('the query reads questions rather than answers', () => {
     expect(reconstructed.takeaway).toContain('longer than the time allowed');
     expect((reconstructed.trace as { id: string; stages: { id: string }[] }).id).toBe('');
     expect((reconstructed.trace as { stages: { id: string }[] }).stages[0].id).toBe('step-before-timeout');
+  });
+
+  it('hydrates a partial stored answer whose trace has no stages', () => {
+    const stored = {
+      id: 'answer-1',
+      takeaway: 'Some of the answer completed.',
+      narrative: 'The completed portion remains visible.',
+      trace: { id: '', stages: [], totalMs: 12 },
+    };
+    const hydrated = responseWithRunProcess(stored, [
+      {
+        id: 'step-before-partial',
+        name: 'Queried governed data',
+        kind: 'tool',
+        status: 'complete',
+        start: 0,
+        duration: 8,
+        calls: 1,
+      },
+    ]) as {
+      takeaway: string;
+      narrative: string;
+      trace: { stages: { id: string }[]; toolCalls: number; totalMs: number };
+    };
+
+    expect(hydrated.takeaway).toBe(stored.takeaway);
+    expect(hydrated.narrative).toBe(stored.narrative);
+    expect(hydrated.trace.stages[0].id).toBe('step-before-partial');
+    expect(hydrated.trace.toolCalls).toBe(1);
+    expect(hydrated.trace.totalMs).toBe(12);
   });
 
   /**

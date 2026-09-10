@@ -64,7 +64,7 @@ import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import { isMlflowTraceId } from '../../shared/mlflow-trace-id';
 import { failureDefinition, isFailureCode } from '../../shared/failure-taxonomy';
 import type { TokenAttribution } from '../../shared/llm-token-usage';
-import { incompleteAskRecord } from '../../shared/prose-only-answer';
+import { foldRecordedStages, incompleteAskRecord } from '../../shared/prose-only-answer';
 import { readStageEvents } from '../lib/run-stage-events';
 import { listDeclarableTablesInSchema, unionTableNames } from '../lib/declared-tables';
 
@@ -713,6 +713,31 @@ export function monitoringAnswerFromRunProcess(input: {
   });
 }
 
+/**
+ * Add the durable run narration to a partial stored answer whose trace carried
+ * no stages. The answer body remains exactly what was stored; only the process
+ * record is recovered.
+ */
+export function responseWithRunProcess(response: unknown, stages: readonly unknown[]): unknown {
+  if (!response || typeof response !== 'object') return response;
+  const answer = response as Record<string, unknown>;
+  const trace = traceOf(answer);
+  if (!trace || typeof trace !== 'object') return response;
+  const traceRecord = trace as Record<string, unknown>;
+  if (Array.isArray(traceRecord.stages) && traceRecord.stages.length > 0) return response;
+  const folded = foldRecordedStages(stages);
+  if (folded.stages.length === 0) return response;
+  return {
+    ...answer,
+    trace: {
+      ...traceRecord,
+      stages: folded.stages,
+      totalMs: tokenCount(traceRecord.totalMs) ?? folded.totalMs,
+      toolCalls: tokenCount(traceRecord.toolCalls) ?? folded.toolCalls,
+    },
+  };
+}
+
 function tableList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const seen = new Map<string, string>();
@@ -1270,9 +1295,12 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
       let hydratedRunId = '';
       let hydratedState: string | null = null;
       let hydratedCode: string | null = null;
-      if (!storedAnswerId) {
-        // Questions that timed out or dropped mid-stream used to have no
-        // assistant row. The steps are still on the run that asked them.
+      const originalTrace = traceOf(responseJson) as Record<string, unknown> | null;
+      const hasStoredStages = Array.isArray(originalTrace?.stages) && originalTrace.stages.length > 0;
+      if (!storedAnswerId || !hasStoredStages) {
+        // A partial turn can have no assistant row, or an assistant row whose
+        // trace was stored without its locally recorded stages. Both cases
+        // recover from the run that asked the question.
         const runLookup = await readStored(
           appkit,
           'GET /api/monitoring/questions/:id (run)',
@@ -1285,11 +1313,13 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         hydratedCode = text(run?.terminal_code) || null;
         if (hydratedRunId) {
           const stages = await readStageEvents(appkit, hydratedRunId);
-          responseJson = monitoringAnswerFromRunProcess({
-            runId: hydratedRunId,
-            terminalCode: hydratedCode,
-            stages,
-          });
+          responseJson = storedAnswerId
+            ? responseWithRunProcess(responseJson, stages)
+            : monitoringAnswerFromRunProcess({
+                runId: hydratedRunId,
+                terminalCode: hydratedCode,
+                stages,
+              });
         }
       }
       const answerId = storedAnswerId || hydratedRunId;

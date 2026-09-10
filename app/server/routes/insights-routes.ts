@@ -2899,6 +2899,7 @@ export async function resolveGenieAuthorization(
   input: {
     requestId: string;
     audience: string;
+    identityMode: string;
     privateKeyValue?: string;
     now?: Date;
   }
@@ -2908,7 +2909,10 @@ export async function resolveGenieAuthorization(
       readExperimentalSettings(appkit),
       resolveRole(appkit.lakebase, email),
     ]);
-    const eligible = experimental.settings.genieCodeMcp === true && opensAdminSurfaces(resolution.role);
+    const eligible =
+      experimental.settings.genieCodeMcp === true &&
+      opensAdminSurfaces(resolution.role) &&
+      input.identityMode === SIGNED_IN_USER;
     if (!eligible) return { transport: 'direct' };
     const capability = issueGenieMcpCapability({
       privateKeyValue: input.privateKeyValue,
@@ -5005,6 +5009,7 @@ export function setupInsightsRoutes(
             resolveGenieAuthorization(appkit, email, {
               requestId: identity.correlationId,
               audience: endpointAudience,
+              identityMode: identity.mode,
             }),
           ]);
           askRuntime = resolvedRuntime;

@@ -144,6 +144,7 @@ describe('the blocks the agent actually writes', () => {
     const blocks = parseAnswerMarkdown(source);
     expect(blocks.map((block) => block.kind)).toEqual(['heading', 'list']);
     expect(blocks[1].kind === 'list' && blocks[1].items).toHaveLength(9);
+    expect(blocks[1].kind === 'list' && blocks[1].items.map((item) => item.depth)).toEqual([0, 0, 1, 1, 0, 0, 0, 0, 0]);
     expect(blockText([blocks[1]])).toContain(
       '90-day headline totals (2026-05-27 -> 2026-08-03; grain: title × day × country, summed across countries):'
     );

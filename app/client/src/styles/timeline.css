@@ -824,6 +824,18 @@
 .trace-payload .dag-md ol {
   padding-left: 18px;
 }
+.trace-payload .dag-md li[class^='dag-md-list-depth-'] {
+  margin-left: 18px;
+}
+.trace-payload .dag-md li.dag-md-list-depth-2 {
+  margin-left: 36px;
+}
+.trace-payload .dag-md li.dag-md-list-depth-3 {
+  margin-left: 54px;
+}
+.trace-payload .dag-md li.dag-md-list-depth-4 {
+  margin-left: 72px;
+}
 .trace-payload .dag-md-head {
   display: block;
   margin-bottom: 4px;

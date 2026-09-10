@@ -64,6 +64,10 @@ function keyPart(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
+function scimFilterLiteral(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 function scimResources(body: unknown): Record<string, unknown>[] {
   const resources = recordOf(body).Resources;
   return Array.isArray(resources) ? resources.map(recordOf) : [];
@@ -139,7 +143,7 @@ async function readUser(email: string, host: string, reader: ControlPlaneReader,
   }
   let result = empty;
   try {
-    const body = await reader(SCIM_USERS_PATH, { filter: `userName eq ${email}` });
+    const body = await reader(SCIM_USERS_PATH, { filter: `userName eq ${scimFilterLiteral(email)}` });
     const matching = scimResources(body).find((candidate) => keyPart(textOf(candidate.userName)) === keyPart(email));
     if (matching) {
       result = {

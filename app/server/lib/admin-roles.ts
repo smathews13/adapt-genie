@@ -727,6 +727,8 @@ export type AdminAction =
   /** An admin recorded or cleared a Connections setting intention (or live value). */
   | 'connection-setting-saved'
   | 'connection-setting-cleared'
+  /** An admin reconciled the Connections inventory with the attached Genie space. */
+  | 'genie-scope-synced'
   /** An admin atomically staged a validated Gateway mode + model pair. */
   | 'ai-gateway-selection-staged'
   /** An admin asked the app identity to backfill system_billing=adapt on managed resources. */

@@ -432,7 +432,7 @@ function GroupRoleRow({
           </div>
         </td>
         <td className="roster-role">
-          {canManage && onRoleChange ? (
+          {canManage && onRoleChange && entry.source !== 'bundle' ? (
             <AppSelect
               label="Group role"
               ariaLabel={`ADAPT role for ${entry.displayName}`}

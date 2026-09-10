@@ -768,6 +768,22 @@ ul.answer-list > li::before {
 ol.answer-list {
   list-style: decimal outside;
 }
+ul.answer-list > li.answer-list-item--depth-1,
+ol.answer-list > li.answer-list-item--depth-1 {
+  margin-left: 18px;
+}
+ul.answer-list > li.answer-list-item--depth-2,
+ol.answer-list > li.answer-list-item--depth-2 {
+  margin-left: 36px;
+}
+ul.answer-list > li.answer-list-item--depth-3,
+ol.answer-list > li.answer-list-item--depth-3 {
+  margin-left: 54px;
+}
+ul.answer-list > li.answer-list-item--depth-4,
+ol.answer-list > li.answer-list-item--depth-4 {
+  margin-left: 72px;
+}
 /* An identifier, and usually a long one. `anywhere` rather than a scrollbar:
    the chip sits inside a sentence, and a sentence does not scroll. */
 .answer-code {

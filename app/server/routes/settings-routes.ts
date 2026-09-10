@@ -81,6 +81,7 @@ import {
 import type { ModelReleaseDeclaration, ReleasePreflight } from '../../shared/model-release';
 import { setupResourceTagRoutes } from './resource-tag-routes';
 import { readExperimentalSettings } from '../lib/experimental-settings-store';
+import { syncGenieTables } from '../lib/genie-table-sync';
 
 const WriteBody = z.object({
   value: z.string().trim().max(500),
@@ -259,6 +260,11 @@ export async function readOrchestratorReport(): Promise<OrchestratorRead> {
   };
 }
 
+function configuredGenieSpaceId(report: PreflightReport | null): string {
+  const value = report?.configuration.find((entry) => entry.key === 'data_genie_space_id')?.value;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export function setupSettingsRoutes(appkit: InsightsAppKit) {
   setupResourceTagRoutes(appkit, {
     readReport: async () => (await readOrchestratorReport()).report,
@@ -331,6 +337,11 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         app: await readAppFacts(),
       });
       const states = resourceStates({ report, environment, stored });
+      const genieScopeSync = await syncGenieTables({
+        store: appkit,
+        spaceId: configuredGenieSpaceId(report),
+        actor: 'Automatic Genie sync',
+      });
       const declaredConnections = await readDeclaredConnections(appkit);
       res.json({
         ...payload,
@@ -341,6 +352,7 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         // signed-in user.
         ...(notebookSync ? { notebook: await readNotebook(req, appkit, report, stored) } : {}),
         connections: readConnections(declaredConnections, states),
+        genieScopeSync,
       });
     });
 
@@ -392,6 +404,25 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
      * caller that reported "connected" without it would be telling a customer the
      * opposite of what happened.
      */
+    app.post('/api/settings/connections/sync-genie', requireAdmin(appkit.lakebase, userEmail), async (req, res) => {
+      const { report } = await readOrchestratorReport();
+      const actor = userEmail(req);
+      const result = await syncGenieTables({
+        store: appkit,
+        spaceId: configuredGenieSpaceId(report),
+        actor,
+      });
+      if (result.added > 0) {
+        await recordAdminAction(appkit.lakebase, {
+          actor,
+          action: 'genie-scope-synced',
+          subject: result.spaceId,
+          detail: result.detail,
+        });
+      }
+      res.status(result.status === 'unavailable' ? 503 : 200).json(result);
+    });
+
     app.post('/api/settings/connections/batch', async (req, res) => {
       const parsed = UnityCatalogBatchBody.safeParse(req.body);
       if (!parsed.success) {

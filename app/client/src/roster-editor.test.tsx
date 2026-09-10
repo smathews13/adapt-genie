@@ -180,8 +180,8 @@ describe('workspace group defaults', () => {
     expect(markup.match(/href=/g)).toHaveLength(1);
 
     const editable = renderToStaticMarkup(<GroupRoleDefaults payload={payload} canManage onRoleChange={() => {}} />);
-    expect(editable).toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Admins: Admin"');
-    expect(editable).toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Users: Consumer"');
+    expect(editable).not.toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Admins: Admin"');
+    expect(text(editable)).toContain('S_TK2_Databricks_Adapt_Genie_Admins Workspace mapping: customer-admins Admin');
   });
 
   it('offers a simple group browser entry point', () => {

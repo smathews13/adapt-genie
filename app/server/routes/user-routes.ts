@@ -197,18 +197,13 @@ export function setupUserRoutes(
       console.warn('[admin] Stored group mappings could not be read:', (error as Error).message);
       return [];
     });
-    const storedByName = new Map(stored.map((mapping) => [mapping.groupName.trim().toLocaleLowerCase(), mapping]));
     const rows = [
-      ...configuredGroups.map((group) => {
-        const override = storedByName.get(group.groupName.trim().toLocaleLowerCase());
-        return {
-          ...group,
-          role: override?.role ?? group.role,
-          source: override ? ('stored' as const) : ('bundle' as const),
-          setBy: override?.setBy ?? '',
-          setAt: override?.setAt ?? '',
-        };
-      }),
+      ...configuredGroups.map((group) => ({
+        ...group,
+        source: 'bundle' as const,
+        setBy: '',
+        setAt: '',
+      })),
       ...stored
         .filter((mapping) => !isConfiguredGroup(mapping.groupName))
         .map((mapping) => ({
@@ -314,6 +309,13 @@ export function setupUserRoutes(
         res.status(400).json({
           error: 'invalid_group_mapping_body',
           detail: 'Send one existing workspace group and an ADAPT role of admin or consumer.',
+        });
+        return;
+      }
+      if (isConfiguredGroup(parsed.data.groupName)) {
+        res.status(409).json({
+          error: 'configured_group_role_is_fixed',
+          detail: 'The two deployment access groups have fixed ADAPT roles and cannot be remapped.',
         });
         return;
       }

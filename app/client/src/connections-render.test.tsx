@@ -1580,6 +1580,37 @@ describe('the Unity Catalog tables section', () => {
     expect(PAGE_SOURCE).toContain('<UnityCatalogScopeExplorer');
   });
 
+  it('offers a manual Genie reconciliation and labels Genie-synced scope rows', () => {
+    const genieTable: ConnectionEntry = {
+      ...userTable,
+      connection: {
+        ...userTable.connection,
+        id: 'genie-table',
+        origin: 'genie',
+        note: 'genie-source:table',
+      },
+    };
+    const markup = render(
+      <DeclaredTablesSection
+        tableChecks={tables}
+        tableConnections={[genieTable]}
+        requestedEntity=""
+        allowMutations
+        genieSync={{
+          status: 'up-to-date',
+          spaceId: 'space-1',
+          discovered: 10,
+          added: 0,
+          detail: '',
+          syncedAt: '2026-09-10T12:00:00Z',
+        }}
+        onSyncGenie={() => {}}
+      />
+    );
+    expect(text(markup)).toContain('Sync Genie tables');
+    expect(text(markup)).toContain('In scope · synced via Genie');
+  });
+
   it('shows one UC action to an authorized admin with twelve tables', () => {
     const twelve = Array.from({ length: 12 }, (_, index) =>
       check(`table-${index}`, 'ok', {

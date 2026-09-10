@@ -609,7 +609,12 @@ function ProseBlock({
       return (
         <Tag className="answer-list">
           {block.items.map((item) => (
-            <li key={item.start}>
+            <li
+              key={item.start}
+              className={
+                item.depth > 0 ? `answer-list-item answer-list-item--depth-${Math.min(item.depth, 4)}` : undefined
+              }
+            >
               <InlineNodes nodes={item.children} badges={badges} />
             </li>
           ))}

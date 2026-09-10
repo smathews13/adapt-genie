@@ -27,8 +27,8 @@ import type { LakebaseReader } from './lakebase-store';
 /** Whether a declaration is current, or withdrawn and restorable. */
 export type DeclarationState = 'declared' | 'withdrawn';
 
-/** Who put the row there. `app` is the Connections tab; `notebook` is a publish. */
-export type DeclarationOrigin = 'app' | 'notebook';
+/** Who put the row there. */
+export type DeclarationOrigin = 'app' | 'notebook' | 'genie';
 
 export interface StoredDeclaredConnection extends DeclaredConnection {
   state: DeclarationState;
@@ -192,7 +192,7 @@ function storedFromRow(row: Record<string, unknown>): StoredDeclaredConnection {
     value: text(row.value),
     note: text(row.note),
     state: row.state === 'withdrawn' ? 'withdrawn' : 'declared',
-    origin: row.origin === 'notebook' ? 'notebook' : 'app',
+    origin: row.origin === 'notebook' ? 'notebook' : row.origin === 'genie' ? 'genie' : 'app',
     createdAt: timestamp(row.created_at),
     createdBy: text(row.created_by),
     changedAt: timestamp(row.changed_at),

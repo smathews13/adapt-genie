@@ -112,6 +112,15 @@ export interface SettingsPayload {
    * grants nobody anything.
    */
   connections?: ConnectionEntry[];
+  /** Last automatic or manual reconciliation with the connected Genie space. */
+  genieScopeSync?: {
+    status: 'synced' | 'up-to-date' | 'not-configured' | 'unavailable';
+    spaceId: string;
+    discovered: number;
+    added: number;
+    detail: string;
+    syncedAt: string;
+  };
 }
 
 /** How a published setting compares with the one in use. */
@@ -162,7 +171,7 @@ export interface ConnectionEntry {
     value: string;
     note: string;
     state: 'declared' | 'withdrawn';
-    origin: 'app' | 'notebook';
+    origin: 'app' | 'notebook' | 'genie';
     createdAt?: string;
     createdBy?: string;
     changedAt?: string;

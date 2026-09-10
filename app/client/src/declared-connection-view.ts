@@ -512,9 +512,12 @@ export const DELETE_CONNECTION_LABEL = 'Delete connection';
  * only this stored copy. Naming that exception in the confirmation is what keeps
  * an irreversible database delete from promising control over a separate source.
  */
-export function forgetConnectionDetail(origin: 'app' | 'notebook'): string {
+export function forgetConnectionDetail(origin: 'app' | 'notebook' | 'genie'): string {
   if (origin === 'notebook') {
     return 'This deletes the remembered row and cannot be undone here. Publishing the notebook again may add it back.';
+  }
+  if (origin === 'genie') {
+    return 'This source is managed by the connected Genie space and will return on the next sync while it remains there.';
   }
   return 'This deletes the remembered row and cannot be undone. Add the connection again if you need it later.';
 }

@@ -409,6 +409,8 @@ async function main() {
   const adminEmails = (process.env.PLAYER_INSIGHTS_ADMIN_EMAILS ?? '').trim();
   const adaptAdminGroup = (process.env.ADAPT_ADMIN_GROUP ?? '').trim();
   const adaptUserGroup = (process.env.ADAPT_USER_GROUP ?? '').trim();
+  const adaptAdminGroupLabel = (process.env.ADAPT_ADMIN_GROUP_LABEL ?? adaptAdminGroup).trim();
+  const adaptUserGroupLabel = (process.env.ADAPT_USER_GROUP_LABEL ?? adaptUserGroup).trim();
   const organizations = (process.env.PLAYER_INSIGHTS_ORGANIZATIONS ?? '').trim();
   // Deployment-private account routing. Authored defaults are empty; a release
   // may carry validated maintainer-feedback and customer-escalation Slack
@@ -536,6 +538,8 @@ async function main() {
       ...(adminEmails ? [{ name: 'PLAYER_INSIGHTS_ADMIN_EMAILS', value: `'${adminEmails}'` }] : []),
       ...(adaptAdminGroup ? [{ name: 'ADAPT_ADMIN_GROUP', value: `'${adaptAdminGroup}'` }] : []),
       ...(adaptUserGroup ? [{ name: 'ADAPT_USER_GROUP', value: `'${adaptUserGroup}'` }] : []),
+      ...(adaptAdminGroupLabel ? [{ name: 'ADAPT_ADMIN_GROUP_LABEL', value: `'${adaptAdminGroupLabel}'` }] : []),
+      ...(adaptUserGroupLabel ? [{ name: 'ADAPT_USER_GROUP_LABEL', value: `'${adaptUserGroupLabel}'` }] : []),
       ...(organizations
         ? [{ name: 'PLAYER_INSIGHTS_ORGANIZATIONS', value: `'${organizations.replaceAll("'", "''")}'` }]
         : []),

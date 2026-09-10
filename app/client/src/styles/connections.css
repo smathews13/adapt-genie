@@ -1097,6 +1097,20 @@
   outline-offset: 2px;
   box-shadow: none;
 }
+.connections-scope-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.connections-scope-actions svg {
+  width: 14px;
+  height: 14px;
+}
+.connections-genie-sync-note {
+  margin: 0 16px 10px;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-12);
+}
 .connection-removal-status {
   display: inline-flex;
   flex: none;

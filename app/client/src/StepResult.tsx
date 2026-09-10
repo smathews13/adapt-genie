@@ -161,7 +161,10 @@ function MarkdownBlock({ block, tables = [] }: { block: Block; tables?: readonly
       return block.ordered ? (
         <ol className="dag-md-list">
           {block.items.map((item) => (
-            <li key={item.start}>
+            <li
+              key={item.start}
+              className={item.depth > 0 ? `dag-md-list-depth-${Math.min(item.depth, 4)}` : undefined}
+            >
               <InlineRuns nodes={item.children} tables={tables} />
             </li>
           ))}
@@ -169,7 +172,10 @@ function MarkdownBlock({ block, tables = [] }: { block: Block; tables?: readonly
       ) : (
         <ul className="dag-md-list">
           {block.items.map((item) => (
-            <li key={item.start}>
+            <li
+              key={item.start}
+              className={item.depth > 0 ? `dag-md-list-depth-${Math.min(item.depth, 4)}` : undefined}
+            >
               <InlineRuns nodes={item.children} tables={tables} />
             </li>
           ))}

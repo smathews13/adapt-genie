@@ -409,12 +409,9 @@ describe('the super admin reads the roster', () => {
     expect(members).toHaveBeenCalledWith('existing-team');
 
     const configured = await app.mapGroup(LEAD, 'S_TK2_Databricks_Adapt_Genie_Admins', 'consumer');
-    expect(configured.status).toBe(200);
-    expect(store.rows.groups).toHaveLength(2);
-    const configuredPayload = (await configured.json()) as RosterPayload;
-    expect(
-      configuredPayload.groupRoleDefaults?.find((row) => row.groupName === 'S_TK2_Databricks_Adapt_Genie_Admins')
-    ).toMatchObject({ source: 'stored', role: 'consumer', appPermission: 'CAN_USE' });
+    expect(configured.status).toBe(409);
+    expect(store.rows.groups).toHaveLength(1);
+    await expect(configured.json()).resolves.toMatchObject({ error: 'configured_group_role_is_fixed' });
   });
 
   it('runs no grant, so the roster appears without waiting on a warehouse', async () => {

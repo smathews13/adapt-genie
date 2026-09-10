@@ -49,6 +49,7 @@ import {
   ExternalLink,
   GitCommitHorizontal,
   Pencil,
+  RefreshCw,
   Save,
   Search,
   Trash2,
@@ -165,6 +166,7 @@ import {
   type ConnectionReading,
   type DriftSeverity,
   type ResourceRow,
+  type SettingsPayload,
 } from './connection-model';
 import { connectionResourceView } from './connection-resource-view';
 import { AiGatewayConnection } from './AiGatewayConnection';
@@ -616,7 +618,11 @@ export function unityCatalogScopeSummary(
 }
 
 function ConnectionAddedMetadata({ entry }: { entry: ConnectionEntry | undefined }) {
-  if (!entry || entry.connection.origin !== 'app') return null;
+  if (!entry) return null;
+  if (entry.connection.origin === 'genie') {
+    return <span className="connections-scope-metadata">Synced via Genie</span>;
+  }
+  if (entry.connection.origin !== 'app') return null;
   const addedBy = entry.connection.createdBy?.trim();
   const addedAt = entry.connection.createdAt?.trim();
   const parsed = addedAt ? new Date(addedAt) : null;
@@ -748,7 +754,9 @@ export function DeclaredTablesTable({
                   ? 'Schema'
                   : entry.connection.note === 'asset-type:view'
                     ? 'View'
-                    : 'Table';
+                    : entry.connection.note === 'genie-source:metric-view'
+                      ? 'Metric view'
+                      : 'Table';
             const tableRow =
               entry.connection.resourceType === 'table'
                 ? rows.find((row) => row.connection?.connection.id === entry.connection.id)
@@ -784,7 +792,9 @@ export function DeclaredTablesTable({
                         </Badge>
                         {entry.connection.origin === 'app'
                           ? 'In scope · added in ADAPT'
-                          : 'In scope · managed by deployment'}
+                          : entry.connection.origin === 'genie'
+                            ? 'In scope · synced via Genie'
+                            : 'In scope · managed by deployment'}
                       </span>
                     </span>
                   </TableCell>
@@ -902,11 +912,17 @@ export function DeclaredTablesTable({
                         </span>
                         <span className="connections-table-scope-state">
                           <Badge variant="outline" className="connections-scope-type">
-                            {connection?.connection.note === 'asset-type:view' ? 'View' : 'Table'}
+                            {connection?.connection.note === 'asset-type:view'
+                              ? 'View'
+                              : connection?.connection.note === 'genie-source:metric-view'
+                                ? 'Metric view'
+                                : 'Table'}
                           </Badge>
                           {connection?.connection.origin === 'app'
                             ? 'In scope · added in ADAPT'
-                            : 'In scope · managed by deployment'}
+                            : connection?.connection.origin === 'genie'
+                              ? 'In scope · synced via Genie'
+                              : 'In scope · managed by deployment'}
                         </span>
                       </span>
                     </TableCell>
@@ -1146,6 +1162,9 @@ export function DeclaredTablesSection({
   storeAvailable = true,
   allowMutations = false,
   onChanged = () => {},
+  genieSync,
+  syncingGenie = false,
+  onSyncGenie,
 }: {
   tableChecks: readonly PreflightCheck[];
   scopeChecks?: readonly PreflightCheck[];
@@ -1156,6 +1175,9 @@ export function DeclaredTablesSection({
   storeAvailable?: boolean;
   allowMutations?: boolean;
   onChanged?: () => void | Promise<void>;
+  genieSync?: SettingsPayload['genieScopeSync'];
+  syncingGenie?: boolean;
+  onSyncGenie?: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -1239,19 +1261,27 @@ export function DeclaredTablesSection({
 
   const addAction =
     allowMutations && storeAvailable ? (
-      <Button
-        ref={addButtonRef}
-        size="sm"
-        className="connections-add-uc"
-        aria-expanded={adding}
-        aria-controls={explorerId}
-        onClick={() => {
-          setOpen(true);
-          setAdding(true);
-        }}
-      >
-        Add asset
-      </Button>
+      <span className="connections-scope-actions">
+        {onSyncGenie && genieSync?.status !== 'not-configured' ? (
+          <Button size="sm" variant="outline" disabled={syncingGenie} onClick={onSyncGenie}>
+            <RefreshCw aria-hidden="true" />
+            {syncingGenie ? 'Syncing' : 'Sync Genie tables'}
+          </Button>
+        ) : null}
+        <Button
+          ref={addButtonRef}
+          size="sm"
+          className="connections-add-uc"
+          aria-expanded={adding}
+          aria-controls={explorerId}
+          onClick={() => {
+            setOpen(true);
+            setAdding(true);
+          }}
+        >
+          Add asset
+        </Button>
+      </span>
     ) : null;
 
   return (
@@ -1297,6 +1327,11 @@ export function DeclaredTablesSection({
         <span className="plane-error">
           The connection store is not answering, so Unity Catalog resources cannot change.
         </span>
+      ) : null}
+      {readState === 'ready' && genieSync?.status === 'unavailable' ? (
+        <p className="connections-genie-sync-note" role="status">
+          {genieSync.detail}
+        </p>
       ) : null}
       {readState === 'ready' ? (
         <DeclaredTablesTable
@@ -1968,6 +2003,7 @@ export function ConnectionsPage() {
     !notebookAgentSyncEnabled && notebookAgentSyncTarget({ search: location.search, hash: location.hash }) !== null;
   const [saving, setSaving] = useState('');
   const [writeError, setWriteError] = useState('');
+  const [syncingGenie, setSyncingGenie] = useState(false);
   const lakebaseMigration = useLakebaseMigrationStatus(allowMutations);
 
   /**
@@ -2012,6 +2048,21 @@ export function ConnectionsPage() {
     if (failure) setWriteError(failure);
     return failure;
   }, [reloadSettings]);
+
+  const syncGenieTables = useCallback(async () => {
+    setSyncingGenie(true);
+    setWriteError('');
+    try {
+      const response = await fetch('/api/settings/connections/sync-genie', { method: 'POST' });
+      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      if (!response.ok) throw new Error(body.detail || `the Genie sync endpoint answered ${response.status}`);
+      await rereadSettings();
+    } catch (caught) {
+      setWriteError((caught as Error).message);
+    } finally {
+      setSyncingGenie(false);
+    }
+  }, [rereadSettings]);
 
   /** Saves one value, and says whether the server took it. */
   const write = useCallback(
@@ -2534,6 +2585,9 @@ export function ConnectionsPage() {
         readState={unityCatalogReadState}
         storeAvailable={payload?.storeAvailable ?? true}
         allowMutations={allowMutations}
+        genieSync={payload?.genieScopeSync}
+        syncingGenie={syncingGenie}
+        onSyncGenie={allowMutations ? () => void syncGenieTables() : undefined}
         // The confirmed mutation is already committed into the shared session
         // cache by the controller. Do not immediately launch a second full
         // dependency probe: table batches made every new row sit on "Checking"

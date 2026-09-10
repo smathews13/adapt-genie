@@ -49,13 +49,13 @@ describe('ADAPT group roles', () => {
     expect(roleFromAdaptGroups([ADAPT_USER_GROUP, ADAPT_ADMIN_GROUP])).toBe('admin');
   });
 
-  it('lets a stored edit replace a configured group role by name', () => {
+  it('does not let a stored edit weaken a configured group role', () => {
     expect(
       mergeGroupRoleMappings(
         [{ groupName: ADAPT_ADMIN_GROUP, role: 'admin' }],
         [{ groupName: ADAPT_ADMIN_GROUP.toLowerCase(), role: 'consumer' }]
       )
-    ).toEqual([{ groupName: ADAPT_ADMIN_GROUP.toLowerCase(), role: 'consumer' }]);
+    ).toEqual([{ groupName: ADAPT_ADMIN_GROUP, role: 'admin' }]);
   });
 
   it('matches group and user names without case sensitivity', () => {
@@ -75,7 +75,7 @@ describe('ADAPT group roles', () => {
     await expect(adaptGroupRole(EMAIL, reader)).resolves.toBe('admin');
     expect(reader).toHaveBeenCalledTimes(1);
     expect(reader).toHaveBeenCalledWith('/api/2.0/preview/scim/v2/Users', {
-      filter: `userName eq ${EMAIL}`,
+      filter: `userName eq "${EMAIL}"`,
     });
   });
 
@@ -111,10 +111,10 @@ describe('ADAPT group roles', () => {
     } as AdminStore;
     const reader = vi.fn(() => Promise.resolve(scim(['existing-workspace-team'])));
     await expect(groupRoleLookupForStore(store, reader)(EMAIL)).resolves.toBe('admin');
-    expect(reader).toHaveBeenCalledWith('/api/2.0/preview/scim/v2/Users', { filter: `userName eq ${EMAIL}` });
+    expect(reader).toHaveBeenCalledWith('/api/2.0/preview/scim/v2/Users', { filter: `userName eq "${EMAIL}"` });
   });
 
-  it('applies a stored edit to a configured group during authorization', async () => {
+  it('keeps the configured admin group as an authorization floor', async () => {
     const store = {
       query: vi.fn(() =>
         Promise.resolve({
@@ -130,7 +130,7 @@ describe('ADAPT group roles', () => {
       ),
     } as AdminStore;
     const reader = vi.fn(() => Promise.resolve(scim([ADAPT_ADMIN_GROUP])));
-    await expect(groupRoleLookupForStore(store, reader)(EMAIL)).resolves.toBe('consumer');
+    await expect(groupRoleLookupForStore(store, reader)(EMAIL)).resolves.toBe('admin');
   });
 
   it('reuses one injected group answer throughout a request', async () => {

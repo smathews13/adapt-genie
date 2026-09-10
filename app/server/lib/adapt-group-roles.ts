@@ -32,6 +32,10 @@ function normalized(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLocaleLowerCase() : '';
 }
 
+function scimFilterLiteral(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 /** Read only group display names from one exact SCIM user result. */
 export function scimGroupNames(body: unknown, email: string): string[] {
   const resources = recordOf(body).Resources;
@@ -60,7 +64,12 @@ export function configuredGroupRoleMappings(): GroupRoleMapping[] {
   ];
 }
 
-/** Apply stored edits by group name while preserving configured row order. */
+/**
+ * Add operator-defined mappings without weakening either deployment access group.
+ *
+ * The configured admin group is an authorization floor, not an editable
+ * suggestion. A stale Lakebase row must never turn its members into consumers.
+ */
 export function mergeGroupRoleMappings(
   configured: readonly GroupRoleMapping[],
   stored: readonly GroupRoleMapping[]
@@ -68,7 +77,7 @@ export function mergeGroupRoleMappings(
   const merged = new Map(configured.map((mapping) => [normalized(mapping.groupName), { ...mapping }]));
   for (const mapping of stored) {
     const key = normalized(mapping.groupName);
-    if (key) merged.set(key, { groupName: mapping.groupName.trim(), role: mapping.role });
+    if (key && !merged.has(key)) merged.set(key, { groupName: mapping.groupName.trim(), role: mapping.role });
   }
   return [...merged.values()];
 }
@@ -109,7 +118,7 @@ export async function adaptGroupRole(
   const cached = groupRoleCache.get(key, now);
   if (cached !== undefined) return cached;
   try {
-    const body = await reader(SCIM_USERS_PATH, { filter: `userName eq ${email.trim()}` });
+    const body = await reader(SCIM_USERS_PATH, { filter: `userName eq ${scimFilterLiteral(email.trim())}` });
     const role = roleFromGroupMappings(scimGroupNames(body, email), mappings);
     groupRoleCache.set(key, role, now);
     return role;

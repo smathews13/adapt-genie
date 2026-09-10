@@ -34,7 +34,10 @@ export function blockMarkdown(block: Block): string {
       return `${'#'.repeat(block.level)} ${inlineMarkdown(block.children)}`;
     case 'list':
       return block.items
-        .map((item, index) => `${block.ordered ? `${index + 1}.` : '-'} ${inlineMarkdown(item.children)}`)
+        .map(
+          (item, index) =>
+            `${'  '.repeat(item.depth)}${block.ordered ? `${index + 1}.` : '-'} ${inlineMarkdown(item.children)}`
+        )
         .join('\n');
     case 'rule':
       return '---';

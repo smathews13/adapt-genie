@@ -11,6 +11,11 @@ env:
     valueFrom: postgres
   - name: DATABRICKS_SERVING_ENDPOINT_NAME
     valueFrom: serving-endpoint
+  # Ed25519 private key used only to sign short-lived Genie MCP capabilities.
+  # The value comes from ADAPT's dedicated Databricks secret resource and must
+  # never be logged, returned, or copied into Model Serving configuration.
+  - name: ADAPT_GENIE_MCP_SIGNING_PRIVATE_KEY
+    valueFrom: genie-mcp-signing-key
   # Foundation model the orchestrator calls. Empty in public source;
   # bundle/app-release.sh fills the target value. Git deploys fall back to
   # databricks-claude-sonnet-4-6 in Connections so the row is not blank.
@@ -60,7 +65,7 @@ env:
   - name: PLAYER_INSIGHTS_EXPERIMENT_PATH
     value: '/Shared/adapt-genie'
   - name: PLAYER_INSIGHTS_BUILD_SHA
-    value: '5dc73dea7a9f5b6d2e7a789df9fba2a886046c60'
+    value: 'a12a844f0ad141c718117063d87615158d006b1e'
   # Postgres schema the app creates and owns inside Lakebase. Safe to bake the
   # default: it is the same string in every workspace (`adapt`), and
   # matches var.lakebase_app_schema. bundle/app-release.sh overrides it from the
@@ -164,8 +169,8 @@ env:
   # list on its own Connections page.
   #
   - name: PLAYER_INSIGHTS_USER_API_SCOPES
-    value: 'serving.serving-endpoints,model-serving,sql,dashboards.genie,catalog.catalogs:read,catalog.schemas:read,catalog.tables:read,workspace.workspace:read,postgres'
+    value: 'serving.serving-endpoints,model-serving,sql,dashboards.genie,genie,catalog.catalogs:read,catalog.schemas:read,catalog.tables:read,workspace.workspace:read,postgres'
   - name: NODE_ENV
     value: production
   - name: PLAYER_INSIGHTS_BUILD_ANCESTORS
-    value: '5dc73dea7a9f5b6d2e7a789df9fba2a886046c60,0390b310e5759dd8c474fb531de3ed536151dbfe,8c71f34eb56d10ba63edd50ab352fcc1cdae0e11,4da4bd7b4ef5503d65c45ab769f5675ce1995fe0,2d8a59303b74c0a7ad1d1206257e016fd4a5ac66,b8664207b57e735a6d9a022e572bfc6066915adf,62925d983a76be3f622ddfce1de871a1039b2056,09d8b34a131099ac637823b0de094c7628329b90,a7a3308d69662eb5f34c4909b3ed429b882c67e2,073b1b22b5953f1f3db538ba03bcd737fc539c0b,99e4350b12eed0df7bb32f86becb9c04cadb22e7,8b9cb5d47023f461b68c18975d49f55b36f7b0b0'
+    value: 'a12a844f0ad141c718117063d87615158d006b1e,70087b1f1ea3d5f392c51c476f2c2f09c03aaaa7,5dc73dea7a9f5b6d2e7a789df9fba2a886046c60,0390b310e5759dd8c474fb531de3ed536151dbfe,8c71f34eb56d10ba63edd50ab352fcc1cdae0e11,4da4bd7b4ef5503d65c45ab769f5675ce1995fe0,2d8a59303b74c0a7ad1d1206257e016fd4a5ac66,b8664207b57e735a6d9a022e572bfc6066915adf,62925d983a76be3f622ddfce1de871a1039b2056,09d8b34a131099ac637823b0de094c7628329b90,a7a3308d69662eb5f34c4909b3ed429b882c67e2,073b1b22b5953f1f3db538ba03bcd737fc539c0b,99e4350b12eed0df7bb32f86becb9c04cadb22e7,8b9cb5d47023f461b68c18975d49f55b36f7b0b0'

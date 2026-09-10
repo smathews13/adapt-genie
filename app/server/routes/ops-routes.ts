@@ -446,6 +446,42 @@ export async function runStatement(input: {
   return { ok: true, rows: body.result?.data_array ?? [], message: '' };
 }
 
+/**
+ * Not every workspace exposes both serving usage system tables. Probe the
+ * combined view first, then retain whichever source this deployment supports
+ * instead of losing all foundation-model usage to one unavailable relation.
+ */
+export async function runFoundationCostQuery(input: {
+  ids: CostIdentifiers;
+  range: CostRange;
+  runs: readonly QuestionRunInput[];
+  host: string;
+  token: string;
+  warehouseId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<StatementOutcome> {
+  const failures: string[] = [];
+  for (const source of ['all', 'serving', 'gateway'] as const) {
+    const built = buildFoundationCostStatement(input.ids, input.range, input.runs, source);
+    if (!built) return { ok: false, rows: null, message: 'No configured foundation model is available.' };
+    const outcome = await runStatement({
+      host: input.host,
+      token: input.token,
+      warehouseId: input.warehouseId,
+      statement: built.statement,
+      parameters: built.parameters,
+      fetchImpl: input.fetchImpl,
+    });
+    if (outcome.ok) return outcome;
+    failures.push(`${source}: ${outcome.message}`);
+  }
+  return {
+    ok: false,
+    rows: null,
+    message: `Foundation-model usage could not be read from either supported system table (${failures.join('; ')}).`,
+  };
+}
+
 /** Where this app is, or '' when the container was told nothing. */
 export function host(): string {
   return normalizeWorkspaceHost(process.env.DATABRICKS_HOST);
@@ -1304,9 +1340,6 @@ async function readLifetimeSpendSnapshot(input: {
     input.ids.genieSpaces,
     genieActivity
   );
-  const foundationStatement = interactiveComplete
-    ? buildFoundationCostStatement(input.ids, effectiveRange, runs)
-    : null;
   const [queryAttribution, genieOutcome, foundationOutcome] = await Promise.all([
     warehouseQueryAttribution({
       host: input.workspace,
@@ -1328,13 +1361,14 @@ async function readLifetimeSpendSnapshot(input: {
           fetchImpl: input.fetchImpl,
         })
       : Promise.resolve({ ok: false as const, rows: [], message: 'No workspace id is configured for Genie billing.' }),
-    foundationStatement
-      ? runStatement({
+    interactiveComplete
+      ? runFoundationCostQuery({
+          ids: input.ids,
+          range: effectiveRange,
+          runs,
           host: input.workspace,
           token: input.token,
           warehouseId: input.warehouse,
-          statement: foundationStatement.statement,
-          parameters: foundationStatement.parameters,
           fetchImpl: input.fetchImpl,
         })
       : Promise.resolve({ ok: false as const, rows: [], message: 'Foundation-model evidence is incomplete.' }),
@@ -1944,9 +1978,6 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
 
       try {
         const genieStatement = buildGenieAccountingStatement(ids.workspaceId, range, ids.genieSpaces, genieAppActivity);
-        const foundationStatement = interactiveComplete
-          ? buildFoundationCostStatement(ids, range, questionRunsRead.runs)
-          : null;
         const recentMonthlyKey = [
           userEmail(req).toLowerCase(),
           ids.workspaceId,
@@ -1986,13 +2017,14 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
                 fetchImpl: deps.fetchImpl,
               })
             : Promise.resolve({ ok: false as const, message: 'No workspace id is configured for Genie billing.' }),
-          foundationStatement
-            ? runStatement({
+          interactiveComplete
+            ? runFoundationCostQuery({
+                ids,
+                range,
+                runs: questionRunsRead.runs,
                 host: billingWorkspace,
                 token: billingToken,
                 warehouseId: warehouse,
-                statement: foundationStatement.statement,
-                parameters: foundationStatement.parameters,
                 fetchImpl: deps.fetchImpl,
               })
             : Promise.resolve({

@@ -27,6 +27,8 @@ export interface FoundationBillingResult {
   complete: boolean;
 }
 
+export type FoundationUsageSource = 'all' | 'serving' | 'gateway';
+
 function finite(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -50,7 +52,8 @@ function text(value: unknown): string {
 export function buildFoundationCostStatement(
   ids: CostIdentifiers,
   range: CostRange,
-  runs: readonly QuestionRunInput[]
+  runs: readonly QuestionRunInput[],
+  usageSource: FoundationUsageSource = 'all'
 ): CostStatement | null {
   if (!ids.workspaceId || !ids.foundationModel) return null;
   const evidence = runs.map((run) => ({
@@ -61,17 +64,7 @@ export function buildFoundationCostStatement(
     started_at: run.startedAt ?? '',
     completed_at: run.completedAt,
   }));
-  const statement = `WITH run_evidence AS (
-  SELECT run.*
-  FROM EXPLODE(
-    FROM_JSON(
-      :interactive_runs_json,
-      'ARRAY<STRUCT<run_id:STRING,request_id:STRING,correlation_id:STRING,trace_id:STRING,started_at:STRING,completed_at:STRING>>'
-    )
-  ) AS source(run)
-),
-raw_model_requests AS (
-  SELECT
+  const servingRequests = `SELECT
     COALESCE(
       NULLIF(LOWER(TRIM(CAST(u.databricks_request_id AS STRING))), ''),
       CONCAT('anonymous:', CAST(u.request_time AS STRING), ':', CAST(u.served_entity_id AS STRING))
@@ -88,9 +81,8 @@ raw_model_requests AS (
         REGEXP_REPLACE(LOWER(:foundationModel), '[^a-z0-9]', '')
     AND u.request_time >= CAST(:from_day AS DATE)
     ${range.fromTimestamp ? 'AND u.request_time >= :from_instant' : ''}
-    AND u.request_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))
-  UNION ALL
-  SELECT
+    AND u.request_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))`;
+  const gatewayRequests = `SELECT
     COALESCE(
       NULLIF(LOWER(TRIM(CAST(u.invocation_id AS STRING))), ''),
       NULLIF(LOWER(TRIM(CAST(u.request_id AS STRING))), ''),
@@ -109,7 +101,26 @@ raw_model_requests AS (
     )
     AND u.event_time >= CAST(:from_day AS DATE)
     ${range.fromTimestamp ? 'AND u.event_time >= :from_instant' : ''}
-    AND u.event_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))
+    AND u.event_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))`;
+  const requestSources =
+    usageSource === 'serving'
+      ? servingRequests
+      : usageSource === 'gateway'
+        ? gatewayRequests
+        : `${servingRequests}
+  UNION ALL
+  ${gatewayRequests}`;
+  const statement = `WITH run_evidence AS (
+  SELECT run.*
+  FROM EXPLODE(
+    FROM_JSON(
+      :interactive_runs_json,
+      'ARRAY<STRUCT<run_id:STRING,request_id:STRING,correlation_id:STRING,trace_id:STRING,started_at:STRING,completed_at:STRING>>'
+    )
+  ) AS source(run)
+),
+raw_model_requests AS (
+  ${requestSources}
 ),
 model_requests AS (
   SELECT

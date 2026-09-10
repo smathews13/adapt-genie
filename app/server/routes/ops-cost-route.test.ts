@@ -6,6 +6,7 @@ import {
   GENIE_APP_ACTIVITY_QUERY,
   QUESTION_COST_RUNS_QUERY,
   RESOURCE_ACTIVITY_QUERY,
+  runFoundationCostQuery,
   setupOpsRoutes,
 } from './ops-routes';
 import type { InsightsAppKit } from './insights-routes';
@@ -59,6 +60,51 @@ afterEach(() => {
 });
 
 describe('the ranged cost route', () => {
+  it('falls back to the available foundation usage table', async () => {
+    const statements: string[] = [];
+    const fetchImpl = vi.fn((_input: string | URL | globalThis.Request, init?: RequestInit) => {
+      const statement = (JSON.parse(String(init?.body)) as { statement: string }).statement;
+      statements.push(statement);
+      const body =
+        statements.length === 1
+          ? { status: { state: 'FAILED', error: { message: 'TABLE_OR_VIEW_NOT_FOUND: system.ai_gateway.usage' } } }
+          : { status: { state: 'SUCCEEDED' }, result: { data_array: [] } };
+      return Promise.resolve(
+        new globalThis.Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+    });
+
+    await expect(
+      runFoundationCostQuery({
+        ids: {
+          appName: 'adapt',
+          endpointName: 'agent-endpoint',
+          foundationModel: 'databricks-claude-sonnet-4-6',
+          warehouseId: 'warehouse-1',
+          lakebaseEndpoint: 'lakebase-1',
+          genieSpaces: [],
+          workspaceId: 'workspace-1',
+          telemetryEnabled: false,
+          appBillingTag: 'matched',
+        },
+        range: { from: '2026-09-01', to: '2026-09-09' },
+        runs: [],
+        host: 'https://workspace.example.test',
+        token: 'app-token',
+        warehouseId: 'warehouse-1',
+        fetchImpl: fetchImpl as typeof fetch,
+      })
+    ).resolves.toMatchObject({ ok: true });
+    expect(statements).toHaveLength(2);
+    expect(statements[0]).toContain('system.serving.endpoint_usage');
+    expect(statements[0]).toContain('system.ai_gateway.usage');
+    expect(statements[1]).toContain('system.serving.endpoint_usage');
+    expect(statements[1]).not.toContain('system.ai_gateway.usage');
+  });
+
   it('attributes legacy Genie traces by configured space without double-counting current resource calls', () => {
     expect(RESOURCE_ACTIVITY_QUERY).toContain("trace->'genie_spaces'");
     expect(RESOURCE_ACTIVITY_QUERY).toContain("space->>'id' = c.resource_id");

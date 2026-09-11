@@ -19,7 +19,6 @@ import {
 
 const SAVED = {
   ...DEFAULT_RUNTIME_SETTINGS,
-  loop: { maxSteps: 10, maxToolCalls: 15, maxRunSeconds: 200 },
   answer: {
     ...DEFAULT_RUNTIME_SETTINGS.answer,
     takeawayGuidance: 'Test',
@@ -32,25 +31,21 @@ afterEach(() => {
 });
 
 describe('live runtime settings', () => {
-  it('publishes a saved 200s budget to subscribers Architecture reads', () => {
-    const seen: number[] = [];
+  it('publishes saved answer settings to subscribers', () => {
+    const seen: string[] = [];
     const stop = subscribeLiveRuntimeSettings(() => {
-      seen.push(recalledLiveRuntimeSettings()?.loop.maxRunSeconds ?? 0);
+      seen.push(recalledLiveRuntimeSettings()?.answer.takeawayGuidance ?? '');
     });
     rememberLiveRuntimeSettings(SAVED);
     stop();
-    expect(seen).toEqual([200]);
-    expect(recalledLiveRuntimeSettings()?.loop).toEqual({
-      maxSteps: 10,
-      maxToolCalls: 15,
-      maxRunSeconds: 200,
-    });
+    expect(seen).toEqual(['Test']);
+    expect(recalledLiveRuntimeSettings()).not.toHaveProperty('loop');
     expect(recalledLiveRuntimeSettings()?.answer.takeawayGuidance).toBe('Test');
   });
 
-  it('treats Appearance Save as the same row Architecture will draw', () => {
+  it('remembers the same row Appearance applies', () => {
     adoptRuntimeEntityStyles(SAVED, { setProperty: vi.fn() });
-    expect(recalledLiveRuntimeSettings()?.loop.maxRunSeconds).toBe(200);
+    expect(recalledLiveRuntimeSettings()?.answer.takeawayGuidance).toBe('Test');
   });
 
   it('reuses the remembered row instead of refetching after Save', async () => {

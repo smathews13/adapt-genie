@@ -36,9 +36,11 @@ export interface PlotlyFigureProps {
   /** Used for the accessible name, since a canvas-like plot has no readable text. */
   title: string;
   height: number;
+  /** Plotly reports draw failures asynchronously, outside React error boundaries. */
+  onRenderFailure?: (error: unknown) => void;
 }
 
-export default function PlotlyFigure({ data, layout, kind, title, height }: PlotlyFigureProps) {
+export default function PlotlyFigure({ data, layout, kind, title, height, onRenderFailure }: PlotlyFigureProps) {
   const host = useRef<HTMLDivElement | null>(null);
   /**
    * The paint, read from the document rather than passed down.
@@ -76,14 +78,27 @@ export default function PlotlyFigure({ data, layout, kind, title, height }: Plot
     // `react` rather than `newPlot`: it diffs against what is already drawn, so a
     // re-render from a parent state change does not tear the chart down and rebuild it.
     // One call site, so the reviewed config object cannot be bypassed by a second one.
+    let active = true;
+    let failed = false;
+    const reportFailure = (error: unknown) => {
+      if (!active || failed) return;
+      failed = true;
+      console.error('[charts] Plotly rejected a chart specification:', error);
+      onRenderFailure?.(error);
+    };
     let measuredWidth = element.clientWidth || 640;
     const paint = () => {
+      if (failed) return;
       // Theme and geometry are both applied to a copy. Width is the actual chart box,
       // not the window: opening a rail can halve this column without resizing either.
       const figure = layoutFigure({ kind, data, layout }, theme, { width: measuredWidth, height });
       const drawnHeight = typeof figure.layout.height === 'number' ? figure.layout.height : height;
       if (element.style.height !== `${drawnHeight}px`) element.style.height = `${drawnHeight}px`;
-      void Plotly.react(element, figure.data, figure.layout, FIGURE_CONFIG);
+      try {
+        void Promise.resolve(Plotly.react(element, figure.data, figure.layout, FIGURE_CONFIG)).catch(reportFailure);
+      } catch (error) {
+        reportFailure(error);
+      }
     };
 
     paint();
@@ -125,13 +140,14 @@ export default function PlotlyFigure({ data, layout, kind, title, height }: Plot
     observer.observe(element);
 
     return () => {
+      active = false;
       observer.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
       // Plotly attaches listeners and a WebGL-free canvas stack outside React's tree, so
       // dropping the node without purging leaks both.
       Plotly.purge(element);
     };
-  }, [data, layout, kind, height, theme]);
+  }, [data, layout, kind, height, onRenderFailure, theme]);
 
   // `role="img"` with the chart's own title: Plotly draws into SVG whose text nodes read
   // as a stream of disconnected axis labels, so the panel announces itself once instead.

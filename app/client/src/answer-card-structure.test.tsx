@@ -118,7 +118,7 @@ describe('answer evidence variants', () => {
   it('renders charts and folds the Markdown table away when a chart exists', () => {
     const markup = card(
       answer({
-        charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [], layout: {} }],
+        charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [{ x: ['Mon'], y: [10] }], layout: {} }],
       })
     );
     expect(markup).toContain('Daily sessions');
@@ -139,7 +139,7 @@ describe('answer evidence variants', () => {
      */
     const markup = card(
       answer({
-        charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [], layout: {} }],
+        charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [{ x: ['Mon'], y: [10] }], layout: {} }],
       })
     );
     expect(markup).toContain('Show the rows behind this');
@@ -166,7 +166,10 @@ describe('answer evidence variants', () => {
      */
     const evidenceSource = readFileSync(new URL('./AnswerEvidence.tsx', import.meta.url), 'utf8');
     const chartSource = readFileSync(new URL('./AnswerCharts.tsx', import.meta.url), 'utf8');
+    const plotlySource = readFileSync(new URL('./PlotlyFigure.tsx', import.meta.url), 'utf8');
     expect(chartSource).toContain('this.props.onFailure?.()');
+    expect(chartSource).toContain('onRenderFailure={reportFailure}');
+    expect(plotlySource).toContain('.catch(reportFailure)');
     expect(evidenceSource).toContain('onFailure={() => setShowRows(true)}');
   });
 

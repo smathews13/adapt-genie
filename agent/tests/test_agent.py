@@ -28,9 +28,8 @@ from agent import (
     ATTACHMENT_END,
     MAX_FIGURES,
     MAX_STAGE_CHARS,
-    MAX_TOOL_CALLS,
-    MAX_TOOL_STEPS,
     MAX_TRACE_CHARS,
+    MODEL_CALL_TIMEOUT_SECONDS,
     SYNTHESIS_INSTRUCTIONS,
     SYNTHESIS_PROVENANCE_RULE,
     PlayerInsightsResponsesAgent,
@@ -238,13 +237,6 @@ class ScriptedLlm:
         if self.usage is not None:
             usage = SimpleNamespace(**self.usage)
         return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
-
-
-class LoopingLlm(ScriptedLlm):
-    """A model that never stops asking for tools. What the step ceiling is for."""
-
-    def _loop_turn(self):
-        return self._message(tool_calls=[Call("data_genie", {"question": "again"})])
 
 
 class FakeTools:
@@ -1138,31 +1130,7 @@ def test_an_unknown_tool_name_is_reported_to_the_model_not_raised():
 # ---------------------------------------------------------------------------
 
 
-def test_the_step_ceiling_stops_the_loop_and_still_produces_an_answer():
-    """The bound that matters most: a model that keeps calling tools cannot spin.
-
-    At the ceiling the loop stops OFFERING tools and asks for a closing answer, so
-    a capped run degrades to an answer that names its own gap rather than to a
-    dropped turn.
-    """
-
-    tools = FakeTools()
-    llm = LoopingLlm()
-
-    response = ask(build(llm, tools))
-
-    assert response.custom_outputs["type"] == "answer"
-    answer = response.custom_outputs["answer"]
-    assert len(llm.loop_calls) == MAX_TOOL_STEPS
-    assert len(tools.named("data_genie")) <= MAX_TOOL_CALLS
-    cap = next(stage for stage in stages(response) if stage["id"] == "cap")
-    assert cap["status"] == "partial"
-    assert "stopped early" in answer["caveats"][0]
-    assert str(MAX_TOOL_CALLS) in answer["caveats"][0] or "step" in answer["caveats"][0]
-
-
-def test_the_tool_call_budget_bounds_one_turn_that_asks_for_everything_at_once():
-    """A step cap alone would not bound this: the calls are all in one turn."""
+def test_one_turn_can_run_every_requested_tool_without_a_call_count_budget():
 
     tools = FakeTools()
     llm = ScriptedLlm(
@@ -1172,27 +1140,28 @@ def test_the_tool_call_budget_bounds_one_turn_that_asks_for_everything_at_once()
 
     response = ask(build(llm, tools))
 
-    assert len(tools.named("data_genie")) < 30
-    assert len(tools.named("data_genie")) <= MAX_TOOL_CALLS
+    assert len(tools.named("data_genie")) == 30
     assert response.custom_outputs["type"] == "answer"
-    assert any(
-        message.get("role") == "tool" and "budget" in str(message.get("content"))
-        for message in llm.transcript
-    )
+    assert not any("tool-call budget" in str(message.get("content")) for message in llm.transcript)
 
 
-def test_request_loop_settings_bound_the_next_analysis_run():
+def test_retired_loop_settings_do_not_limit_the_next_analysis_run():
     tools = FakeTools()
-    llm = LoopingLlm()
+    llm = ScriptedLlm(
+        [Call("data_genie", {"question": "first"})],
+        [Call("data_genie", {"question": "second"})],
+        "Enough was gathered.",
+    )
 
     response = ask(
         build(llm, tools),
         runtime_settings={"loop": {"maxSteps": 1, "maxToolCalls": 1, "maxRunSeconds": 30}},
     )
 
-    assert len(llm.loop_calls) == 1
-    assert len(tools.named("data_genie")) == 1
-    assert "stopped early" in response.custom_outputs["answer"]["caveats"][0]
+    assert len(llm.loop_calls) == 3
+    assert len(tools.named("data_genie")) == 2
+    assert response.custom_outputs["type"] == "answer"
+    assert all(call["timeout"] == MODEL_CALL_TIMEOUT_SECONDS for call in llm.loop_calls)
 
 
 def test_reasoning_client_disables_hidden_sdk_retries(monkeypatch):
@@ -1207,34 +1176,6 @@ def test_reasoning_client_disables_hidden_sdk_retries(monkeypatch):
 
     assert runtime._build_llm_client() is bounded
     assert options == [{"max_retries": 0}]
-
-
-def test_the_wall_clock_budget_stops_a_turn_of_slow_calls():
-    """Eighteen seconds per Genie call means the step cap alone permits minutes.
-
-    The deadline is what keeps a turn inside the request timeout, so it is checked
-    against a clock the test controls rather than by waiting.
-    """
-
-    tools = FakeTools()
-    runtime = build(LoopingLlm(), tools)
-    # The run believes it started past this request's 30-second budget, so no new
-    # call may start.
-    original = runtime._orchestrate
-
-    def orchestrate(question, history, attachment, log, **kwargs):
-        log.started -= 31.0
-        return original(question, history, attachment, log, **kwargs)
-
-    runtime._orchestrate = orchestrate
-    response = ask(
-        runtime,
-        runtime_settings={"loop": {"maxSteps": 12, "maxToolCalls": 12, "maxRunSeconds": 30}},
-    )
-
-    assert tools.named("data_genie") == []
-    assert response.custom_outputs["type"] == "answer"
-    assert "budget" in response.custom_outputs["answer"]["caveats"][0]
 
 
 def test_request_answer_settings_change_the_next_answer():
@@ -1541,7 +1482,13 @@ def test_the_whole_trace_stays_inside_its_budget():
 
     chunk = "y" * MAX_STAGE_CHARS
     tools = FakeTools(data_genie=ToolResult(text=chunk, sources=[ACTIVITY]))
-    llm = LoopingLlm()
+    llm = ScriptedLlm(
+        *[
+            [Call("data_genie", {"question": f"everything-{index}"})]
+            for index in range(20)
+        ],
+        "Done.",
+    )
 
     recorded = stages(ask(build(llm, tools)))
     total = sum(len(stage["input"]) + len(stage["output"]) for stage in recorded)
@@ -2913,10 +2860,9 @@ def test_no_deployment_of_ours_is_named_in_any_answer_this_suite_produces():
         [Call("data_genie", {"question": "figures"})],
         "8,413 active players in the latest 30-day window.",
     )
-    capped = ask(build(LoopingLlm()))
     normal = ask(build(llm))
 
-    for response in (normal, capped):
+    for response in (normal,):
         prose = reader_facing(response.custom_outputs["answer"])
         for name in INTERNAL_NAMES:
             assert name not in prose

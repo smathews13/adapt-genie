@@ -18,6 +18,7 @@ readable and keeps the client's rendering surface small enough to test.
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -324,6 +325,40 @@ def _point_count(trace: dict[str, Any]) -> int:
     return max(lengths) if lengths else 0
 
 
+def _measurement(value: Any) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        number = float(value)
+        return number if math.isfinite(number) else None
+    if isinstance(value, str) and value.strip():
+        try:
+            number = float(value)
+            return number if math.isfinite(number) else None
+        except ValueError:
+            return None
+    return None
+
+
+def _has_renderable_measurement(trace: dict[str, Any]) -> bool:
+    trace_type = _trace_type(trace)
+    if trace_type == "pie":
+        key = "values"
+    elif trace_type == "histogram":
+        key = "x"
+    elif trace_type == "bar" and str(trace.get("orientation") or "").lower() == "h":
+        key = "x"
+    else:
+        key = "y"
+    values = trace.get(key)
+    if not isinstance(values, list):
+        return False
+    measured = [_measurement(value) for value in values]
+    if trace_type in {"bar", "pie"}:
+        return any(value is not None and value != 0 for value in measured)
+    return any(value is not None for value in measured)
+
+
 def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Deep-merge `override` over `base`. Anything the model set wins."""
 
@@ -391,8 +426,10 @@ def _validate(data: Any, layout: dict[str, Any]) -> list[dict[str, Any]]:
                 f"a trace carries {count:,} points, over the {MAX_POINTS_PER_TRACE:,} limit; "
                 "aggregate the result set before plotting it."
             )
-    if not any(_point_count(trace) for trace in traces):
-        raise EmptyChartError("no trace carried any data points, so there was nothing to draw")
+    if not any(_has_renderable_measurement(trace) for trace in traces):
+        raise EmptyChartError(
+            "no trace carried a measurable data point, so there was nothing to draw"
+        )
     return traces
 
 
@@ -424,6 +461,8 @@ def _semantic_spec(spec: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if kind in {"bar", "line", "scatter"}:
             if not isinstance(item.get("x"), list) or not isinstance(item.get("y"), list):
                 raise ChartError(f"Each {kind} series must include x and y lists.")
+            if len(item["x"]) != len(item["y"]):
+                raise ChartError(f"Each {kind} series must have the same number of x and y values.")
             trace.update({"type": "scatter" if kind in {"line", "scatter"} else "bar"})
             trace.update({"x": item["x"], "y": item["y"]})
             if kind == "line":
@@ -433,6 +472,8 @@ def _semantic_spec(spec: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         elif kind == "pie":
             if not isinstance(item.get("labels"), list) or not isinstance(item.get("values"), list):
                 raise ChartError("Each pie series must include labels and values lists.")
+            if len(item["labels"]) != len(item["values"]):
+                raise ChartError("Each pie series must have the same number of labels and values.")
             trace.update({"type": "pie", "labels": item["labels"], "values": item["values"]})
         else:
             values = item.get("values")

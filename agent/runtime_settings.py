@@ -16,13 +16,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @dataclass(frozen=True)
-class LoopSettings:
-    max_steps: int = 12
-    max_tool_calls: int = 12
-    max_run_seconds: int = 180
-
-
-@dataclass(frozen=True)
 class AnswerSettings:
     takeaway: bool = True
     narrative: bool = True
@@ -49,14 +42,12 @@ class BehaviorSettings:
 
 @dataclass(frozen=True)
 class RuntimeSettings:
-    loop: LoopSettings = LoopSettings()
     answer: AnswerSettings = AnswerSettings()
     behavior: BehaviorSettings = BehaviorSettings()
 
 
 _current: ContextVar[RuntimeSettings | None] = ContextVar("runtime_settings", default=None)
 _turn_started: ContextVar[float] = ContextVar("turn_started", default=0.0)
-_turn_deadline: ContextVar[float] = ContextVar("turn_deadline", default=0.0)
 
 
 def _integer(value: Any, default: int, low: int, high: int) -> int:
@@ -86,9 +77,7 @@ def activate(custom_inputs: dict[str, Any]) -> RuntimeSettings:
         value = RuntimeSettings()
         _current.set(value)
         _turn_started.set(started)
-        _turn_deadline.set(started + value.loop.max_run_seconds)
         return value
-    loop = raw.get("loop") if isinstance(raw.get("loop"), dict) else {}
     answer = raw.get("answer") if isinstance(raw.get("answer"), dict) else {}
     behavior = raw.get("behavior") if isinstance(raw.get("behavior"), dict) else {}
     sources = answer.get("sources")
@@ -102,11 +91,6 @@ def activate(custom_inputs: dict[str, Any]) -> RuntimeSettings:
         except ZoneInfoNotFoundError:
             timezone = ""
     value = RuntimeSettings(
-        loop=LoopSettings(
-            max_steps=_integer(loop.get("maxSteps"), 12, 1, 20),
-            max_tool_calls=_integer(loop.get("maxToolCalls"), 12, 1, 40),
-            max_run_seconds=_integer(loop.get("maxRunSeconds"), 180, 30, 180),
-        ),
         answer=AnswerSettings(
             takeaway=_boolean(answer.get("takeaway"), True),
             narrative=_boolean(answer.get("narrative"), True),
@@ -143,7 +127,6 @@ def activate(custom_inputs: dict[str, Any]) -> RuntimeSettings:
     )
     _current.set(value)
     _turn_started.set(started)
-    _turn_deadline.set(started + value.loop.max_run_seconds)
     return value
 
 
@@ -155,15 +138,6 @@ def turn_started() -> float:
     """The one monotonic origin for this request's execution budget."""
 
     return _turn_started.get() or time.perf_counter()
-
-
-def remaining_seconds() -> float:
-    """Time left on the single request deadline, never negative."""
-
-    deadline = _turn_deadline.get()
-    if not deadline:
-        return float(current().loop.max_run_seconds)
-    return max(0.0, deadline - time.perf_counter())
 
 
 def today_line(timezone: str = "", *, now: datetime | None = None) -> str:

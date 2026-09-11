@@ -9,7 +9,6 @@ import {
   RUNTIME_BEHAVIOR_KEYS,
   RUNTIME_ENTITY_KINDS,
   RUNTIME_ENTITY_STYLE_KEYS,
-  RUNTIME_LOOP_KEYS,
   RUNTIME_SETTINGS_KEYS,
   TABLE_STYLE_IDS,
   THEME_FONT_COLORS,
@@ -30,7 +29,6 @@ export {
   RUNTIME_BEHAVIOR_KEYS,
   RUNTIME_ENTITY_KINDS,
   RUNTIME_ENTITY_STYLE_KEYS,
-  RUNTIME_LOOP_KEYS,
   RUNTIME_SETTINGS_KEYS,
   TABLE_STYLE_IDS,
   THEME_FONT_COLORS,
@@ -75,11 +73,14 @@ export const RuntimeEntityStylesObjectSchema = z.strictObject(
  * schema at a network or persistence boundary.
  */
 export const RuntimeSettingsObjectSchema = z.strictObject({
-  loop: z.strictObject({
-    maxSteps: z.number().int().min(1).max(20),
-    maxToolCalls: z.number().int().min(1).max(40),
-    maxRunSeconds: z.number().int().min(30).max(200),
-  }),
+  loop: z
+    .strictObject({
+      // Accepted only to validate and remove settings saved by older builds.
+      maxSteps: z.number().int().min(1).max(20).optional(),
+      maxToolCalls: z.number().int().min(1).max(40).optional(),
+      maxRunSeconds: z.number().int().min(30).max(200).optional(),
+    })
+    .optional(),
   answer: z.strictObject({
     takeaway: z.boolean(),
     narrative: z.boolean(),
@@ -114,7 +115,7 @@ export const RuntimeSettingsObjectSchema = z.strictObject({
   tableStyle: z.enum(TABLE_STYLE_IDS).default('polished'),
 });
 
-export const RuntimeSettingsSchema = RuntimeSettingsObjectSchema.transform((settings) => ({
+export const RuntimeSettingsSchema = RuntimeSettingsObjectSchema.transform(({ loop: _retired, ...settings }) => ({
   ...settings,
   fontBodyColor: settings.fontBodyColor ?? THEME_FONT_COLORS[settings.colorScheme].body,
   fontMutedColor: settings.fontMutedColor ?? THEME_FONT_COLORS[settings.colorScheme].muted,
@@ -129,59 +130,61 @@ export type RuntimeSettings = z.infer<typeof RuntimeSettingsSchema>;
  * tolerant: an older server refuses a field it cannot validate, and an older
  * client cannot erase a newer field already held in Postgres.
  */
-export const RuntimeSettingsPatchSchema = z.strictObject({
-  loop: z
-    .strictObject({
-      maxSteps: z.number().int().min(1).max(20).optional(),
-      maxToolCalls: z.number().int().min(1).max(40).optional(),
-      maxRunSeconds: z.number().int().min(30).max(200).optional(),
-    })
-    .optional(),
-  answer: z
-    .strictObject({
-      takeaway: z.boolean().optional(),
-      narrative: z.boolean().optional(),
-      charts: z.boolean().optional(),
-      figures: z.boolean().optional(),
-      caveats: z.boolean().optional(),
-      maxCharts: z.number().int().min(0).max(6).optional(),
-      maxFigures: z.number().int().min(0).max(12).optional(),
-      maxCaveats: z.number().int().min(0).max(20).optional(),
-      narrativeMaxCharacters: z.number().int().min(0).max(12_000).optional(),
-      sources: z.enum(['compact', 'standard', 'detailed']).optional(),
-      takeawayGuidance: z.string().trim().max(2_000).optional(),
-      narrativeGuidance: z.string().trim().max(2_000).optional(),
-      figuresOrder: z.enum(['as-ranked', 'totals-first', 'averages-first']).optional(),
-      chartsTypes: z.enum(['auto', 'bar', 'bar-line']).optional(),
-    })
-    .optional(),
-  behavior: z
-    .strictObject({
-      clarification: z.enum(['strict', 'balanced', 'proceed-with-caveat']).optional(),
-      timezone: z.string().trim().max(80).optional(),
-      injectCurrentDate: z.boolean().optional(),
-    })
-    .optional(),
-  colorScheme: z.enum(['dark', 'light']).optional(),
-  entityStyles: z
-    .strictObject({
-      catalog: EntityStyleSchema.partial().optional(),
-      schema: EntityStyleSchema.partial().optional(),
-      table: EntityStyleSchema.partial().optional(),
-      column: EntityStyleSchema.partial().optional(),
-      quote: EntityStyleSchema.partial().optional(),
-      tag: EntityStyleSchema.partial().optional(),
-    })
-    .optional(),
-  fontBodyColor: HexColorSchema.optional(),
-  fontMutedColor: HexColorSchema.optional(),
-  fontFamily: z.enum(FONT_FAMILY_IDS).optional(),
-  fontSize: z.enum(FONT_SIZE_IDS).optional(),
-  backgroundGraphics: z.boolean().optional(),
-  animations: z.boolean().optional(),
-  density: z.enum(DENSITY_IDS).optional(),
-  tableStyle: z.enum(TABLE_STYLE_IDS).optional(),
-});
+export const RuntimeSettingsPatchSchema = z
+  .strictObject({
+    loop: z
+      .strictObject({
+        maxSteps: z.number().int().min(1).max(20).optional(),
+        maxToolCalls: z.number().int().min(1).max(40).optional(),
+        maxRunSeconds: z.number().int().min(30).max(200).optional(),
+      })
+      .optional(),
+    answer: z
+      .strictObject({
+        takeaway: z.boolean().optional(),
+        narrative: z.boolean().optional(),
+        charts: z.boolean().optional(),
+        figures: z.boolean().optional(),
+        caveats: z.boolean().optional(),
+        maxCharts: z.number().int().min(0).max(6).optional(),
+        maxFigures: z.number().int().min(0).max(12).optional(),
+        maxCaveats: z.number().int().min(0).max(20).optional(),
+        narrativeMaxCharacters: z.number().int().min(0).max(12_000).optional(),
+        sources: z.enum(['compact', 'standard', 'detailed']).optional(),
+        takeawayGuidance: z.string().trim().max(2_000).optional(),
+        narrativeGuidance: z.string().trim().max(2_000).optional(),
+        figuresOrder: z.enum(['as-ranked', 'totals-first', 'averages-first']).optional(),
+        chartsTypes: z.enum(['auto', 'bar', 'bar-line']).optional(),
+      })
+      .optional(),
+    behavior: z
+      .strictObject({
+        clarification: z.enum(['strict', 'balanced', 'proceed-with-caveat']).optional(),
+        timezone: z.string().trim().max(80).optional(),
+        injectCurrentDate: z.boolean().optional(),
+      })
+      .optional(),
+    colorScheme: z.enum(['dark', 'light']).optional(),
+    entityStyles: z
+      .strictObject({
+        catalog: EntityStyleSchema.partial().optional(),
+        schema: EntityStyleSchema.partial().optional(),
+        table: EntityStyleSchema.partial().optional(),
+        column: EntityStyleSchema.partial().optional(),
+        quote: EntityStyleSchema.partial().optional(),
+        tag: EntityStyleSchema.partial().optional(),
+      })
+      .optional(),
+    fontBodyColor: HexColorSchema.optional(),
+    fontMutedColor: HexColorSchema.optional(),
+    fontFamily: z.enum(FONT_FAMILY_IDS).optional(),
+    fontSize: z.enum(FONT_SIZE_IDS).optional(),
+    backgroundGraphics: z.boolean().optional(),
+    animations: z.boolean().optional(),
+    density: z.enum(DENSITY_IDS).optional(),
+    tableStyle: z.enum(TABLE_STYLE_IDS).optional(),
+  })
+  .transform(({ loop: _retired, ...patch }) => patch);
 
 export function parseRuntimeSettings(value: unknown): RuntimeSettings {
   return RuntimeSettingsSchema.parse(value);
@@ -210,7 +213,6 @@ export function parseStoredRuntimeSettings(value: unknown): RuntimeSettings {
   const source = storedObject(value);
   if (!source) return RuntimeSettingsSchema.parse(value);
   const known = knownStoredKeys(source, RUNTIME_SETTINGS_KEYS) as Record<string, unknown>;
-  known.loop = knownStoredKeys(source.loop, RUNTIME_LOOP_KEYS);
   known.answer = knownStoredKeys(source.answer, RUNTIME_ANSWER_KEYS);
   known.behavior = knownStoredKeys(source.behavior, RUNTIME_BEHAVIOR_KEYS);
   const styles = storedObject(source.entityStyles);

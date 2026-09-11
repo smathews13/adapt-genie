@@ -133,12 +133,12 @@ variables:
   app_admin_group:
     description: >-
       Workspace group granted CAN_MANAGE on the App and mapped to ADAPT's admin
-      role floor. Override for customers that do not use the the customer group.
+      role floor. Override for customers that do not use the Take-Two group.
     default: S_TK2_Databricks_Adapt_Genie_Admins
   app_user_group:
     description: >-
       Workspace group granted CAN_USE on the App and mapped to ADAPT's consumer
-      role. Override for customers that do not use the the customer group.
+      role. Override for customers that do not use the Take-Two group.
     default: S_TK2_Databricks_Adapt_Genie_Users
   shared_conversation_rail:
     description: >-

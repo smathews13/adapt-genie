@@ -1,20 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
-import { ArchitectureCanvas, ArchitecturePage, ChainBoundTiles } from './ArchitecturePage';
-import { AGENT_CHAIN, CHAIN_BOUND_LABEL, CHAIN_BOUNDS } from './agent-chain';
+import { ArchitectureCanvas, ArchitecturePage } from './ArchitecturePage';
+import { AGENT_CHAIN } from './agent-chain';
 import { ARCHITECTURE_EDGES, ARCHITECTURE_NODES, dependencyNodes } from './architecture';
-import { ARCHITECTURE_CONTROL_SCOPES } from './architecture-control-scopes';
 import { BOTTOM_ROW_NODES, NODE_BOXES, drawnEdges, pathEnds } from './architecture-layout';
 import { readConnections, readingsById, type SettingsPayload } from './connection-model';
 import { connectedResource } from '../../shared/deployment-config';
 import type { PreflightCheck } from './preflight';
-
-const PAGE_SOURCE = readFileSync(fileURLToPath(new URL('./ArchitecturePage.tsx', import.meta.url)), 'utf8');
-const RUNTIME_PANEL = readFileSync(fileURLToPath(new URL('./RuntimeSettingsPanel.tsx', import.meta.url)), 'utf8');
 
 function row(id: string, over: Record<string, unknown> = {}) {
   return {
@@ -201,25 +195,6 @@ describe('the simplified chain and rails stay in sync', () => {
     expect(markup).not.toContain('data-rail="contract"');
     expect(markup).not.toContain('answer-contract-settings');
   });
-
-  it('keeps runtime loop settings out of the architecture page', () => {
-    const markup = pageMarkup();
-    for (const bound of CHAIN_BOUNDS) {
-      expect(text(markup)).not.toContain(CHAIN_BOUND_LABEL[bound]);
-    }
-    expect(PAGE_SOURCE).not.toContain('useLiveRuntimeSettings');
-    expect(RUNTIME_PANEL).not.toContain(CHAIN_BOUND_LABEL.maxSteps);
-  });
-
-  it('renders each loop bound as a keyboard-reachable scope toggle', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <ChainBoundTiles loop={{ maxSteps: 12, maxToolCalls: 9, maxRunSeconds: 90 }} />
-      </MemoryRouter>
-    );
-    expect(markup.match(/class="arch-bound-tile"/g)).toHaveLength(CHAIN_BOUNDS.length);
-    expect(markup.match(/type="button"/g)).toHaveLength(CHAIN_BOUNDS.length);
-  });
 });
 
 describe('the simplified geometry reaches the intended cards', () => {
@@ -248,18 +223,5 @@ describe('the simplified geometry reaches the intended cards', () => {
     const ends = pathEnds(edge.d);
     expect(edge.d).toContain(' V ');
     expect(ends.start.x).toBe(ends.end.x);
-  });
-
-  it('marks exactly the selected runtime scope', () => {
-    const active = 'maxToolCalls';
-    const scope = ARCHITECTURE_CONTROL_SCOPES[active];
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <ArchitectureCanvas activeBound={active} byResource={deployment()} now={Date.now()} payload={null} />
-      </MemoryRouter>
-    );
-    for (const node of ARCHITECTURE_NODES) {
-      expect(card(markup, node.id).includes('data-control-active="true"'), node.id).toBe(scope.nodes.includes(node.id));
-    }
   });
 });

@@ -52,7 +52,7 @@ model, `/Shared/adapt-genie` for the MLflow experiment, and
 `system_billing=adapt` for billable ADAPT resources. The existing model schema
 is attached rather than managed by the bundle. The customer bundle declares
 only the resources ADAPT uses.
-`app_admin_group` and `app_user_group` default to the the customer ADAPT groups and
+`app_admin_group` and `app_user_group` default to the Take-Two ADAPT groups and
 must be overridden together for a different customer's workspace.
 `watchlist_table` must be the three-part Steam sales table for the target
 workspace (`DATE`, `TITLE_ROLL_UP_DESC`, `NET_REV_USD_AMT`, `UNIT_QTY`); the

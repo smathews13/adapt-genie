@@ -47,7 +47,9 @@ describe('conversation message pages', () => {
       { messages: [message(2), message(3)], nextCursor: 'oldest', hasMore: true },
       { messages: [message(0), message(1)], nextCursor: null, hasMore: false },
     ];
-    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(new Response(JSON.stringify(pages.shift()))));
+    const fetcher = vi.fn((_url: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(new Response(JSON.stringify(pages.shift())))
+    );
     const all = await readAllConversationMessages('shared/conversation', { fetcher, limit: 2 });
     expect(all.map((entry) => entry.id)).toEqual(Array.from({ length: 6 }, (_, index) => message(index).id));
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([

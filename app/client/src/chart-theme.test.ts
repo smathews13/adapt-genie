@@ -630,7 +630,7 @@ describe('the theme is read off the document, and re-read when it changes', () =
     // The dependency list is the whole mechanism: without `theme` in it the
     // observer would fire, state would change, and the figure on screen would
     // keep its old paint.
-    expect(PLOT_SOURCE).toContain('}, [data, layout, kind, height, theme]);');
+    expect(PLOT_SOURCE).toContain('}, [data, layout, kind, height, onRenderFailure, theme]);');
   });
 });
 

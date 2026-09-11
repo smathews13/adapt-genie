@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui';
 import { ChevronDown } from 'lucide-react';
 import { AnswerCharts } from './AnswerCharts';
+import { renderableCharts } from './answer-chart-data';
 import { AnswerProse } from './DataEntityLinks';
 import { carriesTable } from './answer-markdown';
 import { tableOriginMaps } from './answer-table-origins';
@@ -41,7 +42,8 @@ export function AnswerEvidence({
    * is a reason to show the numbers, not a reason to take the choice away.
    */
   const [showRows, setShowRows] = useState(false);
-  const hasCharts = Array.isArray(charts) && charts.length > 0;
+  const visibleCharts = renderableCharts(charts);
+  const hasCharts = visibleCharts.length > 0;
   const hasTables = carriesTable(narrative, content);
   if (!hasCharts && !hasTables) return null;
   const [narrativeOrigins, contentOrigins] = tableOriginMaps([narrative, content], sources);
@@ -67,7 +69,7 @@ export function AnswerEvidence({
   );
   return (
     <section className="answer-evidence" aria-label={hasCharts ? 'Chart evidence' : 'Table evidence'}>
-      {hasCharts ? <AnswerCharts charts={charts} sources={sources} onFailure={() => setShowRows(true)} /> : null}
+      {hasCharts ? <AnswerCharts charts={visibleCharts} sources={sources} onFailure={() => setShowRows(true)} /> : null}
       {hasCharts && hasTables ? (
         <Collapsible open={showRows} onOpenChange={setShowRows}>
           <CollapsibleTrigger asChild>

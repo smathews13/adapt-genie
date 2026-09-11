@@ -34,7 +34,7 @@ describe('account feedback targets', () => {
     const targets = accountFeedbackTargetsFromEnv({});
     expect(targets.github).toEqual({
       label: 'GitHub issue',
-      url: 'https://github.com/smathews13/adapt-genie/issues/new',
+      url: 'https://github.com/manish-namburi_data/adapt-genie/issues/new',
     });
     expect(targets.slack).toBeNull();
     expect(targets.escalation).toBeNull();

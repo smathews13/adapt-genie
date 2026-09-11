@@ -19,11 +19,7 @@ const PAPER_FILLS = ['#ddeaf4', '#e8e8e8', '#f4f4f4', '#f7f7f7'] as const;
 describe('runtime settings contract', () => {
   it('keeps the current agent behavior as its defaults', () => {
     expect(RuntimeSettingsSchema.parse(DEFAULT_RUNTIME_SETTINGS)).toEqual(DEFAULT_RUNTIME_SETTINGS);
-    expect(DEFAULT_RUNTIME_SETTINGS.loop).toEqual({
-      maxSteps: 12,
-      maxToolCalls: 12,
-      maxRunSeconds: 180,
-    });
+    expect(DEFAULT_RUNTIME_SETTINGS).not.toHaveProperty('loop');
     expect(DEFAULT_RUNTIME_SETTINGS.answer.maxFigures).toBe(6);
     expect(DEFAULT_RUNTIME_SETTINGS.answer.maxCharts).toBe(1);
   });
@@ -126,12 +122,13 @@ describe('runtime settings contract', () => {
       ...legacy
     } = {
       ...DEFAULT_RUNTIME_SETTINGS,
-      loop: { ...DEFAULT_RUNTIME_SETTINGS.loop, maxSteps: 17 },
+      loop: { maxSteps: 17, maxToolCalls: 12, maxRunSeconds: 180 },
       fontFamily: 'system' as const,
     };
 
-    expect(RuntimeSettingsSchema.parse(legacy)).toMatchObject({
-      loop: { maxSteps: 17 },
+    const parsed = RuntimeSettingsSchema.parse(legacy);
+    expect(parsed).not.toHaveProperty('loop');
+    expect(parsed).toMatchObject({
       fontFamily: 'system',
       backgroundGraphics: true,
       animations: true,
@@ -173,7 +170,7 @@ describe('runtime settings contract', () => {
     expect(() =>
       RuntimeSettingsSchema.parse({
         ...DEFAULT_RUNTIME_SETTINGS,
-        loop: { ...DEFAULT_RUNTIME_SETTINGS.loop, maxSteps: 100 },
+        loop: { maxSteps: 100, maxToolCalls: 12, maxRunSeconds: 180 },
       })
     ).toThrow();
     expect(() =>

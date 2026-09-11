@@ -1009,11 +1009,6 @@ export const RunTraceSchema = z.looseObject({
    */
   runtimeUsed: z
     .strictObject({
-      loop: z.strictObject({
-        maxSteps: z.number().nullable(),
-        maxToolCalls: z.number().nullable(),
-        maxRunSeconds: z.number().nullable(),
-      }),
       answer: z.strictObject({
         takeaway: z.boolean().nullable(),
         narrative: z.boolean().nullable(),

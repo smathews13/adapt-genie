@@ -7,23 +7,11 @@
  * those read as "Not recorded" rather than as today's defaults or the bundle's.
  *
  * Extracted once. Monitoring, Run Explorer Overview, and Agent map all render
- * the chips this file names, so they cannot disagree about a budget. D13.
+ * the chips this file names, so they cannot disagree about a bound. D13.
  */
 
 export const RUN_RUNTIME_USED_HEADING = 'Settings applied in this run';
 export const RUN_RUNTIME_USED_ABSENT = 'Not recorded';
-
-/**
- * The Settings pane's own labels for the three loop bounds.
- *
- * Architecture's bound tiles quote the same strings (`CHAIN_BOUND_LABEL` is this
- * object), keeping one label for each setting across the app.
- */
-export const RUN_RUNTIME_LOOP_LABEL = {
-  maxSteps: 'Max analysis steps',
-  maxToolCalls: 'Max tool calls',
-  maxRunSeconds: 'Run budget (s)',
-} as const;
 
 /** Settings' answer-content labels, compact enough for a chip row. */
 export const RUN_RUNTIME_ANSWER_LABEL = {
@@ -45,11 +33,6 @@ export const RUN_RUNTIME_ORDER_LABEL = {
 export type RunRuntimeFiguresOrder = keyof typeof RUN_RUNTIME_ORDER_LABEL;
 
 export interface RunRuntimeUsed {
-  loop: {
-    maxSteps: number | null;
-    maxToolCalls: number | null;
-    maxRunSeconds: number | null;
-  };
   answer: {
     takeaway: boolean | null;
     narrative: boolean | null;
@@ -101,11 +84,8 @@ export function storedRuntimeSettings(payload: unknown): Record<string, unknown>
 }
 
 function recorded(used: RunRuntimeUsed): boolean {
-  const { loop, answer } = used;
+  const { answer } = used;
   return [
-    loop.maxSteps,
-    loop.maxToolCalls,
-    loop.maxRunSeconds,
     answer.takeaway,
     answer.narrative,
     answer.figures,
@@ -118,20 +98,14 @@ function recorded(used: RunRuntimeUsed): boolean {
 /**
  * The snapshot a run stored, or null when it stored none.
  *
- * Null, not defaults. Filling in 12 / 12 / 150 (or any other current row) for a
+ * Null, not defaults. Filling in 12 / 150 (or any other current row) for a
  * run that predates this field would describe an agent that did not run.
  */
 export function runRuntimeUsedFromStored(payload: unknown): RunRuntimeUsed | null {
   const raw = storedRuntimeSettings(payload);
   if (!raw) return null;
-  const loop = asObject(raw.loop) ?? {};
   const answer = asObject(raw.answer) ?? {};
   const used: RunRuntimeUsed = {
-    loop: {
-      maxSteps: optionalInt(loop.maxSteps),
-      maxToolCalls: optionalInt(loop.maxToolCalls),
-      maxRunSeconds: optionalInt(loop.maxRunSeconds),
-    },
     answer: {
       takeaway: optionalBool(answer.takeaway),
       narrative: optionalBool(answer.narrative),
@@ -144,10 +118,6 @@ export function runRuntimeUsedFromStored(payload: unknown): RunRuntimeUsed | nul
   return recorded(used) ? used : null;
 }
 
-function loopValue(value: number | null): string {
-  return value === null ? RUN_RUNTIME_USED_ABSENT : String(value);
-}
-
 function flagValue(value: boolean): string {
   return value ? 'on' : 'off';
 }
@@ -155,16 +125,11 @@ function flagValue(value: boolean): string {
 /**
  * The chips both surfaces draw, in Settings order.
  *
- * Loop bounds always, because those three are the ask. Answer flags only when
- * the snapshot actually carried them, so a loop-only row does not invent
- * Takeaway-on. Narrative cap 0 is Settings' "uncapped", not a missing value.
+ * Answer flags are included only when the snapshot actually carried them.
+ * Narrative cap 0 is Settings' "uncapped", not a missing value.
  */
 export function runRuntimeUsedChips(used: RunRuntimeUsed): RunRuntimeUsedChip[] {
-  const chips: RunRuntimeUsedChip[] = [
-    { key: 'maxSteps', label: RUN_RUNTIME_LOOP_LABEL.maxSteps, value: loopValue(used.loop.maxSteps) },
-    { key: 'maxToolCalls', label: RUN_RUNTIME_LOOP_LABEL.maxToolCalls, value: loopValue(used.loop.maxToolCalls) },
-    { key: 'maxRunSeconds', label: RUN_RUNTIME_LOOP_LABEL.maxRunSeconds, value: loopValue(used.loop.maxRunSeconds) },
-  ];
+  const chips: RunRuntimeUsedChip[] = [];
   const flags: { key: keyof RunRuntimeUsed['answer']; label: string }[] = [
     { key: 'takeaway', label: RUN_RUNTIME_ANSWER_LABEL.takeaway },
     { key: 'narrative', label: RUN_RUNTIME_ANSWER_LABEL.narrative },

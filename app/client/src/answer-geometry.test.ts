@@ -420,7 +420,7 @@ describe('the chart panel is a panel on this card, not a second page', () => {
     // it, and the card unfolds the Markdown rows when this fires, so the sentence
     // says where to look. "The rest of this answer is unaffected" was true and
     // useless: the reader wanted the numbers, not the paragraph above them.
-    expect(prose).toContain('Its figures are in the rows below.');
+    expect(prose).toContain('This chart could not be displayed.');
     // No instruction anywhere in the panel, under any wording.
     expect(prose).not.toMatch(/\b(hover|drag|zoom|click|scroll|pinch|tap)\b/i);
     // The other side: the rule that sized that description. It styled nothing
@@ -461,7 +461,7 @@ describe('the chart panel is a panel on this card, not a second page', () => {
 
   it('loses one chart rather than the answer around it', () => {
     expect(CHARTS).toContain('static getDerivedStateFromError()');
-    expect(CHARTS).toContain('<ChartBoundary onFailure={onFailure}>');
+    expect(CHARTS).toContain('<ChartBoundary onFailure={reportFailure}>');
     // Inside the map, so the boundary is per panel: one boundary around the
     // list would take every chart down with the first one that threw.
     expect(CHARTS.indexOf('<ChartBoundary')).toBeLessThan(CHARTS.indexOf('function AnswerCharts'));

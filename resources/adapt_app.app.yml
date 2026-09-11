@@ -54,8 +54,8 @@ resources:
           level: CAN_USE
 
       # These bindings grant the app service principal access to its state
-      # store, serving endpoint, SQL warehouse, and its private signing key.
-      # Do not bind governed tables or Genie spaces; governed reads must use the
+      # store, serving endpoint, SQL warehouse, and its private signing key. Do
+      # not bind governed tables or Genie spaces; governed reads must use the
       # signed-in user's token.
       resources:
         # Bind an existing Lakebase database; this does not create Lakebase.

@@ -44,8 +44,7 @@ import { BrandIcon } from './BrandIcon';
 import { RefreshControl } from './RefreshControl';
 // The chain and the answer's shape, as data rather than as prose in this file.
 // See the note at the top of agent-chain.ts for why they moved out of here.
-import { AGENT_CHAIN, CHAIN_BOUND_LABEL, CHAIN_BOUNDS } from './agent-chain';
-import type { RuntimeSettings } from '../../shared/runtime-settings';
+import { AGENT_CHAIN } from './agent-chain';
 import {
   ARCHITECTURE_NODES,
   describeArchitecture,
@@ -67,14 +66,6 @@ import {
   type NodeBox,
 } from './architecture-layout';
 import { observeArchitectureScale } from './architecture-responsive';
-import {
-  ARCHITECTURE_CONTROL_SCOPES,
-  displayedBound,
-  edgeControlBounds,
-  nextActiveBound,
-  nodeControlBounds,
-} from './architecture-control-scopes';
-import type { ChainBound } from './agent-chain';
 import { readConnections, readingsById, type ConnectionReading } from './connection-model';
 import { DRIFT_MARKER_LABEL } from './connection-status';
 import { checkedAtOf } from './check-session';
@@ -197,14 +188,12 @@ function workspaceObject(
  */
 /** A node's operational connection verdict, in the shared pill palette. */
 function ArchitectureNodeCard({
-  activeBound,
   node,
   reading,
   payload,
   box,
   checking,
 }: {
-  activeBound: ChainBound | null;
   node: ArchitectureNode;
   reading: ConnectionReading | undefined;
   payload: ArchitecturePayload | null;
@@ -215,7 +204,6 @@ function ArchitectureNodeCard({
   const value = nodeValue(reading);
   const object = workspaceObject(node, reading, payload);
   const deepLink = object && payload?.workspaceHost ? databricksLink(payload.workspaceHost, object) : null;
-  const controlBounds = nodeControlBounds(node.id);
 
   const body = (
     <>
@@ -262,19 +250,15 @@ function ArchitectureNodeCard({
     </>
   );
 
-  const selected = activeBound !== null && controlBounds.includes(activeBound);
   return (
     <div
-      className={selected ? 'arch-node arch-node-selected' : 'arch-node'}
+      className="arch-node"
       data-testid={`arch-node-${node.id}`}
       data-node={node.id}
       data-accent={box.accent}
       data-tone={checking && node.presence === 'connection' ? undefined : report.tone}
       data-checking={checking && node.presence === 'connection' ? 'true' : undefined}
       data-drift={reading && reading.marker !== 'none' ? reading.marker : undefined}
-      data-control-bounds={controlBounds.join(' ') || undefined}
-      data-control-active={selected ? 'true' : undefined}
-      data-control-bound={selected ? activeBound : undefined}
       style={{ left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px` }}
     >
       {node.resourceId ? (
@@ -335,19 +319,11 @@ const LEGEND: ReadonlyArray<{ accent: ArchitectureAccent; label: string }> = [
  * assert the unchecked state.
  */
 export function ArchitectureCanvas({
-  activeBound = null,
   byResource,
   checking = false,
   payload,
   now,
 }: {
-  /**
-   * The setting the drawing is currently explaining.
-   *
-   * The page passes the displayed bound -- hover preview if the pointer is on a
-   * tile, otherwise the click that stuck. This component does not know which.
-   */
-  activeBound?: ChainBound | null;
   byResource: ReadonlyMap<string, ConnectionReading>;
   /** While live checks are active, connection nodes show only their loader. */
   checking?: boolean;
@@ -390,8 +366,6 @@ export function ArchitectureCanvas({
           data-testid="architecture-canvas"
           role="group"
           aria-label="Live data flow. Each card links to that dependency on the Connections page."
-          data-active-bound={activeBound ?? undefined}
-          data-active-accent={activeBound ? ARCHITECTURE_CONTROL_SCOPES[activeBound].accent : undefined}
           style={{
             width: `${CANVAS_WIDTH}px`,
             height: `${CANVAS_HEIGHT}px`,
@@ -408,18 +382,9 @@ export function ArchitectureCanvas({
             focusable="false"
           >
             {edges.map((edge) => {
-              const controlBounds = edgeControlBounds(edge.from, edge.to);
-              const controlled = activeBound !== null && controlBounds.includes(activeBound);
               return (
                 <g key={edge.id}>
-                  <path
-                    className="arch-edge"
-                    d={edge.d}
-                    data-relationship={edge.relationship}
-                    data-control-bounds={controlBounds.join(' ') || undefined}
-                    data-control-active={controlled ? 'true' : undefined}
-                    data-control-bound={controlled ? activeBound : undefined}
-                  />
+                  <path className="arch-edge" d={edge.d} data-relationship={edge.relationship} />
                   <text className="arch-edge-label" x={edge.labelX} y={edge.labelY} textAnchor={edge.labelAnchor}>
                     {edge.label}
                   </text>
@@ -449,7 +414,6 @@ export function ArchitectureCanvas({
               if (!box) return null;
               return (
                 <ArchitectureNodeCard
-                  activeBound={activeBound}
                   box={box}
                   checking={checking}
                   key={node.id}
@@ -492,77 +456,6 @@ export function ArchitectureCanvas({
 }
 
 /**
- * The loop bounds, as a strip of tiles under the live-data-flow label.
- *
- * THE THREE NUMBERS THAT DECIDE HOW LONG AN ANSWER MAY TAKE, which were readable
- * only by opening the gear -- on a page whose whole job is to say what the
- * deployment does. They sit inside that pane, below its label and above the
- * drawing, because they bound the run the diagram is of rather than sitting in
- * the header as if they were a caption of the section.
- *
- * AN EM-DASH RATHER THAN THE DEFAULTS when the read fails. The shared defaults are
- * 12/12/150 and it would be easy to print them here, but a stored setting is what
- * the agent actually uses and "12" on a page that could not read the store is a
- * claim about a number nobody checked. Same rule as the tiles above: not knowing
- * and knowing zero are different, and the page says which one it is in.
- *
- * Labelled in the Settings pane's own words, so a reader who wants to change one
- * has a string to search the gear for. See CHAIN_BOUND_LABEL.
- */
-export function ChainBoundTiles({
-  activeBound = null,
-  previewBound = null,
-  loop,
-  onActiveBoundChange,
-  onPreviewBoundChange,
-}: {
-  activeBound?: ChainBound | null;
-  /** Hover preview. Same paint as a click; never sticky on its own. */
-  previewBound?: ChainBound | null;
-  loop: RuntimeSettings['loop'] | null;
-  onActiveBoundChange?: (bound: ChainBound | null) => void;
-  onPreviewBoundChange?: (bound: ChainBound | null) => void;
-}) {
-  const unknown = '\u2014';
-  const shown = displayedBound(activeBound, previewBound);
-  return (
-    <ul className="arch-loop-tiles" data-testid="architecture-loop-tiles">
-      {CHAIN_BOUNDS.map((bound) => {
-        const pressed = activeBound === bound;
-        const painted = shown === bound;
-        const value = loop ? String(loop[bound]) : 'not available';
-        return (
-          <li
-            data-bound={bound}
-            data-accent={ARCHITECTURE_CONTROL_SCOPES[bound].accent}
-            data-active={painted ? 'true' : undefined}
-            className={painted ? 'arch-bound-selected' : undefined}
-            key={bound}
-            onMouseEnter={() => onPreviewBoundChange?.(bound)}
-            onMouseLeave={() => onPreviewBoundChange?.(null)}
-          >
-            <button
-              type="button"
-              className={painted ? 'arch-bound-tile arch-bound-selected' : 'arch-bound-tile'}
-              aria-pressed={pressed}
-              aria-label={`${CHAIN_BOUND_LABEL[bound]}: ${value}. ${
-                pressed
-                  ? 'Selected. Click again to clear the architecture highlight.'
-                  : 'Show the architecture it controls.'
-              }`}
-              onClick={() => onActiveBoundChange?.(nextActiveBound(activeBound, bound))}
-            >
-              <span>{CHAIN_BOUND_LABEL[bound]}</span>
-              <strong className="ast-num">{loop ? loop[bound] : unknown}</strong>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/**
  * One step in a rail, which is a stage of a run rather than a dependency.
  *
  * `stage` is the MLflow stage id, drawn as a mono chip. It is here so a reader can
@@ -574,7 +467,6 @@ export function ChainBoundTiles({
 function RailRow({
   accent,
   badge,
-  boundNote,
   children,
   optional,
   stage,
@@ -582,8 +474,6 @@ function RailRow({
 }: {
   accent: ArchitectureAccent;
   badge?: string;
-  /** The bound that stops this stage, already formatted, or undefined. */
-  boundNote?: string;
   children?: string;
   /** Whether the stage is skipped on a run that does not need it. */
   optional?: boolean;
@@ -606,7 +496,6 @@ function RailRow({
         {stage ? <code className="arch-rail-stage">{stage}</code> : null}
       </p>
       {children ? <p className="arch-rail-body">{children}</p> : null}
-      {boundNote ? <p className="arch-rail-bound">{boundNote}</p> : null}
     </li>
   );
 }

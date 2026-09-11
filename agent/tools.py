@@ -88,8 +88,7 @@ class RowBudget:
 
 #: A result the model is SUMMARIZING. It is reading for a figure, a ranking or a
 #: shape, so a sample answers the question and the rest is context other steps of
-#: the loop need. 40,000 characters is roughly a tenth of the window, spendable
-#: several times over across `MAX_TOOL_CALLS` without crowding out the answer.
+#: the loop need. 40,000 characters is roughly a tenth of the model window.
 SAMPLE_BUDGET = RowBudget(max_chars=40_000, max_rows=2_000)
 
 #: A result that IS the answer: a column inventory, a listing of definitions.
@@ -104,11 +103,8 @@ ENUMERATION_BUDGET = RowBudget(max_chars=120_000, max_rows=5_000)
 #: not what the model needs to write a query and is a lot of tokens.
 DESCRIBE_STOP_MARKERS = ("# Detailed Table Information", "# Partition Information", "")
 
-#: How long one Genie call may take before the turn gives up on it, and how often
-#: it is checked. Sized against the turn: `MAX_RUN_SECONDS` is 180 and the endpoint
-#: is killed at about 120, so a single call may spend half the turn and no more.
-#: The SDK's own default is twenty minutes, which cannot be spent (the request is
-#: already dead), so it is not a timeout, only a way to return nothing.
+#: How long one Genie call may take before that dependency is reported as slow.
+#: The SDK's own twenty-minute default can outlive the request itself.
 GENIE_TIMEOUT_SECONDS = 45.0
 
 #: How long a call may wait for a warehouse that HAS NOT STARTED YET, which is a
@@ -130,17 +126,6 @@ GENIE_TIMEOUT_SECONDS = 45.0
 #: takes minutes in the worst case and nothing else in the turn can proceed
 #: without it either.
 GENIE_WAREHOUSE_START_SECONDS = 150.0
-
-#: What one warehouse wait must LEAVE BEHIND for the rest of the turn.
-#:
-#: The cap above is the ceiling; this is the constraint that usually binds. On the
-#: default ninety-second turn there is no version of waiting two and a half
-#: minutes, and waiting until the budget is gone is worse than not waiting: the
-#: finder has other tools that do not need the dictionary space, and a turn that
-#: spent all of itself on one wait cannot call them. So the wait stops with this
-#: much left, reports the warehouse as still starting, and lets the finder carry
-#: on with `search_tagged_assets` and `list_data_assets`.
-GENIE_BUDGET_RESERVE_SECONDS = 25.0
 
 #: The LONGEST gap between two checks. The wait starts at
 #: `GENIE_FIRST_POLL_SECONDS` and doubles up to this, so a question Genie answers
@@ -224,8 +209,8 @@ class WarehouseStarting(TimeoutError):
 # invites its context step to pull that table in alongside the dictionary, and
 # on a wide master table that is enough on its own to turn a 13.7 second answer
 # into a call still in its LLM planning phase when the 45 second deadline
-# arrives. The deadline is not the thing to move: it is sized against the 90
-# second turn budget, so buying seconds there spends them somewhere else.
+# arrives. The per-call deadline is not the thing to move: a broader dictionary
+# question should be narrowed rather than allowed to occupy the request.
 #
 # So the table is dropped, and ONLY where it was scoping something else. A
 # question whose SUBJECT is the table ("what is the grain of X", "what does X
@@ -431,18 +416,11 @@ SQL_WAIT_FLOOR_SECONDS = 5
 #: where our own demo warehouse is already warm and answers in two. The read
 #: itself is a small `information_schema` scan; what the extra twenty seconds buy
 #: is the warmup, not the query. Sized at the API ceiling because that is the
-#: longest a single synchronous statement may wait, and a discovery result the
-#: turn can skip is exactly the read worth spending the whole of it on.
+#: longest a single synchronous statement may wait.
 DISCOVERY_WAIT_SECONDS = SQL_WAIT_CEILING_SECONDS
 
-#: A statement cancelled for slowness is retried ONCE, and only while the turn
-#: could still do something with the answer. The first attempt is usually what
-#: started the warehouse, so the second one often lands on a warm one -- but a
-#: retry that leaves no budget for the rest of the run has spent the turn to
-#: produce a discovery hint nobody gets to use.
-SQL_RETRY_MIN_REMAINING_SECONDS = 40
-SQL_RETRY_RESERVE_SECONDS = 20
-
+#: A statement cancelled for slowness is retried ONCE. The first attempt is
+#: usually what started the warehouse, so the second often lands on a warm one.
 #: States that mean the statement was too slow or had not begun, as against being
 #: REJECTED. Only these are worth running a second time: a rejected statement is
 #: rejected identically on the retry, and a denial is about who is asking.
@@ -954,31 +932,29 @@ class PlayerInsightTools:
         )
 
     def _await_genie(self, space_id: str, question: str) -> GenieMessage:
-        """Ask one Genie space and wait, on this turn's budget rather than the SDK's.
+        """Ask one Genie space with dependency-specific waits rather than the SDK's.
 
         `start_conversation_and_wait` defaults to a TWENTY MINUTE timeout, and its
         waiter treats only COMPLETED as success and only FAILED as failure, so a
         CANCELLED message, an expired result, or a warehouse still starting in
         PENDING_WAREHOUSE is polled for the full twenty minutes before it raises.
         Model Serving kills the request long before that and the stakeholder gets
-        nothing back at all. `MAX_RUN_SECONDS` could not prevent it: the loop only
-        consults its budget BETWEEN tool calls, and nothing interrupts one already
-        in flight.
+        nothing back at all, so each in-flight call needs its own timeout.
 
-        So the wait is ours: a deadline this turn can afford, every terminal
+        So the wait is ours: a dependency deadline, every terminal
         status treated as terminal, and a message that says which one it was:
         "the warehouse was still starting" is actionable, "timed out" is not.
 
         THERE ARE TWO DEADLINES, not one, because there are two different waits
         happening and one number could only ever be right for one of them. A
         space that is ANSWERING gets `GENIE_TIMEOUT_SECONDS`, unchanged, and it
-        is the right bound: past that the question is too big for this turn. A
+        is the right bound: past that the question is too broad for one call. A
         warehouse that is STARTING gets `GENIE_WAREHOUSE_START_SECONDS`, because
         nothing about the question is wrong and the wait is for infrastructure
         that takes as long as it takes. Time spent starting is then given back to
         the answer budget, so a warehouse that comes up at forty seconds still
         gets its full allowance to answer rather than arriving to find the
-        deadline already behind it.
+        answer allowance already behind it.
 
         Both are bounded by the turn, and the warehouse one is bounded by the
         turn LESS a reserve: it ends early enough that the finder still has
@@ -1005,19 +981,8 @@ class PlayerInsightTools:
         """
 
         started = time.perf_counter()
-        turn = runtime_settings.remaining_seconds()
-        # The turn is the hard bound on everything below. Nothing here may run
-        # past it, whatever the per-phase caps say.
-        turn_deadline = started + turn
-        answering_budget = min(GENIE_TIMEOUT_SECONDS, turn)
-        # `max` against the answer budget so this can only ever LENGTHEN the wait
-        # for a starting warehouse. On a short turn the reserve can exceed what
-        # is left, and a warehouse allowance shorter than the answer allowance
-        # would make a cold start fail sooner than it used to.
-        starting_budget = max(
-            answering_budget,
-            min(GENIE_WAREHOUSE_START_SECONDS, max(0.0, turn - GENIE_BUDGET_RESERVE_SECONDS)),
-        )
+        answering_budget = GENIE_TIMEOUT_SECONDS
+        starting_budget = GENIE_WAREHOUSE_START_SECONDS
         wait = self.workspace.genie.start_conversation(space_id, question)
         status: Any = None
         poll = GENIE_FIRST_POLL_SECONDS
@@ -1047,9 +1012,9 @@ class PlayerInsightTools:
                     f"{getattr(message, 'error', None) or 'no detail was returned'}."
                 )
             if warming_since is not None:
-                deadline = min(started + starting_budget, turn_deadline)
+                deadline = started + starting_budget
             else:
-                deadline = min(started + warming + answering_budget, turn_deadline)
+                deadline = started + warming + answering_budget
             if now >= deadline:
                 waited = now - started
                 if warming_since is not None:
@@ -1479,7 +1444,7 @@ class PlayerInsightTools:
                 self.workspace,
                 space_id,
                 question,
-                timeout_seconds=runtime_settings.remaining_seconds(),
+                timeout_seconds=GENIE_TIMEOUT_SECONDS,
             )
             gate = self.gateway()
             columns = genie_mcp.result_columns(managed.payload)
@@ -1543,18 +1508,13 @@ class PlayerInsightTools:
     # -----------------------------------------------------------------------
 
     def _wait_timeout(self, wait_seconds: int) -> str:
-        """What to ask the warehouse to wait, clamped to what is legal and affordable.
+        """What to ask the warehouse to wait, clamped to the API's legal range.
 
-        Three bounds, and each one has been wrong here at least once. The turn's
-        remaining time, so a statement cannot outlive the request. The API's
-        fifty-second ceiling, so a longer discovery wait is not simply rejected.
-        And the API's five-second FLOOR, which the old `min(30, remaining)` could
-        fall through at the tail of a turn: `wait_timeout=1s` is not a short wait,
-        it is an argument error where the caller expected a cancelled statement.
+        The API has a fifty-second ceiling and five-second floor. Values outside
+        that range are rejected rather than interpreted as shorter waits.
         """
 
-        affordable = int(runtime_settings.remaining_seconds())
-        wanted = min(wait_seconds, SQL_WAIT_CEILING_SECONDS, max(affordable, 0))
+        wanted = min(wait_seconds, SQL_WAIT_CEILING_SECONDS)
         return f"{max(SQL_WAIT_FLOOR_SECONDS, wanted)}s"
 
     def _execute(
@@ -1585,8 +1545,7 @@ class PlayerInsightTools:
         rejected identically the second time, and a denial is about who is
         asking. It exists for the cold warehouse, where the first statement of a
         turn is the one that pays for the warmup and the second lands on a warm
-        warehouse. Gated on the turn having enough left to use the answer, so a
-        retry cannot spend a budget the rest of the run needed.
+        warehouse.
         """
 
         with mlflow.start_span(name=span_name, span_type="TOOL") as span:
@@ -1610,24 +1569,12 @@ class PlayerInsightTools:
                 # is the RuntimeError it has always been.
                 if statement_denied(response):
                     raise SqlDenied(failure, statement_sql_state(response))
-                affordable = runtime_settings.remaining_seconds() >= SQL_RETRY_MIN_REMAINING_SECONDS
                 if (
                     retry_when_slow
                     and not retried
                     and statement_state(response) in _SQL_TOO_SLOW_STATES
-                    and affordable
                 ):
                     retried = True
-                    # The second attempt gets whatever the turn can still spare
-                    # beyond its own reserve, so it cannot be the call that
-                    # leaves the run with no time to use what it found.
-                    wait_seconds = max(
-                        SQL_WAIT_FLOOR_SECONDS,
-                        min(
-                            wait_seconds,
-                            int(runtime_settings.remaining_seconds()) - SQL_RETRY_RESERVE_SECONDS,
-                        ),
-                    )
                     continue
                 raise RuntimeError(
                     f"{failure} (tried twice; the second attempt was no faster)"

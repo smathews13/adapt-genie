@@ -339,7 +339,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  justify-self: stretch;
+  justify-self: start;
   gap: 8px;
 }
 /* Asked-by in this row is a compact chip, the same size as Live. A later

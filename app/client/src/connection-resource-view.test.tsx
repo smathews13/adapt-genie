@@ -86,8 +86,8 @@ function check(id: string, state: State): PreflightCheck | undefined {
               }
             : id === 'agent-endpoint'
               ? {
-                  served_model: 'adapt-genie v7',
-                  traffic: 'adapt-genie-7 100%',
+                  served_model: 'app v7',
+                  traffic: 'app-7 100%',
                   readiness: 'READY',
                 }
               : undefined,

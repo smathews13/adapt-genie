@@ -1558,6 +1558,14 @@ class TestDeclines:
         with pytest.raises(EmptyChartError):
             new_plot([{"type": "bar", "x": [], "y": []}])
 
+    def test_null_only_measurements_are_a_decline_instead_of_an_empty_panel(self):
+        with pytest.raises(EmptyChartError, match="measurable"):
+            new_plot([{"type": "bar", "x": ["one", "two"], "y": [None, None]}])
+
+    def test_all_zero_bars_are_a_decline_instead_of_an_empty_panel(self):
+        with pytest.raises(EmptyChartError, match="measurable"):
+            new_plot([{"type": "bar", "x": ["one", "two"], "y": [0, 0]}])
+
     def test_a_decline_reads_as_an_account_rather_than_a_demand(self):
         """The message reaches a reader, in the trace, under a step that is green."""
 
@@ -1589,6 +1597,10 @@ class TestDeclines:
 
 
 class TestRejections:
+    def test_semantic_series_with_mismatched_axes_are_refused(self):
+        with pytest.raises(ChartError, match="same number"):
+            new_plot(spec={"kind": "line", "series": [{"x": ["one", "two"], "y": [1]}]})
+
     def test_a_trace_that_is_not_an_object_is_refused(self):
         with pytest.raises(ChartError, match="must be a chart series object"):
             new_plot(["not a trace"])

@@ -127,8 +127,15 @@ function pdfDocument(lines: readonly PdfLine[]): Uint8Array {
   return new TextEncoder().encode(pdf);
 }
 
+function pdfBlob(lines: PdfLine[]): Blob {
+  const bytes = pdfDocument(lines);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return new Blob([copy.buffer], { type: 'application/pdf' });
+}
+
 export function markdownPdf(markdown: string): Promise<Blob> {
-  return Promise.resolve(new Blob([new Uint8Array(pdfDocument(pdfLines(markdown)))], { type: 'application/pdf' }));
+  return Promise.resolve(pdfBlob(pdfLines(markdown)));
 }
 
 function tablePdfLines(table: ExportTable): PdfLine[] {
@@ -155,7 +162,7 @@ function tablePdfLines(table: ExportTable): PdfLine[] {
 }
 
 export function tablePdf(table: ExportTable): Promise<Blob> {
-  return Promise.resolve(new Blob([new Uint8Array(pdfDocument(tablePdfLines(table)))], { type: 'application/pdf' }));
+  return Promise.resolve(pdfBlob(tablePdfLines(table)));
 }
 
 export function wrappedCanvasLines(value: string, width: number, measure: (text: string) => number): string[] {

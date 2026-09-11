@@ -2685,7 +2685,8 @@ export function HomePage() {
               : null}
             {watchlist?.status === 'ready' ? (
               <p className="insight-watch-meta">
-                {WATCHLIST_METRIC_DETAIL} · through <span className="ast-num">{watchlist.asOfDate}</span>
+                {WATCHLIST_METRIC_DETAIL} · watched-title sales through{' '}
+                <span className="ast-num">{watchlist.asOfDate}</span>
               </p>
             ) : null}
           </section>

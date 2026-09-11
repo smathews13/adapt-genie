@@ -2471,13 +2471,13 @@ a.ops-bar-count:hover {
 }
 
 .ops-latency-block .ops-block-head-text {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 .ops-latency-block .ops-block-head-control {
-  flex: 1 1 320px;
+  flex: 1 1 46rem;
   min-width: 0;
-  max-width: 25rem;
+  max-width: 46rem;
 }
 
 .ops-latency-search {

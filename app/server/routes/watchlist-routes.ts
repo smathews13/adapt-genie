@@ -50,39 +50,46 @@ export function watchlistStatement(table: string, titleCount: number): string {
   return `WITH configured AS (
   ${configured}
 ),
-anchor AS (
-  SELECT MAX(DATE) AS as_of_date FROM ${source}
+anchors AS (
+  SELECT configured.title, MAX(source.DATE) AS as_of_date
+  FROM configured
+  LEFT JOIN ${source} source
+    ON lower(source.TITLE_ROLL_UP_DESC) = lower(configured.title)
+  GROUP BY configured.title
+),
+display_anchor AS (
+  SELECT MAX(as_of_date) AS as_of_date FROM anchors
 ),
 periods AS (
   SELECT
-    TITLE_ROLL_UP_DESC AS title,
-    SUM(CASE WHEN DATE > date_sub(anchor.as_of_date, ${PERIOD_DAYS}) THEN NET_REV_USD_AMT ELSE 0 END) AS recent_rev,
-    SUM(CASE WHEN DATE > date_sub(anchor.as_of_date, ${PERIOD_DAYS}) THEN UNIT_QTY ELSE 0 END) AS recent_units,
+    anchors.title,
+    SUM(CASE WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS}) THEN source.NET_REV_USD_AMT ELSE 0 END) AS recent_rev,
+    SUM(CASE WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS}) THEN source.UNIT_QTY ELSE 0 END) AS recent_units,
     SUM(CASE
-      WHEN DATE > date_sub(anchor.as_of_date, ${PERIOD_DAYS * 2})
-       AND DATE <= date_sub(anchor.as_of_date, ${PERIOD_DAYS})
-      THEN NET_REV_USD_AMT ELSE 0 END) AS preceding_rev,
+      WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS * 2})
+       AND source.DATE <= date_sub(anchors.as_of_date, ${PERIOD_DAYS})
+      THEN source.NET_REV_USD_AMT ELSE 0 END) AS preceding_rev,
     SUM(CASE
-      WHEN DATE > date_sub(anchor.as_of_date, ${PERIOD_DAYS * 2})
-       AND DATE <= date_sub(anchor.as_of_date, ${PERIOD_DAYS})
-      THEN UNIT_QTY ELSE 0 END) AS preceding_units
-  FROM ${source}
-  CROSS JOIN anchor
-  WHERE DATE > date_sub(anchor.as_of_date, ${PERIOD_DAYS * 2})
-    AND lower(TITLE_ROLL_UP_DESC) IN (${Array.from({ length: titleCount }, (_, index) => `lower(:title_${index})`).join(', ')})
-  GROUP BY TITLE_ROLL_UP_DESC
+      WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS * 2})
+       AND source.DATE <= date_sub(anchors.as_of_date, ${PERIOD_DAYS})
+      THEN source.UNIT_QTY ELSE 0 END) AS preceding_units
+  FROM anchors
+  LEFT JOIN ${source} source
+    ON lower(source.TITLE_ROLL_UP_DESC) = lower(anchors.title)
+   AND source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS * 2})
+  GROUP BY anchors.title
 )
-SELECT configured.title,
+SELECT anchors.title,
        CASE WHEN COALESCE(SUM(periods.recent_units), 0) = 0 THEN NULL
             ELSE COALESCE(SUM(periods.recent_rev), 0) / SUM(periods.recent_units) END,
        CASE WHEN COALESCE(SUM(periods.preceding_units), 0) = 0 THEN NULL
             ELSE COALESCE(SUM(periods.preceding_rev), 0) / SUM(periods.preceding_units) END,
-       CAST(anchor.as_of_date AS STRING)
-FROM configured
-CROSS JOIN anchor
-LEFT JOIN periods ON lower(periods.title) = lower(configured.title)
-GROUP BY configured.title, anchor.as_of_date
-ORDER BY configured.title`;
+       CAST(display_anchor.as_of_date AS STRING)
+FROM anchors
+CROSS JOIN display_anchor
+LEFT JOIN periods ON lower(periods.title) = lower(anchors.title)
+GROUP BY anchors.title, display_anchor.as_of_date
+ORDER BY anchors.title`;
 }
 
 export function watchlistTitlesStatement(table: string): string {

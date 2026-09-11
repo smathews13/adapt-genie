@@ -1,19 +1,8 @@
-/**
- * The two Runtime defects Sam reported once the modal opened.
- *
- * 1. The numeric fields forced a leading zero. Clearing one set it to zero
- *    (`Number('') === 0`), and react-dom's LOOSE comparison for a number input
- *    (`'0180' != 180` is false) meant no re-render could ever take the padding
- *    off again.
- * 2. Save looked dead. Its outcome was drawn at the end of a form about a
- *    thousand pixels tall inside a pane that scrolls, so every "Saved" and every
- *    error landed below the fold while the button stayed still.
- */
+/** Settings save feedback and retired-control regression coverage. */
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { SettingsPage } from './SettingsPage';
-import { wholeNumberFrom } from './runtime-number';
 import {
   SETTINGS_SAVE_IDLE,
   SETTINGS_UNREADABLE,
@@ -27,35 +16,7 @@ import {
 const PANEL = readFileSync(new URL('RuntimeSettingsPanel.tsx', import.meta.url), 'utf8');
 const BENCHMARK = readFileSync(new URL('BenchmarkSettingsPanel.tsx', import.meta.url), 'utf8');
 
-describe('Runtime numeric fields', () => {
-  it('keeps the last good value when the box is emptied, rather than snapping to zero', () => {
-    // The defect: `Number('')` is 0, so clearing "Run budget" to retype it made
-    // the value 0 and drew a "0" the next digits landed after.
-    expect(wholeNumberFrom('', 30, 200, 150)).toBe(150);
-    expect(wholeNumberFrom('   ', 1, 20, 8)).toBe(8);
-  });
-
-  it('reads a padded entry as the number it looks like', () => {
-    expect(wholeNumberFrom('0200', 30, 200, 150)).toBe(200);
-    expect(wholeNumberFrom('010', 1, 20, 8)).toBe(10);
-    expect(wholeNumberFrom('200', 30, 200, 150)).toBe(200);
-  });
-
-  it('holds the value inside the range the server enforces', () => {
-    // The schema is min(30).max(200) for the run budget and min(1).max(20) for
-    // steps, so an unclamped 0 was a 400 the reader could not see.
-    expect(wholeNumberFrom('0', 30, 200, 150)).toBe(30);
-    expect(wholeNumberFrom('9999', 30, 200, 150)).toBe(200);
-    expect(wholeNumberFrom('0', 1, 20, 8)).toBe(1);
-    expect(wholeNumberFrom('25', 1, 20, 8)).toBe(20);
-  });
-
-  it('ignores anything that is not a digit', () => {
-    expect(wholeNumberFrom('1e5', 1, 20, 8)).toBe(15);
-    expect(wholeNumberFrom('abc', 1, 20, 8)).toBe(8);
-    expect(wholeNumberFrom('-5', 1, 20, 8)).toBe(5);
-  });
-
+describe('retired Runtime controls', () => {
   it('removes numeric inputs with the retired Runtime controls', () => {
     // react-dom compares a number input's DOM value with the prop using loose
     // equality, so '0180' and 180 are treated as equal and the box is left
@@ -97,14 +58,14 @@ describe('Save feedback', () => {
   });
 
   it('counts changed setting keys once and removes reverted values', () => {
-    const saved = { forecasting: false, loop: { maxSteps: 10, maxToolCalls: 15 }, judges: ['a'] };
+    const saved = { forecasting: false, answer: { takeaway: true, charts: true }, judges: ['a'] };
     expect(
       changedSettingKeys(saved, {
         forecasting: true,
-        loop: { maxSteps: 12, maxToolCalls: 15 },
+        answer: { takeaway: false, charts: true },
         judges: ['a', 'b'],
       })
-    ).toEqual(['forecasting', 'loop.maxSteps', 'judges']);
+    ).toEqual(['forecasting', 'answer.takeaway', 'judges']);
     expect(changedSettingKeys(saved, { ...saved, forecasting: false })).toEqual([]);
   });
 

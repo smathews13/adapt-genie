@@ -79,7 +79,7 @@ describe('versioned runtime and Appearance settings persistence', () => {
 
   it('protects concurrent partial saves and succeeds after a canonical retry', async () => {
     const db = new MemorySettingsDb();
-    await writeRuntimeSettingsPatch(db as never, { loop: { maxSteps: 10 } }, 0, 'first');
+    await writeRuntimeSettingsPatch(db as never, { answer: { takeaway: false } }, 0, 'first');
     const a = await readRuntimeSettingsDocument(db as never, { maxAgeMs: 0 });
     const b = await readRuntimeSettingsDocument(db as never, { maxAgeMs: 0 });
 

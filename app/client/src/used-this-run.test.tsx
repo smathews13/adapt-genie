@@ -5,19 +5,13 @@ import { describe, expect, it } from 'vitest';
 
 import { QuestionDrawer } from './MonitoringPage';
 import { UsedThisRun } from './UsedThisRun';
-import {
-  RUN_RUNTIME_LOOP_LABEL,
-  RUN_RUNTIME_USED_ABSENT,
-  RUN_RUNTIME_USED_HEADING,
-  type RunRuntimeUsed,
-} from '../../shared/run-runtime-used';
+import { RUN_RUNTIME_USED_ABSENT, RUN_RUNTIME_USED_HEADING, type RunRuntimeUsed } from '../../shared/run-runtime-used';
 import type { MonitoringDetail } from '../../shared/monitoring-contract';
 
 const EXPLORER = readFileSync(new URL('./RunExplorer.tsx', import.meta.url), 'utf8');
 const MONITORING = readFileSync(new URL('./MonitoringPage.tsx', import.meta.url), 'utf8');
 
 const SNAPSHOT: RunRuntimeUsed = {
-  loop: { maxSteps: 10, maxToolCalls: 15, maxRunSeconds: 200 },
   answer: {
     takeaway: true,
     narrative: true,
@@ -57,12 +51,9 @@ describe('Settings applied in this run', () => {
     expect(EXPLORER).not.toContain('value="map"');
   });
 
-  it('shows the budget, steps and tools that ask sent', () => {
+  it('shows the answer settings that Ask sent', () => {
     const rendered = text(renderToStaticMarkup(<UsedThisRun used={SNAPSHOT} />));
     expect(rendered).toContain(RUN_RUNTIME_USED_HEADING);
-    expect(rendered).toContain(`${RUN_RUNTIME_LOOP_LABEL.maxSteps} 10`);
-    expect(rendered).toContain(`${RUN_RUNTIME_LOOP_LABEL.maxToolCalls} 15`);
-    expect(rendered).toContain(`${RUN_RUNTIME_LOOP_LABEL.maxRunSeconds} 200`);
     expect(rendered).toContain('Figures off');
     expect(rendered).toContain('Narrative cap 800');
     expect(rendered).toContain('Order Totals first');
@@ -70,12 +61,10 @@ describe('Settings applied in this run', () => {
     expect(rendered).not.toContain('150');
   });
 
-  it('says Not recorded when the run stored no snapshot, rather than inventing 12/12/150', () => {
+  it('says Not recorded when the run stored no snapshot', () => {
     const rendered = text(renderToStaticMarkup(<UsedThisRun used={null} />));
     expect(rendered).toContain(RUN_RUNTIME_USED_HEADING);
     expect(rendered).toContain(RUN_RUNTIME_USED_ABSENT);
-    expect(rendered).not.toContain(`${RUN_RUNTIME_LOOP_LABEL.maxSteps} 12`);
-    expect(rendered).not.toContain('150');
   });
 
   it('keeps runtime settings out of the Monitoring answer drawer', () => {
@@ -86,7 +75,7 @@ describe('Settings applied in this run', () => {
         </MemoryRouter>
       )
     );
-    expect(withSnapshot).not.toContain(`${RUN_RUNTIME_LOOP_LABEL.maxRunSeconds} 200`);
+    expect(withSnapshot).not.toContain('Figures off');
     const without = text(
       renderToStaticMarkup(
         <MemoryRouter>
@@ -95,7 +84,6 @@ describe('Settings applied in this run', () => {
       )
     );
     expect(without).not.toContain(RUN_RUNTIME_USED_ABSENT);
-    expect(without).not.toContain(`${RUN_RUNTIME_LOOP_LABEL.maxSteps} 12`);
   });
 });
 

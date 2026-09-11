@@ -11,11 +11,11 @@
   },
   "data_sources": {
     "tables": [
-      {"identifier": "<catalog>.<schema>.pub_steam_visibility_with_t2_rollup"},
-      {"identifier": "<catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier"},
-      {"identifier": "<catalog>.<schema>.pub_steam_wishlist_by_language_with_t2_hier"},
-      {"identifier": "<catalog>.<schema>.txn_steam_analytics_with_sales"},
-      {"identifier": "<catalog>.<schema>.txn_steam_sales_with_analytics"}
+      {"identifier": "sample_catalog.sample_schema.pub_steam_visibility_with_t2_rollup"},
+      {"identifier": "sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier"},
+      {"identifier": "sample_catalog.sample_schema.pub_steam_wishlist_by_language_with_t2_hier"},
+      {"identifier": "sample_catalog.sample_schema.txn_steam_analytics_with_sales"},
+      {"identifier": "sample_catalog.sample_schema.txn_steam_sales_with_analytics"}
     ]
   },
   "instructions": {
@@ -27,8 +27,8 @@
           "SELECT LABEL,\n",
           "       ROUND(SUM(NET_REV_USD_AMT), 2) AS net_revenue_usd,\n",
           "       SUM(UNIT_QTY) AS units_sold\n",
-          "FROM <catalog>.<schema>.txn_steam_sales_with_analytics\n",
-          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM <catalog>.<schema>.txn_steam_sales_with_analytics), 90)\n",
+          "FROM sample_catalog.sample_schema.txn_steam_sales_with_analytics\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM sample_catalog.sample_schema.txn_steam_sales_with_analytics), 90)\n",
           "GROUP BY LABEL\n",
           "ORDER BY net_revenue_usd DESC"
         ]
@@ -39,8 +39,8 @@
         "sql": [
           "SELECT TITLE_ROLL_UP_DESC,\n",
           "       SUM(WISHLIST_ADDS) AS wishlist_adds\n",
-          "FROM <catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier\n",
-          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM <catalog>.<schema>.pub_steam_wishlist_by_country_with_t2_hier), 90)\n",
+          "FROM sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier), 90)\n",
           "GROUP BY TITLE_ROLL_UP_DESC\n",
           "ORDER BY wishlist_adds DESC\n",
           "LIMIT 10"
@@ -51,7 +51,7 @@
       {
         "id": "30000000000000000000000000000001",
         "content": [
-          "This space answers digital-storefront sales, marketing, and demand questions for the customer publishing labels (2K, Rockstar Games, Private Division, Ghost Story Games) on the Steam platform. Return aggregates, name the source table and grain, and never invent whether the data is real, demo, or generated.\n",
+          "This space answers digital-storefront sales, marketing, and demand questions for Take-Two publishing labels (2K, Rockstar Games, Private Division, Ghost Story Games) on the Steam platform. Return aggregates, name the source table and grain, and never invent whether the data is real, demo, or generated.\n",
           "\n",
           "TABLE GUIDE.\n",
           "- txn_steam_sales_with_analytics: the sales fact. One row per DATE, item (ITEM_NUM / ITEM_DESC), and title. Use this for revenue (NET_REV_USD_AMT, USD, already net) and units (UNIT_QTY). It also carries the marketing columns (impressions, visits, click_thru_rate, wishlist_*) joined to each sold item. This is the DEFAULT table for revenue and 'sales' questions.\n",

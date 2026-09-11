@@ -479,14 +479,6 @@ def test_unreadable_tag_views_degrade_to_guidance_rather_than_failing_the_turn()
 # ---------------------------------------------------------------------------
 
 
-def budget(monkeypatch, seconds: float) -> None:
-    """Pin what the turn has left, which is what gates the retry."""
-
-    monkeypatch.setattr(
-        tools_module.runtime_settings, "remaining_seconds", lambda: float(seconds)
-    )
-
-
 def test_the_tag_read_waits_the_apis_full_allowance_rather_than_thirty_seconds():
     """The read is small; the wait is for the warehouse, so buy all of it.
 
@@ -505,10 +497,9 @@ def test_the_tag_read_waits_the_apis_full_allowance_rather_than_thirty_seconds()
     assert tools_module.DISCOVERY_WAIT_SECONDS > tools_module.SQL_WAIT_SECONDS
 
 
-def test_a_cancelled_tag_read_is_tried_once_more_and_the_second_attempt_can_succeed(monkeypatch):
+def test_a_cancelled_tag_read_is_tried_once_more_and_the_second_attempt_can_succeed():
     """The first statement is what starts the warehouse; the second finds it warm."""
 
-    budget(monkeypatch, 90)
     tools, warehouse = tagged(
         [tag_row(PROFILES, "pii", "true")], state=["CANCELED", "SUCCEEDED"]
     )
@@ -519,14 +510,13 @@ def test_a_cancelled_tag_read_is_tried_once_more_and_the_second_attempt_can_succ
     assert PROFILES in text and "pii=true" in text
 
 
-def test_a_rejected_tag_read_is_not_tried_a_second_time(monkeypatch):
+def test_a_rejected_tag_read_is_not_tried_a_second_time():
     """A statement the warehouse refused is refused identically on the retry.
 
     Only slowness is worth repeating. Retrying a rejection spends the turn to
     learn what it already knew.
     """
 
-    budget(monkeypatch, 90)
     tools, warehouse = tagged([], state="FAILED")
 
     tools.search_tagged_assets()
@@ -534,18 +524,7 @@ def test_a_rejected_tag_read_is_not_tried_a_second_time(monkeypatch):
     assert len(warehouse.statements) == 1
 
 
-def test_the_retry_is_skipped_when_the_turn_can_no_longer_afford_it(monkeypatch):
-    """A second wait that leaves no budget has spent the run on a discovery hint."""
-
-    budget(monkeypatch, tools_module.SQL_RETRY_MIN_REMAINING_SECONDS - 1)
-    tools, warehouse = tagged([], state="CANCELED")
-
-    tools.search_tagged_assets()
-
-    assert len(warehouse.statements) == 1
-
-
-def test_a_tag_read_the_warehouse_never_got_to_reads_as_skippable_not_as_a_failure(monkeypatch):
+def test_a_tag_read_the_warehouse_never_got_to_reads_as_skippable_not_as_a_failure():
     """What the customer saw, in words a person can act on.
 
     The old line was `the tag views could not be read: SQL CANCELED: the
@@ -553,7 +532,6 @@ def test_a_tag_read_the_warehouse_never_got_to_reads_as_skippable_not_as_a_failu
     tags. It is a fact about their warehouse.
     """
 
-    budget(monkeypatch, 10)
     tools, _ = tagged([], state="CANCELED")
 
     result = tools.search_tagged_assets("pii")
@@ -580,7 +558,7 @@ def test_an_ungranted_tag_read_still_says_not_to_retry():
     assert "one later attempt is reasonable" not in text
 
 
-def test_a_wait_is_never_asked_for_below_the_apis_own_floor(monkeypatch):
+def test_a_wait_is_never_asked_for_below_the_apis_own_floor():
     """`wait_timeout=1s` is an argument error, not a short wait.
 
     The old clamp was `min(30, remaining)` with a floor of one second, so a turn
@@ -588,12 +566,8 @@ def test_a_wait_is_never_asked_for_below_the_apis_own_floor(monkeypatch):
     caller got an API error where it had arranged for a cancelled statement.
     """
 
-    budget(monkeypatch, 2)
-    tools, warehouse = tagged([tag_row(PROFILES, "pii", "true")])
-
-    tools.search_tagged_assets()
-
-    assert warehouse.wait_timeouts[0][0] == f"{tools_module.SQL_WAIT_FLOOR_SECONDS}s"
+    tools, _ = tagged([tag_row(PROFILES, "pii", "true")])
+    assert tools._wait_timeout(1) == f"{tools_module.SQL_WAIT_FLOOR_SECONDS}s"
 
 
 def test_no_matching_tag_is_not_reported_as_missing_data():
@@ -1948,9 +1922,7 @@ def on_the_clock(monkeypatch, per_poll: float, *statuses, **kwargs) -> tuple[Clo
     return clock, genie
 
 
-#: What the wait allows on the default 90 second turn, which is what these run
-#: on: `remaining_seconds()` with no request deadline set returns `max_run_seconds`.
-WARMUP_ALLOWED = 180.0 - tools_module.GENIE_BUDGET_RESERVE_SECONDS
+WARMUP_ALLOWED = tools_module.GENIE_WAREHOUSE_START_SECONDS
 
 
 def test_a_starting_warehouse_is_waited_out_well_past_the_answer_deadline(monkeypatch):
@@ -2016,7 +1988,7 @@ def test_a_warehouse_that_never_starts_stops_with_budget_left_for_the_other_tool
 
     waited = clock.now - 1_000.0
     assert waited >= tools_module.GENIE_TIMEOUT_SECONDS, "it waited far longer than 45s"
-    assert waited <= WARMUP_ALLOWED + 5.0, "and it stopped with the reserve intact"
+    assert waited <= WARMUP_ALLOWED + 5.0, "and it stopped at the warehouse-start timeout"
     assert "warehouse" in str(starting.value) and "still starting" in str(starting.value)
 
 

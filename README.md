@@ -6,7 +6,7 @@ from governed data, and show their work. Every number comes from a live query ru
 under the grants of the person who asked, and every run leaves a trace anyone can
 open.
 
-ADAPT is a governed Genie orchestration app for the customer Steam sales data. It
+ADAPT is a governed Genie orchestration app for Take-Two Steam sales data. It
 ships as a Databricks Asset Bundle. `bundle/README.md` is the operator runbook
 and is more detailed than this page; what follows is the shortest path through
 it, plus what the thing actually is.
@@ -14,7 +14,6 @@ it, plus what the thing actually is.
 - [What it does](#what-it-does)
 - [How an answer is produced](#how-an-answer-is-produced)
 - [The shape of an answer](#the-shape-of-an-answer)
-- [Genie MCP security](#genie-mcp-security)
 - [Runtime settings](#runtime-settings-change-behaviour-without-a-release)
 - [The pages](#the-pages)
 - [Deploying it: the bundle](#deploying-it-the-bundle)
@@ -62,14 +61,10 @@ plans the answer, decides what to ask, and writes the final prose.
 
 **Genie is the one data capability.** ADAPT runs Genie-only: the agent's sole
 data tool is `data_genie`, over a single Genie space — *ADAPT — Steam Sales &
-Analytics*, curating the customer Steam sales, wishlist and store-visibility
+Analytics*, curating Take-Two's Steam sales, wishlist and store-visibility
 tables. There is no agent-authored SQL fallback and no separate data-dictionary
 space; Genie authors and runs the SQL, and the agent cites the space. Under
 `execution_identity: user-authorization`, Genie runs as the person who asked.
-Administrators may optionally route their own turns through Databricks' managed
-Genie MCP server. The app enables that route only after checking the persisted
-setting and authoritative role, then signs a short-lived request capability;
-all other turns keep the direct Genie path.
 
 **The warehouse and Unity Catalog are where governance actually happens.** The
 warehouse runs Genie's SQL read-only; the catalog applies the reader's own grants
@@ -111,19 +106,6 @@ Two conventions are worth knowing when reading a stored answer. An empty
 derivation field means the statement did not say, not "all time" and not
 "unknown". And a source with no role is one recorded before roles existed, so a
 reader must say so rather than guess which it was.
-
-Answers and complete visible conversations can be downloaded as Markdown, HTML,
-JSON, CSV, or XLSX. Export processing is loaded only when requested, and the
-portable formats preserve every visible user and assistant turn.
-
-## Genie MCP security
-
-The experimental managed MCP route is admin-only and fails closed to direct
-Genie when signing or identity verification is unavailable. The app receives the
-Ed25519 private key as a Databricks secret resource; the served model receives
-only the public key and independently verifies the signed-in user. Provisioning,
-rotation, threat boundaries, and rollback behavior are documented in
-[`GENIE_MCP_SECURITY.md`](GENIE_MCP_SECURITY.md).
 
 ## Runtime settings: change behaviour without a release
 
@@ -249,7 +231,7 @@ Have these before you start:
   back with `databricks postgres list-projects`. No owner role is needed; that
   was an input to creating the database;
 - **one existing Genie space**, with its tables already curated. You supply its
-  id, not its contents. `genie/adapt_space.json` is the committed ADAPT
+  id, not its contents. `genie/sample_schema_space.json` is the committed ADAPT
   space definition used to curate it;
 - an existing SQL warehouse;
 - a workspace source path for the committed deploy tree;
@@ -293,7 +275,7 @@ The customer defaults are ADAPT-owned: app `adapt-genie`, endpoint
 deployment's Unity Catalog boundary. The `super:` prefix lets the first
 administrator appoint a second one before any later update.
 
-The the customer group names are defaults, not hardcoded resource identities.
+The Take-Two group names are defaults, not hardcoded resource identities.
 Override `app_admin_group` and `app_user_group` for another customer; the same
 values drive both App permissions and ADAPT's in-app role floor.
 
@@ -427,13 +409,12 @@ If the app is created directly from Git instead of updating a bundle-bootstrappe
 app, configure the App resource's `user_api_scopes` as well as its bindings.
 `app.yaml` tells the app which scopes to check; it cannot change the App resource
 or cause Databricks to mint those scopes into a user's token. Every deployment
-needs these scopes:
+needs these four scopes:
 
 - `serving.serving-endpoints`
 - `model-serving`
 - `sql`
 - `dashboards.genie`
-- `genie`
 
 Catalog, schema, table, and workspace read scopes are optional Connections
 browsing capabilities. `postgres` is optional Lakebase browsing.

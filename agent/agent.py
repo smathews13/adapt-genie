@@ -386,37 +386,10 @@ def _without_internal_answer_transcript(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
 
 
-# ---------------------------------------------------------------------------
-# What bounds the loop
-#
-# Four limits, because they fail differently: a stuck model keeps taking turns,
-# keeps calling tools within a turn, keeps spending wall clock, or returns
-# something enormous.
-#
-# Hitting any of them does NOT abandon the turn. The loop stops offering tools
-# and asks for an answer from the evidence already gathered (`_forced_answer`),
-# which beats spinning until the endpoint times out and returns nothing.
-# ---------------------------------------------------------------------------
-
-#: Model turns that may request tools. Twelve covers the deepest useful path (
-#: definition lookup, discovery, describe, query, quality check) with slack for
-#: several recoveries, while capping a loop at thirteen model calls.
-MAX_TOOL_STEPS = 12
-
-#: Tool executions across the whole run, counted separately because one turn can
-#: request several calls at once and a step cap alone would not bound them.
-MAX_TOOL_CALLS = 12
-
-#: Wall clock after which no NEW tool call starts. A Genie call takes roughly
-#: eighteen seconds, so the step and call caps alone permit a run far longer than
-#: any caller will wait.
-#:
-#: CHECKED BETWEEN CALLS ONLY: nothing here interrupts a call in flight, so on
-#: its own this bounds the gaps. What holds the turn inside the request timeout
-#: is this plus a real per-call deadline, GENIE_TIMEOUT_SECONDS and the
-#: warehouse's wait timeout in tools.py, each sized so one call cannot outlast
-#: this budget.
-MAX_RUN_SECONDS = 180.0
+# One remote model call must still fail independently when that dependency is
+# stuck. This is not a run, step, or tool-call budget: the next reasoning turn
+# remains available after a timed-out data source is reported to the model.
+MODEL_CALL_TIMEOUT_SECONDS = 45.0
 
 #: Per-field ceiling on what a stage records. High enough to keep the SQL a
 #: reader opens the trace to check, capped rather than removed because `input`
@@ -2008,22 +1981,10 @@ class _BatchCall:
     #: The stage label and status for a call refused before running.
     refused_label: str = "Skipped a call that kept failing"
     refused_status: str = "failed"
-    #: Whether a stage is emitted at all. A budget-capped call is answered to
-    #: the model but draws no row, which is the behaviour before this change.
+    #: Whether a stage is emitted at all.
     announce: bool = True
-    #: The bound this call hit, when it hit one. Read back into the loop's own
-    #: `capped`, which is what the answer's caveat is written from.
-    capped: str = ""
-    #: True when `capped` was set by the tool-call budget rather than the turn
-    #: deadline. On the concurrent path a repeated failure can return sibling
-    #: units after a later call was already marked over-budget, so the loop uses
-    #: this to tell a reconcilable budget cap from a real deadline stop.
-    capped_by_tool_budget: bool = False
     #: True when the call is dispatched.
     admitted: bool = False
-    #: True once its dispatch-time budget unit has been returned by the repeat
-    #: brake, so a second brake in the same batch cannot refund it twice.
-    budget_refunded: bool = False
     started: float = 0.0
     result: Any = None
     error: BaseException | None = None
@@ -2054,23 +2015,15 @@ class LoopOutcome:
 
     `answer_text` is the analyst's own prose when it finished normally.
     `clarification` is set when it stopped to ask the user something instead.
-    `capped` names the bound that stopped it, and is carried into the answer's
-    caveats: a run that stopped early has to say so, or the gap reads as a
-    finding.
+    `failure` names an orchestrator failure that stopped it, and is carried into
+    the answer's caveats so the gap cannot read as a finding.
     """
 
     answer_text: str = ""
     clarification: Clarification | None = None
-    capped: str = ""
+    failure: str = ""
     #: False only when a required result is genuinely absent or degraded.
     complete: bool | None = None
-
-
-@dataclass
-class AnalysisBudget:
-    """Tool-call budget owned by one bounded analysis run."""
-
-    tool_calls: int = 0
 
 
 class RunLog:
@@ -2290,13 +2243,6 @@ class RunLog:
             completion_tokens=self.completion_tokens,
             total_tokens=self.total_tokens,
         )
-
-    def expired(self) -> bool:
-        return self.elapsed >= runtime_settings.current().loop.max_run_seconds
-
-    @property
-    def remaining(self) -> float:
-        return max(0.0, runtime_settings.current().loop.max_run_seconds - self.elapsed)
 
     def starting(
         self,
@@ -2632,9 +2578,8 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         with_options = getattr(client, "with_options", None)
         if callable(with_options):
             # The OpenAI client retries timed-out requests twice by default. A
-            # call given the 21 seconds left in this turn therefore occupied 63
-            # seconds in production and escaped the run's wall-clock budget.
-            # The orchestrator owns retries because only it knows that budget.
+            # 45-second call could therefore occupy 135 seconds and consume most
+            # of the serving request without giving the model new information.
             return with_options(max_retries=0)
         return client
 
@@ -2876,17 +2821,13 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         tools: PlayerInsightTools,
         log: RunLog,
         braked: dict[str, str],
-        budget: AnalysisBudget,
     ) -> str:
-        """Spend the budget on one call, or say why it is not being run.
+        """Admit one call unless an identical failed request was already stopped.
 
         Called sequentially and in the model's own order on both the parallel and
-        the serial path, so which call the last budget unit lands on does not
-        depend on how the batch was scheduled.
+        the serial path.
         """
 
-        # Checked BEFORE the budget, and it does not spend the budget: not
-        # spending it on a call that cannot work is the entire point.
         skipped = log.repeats.skip_repeat(entry.name, entry.arguments_key) or braked.get(
             entry.name, ""
         )
@@ -2895,26 +2836,8 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             entry.refused_status = "partial"
             return skipped
 
-        max_tool_calls = runtime_settings.current().loop.max_tool_calls
-        if budget.tool_calls >= max_tool_calls or log.expired():
-            entry.announce = False
-            entry.capped_by_tool_budget = budget.tool_calls >= max_tool_calls
-            entry.capped = (
-                f"the {max_tool_calls}-tool-call budget was spent"
-                if entry.capped_by_tool_budget
-                else (
-                    f"the turn budget was reached at {log.elapsed:.1f}s elapsed with "
-                    f"{log.remaining:.1f}s remaining"
-                )
-            )
-            return (
-                f"ERROR: not run ({entry.capped}). Answer now from the evidence you "
-                "already have, and say what you could not check."
-            )
-
         log.calls += 1
         log.tool_calls += 1
-        budget.tool_calls += 1
         entry.admitted = True
         entry.started = time.perf_counter()
         # Before the call, not after it. Which space a question was routed to is
@@ -2924,32 +2847,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         if entry.name in GENIE_TOOLS:
             log.used_genie_space(*self._genie_space_of(tools, entry.name))
         return ""
-
-    @staticmethod
-    def _refund_calls_overtaken_by_brake(
-        batch: Sequence[_BatchCall],
-        brake: _BatchCall,
-        budget: AnalysisBudget,
-    ) -> None:
-        """Return budget units the serial repeat brake would not have spent.
-
-        The concurrent path has already dispatched every admitted call before
-        any result is classified. Once `brake` is the failure that gives up on a
-        tool, every later admitted call to that tool is therefore real external
-        work but not budget-consuming work: the serial path would have refused
-        it before dispatch. Actual-call, resource and failure ledgers remain
-        untouched; only the finder's admission budget is reconciled.
-        """
-
-        for entry in batch:
-            if (
-                entry.index > brake.index
-                and entry.name == brake.name
-                and entry.admitted
-                and not entry.budget_refunded
-            ):
-                entry.budget_refunded = True
-                budget.tool_calls -= 1
 
     def _refused_before_running(
         self,
@@ -2962,9 +2859,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
 
         A stage is emitted even though nothing ran, because the app's step rail
         and the Run Explorer read these events and a call that silently
-        disappeared would leave a reader with a gap and no reason for it. A
-        budget-capped call is the one exception: it is answered to the model and
-        draws no row, as it did before.
+        disappeared would leave a reader with a gap and no reason for it.
         """
 
         if entry.announce:
@@ -3067,8 +2962,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         # inert JSON and attachment text is fenced as untrusted data.
         messages.append({"role": "user", "content": question})
 
-        capped = ""
-        analysis_budget = AnalysisBudget()
         if _is_simple_inventory_request(question):
             # An inventory is already answered by the declared manifest. Ranked
             # discovery adds latency and duplicates a list that needs no ranking.
@@ -3083,7 +2976,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             )
             log.calls += 1
             log.tool_calls += 1
-            analysis_budget.tool_calls += 1
             result = tools.list_data_assets(
                 getattr(tools.settings, "catalog", ""),
                 getattr(tools.settings, "schema", ""),
@@ -3109,14 +3001,9 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                 "Unity Catalog still evaluates the signed-in user's grants when a table is read."
             )
             return LoopOutcome(answer_text=package, complete=True)
-        max_steps = runtime_settings.current().loop.max_steps
-        for step in range(1, max_steps + 1):
-            if log.expired():
-                capped = (
-                    f"the turn budget was reached at {log.elapsed:.1f}s elapsed "
-                    f"with {log.remaining:.1f}s remaining"
-                )
-                break
+        step = 0
+        while True:
+            step += 1
             started = time.perf_counter()
             log.calls += 1
             # Named for what the call is FOR rather than for what it turns out to
@@ -3144,7 +3031,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                         max_tokens=self.settings.max_output_tokens,
                         tools=analysis_tools,
                         tool_choice="auto",
-                        timeout=max(1.0, log.remaining),
+                        timeout=MODEL_CALL_TIMEOUT_SECONDS,
                     )
                 except Exception as error:
                     # The endpoint that chooses the steps also writes the answer, so
@@ -3182,7 +3069,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                         depth=depth,
                         parent_id=parent_id,
                     )
-                    return LoopOutcome(capped=reason)
+                    return LoopOutcome(failure=reason)
 
                 message = response.choices[0].message
                 content = getattr(message, "content", None) or ""
@@ -3340,9 +3227,8 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             if together:
                 for entry in runnable:
                     entry.refused_before_running = self._admit_tool_call(
-                        entry, tools, log, braked, analysis_budget
+                        entry, tools, log, braked
                     )
-                    capped = capped or entry.capped
                 flight = [entry for entry in runnable if entry.admitted]
                 # Every one of them announced before any of them starts, because
                 # they do all start together and a rail that drew them one at a
@@ -3388,9 +3274,8 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                     # The serial path: this call's decisions could not be made
                     # until the ones before it had returned.
                     entry.refused_before_running = self._admit_tool_call(
-                        entry, tools, log, braked, analysis_budget
+                        entry, tools, log, braked
                     )
-                    capped = capped or entry.capped
                     if entry.admitted:
                         # Announced before the call, and this is the one that
                         # matters most: a Genie question is the longest thing a
@@ -3576,7 +3461,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                         log.repeats.remember(name, entry.arguments_key, reason)
                         if log.repeats.record(name, reason):
                             braked[name] = log.repeats.skip_batch(name)
-                            self._refund_calls_overtaken_by_brake(batch, entry, analysis_budget)
 
                 # Only a completed call contributes evidence. `log.evidence`
                 # also gates the charting step, so a run whose only outcome was a
@@ -3647,183 +3531,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                     )
                 )
 
-            if log.expired() and not capped:
-                capped = (
-                    f"the turn budget was reached at {log.elapsed:.1f}s elapsed "
-                    f"with {log.remaining:.1f}s remaining"
-                )
-            # Admission happens before concurrent results are known, so a call
-            # later in the batch can be marked over-budget before an earlier
-            # repeated failure returns sibling units. That dispatch-time mark
-            # remains in the transcript, but it is no longer a terminal fact:
-            # the next reasoning/tool step must get the budget the serial brake
-            # would have left it.
-            if (
-                capped
-                and any(entry.capped_by_tool_budget for entry in batch)
-                and analysis_budget.tool_calls < runtime_settings.current().loop.max_tool_calls
-                and not log.expired()
-            ):
-                capped = ""
-            if capped:
-                break
-        else:
-            counted = [stage for stage in log.stages if re.fullmatch(r"step-\d+", stage.id)]
-            names = ", ".join(f"{stage.name} ({stage.duration / 1000:.2f}s)" for stage in counted)
-            summed = sum(stage.duration for stage in counted) / 1000
-            capped = (
-                f"the {max_steps}-step ceiling was reached; counted {names or 'no named steps'}; "
-                f"their summed duration was {summed:.2f}s"
-            )
-
-        answer_text, stage, completed_from_reading = self._forced_answer(
-            messages,
-            log,
-            capped,
-            depth=depth,
-            parent_id=parent_id,
-        )
-        yield stage
-        # A ceiling says no more tools may start; it does not by itself say the
-        # assessed package is incomplete. A successful value-returning
-        # query is the useful boundary. Optional candidate tables left unsampled
-        # after that point must not turn a usable package pink or add a misleading
-        # "stopped early" caveat. With no queryable reading, the same ceiling is
-        # still a real partial outcome.
-        return LoopOutcome(
-            answer_text=answer_text,
-            capped="" if completed_from_reading else capped,
-            complete=completed_from_reading,
-        )
-
-    def _forced_answer(
-        self,
-        messages: list[dict[str, Any]],
-        log: RunLog,
-        capped: str,
-        *,
-        depth: int = 0,
-        parent_id: str = "",
-    ) -> tuple[str, TraceStage, bool]:
-        """One last model call with no tools offered, after a bound was hit.
-
-        Withholding the tools is the whole mechanism: the model cannot ask for
-        another call, so the only move left is to answer from what is in the
-        conversation. That turns every ceiling into a degraded answer that names
-        its own gap, rather than a dropped turn.
-        """
-
-        started = time.perf_counter()
-        # Do not start another remote model call after the deadline (the observed
-        # "stop" row took 36.75s because it did exactly that). A deterministic
-        # handoff preserves the evidence already gathered without replaying it
-        # through another expensive step.
-        if log.remaining < 5.0:
-            evidence = log.plot_evidence() or log.evidence
-            if evidence:
-                heading = "## DATA PACKAGE" if log.readings else "## DATA OVERVIEW"
-                text = compact_evidence_package(
-                    f"{heading}\n- **Findings / data:**\n" + "\n\n".join(evidence)
-                )
-            else:
-                text = (
-                    "## DATA OVERVIEW\n- **Gaps:** The turn ended before a governed "
-                    "source returned evidence."
-                )
-            completed_from_reading = bool(text.strip() and log.readings)
-            summary = (
-                f"Deadline enforced at {log.elapsed:.1f}s elapsed; "
-                f"{log.remaining:.1f}s remained. "
-                f"Kept a {len(text):,}-character grounded handoff without another model call."
-            )
-            return (
-                text,
-                log.stage(
-                    "cap",
-                    (
-                        "Completed from assessed sources"
-                        if completed_from_reading
-                        else "Stopped within the turn budget"
-                    ),
-                    "agent",
-                    started,
-                    capped,
-                    summary,
-                    "complete" if completed_from_reading else "partial",
-                    depth=depth,
-                    parent_id=parent_id,
-                ),
-                completed_from_reading,
-            )
-
-        _, client = self._runtime()
-        messages = [
-            *messages,
-            {
-                "role": "user",
-                "content": (
-                    f"Stop here: {capped}. Answer now from the evidence already gathered, in "
-                    "prose. State only positive findings supported by retrieved evidence. Put "
-                    "an actionable access or outage blocker in caveats; never pad the answer "
-                    "or trace with filters, exclusions, or checks that were not applied."
-                ),
-            },
-        ]
-        log.calls += 1
-        try:
-            with mlflow.start_span(name="orchestrator.llm.cap", span_type="LLM") as llm_span:
-                llm_span.set_inputs({"capped": capped, "model": self.settings.llm_endpoint})
-                response = client.chat.completions.create(
-                    model=self.settings.llm_endpoint,
-                    messages=messages,
-                    temperature=0.1,
-                    max_tokens=min(self.settings.max_output_tokens, 900),
-                    timeout=max(1.0, log.remaining),
-                )
-                text = compact_evidence_package(response.choices[0].message.content or "")
-                llm_span.set_outputs({"text": text[:6000]})
-                log.add_usage(record_llm_usage(llm_span, response))
-        except Exception as error:
-            text = ""
-            return (
-                text,
-                log.stage(
-                    "cap",
-                    "Stopped at the step budget",
-                    "agent",
-                    started,
-                    capped,
-                    f"No closing answer could be produced ({_failure_reason(error)}).",
-                    "failed",
-                    depth=depth,
-                    parent_id=parent_id,
-                ),
-                False,
-            )
-        completed_from_reading = bool(text.strip() and log.readings)
-        summary = (
-            f"Produced a {len(text):,}-character grounded handoff at "
-            f"{log.elapsed:.1f}s elapsed with {log.remaining:.1f}s remaining."
-        )
-        return (
-            text,
-            log.stage(
-                "cap",
-                (
-                    "Completed from assessed sources"
-                    if completed_from_reading
-                    else "Stopped at the step budget"
-                ),
-                "agent",
-                started,
-                capped,
-                summary,
-                "complete" if completed_from_reading else "partial",
-                depth=depth,
-                parent_id=parent_id,
-            ),
-            completed_from_reading,
-        )
 
     def _synthesize(
         self,
@@ -3833,33 +3540,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         log: RunLog,
         findings: str,
     ) -> Synthesis:
-        if log.remaining < 5.0:
-            # No budget left to write an answer, so the run reports what it
-            # established instead of inventing a voice for it. The package is an
-            # INTERNAL HANDOFF and is reduced to the two sections a reader is owed
-            # before it is shown; see reader_facing_evidence for what comes out and
-            # why. It used to be passed through whole, which put the loop's column
-            # inventory and per-query provenance on the customer's screen under a
-            # `## DATA PACKAGE` heading.
-            narrative, package_caveats = reader_facing_evidence(findings)
-            deadline = "The turn deadline was reached before the answer could be written."
-            return Synthesis(
-                takeaway=(
-                    "The analysis completed from assessed sources."
-                    if log.readings
-                    else "The turn ended before all required evidence was available."
-                ),
-                narrative=narrative,
-                # The deadline is stated first because it governs how everything
-                # under it should be read: these are the run's own findings rather
-                # than an answer written from them.
-                caveats=[
-                    deadline
-                    if log.readings
-                    else "The turn deadline was reached before a governed data result returned.",
-                    *package_caveats,
-                ],
-            )
         _, client = self._runtime()
         log.calls += 1
         # Retuned to the operator's figure cap before the knowledge is added, exactly
@@ -3930,7 +3610,7 @@ Tables actually read this run:
                 ],
                 "temperature": 0.1,
                 "max_tokens": self.settings.max_output_tokens,
-                "timeout": max(1.0, log.remaining),
+                "timeout": MODEL_CALL_TIMEOUT_SECONDS,
             }
             structured = "accepted"
             try:
@@ -3942,21 +3622,6 @@ Tables actually read this run:
                 # if the endpoint refuses structured output then EVERY answer pays two
                 # model calls, and no recorded run could tell us which path it took.
                 structured = "fallback"
-                if log.remaining < 5.0:
-                    # Reduced, not pasted: the same argument as the budget branch at
-                    # the top of this method. See reader_facing_evidence.
-                    narrative, package_caveats = reader_facing_evidence(findings)
-                    return Synthesis(
-                        takeaway=(
-                            "The analysis completed, but the structured presentation "
-                            "was incomplete."
-                        ),
-                        narrative=narrative,
-                        caveats=[
-                            "The turn deadline left no time for a second formatting attempt.",
-                            *package_caveats,
-                        ],
-                    )
                 try:
                     response = client.chat.completions.create(**kwargs)
                 except Exception as error:
@@ -4092,7 +3757,7 @@ Statements run, for column names and grain:
                     max_tokens=self.settings.max_output_tokens,
                     tools=[NEW_PLOT_TOOL],
                     tool_choice="auto",
-                    timeout=max(1.0, log.remaining),
+                    timeout=MODEL_CALL_TIMEOUT_SECONDS,
                 )
                 calls = getattr(response.choices[0].message, "tool_calls", None) or []
             except Exception as error:
@@ -4786,7 +4451,7 @@ Tables available to this analysis, with their columns:
                 depth=1,
                 genie_transport=genie_transport,
             )
-            package = compact_evidence_package(outcome.answer_text or outcome.capped)
+            package = compact_evidence_package(outcome.answer_text or outcome.failure)
             if outcome.answer_text:
                 outcome.answer_text = package
             # Read WHILE A SPAN IS ACTIVE. Taken after the block, the only span
@@ -4799,7 +4464,7 @@ Tables available to this analysis, with their columns:
                     "sources": log.sources,
                     "calls": log.calls,
                     "calls_saved": log.calls_saved,
-                    "capped": outcome.capped,
+                    "failure": outcome.failure,
                     "clarified": outcome.clarification is not None,
                     "genie_transport": genie_transport,
                     "prompt_tokens": log.prompt_tokens,
@@ -4875,7 +4540,6 @@ Tables available to this analysis, with their columns:
         plottable_evidence = log.plot_evidence()
         if (
             plottable_evidence
-            and log.remaining >= 5.0
             and runtime_settings.current().answer.charts
             and runtime_settings.current().answer.max_charts > 0
         ):
@@ -5051,10 +4715,10 @@ Tables available to this analysis, with their columns:
             # gave up and ran out reads in that order: giving up is what a
             # person can act on.
             caveats.insert(0, log.repeats.caveat())
-        if outcome.capped:
+        if outcome.failure:
             caveats.insert(
                 0,
-                f"The analysis stopped early because {outcome.capped}, so it may be incomplete.",
+                f"The analysis stopped early because {outcome.failure}, so it may be incomplete.",
             )
         # NOTHING IS APPENDED HERE ABOUT THE NATURE OF THE DATA. A constant
         # stating that the player records were generated used to be added to

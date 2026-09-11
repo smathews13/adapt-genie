@@ -6,7 +6,7 @@ from runtime_settings import RuntimeSettings, activate, current, prompt_fragment
 
 def test_absent_settings_preserve_compiled_behavior():
     assert activate({}) == RuntimeSettings()
-    assert current().loop.max_steps == 12
+    assert not hasattr(current(), "loop")
     assert current().answer.max_charts == 2
 
 
@@ -27,7 +27,7 @@ def test_today_line_respects_named_timezone():
     assert "Today's date is 2026-08-18 (America/Los_Angeles)" in line
 
 
-def test_request_settings_control_loop_and_answer_contract():
+def test_request_settings_control_answer_contract_and_ignore_retired_loop_limits():
     settings = activate(
         {
             "runtime_settings": {
@@ -56,7 +56,7 @@ def test_request_settings_control_loop_and_answer_contract():
             }
         }
     )
-    assert settings.loop.max_steps == 10
+    assert not hasattr(settings, "loop")
     assert settings.answer.max_figures == 4
     assert settings.answer.charts is False
     fragment = prompt_fragment()
@@ -78,8 +78,7 @@ def test_invalid_direct_caller_values_fall_back_safely():
             }
         }
     )
-    assert settings.loop.max_steps == 12
-    assert settings.loop.max_tool_calls == 12
+    assert not hasattr(settings, "loop")
     assert settings.behavior.timezone == ""
     assert settings.answer.takeaway_guidance == ""
     assert settings.answer.figures_order == "as-ranked"

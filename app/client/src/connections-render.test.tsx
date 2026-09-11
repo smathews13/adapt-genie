@@ -322,7 +322,7 @@ describe('the deployment source links', () => {
     expect([...markup.matchAll(/target="_blank"/g)]).toHaveLength(2);
     expect([...markup.matchAll(/rel="noreferrer noopener"/g)]).toHaveLength(2);
     expect(text(markup)).toContain('App source app/build/deploy');
-    expect(text(markup)).toContain('GitHub smathews13/adapt-genie · main');
+    expect(text(markup)).toContain('GitHub manish-namburi_data/adapt-genie · main');
   });
 
   /**

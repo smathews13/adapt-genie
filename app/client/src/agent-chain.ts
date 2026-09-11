@@ -5,11 +5,7 @@
  * WHY THIS FILE EXISTS. The Architecture page's "Answer path" rail was four
  * hand-written rows in the page component, and it described the run the agent
  * performed before the chain was reworked: browser, orchestrator, warehouse,
- * browser. It said nothing about the approval plan that now runs before anything
- * is read, nothing about the Orchestrator's analysis loop or the three bounds
- * that stop it, and nothing about synthesis and charts being separate stages that
- * can be cut for budget. A reader comparing the rail against a run in the Run
- * Explorer saw different stage names in the two places.
+ * browser. It said nothing about synthesis and charts being separate stages.
  *
  * So the stages are data rather than markup, named as the agent's own spans name
  * them. `stage` on each row is the literal MLflow stage id the current trace carries,
@@ -18,16 +14,9 @@
  * agent.py, the mismatch is visible here rather than being a caption that quietly
  * became wrong.
  *
- * THIS IS A DESCRIPTION AND NOT A CONTROL. Nothing here decides anything: the
- * loop is bounded by the runtime settings the agent reads per request, and the
- * answer's shape is `AnswerContract` in agent/contracts.py. What is written here
- * is what those two do, in the order they do it.
+ * THIS IS A DESCRIPTION AND NOT A CONTROL. Nothing here decides anything.
  */
-import { RUN_RUNTIME_LOOP_LABEL } from '../../shared/run-runtime-used';
 import type { ArchitectureAccent } from './architecture-layout';
-
-/** Which runtime setting bounds a stage, where one does. */
-export type ChainBound = 'maxSteps' | 'maxToolCalls' | 'maxRunSeconds';
 
 /**
  * One stage of a run.
@@ -50,7 +39,6 @@ export interface ChainStage {
   /** What passes to the next stage, drawn on the arrow between the rows. */
   passes?: string;
   optional?: boolean;
-  bound?: ChainBound;
 }
 
 /**
@@ -71,7 +59,6 @@ export const AGENT_CHAIN: readonly ChainStage[] = [
     body: 'One parent stage coordinates governed data reads and writes the final answer.',
     accent: 'agent',
     passes: 'question',
-    bound: 'maxRunSeconds',
   },
   {
     stage: 'data_genie',
@@ -79,7 +66,6 @@ export const AGENT_CHAIN: readonly ChainStage[] = [
     body: 'Direct SQL reads curated tables first; Genie handles requests that need semantic interpretation.',
     accent: 'genie',
     passes: 'query results',
-    bound: 'maxToolCalls',
   },
   {
     stage: 'synthesis',
@@ -87,36 +73,8 @@ export const AGENT_CHAIN: readonly ChainStage[] = [
     body: 'The foundation model turns Genie’s results into the prose the reader sees.',
     accent: 'agent',
     passes: 'answer',
-    bound: 'maxSteps',
   },
 ];
-
-/**
- * The three bounds, with the label the Settings pane puts on each.
- *
- * THE WORDING IS THE SETTINGS PANE'S, DELIBERATELY. A reader who sees "Max analysis
- * steps" here and wants to change it should find that exact string in the gear,
- * and a second phrasing for the same number is a second thing to search for. The
- * keys are `RuntimeSettings['loop']`'s own.
- */
-export const CHAIN_BOUND_LABEL: Readonly<Record<ChainBound, string>> = RUN_RUNTIME_LOOP_LABEL;
-
-/** The order the bounds are read across in the strip. */
-export const CHAIN_BOUNDS: readonly ChainBound[] = ['maxSteps', 'maxToolCalls', 'maxRunSeconds'];
-
-/**
- * What a bound does, for the tile's tooltip.
- *
- * One sentence each, and each one says what happens when the bound is REACHED
- * rather than restating the label as prose. "Caps the number of steps" tells a
- * reader nothing they did not get from "Max analysis steps"; what they cannot see is
- * that hitting it produces an answer rather than an error.
- */
-export const CHAIN_BOUND_NOTE: Readonly<Record<ChainBound, string>> = {
-  maxSteps: 'How many analysis steps the Orchestrator may take with Genie. At the cap it answers from what it has.',
-  maxToolCalls: 'How many governed tool calls one run may make in total, across every step.',
-  maxRunSeconds: 'How long the orchestrator may spend before it stops gathering and writes the answer.',
-};
 
 /**
  * One section of the answer contract.

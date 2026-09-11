@@ -17,7 +17,6 @@ export type RuntimeEntityStyle = {
 export type RuntimeEntityStyles = Record<RuntimeEntityKind, RuntimeEntityStyle>;
 
 export const RUNTIME_SETTINGS_KEYS = [
-  'loop',
   'answer',
   'behavior',
   'colorScheme',
@@ -31,7 +30,8 @@ export const RUNTIME_SETTINGS_KEYS = [
   'density',
   'tableStyle',
 ] as const;
-export const RUNTIME_LOOP_KEYS = ['maxSteps', 'maxToolCalls', 'maxRunSeconds'] as const;
+const LEGACY_RUNTIME_SETTINGS_KEYS = [...RUNTIME_SETTINGS_KEYS, 'loop'] as const;
+const LEGACY_RUNTIME_LOOP_KEYS = ['maxSteps', 'maxToolCalls', 'maxRunSeconds'] as const;
 export const RUNTIME_ANSWER_KEYS = [
   'takeaway',
   'narrative',
@@ -164,11 +164,6 @@ const TYPE_TOKEN_PX = [
 ] as const;
 
 export type RuntimeSettings = {
-  loop: {
-    maxSteps: number;
-    maxToolCalls: number;
-    maxRunSeconds: number;
-  };
   answer: {
     takeaway: boolean;
     narrative: boolean;
@@ -219,7 +214,6 @@ export function upgradePaperEntityStyles(styles: RuntimeEntityStyles): RuntimeEn
 
 /** Current behavior. An empty store therefore changes no existing deployment. */
 export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
-  loop: { maxSteps: 12, maxToolCalls: 12, maxRunSeconds: 180 },
   answer: {
     takeaway: true,
     narrative: true,
@@ -319,16 +313,17 @@ function parseEntityStyles(value: unknown): RuntimeEntityStyles | null {
  * authoritative schema module so server code cannot accidentally adopt it.
  */
 export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings | null {
-  const root = strictObject(value, RUNTIME_SETTINGS_KEYS);
+  const root = strictObject(value, LEGACY_RUNTIME_SETTINGS_KEYS);
   if (!root) return null;
-  const loop = strictObject(root.loop, RUNTIME_LOOP_KEYS);
+  // Validate and discard the retired loop limits so older appearance caches
+  // upgrade without preserving any execution budget.
+  const loop = root.loop === undefined ? undefined : strictObject(root.loop, LEGACY_RUNTIME_LOOP_KEYS);
   const answer = strictObject(root.answer, RUNTIME_ANSWER_KEYS);
   const behavior = strictObject(root.behavior, RUNTIME_BEHAVIOR_KEYS);
   if (
-    !loop ||
+    (root.loop !== undefined && !loop) ||
     !answer ||
     !behavior ||
-    !RUNTIME_LOOP_KEYS.every((key) => owns(loop, key)) ||
     ![
       'takeaway',
       'narrative',
@@ -346,9 +341,14 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
     return null;
   }
 
-  const maxSteps = integer(loop.maxSteps, 1, 20);
-  const maxToolCalls = integer(loop.maxToolCalls, 1, 40);
-  const maxRunSeconds = integer(loop.maxRunSeconds, 30, 200);
+  if (
+    loop &&
+    ((owns(loop, 'maxSteps') && integer(loop.maxSteps, 1, 20) === null) ||
+      (owns(loop, 'maxToolCalls') && integer(loop.maxToolCalls, 1, 40) === null) ||
+      (owns(loop, 'maxRunSeconds') && integer(loop.maxRunSeconds, 30, 200) === null))
+  ) {
+    return null;
+  }
   const maxCharts = integer(answer.maxCharts, 0, 6);
   const maxFigures = integer(answer.maxFigures, 0, 12);
   const maxCaveats = integer(answer.maxCaveats, 0, 20);
@@ -388,9 +388,6 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
         : null;
 
   if (
-    maxSteps === null ||
-    maxToolCalls === null ||
-    maxRunSeconds === null ||
     maxCharts === null ||
     maxFigures === null ||
     maxCaveats === null ||
@@ -423,7 +420,6 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
   }
 
   return {
-    loop: { maxSteps, maxToolCalls, maxRunSeconds },
     answer: {
       takeaway: answer.takeaway,
       narrative: answer.narrative,

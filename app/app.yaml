@@ -106,7 +106,7 @@ env:
     value: 'S_TK2_Databricks_Adapt_Genie_Users'
   # Customer-facing group names shown in Identity. A shared demo workspace may
   # map these labels through generic workspace groups while preserving the
-  # the customer access model the app is demonstrating.
+  # Take-Two access model the app is demonstrating.
   - name: ADAPT_ADMIN_GROUP_LABEL
     value: 'S_TK2_Databricks_Adapt_Genie_Admins'
   - name: ADAPT_USER_GROUP_LABEL

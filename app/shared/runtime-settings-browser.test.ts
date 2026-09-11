@@ -7,7 +7,6 @@ import {
   RUNTIME_BEHAVIOR_KEYS,
   RUNTIME_ENTITY_KINDS,
   RUNTIME_ENTITY_STYLE_KEYS,
-  RUNTIME_LOOP_KEYS,
   RUNTIME_SETTINGS_KEYS,
   parsePersistedRuntimeSettings,
   type RuntimeSettings,
@@ -55,17 +54,18 @@ describe('browser runtime settings cache parser', () => {
       ['answer', 'chartsTypes']
     );
     const trimmed = changed(['behavior', 'timezone'], '  America/Denver  ');
+    const retiredBudget = {
+      ...DEFAULT_RUNTIME_SETTINGS,
+      loop: { maxSteps: 12, maxToolCalls: 12, maxRunSeconds: 180 },
+    };
 
-    for (const value of [DEFAULT_RUNTIME_SETTINGS, legacy, trimmed]) {
+    for (const value of [DEFAULT_RUNTIME_SETTINGS, legacy, trimmed, retiredBudget]) {
       expect(parsePersistedRuntimeSettings(value)).toEqual(RuntimeSettingsSchema.parse(value));
     }
   });
 
   it('accepts every numeric boundary and refuses out-of-range, fractional, and non-finite numbers', () => {
     const bounds = [
-      [['loop', 'maxSteps'], 1, 20],
-      [['loop', 'maxToolCalls'], 1, 40],
-      [['loop', 'maxRunSeconds'], 30, 200],
       [['answer', 'maxCharts'], 0, 6],
       [['answer', 'maxFigures'], 0, 12],
       [['answer', 'maxCaveats'], 0, 20],
@@ -81,6 +81,18 @@ describe('browser runtime settings cache parser', () => {
         expect(RuntimeSettingsSchema.safeParse(value).success, `${path.join('.')} schema=${invalid}`).toBe(false);
       }
     }
+    expect(
+      parsePersistedRuntimeSettings({
+        ...DEFAULT_RUNTIME_SETTINGS,
+        loop: { maxSteps: 12, maxToolCalls: 12, maxRunSeconds: 180 },
+      })
+    ).toEqual(DEFAULT_RUNTIME_SETTINGS);
+    expect(
+      parsePersistedRuntimeSettings({
+        ...DEFAULT_RUNTIME_SETTINGS,
+        loop: { maxSteps: 12, maxToolCalls: 'many', maxRunSeconds: 180 },
+      })
+    ).toBeNull();
   });
 
   it('refuses a malformed value for every non-numeric field', () => {
@@ -124,7 +136,7 @@ describe('browser runtime settings cache parser', () => {
       [],
       'settings',
       { ...DEFAULT_RUNTIME_SETTINGS, surprise: true },
-      changed(['loop'], { ...DEFAULT_RUNTIME_SETTINGS.loop, surprise: 1 }),
+      changed(['loop'], { maxSteps: 12, maxToolCalls: 12, maxRunSeconds: 180, surprise: 1 }),
       changed(['answer'], { ...DEFAULT_RUNTIME_SETTINGS.answer, surprise: 1 }),
       changed(['behavior'], { ...DEFAULT_RUNTIME_SETTINGS.behavior, surprise: 1 }),
       changed(['entityStyles'], {
@@ -132,7 +144,6 @@ describe('browser runtime settings cache parser', () => {
         surprise: DEFAULT_RUNTIME_SETTINGS.entityStyles.tag,
       }),
       changed(['entityStyles', 'tag'], { ...DEFAULT_RUNTIME_SETTINGS.entityStyles.tag, surprise: '#ffffff' }),
-      without(['loop', 'maxSteps']),
       without(['answer', 'takeaway']),
       without(['behavior', 'timezone']),
       without(['entityStyles', 'tag']),
@@ -144,8 +155,8 @@ describe('browser runtime settings cache parser', () => {
 
   it('keeps parser keys, defaults, and the authoritative schema aligned', () => {
     const shape = RuntimeSettingsObjectSchema.shape;
-    expect([...RuntimeSettingsObjectSchema.keyof().options].sort()).toEqual([...RUNTIME_SETTINGS_KEYS].sort());
-    expect([...shape.loop.keyof().options].sort()).toEqual([...RUNTIME_LOOP_KEYS].sort());
+    expect([...RuntimeSettingsObjectSchema.keyof().options].sort()).toEqual([...RUNTIME_SETTINGS_KEYS, 'loop'].sort());
+    expect([...shape.loop.unwrap().keyof().options].sort()).toEqual(['maxRunSeconds', 'maxSteps', 'maxToolCalls']);
     expect([...shape.answer.keyof().options].sort()).toEqual([...RUNTIME_ANSWER_KEYS].sort());
     expect([...shape.behavior.keyof().options].sort()).toEqual([...RUNTIME_BEHAVIOR_KEYS].sort());
     expect([...RuntimeEntityStylesObjectSchema.keyof().options].sort()).toEqual([...RUNTIME_ENTITY_KINDS].sort());
@@ -153,7 +164,6 @@ describe('browser runtime settings cache parser', () => {
       [...RUNTIME_ENTITY_STYLE_KEYS].sort()
     );
     expect(Object.keys(DEFAULT_RUNTIME_SETTINGS).sort()).toEqual([...RUNTIME_SETTINGS_KEYS].sort());
-    expect(Object.keys(DEFAULT_RUNTIME_SETTINGS.loop).sort()).toEqual([...RUNTIME_LOOP_KEYS].sort());
     expect(Object.keys(DEFAULT_RUNTIME_SETTINGS.answer).sort()).toEqual([...RUNTIME_ANSWER_KEYS].sort());
     expect(Object.keys(DEFAULT_RUNTIME_SETTINGS.behavior).sort()).toEqual([...RUNTIME_BEHAVIOR_KEYS].sort());
 

@@ -1,6 +1,7 @@
-import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useCallback, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Skeleton } from './ui';
 import { AnswerOriginLinks } from './DataEntityLinks';
+import { renderableCharts, type Chart } from './answer-chart-data';
 import { figureSources } from './answer-table-origins';
 import type { SourceRef } from './answer-shape';
 
@@ -22,13 +23,7 @@ import type { SourceRef } from './answer-shape';
  * boundary that keeps a chart which will not draw from taking the answer with it.
  * Everything inside the plot, the series key included, is Plotly's.
  */
-export interface Chart {
-  id: string;
-  title: string;
-  kind: string;
-  data: Record<string, unknown>[];
-  layout: Record<string, unknown>;
-}
+export type { Chart } from './answer-chart-data';
 
 // The import boundary. Plotly is 1.4 MB, so it must not be reachable from App.tsx's
 // eager graph; `lazy` turns this into a separate chunk fetched only once an answer
@@ -95,11 +90,7 @@ class ChartBoundary extends Component<{ children: ReactNode; onFailure?: () => v
 
   render() {
     if (this.state.failed) {
-      return (
-        <p className="text-sm text-muted-foreground">
-          This chart could not be displayed. Its figures are in the rows below.
-        </p>
-      );
+      return <p className="text-sm text-muted-foreground">This chart could not be displayed.</p>;
     }
     return this.props.children;
   }
@@ -107,6 +98,19 @@ class ChartBoundary extends Component<{ children: ReactNode; onFailure?: () => v
 
 function ChartPanel({ chart, onFailure }: { chart: Chart; onFailure?: () => void }) {
   const name = chart.title.trim() || kindLabel(chart.kind);
+  const [renderFailed, setRenderFailed] = useState(false);
+  const reportFailure = useCallback(() => {
+    setRenderFailed(true);
+    onFailure?.();
+  }, [onFailure]);
+  if (renderFailed) {
+    return (
+      <figure className="answer-chart-panel">
+        <figcaption className="answer-chart-eyebrow">{name}</figcaption>
+        <p className="text-sm text-muted-foreground">This chart could not be displayed.</p>
+      </figure>
+    );
+  }
   return (
     <figure className="answer-chart-panel">
       {/* An eyebrow, not a heading: the answer's takeaway is the heading on this card
@@ -114,11 +118,18 @@ function ChartPanel({ chart, onFailure }: { chart: Chart; onFailure?: () => void
           used to sit opposite is gone -- it named the shape a reader can see, and it
           was the widest thing in a head that now has to fit in a half-width panel. */}
       <figcaption className="answer-chart-eyebrow">{name}</figcaption>
-      <ChartBoundary onFailure={onFailure}>
+      <ChartBoundary onFailure={reportFailure}>
         {/* The fallback is the plot's own height so the transcript does not jump when
             the chunk lands. */}
         <Suspense fallback={<Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}>
-          <PlotlyFigure kind={chart.kind} data={chart.data} layout={chart.layout} title={name} height={CHART_HEIGHT} />
+          <PlotlyFigure
+            kind={chart.kind}
+            data={chart.data}
+            layout={chart.layout}
+            title={name}
+            height={CHART_HEIGHT}
+            onRenderFailure={reportFailure}
+          />
         </Suspense>
       </ChartBoundary>
     </figure>
@@ -152,7 +163,8 @@ export function AnswerCharts({
   sources?: readonly SourceRef[];
   onFailure?: () => void;
 }) {
-  if (!charts?.length) return null;
+  const visible = renderableCharts(charts);
+  if (visible.length === 0) return null;
   const origin = figureSources(sources);
   return (
     <div className="answer-charts">
@@ -161,7 +173,7 @@ export function AnswerCharts({
           <AnswerOriginLinks sources={origin} />
         </div>
       ) : null}
-      {charts.map((chart) => (
+      {visible.map((chart) => (
         <ChartPanel chart={chart} onFailure={onFailure} key={chart.id} />
       ))}
     </div>

@@ -22,7 +22,20 @@ import type { Chart } from './AnswerCharts';
 
 const SOURCES = [{ name: 'catalog.schema.games', freshness: 'fresh' }];
 
-const CHART: Chart = { id: 'c1', title: 'Sessions by week', kind: 'line', data: [], layout: {} };
+const CHART: Chart = {
+  id: 'c1',
+  title: 'Sessions by week',
+  kind: 'line',
+  data: [{ type: 'scatter', x: ['Week 1'], y: [10] }],
+  layout: {},
+};
+const EMPTY_CHART: Chart = {
+  id: 'c2',
+  title: 'Missing sessions',
+  kind: 'line',
+  data: [{ type: 'scatter', x: ['Week 1'], y: [null] }],
+  layout: {},
+};
 
 const WITH_TABLE = ['Sessions rose.', '', '| Week | Sessions |', '| --- | --- |', '| 1 | 10 |'].join('\n');
 
@@ -45,6 +58,14 @@ describe('the evidence half of an answer', () => {
     expect(html).toContain('Chart evidence');
     // Reachable, so nothing the agent measured is only ever in a picture.
     expect(html).toContain('Show the rows behind this');
+  });
+
+  it('shows the rows directly instead of rendering an empty chart shell', () => {
+    const html = markup({ narrative: WITH_TABLE, charts: [EMPTY_CHART], sources: SOURCES });
+    expect(html).toContain('Table evidence');
+    expect(html).toContain('<table');
+    expect(html).not.toContain('Missing sessions');
+    expect(html).not.toContain('Show the rows behind this');
   });
 
   it('says nothing at all when the answer measured nothing', () => {

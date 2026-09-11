@@ -2665,6 +2665,9 @@ describe('the latency block', () => {
     expect(css).toMatch(
       /\.ops-latency-head-controls\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;[^}]*gap:\s*8px;/
     );
+    expect(css).toMatch(
+      /\.ops-latency-block \.ops-block-head-control\s*\{[^}]*flex:\s*1 1 46rem;[^}]*max-width:\s*46rem;/
+    );
   });
 
   it('keeps baseline filter state semantic and disables both controls during refresh', () => {

@@ -402,7 +402,7 @@ describe('the live timeline follows the newest action inside its card', () => {
     expect(PANEL).not.toMatch(/\.scrollIntoView\(/);
     expect(PANEL).not.toMatch(/window\.scroll(?:To|By)?\(/);
     expect(LIVE_CSS).toMatch(/\.live-steps \{[^}]*max-height:\s*clamp/);
-    expect(LIVE_CSS).toMatch(/\.live-steps \{[^}]*overflow-y:\s*auto/);
+    expect(LIVE_CSS).toMatch(/\.live-steps \{[^}]*overflow-y:\s*scroll/);
   });
 });
 

@@ -84,10 +84,12 @@ describe('streamed progress geometry', () => {
   });
 
   it('bounds long actions in the card’s own scroller on desktop and mobile', () => {
-    expect(rule('.live-steps')).toMatch(/overflow-y:\s*auto/);
+    expect(rule('.live-steps')).toMatch(/overflow-y:\s*scroll/);
     expect(rule('.live-steps')).toMatch(/max-height:\s*clamp\(/);
     expect(rule('.live-steps')).toMatch(/overscroll-behavior:\s*contain/);
     expect(rule('.live-steps')).toMatch(/scrollbar-gutter:\s*stable/);
+    expect(rule('.live-steps')).toMatch(/scrollbar-color:\s*var\(--db-line-strong\)/);
+    expect(rule('.live-steps')).toMatch(/touch-action:\s*pan-y/);
 
     const mobile = LIVE_CSS.slice(LIVE_CSS.indexOf('@container answer-card (max-width: 800px)'));
     expect(reservedWidth(320, progress(21))).toBe(320);

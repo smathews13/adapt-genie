@@ -23,8 +23,7 @@ import {
   runStatement,
   warehouseQueryAttribution,
 } from '../routes/ops-routes';
-import { executionToken } from './execution-credential';
-import { normalizeWorkspaceHost } from '../../shared/databricks-links';
+import { mintAppScopeToken } from './ops-scope-check';
 import { appSessionDeployment } from './app-session';
 import { PLAN_APPROVAL_MESSAGE, type InsightsAppKit } from '../routes/insights-routes';
 import { APP_SCHEMA } from '../../shared/app-schema';
@@ -154,31 +153,31 @@ async function boundedMap<T, U>(
 }
 
 /**
- * Request-scoped canonical source. Billing continues to run under the signed-in
- * administrator's forwarded credential, preserving the existing grant model;
- * the credential is never persisted in Lakebase or retained after this source
- * becomes unreachable.
+ * Request-scoped canonical source. Billing runs under the app service principal,
+ * matching the main Ops route and remaining independent of which administrator
+ * opened the page.
  */
 export function createUserSpendRefreshSource(appkit: InsightsAppKit, req: Request): UserSpendRefreshSource | null {
-  const host = normalizeWorkspaceHost(process.env.DATABRICKS_HOST);
   const warehouseId = (process.env.DATABRICKS_SQL_WAREHOUSE_ID ?? '').trim();
-  const token = executionToken(req);
   const appScope = (process.env.DATABRICKS_APP_NAME ?? '').trim() || 'adapt';
-  if (!host || !warehouseId || !token) return null;
+  if (!warehouseId) return null;
 
   const identifiers = (async () => {
+    const credential = await mintAppScopeToken(AbortSignal.timeout(10_000));
+    const { host, token } = credential;
     const workspaceId = await resolveWorkspaceId({ host, token });
-    return (
+    const ids = (
       await costIdentifiersFor(appkit, req, {
         workspaceId,
         warehouse: warehouseId,
       })
     ).ids;
+    return { ids, host, token };
   })();
 
   const loadDay = async (activityDate: string, signal: AbortSignal): Promise<UserSpendRefreshBatch> => {
     if (signal.aborted) throw signal.reason;
-    const ids = await identifiers;
+    const { ids, host, token } = await identifiers;
     const range = { from: activityDate, to: activityDate };
     const monthRange = { from: `${activityDate.slice(0, 7)}-01`, to: activityDate };
     const [runsResult, activityResult, interactionResult, questionResult, resourceActivity, genieActivity] =

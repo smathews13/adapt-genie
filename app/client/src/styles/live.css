@@ -53,9 +53,14 @@
   border: 1px solid var(--db-line);
   border-radius: var(--radius-sm);
   max-height: clamp(220px, 42vh, 420px);
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scrollbar-color: var(--db-line-strong) transparent;
+  touch-action: pan-y;
+}
+.live-steps::-webkit-scrollbar-thumb {
+  background: var(--db-line-strong);
 }
 
 .live-step {

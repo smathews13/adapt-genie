@@ -13,11 +13,11 @@ import {
 import { costBudgetValue, normalizeCostBudget, type CostBudgetUnit } from '../../shared/cost-budgets';
 import { buildHonesty, buildTiles, readComponentRows, splitBillingRows, type CostIdentifiers } from './ops-billing';
 import type { OpsCostPayload } from '../../shared/ops-contract';
-import { executionToken } from './execution-credential';
 import { readCostBudgets } from './cost-budgets-store';
 import { readAppBudgetApproval } from './app-budget-approval-store';
 import { foundationCostTile, readFoundationBillingRows } from './ops-foundation-billing';
 import { buildGenieAccountingStatement, classifyGenieAccounting, readGenieAccountingRows } from './genie-accounting';
+import { mintAppScopeToken } from './ops-scope-check';
 import type { InsightsAppKit } from '../routes/insights-routes';
 
 export const APP_BUDGET_MEASUREMENT_TTL_MS = 60_000;
@@ -83,11 +83,11 @@ async function queryMeasurement(
   now: number
 ): Promise<AppBudgetMeasurement | null> {
   if (period.measurementThrough < period.monthStart) return null;
-  const token = executionToken(req) ?? '';
+  const signal = AbortSignal.timeout(50_000);
+  const credential = await mintAppScopeToken(signal).catch(() => null);
   const {
     costIdentifiersFor,
     genieAppActivityAttribution,
-    host,
     resourceActivityAttribution,
     resolveWorkspaceId,
     runFoundationCostQuery,
@@ -97,7 +97,8 @@ async function queryMeasurement(
     warehouseId,
     warehouseQueryAttribution,
   } = await import('../routes/ops-routes');
-  const workspace = host();
+  const workspace = credential?.host ?? '';
+  const token = credential?.token ?? '';
   const warehouse = warehouseId();
   if (!workspace || !warehouse || !token) return null;
   const range = { from: period.monthStart, to: period.measurementThrough };
@@ -117,7 +118,6 @@ async function queryMeasurement(
     resolved.ids.genieSpaces,
     genieActivity
   );
-  const signal = AbortSignal.timeout(50_000);
   const [outcome, queryAttribution, activity, foundationOutcome, genieOutcome] = await Promise.all([
     runStatement({
       host: workspace,

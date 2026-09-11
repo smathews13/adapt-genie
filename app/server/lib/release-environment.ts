@@ -38,6 +38,32 @@ export const RELEASE_ENVIRONMENT_KEYS = [
 
 export type ReleaseEnvironmentKey = (typeof RELEASE_ENVIRONMENT_KEYS)[number];
 
+export const REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS: readonly ReleaseEnvironmentKey[] = [
+  'PLAYER_INSIGHTS_CATALOG',
+  'PLAYER_INSIGHTS_SCHEMA',
+  'PLAYER_INSIGHTS_APP_CATALOG',
+  'PLAYER_INSIGHTS_WATCHLIST_TABLE',
+  'PLAYER_INSIGHTS_DATA_GENIE_ID',
+  'PLAYER_INSIGHTS_LLM_ENDPOINT',
+  'PLAYER_INSIGHTS_USER_API_SCOPES',
+  'PLAYER_INSIGHTS_APP_SCHEMA',
+  'PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL',
+  'ADAPT_ADMIN_GROUP',
+  'ADAPT_USER_GROUP',
+  'ADAPT_ADMIN_GROUP_LABEL',
+  'ADAPT_USER_GROUP_LABEL',
+];
+
+export class MissingReleaseEnvironmentSnapshot extends Error {
+  constructor(readonly missing: readonly ReleaseEnvironmentKey[]) {
+    super(
+      `Deploy from Git was stopped because the app-owned release snapshot is missing: ${missing.join(', ')}. ` +
+        'Run the target bundle/app release once with the intended workspace variables, then retry this Git deployment.'
+    );
+    this.name = 'MissingReleaseEnvironmentSnapshot';
+  }
+}
+
 function decisionTable(): string {
   return appTable(DEPLOYMENT_DECISIONS_TABLE_NAME);
 }
@@ -78,7 +104,9 @@ export async function restoreReleaseEnvironment(
 ): Promise<number> {
   if (decisionSource(env) !== 'git-deploy') return 0;
   const snapshot = parsedSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
-  if (!snapshot) return 0;
+  if (!snapshot) throw new MissingReleaseEnvironmentSnapshot(REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS);
+  const missing = REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS.filter((key) => !snapshot[key]);
+  if (missing.length > 0) throw new MissingReleaseEnvironmentSnapshot(missing);
   let restored = 0;
   for (const key of RELEASE_ENVIRONMENT_KEYS) {
     const value = snapshot[key];

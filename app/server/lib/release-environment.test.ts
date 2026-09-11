@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { configurationForSettings } from './release-configuration';
 import {
+  MissingReleaseEnvironmentSnapshot,
   RELEASE_ENVIRONMENT_DECISION,
   recordReleaseEnvironment,
   releaseEnvironmentSnapshot,
@@ -63,7 +64,15 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_EXPERIMENT_ID: 'target-experiment-id',
       PLAYER_INSIGHTS_EXPERIMENT_PATH: '/Shared/adapt-customer',
       PLAYER_INSIGHTS_DATA_GENIE_ID: 'data-space',
+      PLAYER_INSIGHTS_APP_CATALOG: 'example_catalog',
+      PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
+      PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_data',
+      PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'false',
+      ADAPT_ADMIN_GROUP: 'customer-admins',
+      ADAPT_USER_GROUP: 'customer-users',
+      ADAPT_ADMIN_GROUP_LABEL: 'Customer administrators',
+      ADAPT_USER_GROUP_LABEL: 'Customer users',
     };
     const env: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',
@@ -78,7 +87,7 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_BUILD_SHA: 'new-git-build',
     };
 
-    expect(await restoreReleaseEnvironment(readingStore(JSON.stringify(persisted)), env)).toBe(7);
+    expect(await restoreReleaseEnvironment(readingStore(JSON.stringify(persisted)), env)).toBe(15);
     const configuration = configurationForSettings(env, []);
     expect(configuration.find((entry) => entry.key === 'catalog')?.value).toBe('example_catalog');
     expect(configuration.find((entry) => entry.key === 'schema')?.value).toBe('adapt_data');
@@ -100,7 +109,7 @@ describe('release runtime configuration persistence', () => {
 
     expect(await recordReleaseEnvironment(store, env)).toBe(false);
     expect(releaseEnvironmentSnapshot(env)).toEqual({});
-    expect(await restoreReleaseEnvironment(store, env)).toBe(0);
+    await expect(restoreReleaseEnvironment(store, env)).rejects.toBeInstanceOf(MissingReleaseEnvironmentSnapshot);
     expect(env.PLAYER_INSIGHTS_CATALOG).toBe('');
   });
 
@@ -130,6 +139,8 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'true',
       ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
       ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
+      ADAPT_ADMIN_GROUP_LABEL: 'ADAPT administrators',
+      ADAPT_USER_GROUP_LABEL: 'ADAPT users',
     };
     const releaseEnv: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: 'customer',

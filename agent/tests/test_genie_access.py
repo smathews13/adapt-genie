@@ -14,6 +14,8 @@ the instruction handed back to the model, and the answer the stakeholder reads.
 
 from __future__ import annotations
 
+import json
+
 from agent import (
     DEGRADED_ANSWER_MARKER,
     genie_access_denial,
@@ -93,9 +95,7 @@ def test_a_timeout_is_not_a_refusal():
     """
 
     assert genie_access_denial(TimeoutError("Genie did not answer within 45s"), SPACE) is None
-    assert (
-        genie_access_denial(RuntimeError("failed to reach COMPLETED, got FAILED"), SPACE) is None
-    )
+    assert genie_access_denial(RuntimeError("failed to reach COMPLETED, got FAILED"), SPACE) is None
     assert genie_access_denial(sdk_error(status=500), SPACE) is None
     assert genie_access_denial(sdk_error(status=429, code="REQUEST_LIMIT_EXCEEDED"), SPACE) is None
 
@@ -198,9 +198,7 @@ def test_a_refused_genie_space_names_its_baked_title_in_the_caveat():
         "An answer.",
     )
 
-    answer = ask(
-        build(llm, tools, data_genie_space_title="ADAPT Data")
-    ).custom_outputs["answer"]
+    answer = ask(build(llm, tools, data_genie_space_title="ADAPT Data")).custom_outputs["answer"]
 
     caveats = " ".join(answer["caveats"])
     assert "ADAPT Data (data)" in caveats
@@ -262,8 +260,8 @@ def test_the_model_is_not_invited_to_route_around_a_refusal():
     assert "NOT grounded in the Genie space" in refused["output"]
 
 
-def test_the_synthesis_package_separates_a_refusal_from_a_failure():
-    """Or the narrative above the caveat still reads as a complete account."""
+def test_the_terminal_answer_transcript_separates_a_refusal_from_a_failure():
+    """The final answer call sees the two outcomes as different events."""
 
     tools = FakeTools(
         data_genie=PermissionDenied("not shared"),
@@ -279,17 +277,10 @@ def test_the_synthesis_package_separates_a_refusal_from_a_failure():
 
     ask(runtime)
 
-    package = next(
-        call for call in llm.calls if "assessed data package" in call["messages"][-1]["content"]
-    )["messages"][-1]["content"]
-    # Two headings, two lists, and the tools under the right one. Collapsing
-    # them is what let the model describe a refused space as unavailable.
-    assert "Surfaces that REFUSED this run's identity" in package
-    assert "Tool calls that FAILED this run" in package
-    refused_section = package.split("Surfaces that REFUSED this run's identity")[1]
-    assert "data_genie" in refused_section.split("Governance controls")[0]
-    failed_section = package.split("Tool calls that FAILED this run")[1]
-    assert "dictionary_genie" in failed_section.split("Surfaces that REFUSED")[0]
+    transcript = json.dumps(llm.transcript)
+    assert "data_genie was REFUSED" in transcript
+    assert "dictionary_genie failed" in transcript
+    assert "Do not retry it" in transcript
 
 
 def test_a_refusal_is_not_reported_as_a_governance_control_firing():

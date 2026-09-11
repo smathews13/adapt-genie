@@ -1231,9 +1231,9 @@ class TestSmallPieSlices:
         """A share that will not compute must not be treated as a small one, or a spec this
         module does not understand loses its labels without saying so."""
 
-        for values in ([], ["12", "8"], [0, 0]):
+        for values in ([], ["12", "8"]):
             chart = new_plot([{"type": "pie", "labels": ["a", "b"], "values": values or [1, 2]}])
-            if values in ([], [0, 0]):
+            if values == []:
                 assert chart.data[0]["textposition"] == "outside"
         chart = new_plot([{"type": "pie", "labels": ["a", "b"], "values": ["12", "8"]}])
         assert chart.data[0]["textposition"] == "outside"
@@ -1565,6 +1565,14 @@ class TestDeclines:
     def test_all_zero_bars_are_a_decline_instead_of_an_empty_panel(self):
         with pytest.raises(EmptyChartError, match="measurable"):
             new_plot([{"type": "bar", "x": ["one", "two"], "y": [0, 0]}])
+
+    def test_all_zero_lines_are_a_decline_instead_of_an_empty_panel(self):
+        with pytest.raises(EmptyChartError, match="measurable"):
+            new_plot([{"type": "scatter", "x": ["one", "two"], "y": [0, 0]}])
+
+    def test_all_zero_pies_are_a_decline_instead_of_an_empty_panel(self):
+        with pytest.raises(EmptyChartError, match="measurable"):
+            new_plot([{"type": "pie", "labels": ["one", "two"], "values": [0, 0]}])
 
     def test_a_decline_reads_as_an_account_rather_than_a_demand(self):
         """The message reaches a reader, in the trace, under a step that is green."""

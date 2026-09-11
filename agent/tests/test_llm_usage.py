@@ -73,8 +73,8 @@ def test_answer_trace_aggregates_usage_from_fake_client():
     answer = ask(build(llm)).custom_outputs["answer"]
     trace = answer["trace"]
 
-    # Two loop turns (tool call, then closing prose) + synthesis + plot.
+    # Two loop turns (tool call, then terminal answer) + plot.
     assert len(llm.loop_calls) == 2
-    assert trace["prompt_tokens"] == 40
-    assert trace["completion_tokens"] == 16
-    assert trace["total_tokens"] == 56
+    assert trace["prompt_tokens"] == 30
+    assert trace["completion_tokens"] == 12
+    assert trace["total_tokens"] == 42

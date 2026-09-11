@@ -500,9 +500,7 @@ def test_the_tag_read_waits_the_apis_full_allowance_rather_than_thirty_seconds()
 def test_a_cancelled_tag_read_is_tried_once_more_and_the_second_attempt_can_succeed():
     """The first statement is what starts the warehouse; the second finds it warm."""
 
-    tools, warehouse = tagged(
-        [tag_row(PROFILES, "pii", "true")], state=["CANCELED", "SUCCEEDED"]
-    )
+    tools, warehouse = tagged([tag_row(PROFILES, "pii", "true")], state=["CANCELED", "SUCCEEDED"])
 
     text = tools.search_tagged_assets().text
 
@@ -649,8 +647,7 @@ def test_describing_a_declared_table_returns_its_columns_and_comments():
     result = build(warehouse).describe_table(PROFILES)
 
     assert warehouse.statements == [
-        "DESCRIBE TABLE EXTENDED `test_catalog`.`test_schema`"
-        ".`silver_player_profiles`"
+        "DESCRIBE TABLE EXTENDED `test_catalog`.`test_schema`.`silver_player_profiles`"
     ]
     assert "- platformid_accountid: string (Stable cross-platform player key)" in result.text
     assert "- profile_label: string (Publishing label)" in result.text
@@ -770,9 +767,7 @@ def test_a_wide_tables_whole_column_list_comes_back_rather_than_the_first_fifty(
     """The enumeration the sampling budget used to cut, silently."""
 
     columns = describe_rows(1_753)
-    warehouse = FakeWarehouse(
-        ["col_name", "data_type", "comment"], columns, chunk_size=100
-    )
+    warehouse = FakeWarehouse(["col_name", "data_type", "comment"], columns, chunk_size=100)
 
     text = build(warehouse).describe_table(PROFILES).text
 
@@ -791,9 +786,7 @@ def test_a_description_too_large_even_for_the_enumeration_budget_says_so():
     """
 
     columns = describe_rows(tools_module.ENUMERATION_BUDGET.max_rows * 2)
-    warehouse = FakeWarehouse(
-        ["col_name", "data_type", "comment"], columns, chunk_size=500
-    )
+    warehouse = FakeWarehouse(["col_name", "data_type", "comment"], columns, chunk_size=500)
 
     text = build(warehouse).describe_table(PROFILES).text
 
@@ -1438,8 +1431,7 @@ def test_an_identifier_that_escapes_a_cte_is_refused_however_it_is_dressed():
         f"WITH ids AS (SELECT platformid_accountid AS pid FROM {PROFILES}) SELECT pid FROM ids",
         f"WITH ids AS (SELECT platformid_accountid AS pid FROM {PROFILES}) SELECT * FROM ids",
         f"WITH ids AS (SELECT platformid_accountid AS pid FROM {PROFILES}) SELECT s.* FROM ids s",
-        f"WITH ids AS (SELECT email AS e FROM {PROFILES}) "
-        f"SELECT upper(e) AS shouted FROM ids",
+        f"WITH ids AS (SELECT email AS e FROM {PROFILES}) SELECT upper(e) AS shouted FROM ids",
         f"WITH ids AS (SELECT max(email) AS e FROM {PROFILES}) SELECT e FROM ids",
         # Two CTEs deep, and renamed at every hop.
         f"WITH a AS (SELECT platformid_accountid AS x FROM {PROFILES}), "
@@ -2029,11 +2021,10 @@ def test_a_slow_answer_is_still_a_hard_timeout_at_the_answer_deadline(monkeypatc
     assert str(timeout.value).startswith("Its query was still running.")
 
 
-def test_the_warehouse_allowance_is_generous_but_cannot_swallow_the_turn():
+def test_each_genie_dependency_wait_has_its_own_timeout():
     assert tools_module.GENIE_WAREHOUSE_START_SECONDS >= 120.0, "cold starts take minutes"
-    assert tools_module.GENIE_BUDGET_RESERVE_SECONDS >= 20.0, (
-        "a wait that leaves nothing behind has failed the finder either way"
-    )
+    assert tools_module.GENIE_TIMEOUT_SECONDS > 0
+    assert tools_module.GENIE_WAREHOUSE_START_SECONDS > tools_module.GENIE_TIMEOUT_SECONDS
 
 
 # ---------------------------------------------------------------------------
@@ -2291,7 +2282,7 @@ def test_the_data_genie_tool_description_names_the_space_when_titled():
     assert "ASK FOR A TABLE" in data
 
     untitled = data_genie_tool()["function"]["description"]
-    assert 'Ask the curated Genie Space that holds' in untitled
+    assert "Ask the curated Genie Space that holds" in untitled
 
 
 def test_a_genie_result_preamble_names_the_space():
@@ -2303,13 +2294,11 @@ def test_a_genie_result_preamble_names_the_space():
         text="VLHO leads.",
     )
     tools = build(genie)
-    tools.settings = dataclasses.replace(
-        tools.settings, data_genie_space_title="ADAPT Data"
-    )
+    tools.settings = dataclasses.replace(tools.settings, data_genie_space_title="ADAPT Data")
 
     result = tools.data_genie("active players by title")
 
-    assert result.text.startswith('Asking Genie space ADAPT Data (data).')
+    assert result.text.startswith("Asking Genie space ADAPT Data (data).")
     assert "VLHO leads." in result.text
 
 
@@ -2352,9 +2341,7 @@ def test_a_null_ratio_through_genie_is_still_allowed():
 
     genie = FakeGenie(
         MessageStatus.COMPLETED,
-        sql=(
-            f"SELECT sum(CASE WHEN email IS NULL THEN 1 ELSE 0 END) AS missing FROM {PROFILES}"
-        ),
+        sql=(f"SELECT sum(CASE WHEN email IS NULL THEN 1 ELSE 0 END) AS missing FROM {PROFILES}"),
     )
 
     result = build(genie).data_genie("how many players have no email")
@@ -2704,9 +2691,7 @@ def test_genie_cannot_widen_the_logged_manifest_after_release():
     declares it.
     """
 
-    outside = FakeGenie(
-        MessageStatus.COMPLETED, sql=f"SELECT count(*) FROM {SECRET}"
-    )
+    outside = FakeGenie(MessageStatus.COMPLETED, sql=f"SELECT count(*) FROM {SECRET}")
 
     with pytest.raises(tools_module.EvidenceRefused) as refusal:
         build(outside).data_genie("q")

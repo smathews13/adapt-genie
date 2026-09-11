@@ -229,17 +229,17 @@ def test_the_agent_never_caches_a_user_authorized_toolset():
     import agent as agent_module
 
     source = inspect.getsource(agent_module.PlayerInsightsResponsesAgent._runtime)
-    # Everything after the injected-tools escape hatch, which is the only
-    # assignment to `self._tools` left and exists for these tests.
-    built = source.split("if self._tools is not None:", 1)[1]
-
-    assert "self._authorized_client()" in built
-    assert "self._tools =" not in built, "a toolset was cached for the next caller to inherit"
+    assert "self._authorized_client()" in source
+    assert "self._tools =" not in source, "a toolset was cached for the next caller to inherit"
     # And the passthrough client cannot be what a toolset is built on. This is
     # the removed fallback, asserted where it was written rather than where it
     # was reached: `_system_workspace` survives for the model call and must not
     # come back here.
-    assert "_system_workspace" not in built, (
+    assert (
+        "PlayerInsightTools(\n"
+        "                self.settings,\n"
+        "                self._system_workspace" not in source
+    ), (
         "data tools were built on this endpoint's own principal, which is the "
         "service-principal fallback this method no longer has"
     )

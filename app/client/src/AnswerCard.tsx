@@ -16,7 +16,13 @@ import './styles/answer-charts.css';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TraceStage } from './answer-shape';
 import { answerBadge, answerFallbackNotice, splitCaveats } from './degraded-answer';
-import { answerHonesty, readerFacingNarrative, readerFacingTakeaway, stripToolCallDumps } from './reader-facing-answer';
+import {
+  answerEchoesQuestion,
+  answerHonesty,
+  readerFacingNarrative,
+  readerFacingTakeaway,
+  stripToolCallDumps,
+} from './reader-facing-answer';
 import { isMlflowTraceId, withoutUntracedTimeline } from '../../shared/mlflow-trace-id';
 import { answerRunVerdict } from '../../shared/run-verdict';
 import {
@@ -209,12 +215,30 @@ export function AnswerCard({
           };
   const showProcessPanel = showRunProcess && (recorded || (allowUntracedProcess && processTrace.stages.length > 0));
   const displayed = processTrace === answer.trace ? answer : { ...answer, trace: processTrace };
-  const fallbackNotice = answerFallbackNotice(
-    displayed === answer ? readerAnswer : { ...readerAnswer, trace: displayed.trace }
-  );
+  const incompleteEcho = answerEchoesQuestion({
+    question,
+    takeaway: readerAnswer.takeaway,
+    narrative: readerAnswer.narrative,
+    content: readerAnswer.content,
+    figures: readerAnswer.figures,
+    charts: readerAnswer.charts,
+  });
+  const fallbackNotice =
+    answerFallbackNotice(displayed === answer ? readerAnswer : { ...readerAnswer, trace: displayed.trace }) ??
+    (incompleteEcho
+      ? {
+          badge: 'Answer incomplete',
+          headline:
+            'The response repeated the question without delivering its findings. Retry before using this result.',
+          tone: 'failed' as const,
+        }
+      : null);
   const honesty = answerHonesty({
     caveats: readerAnswer.caveats,
     figures: readerAnswer.figures,
+    charts: readerAnswer.charts,
+    question,
+    takeaway: readerAnswer.takeaway,
     narrative: readerAnswer.narrative,
     content: readerAnswer.content,
     stages: displayed.trace.stages,

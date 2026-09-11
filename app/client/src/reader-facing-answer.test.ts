@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  answerEchoesQuestion,
   answerHonesty,
   isCannedTakeaway,
   readerFacingNarrative,
@@ -112,6 +113,21 @@ describe('whether the section may call itself a final answer', () => {
   const deadline = 'The turn deadline was reached before the answer could be written.';
   const identity = 'This answer was produced as analyst@example.com and covers only the data that identity is granted.';
   const table = '| Franchise | Players |\n| GTA | 6655 |';
+
+  it('marks a question echo with no usable evidence as incomplete', () => {
+    const question = 'Which levers can improve sales?';
+    const input = {
+      question,
+      takeaway: question,
+      narrative: question,
+      content: '',
+      figures: [],
+      charts: [{ id: 'zero', title: 'Empty trend', kind: 'line', data: [{ y: [0, 0] }], layout: {} }],
+      caveats: [],
+    };
+    expect(answerEchoesQuestion(input)).toBe(true);
+    expect(answerHonesty(input)).toEqual({ eyebrow: 'Incomplete answer', tone: 'partial' });
+  });
 
   it('labels a clean run as a final answer and lifts nothing', () => {
     expect(answerHonesty({ truncated: false, caveats: [identity] })).toEqual({

@@ -28,7 +28,7 @@ export function chartHasRenderableData(chart: Chart): boolean {
     const values = trace[key];
     if (!Array.isArray(values)) return false;
     const measured = values.map(measurement).filter((value): value is number => value !== null);
-    return type === 'bar' || type === 'pie' ? measured.some((value) => value !== 0) : measured.length > 0;
+    return measured.some((value) => value !== 0);
   });
 }
 

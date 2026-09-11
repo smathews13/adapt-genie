@@ -36,6 +36,13 @@ const EMPTY_CHART: Chart = {
   data: [{ type: 'scatter', x: ['Week 1'], y: [null] }],
   layout: {},
 };
+const ZERO_LINE_CHART: Chart = {
+  id: 'c3',
+  title: 'Zero-only sessions',
+  kind: 'line',
+  data: [{ type: 'scatter', x: ['Week 1', 'Week 2'], y: [0, 0] }],
+  layout: {},
+};
 
 const WITH_TABLE = ['Sessions rose.', '', '| Week | Sessions |', '| --- | --- |', '| 1 | 10 |'].join('\n');
 
@@ -66,6 +73,13 @@ describe('the evidence half of an answer', () => {
     expect(html).toContain('<table');
     expect(html).not.toContain('Missing sessions');
     expect(html).not.toContain('Show the rows behind this');
+  });
+
+  it('shows the rows instead of a zero-only line chart', () => {
+    const html = markup({ narrative: WITH_TABLE, charts: [ZERO_LINE_CHART], sources: SOURCES });
+    expect(html).toContain('Table evidence');
+    expect(html).toContain('<table');
+    expect(html).not.toContain('Zero-only sessions');
   });
 
   it('says nothing at all when the answer measured nothing', () => {

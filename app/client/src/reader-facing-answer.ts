@@ -19,6 +19,7 @@ import {
   type VerdictStage,
 } from '../../shared/run-verdict';
 import { DEGRADED_ANSWER_MARKER } from '../../shared/setup-remedies';
+import { renderableCharts, type Chart } from './answer-chart-data';
 
 /** Words arrived, but no figures or tables. Not a policy deny. */
 const NO_STRUCTURED_RESULT =
@@ -225,11 +226,35 @@ export interface AnswerHonesty {
 
 function hasStructuredEvidence(input: {
   figures?: readonly unknown[] | null;
+  charts?: readonly Chart[] | null;
   narrative?: string | null;
   content?: string | null;
 }): boolean {
   if ((input.figures?.length ?? 0) > 0) return true;
+  if (renderableCharts(input.charts ? [...input.charts] : []).length > 0) return true;
   return /\|.+\|/.test([input.narrative, input.content].filter(Boolean).join('\n'));
+}
+
+function answerFingerprint(text: string | null | undefined): string {
+  return (text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+export function answerEchoesQuestion(input: {
+  question?: string | null;
+  takeaway?: string | null;
+  narrative?: string | null;
+  content?: string | null;
+  figures?: readonly unknown[] | null;
+  charts?: readonly Chart[] | null;
+}): boolean {
+  const question = answerFingerprint(input.question);
+  if (!question || answerFingerprint(input.takeaway) !== question || answerFingerprint(input.narrative) !== question)
+    return false;
+  if (hasStructuredEvidence(input)) return false;
+  return !answerHasLanded({ narrative: '', content: input.content, figures: input.figures });
 }
 
 function isProseOnlyDegraded(
@@ -252,11 +277,17 @@ export function answerHonesty(input: {
   truncated?: boolean | null;
   caveats: readonly string[];
   figures?: readonly unknown[] | null;
+  charts?: readonly Chart[] | null;
+  question?: string | null;
+  takeaway?: string | null;
   narrative?: string | null;
   content?: string | null;
   stages?: readonly VerdictStage[];
 }): AnswerHonesty {
   const caveats = input.caveats.map((caveat) => caveat.trim()).filter(Boolean);
+  if (answerEchoesQuestion(input)) {
+    return { eyebrow: 'Incomplete answer', tone: 'partial' };
+  }
   // A words-only degraded reply has enough narrative to trip answerHasLanded,
   // and used to be titled Final answer. The agent wrote sentences; it did not
   // produce a complete result.

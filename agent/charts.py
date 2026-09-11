@@ -354,9 +354,16 @@ def _has_renderable_measurement(trace: dict[str, Any]) -> bool:
     if not isinstance(values, list):
         return False
     measured = [_measurement(value) for value in values]
-    if trace_type in {"bar", "pie"}:
-        return any(value is not None and value != 0 for value in measured)
-    return any(value is not None for value in measured)
+    if not any(value is not None for value in measured) and trace_type == "bar":
+        # Some legacy horizontal specs set orientation without swapping axes.
+        # Keep those renderable when the other axis still carries real values.
+        alternate = trace.get("y" if key == "x" else "x")
+        if isinstance(alternate, list):
+            measured = [_measurement(value) for value in alternate]
+    # A zero-only line is no more informative than a zero-only bar. The former
+    # used to pass because Plotly can draw it, which produced a confident empty
+    # panel while non-zero rows sat behind it.
+    return any(value is not None and value != 0 for value in measured)
 
 
 def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

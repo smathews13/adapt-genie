@@ -53,10 +53,11 @@ function answer(extra: Partial<WireAnswer> = {}): Answer {
   }) as Answer;
 }
 
-function card(value: Answer): string {
+function card(value: Answer, question?: string): string {
   return renderToStaticMarkup(
     <AnswerCard
       answer={value}
+      question={question}
       feedback={feedback}
       onFeedbackChange={() => {}}
       saveFeedback={async () => {}}
@@ -67,6 +68,23 @@ function card(value: Answer): string {
 }
 
 describe('answer hierarchy', () => {
+  it('warns when the answer only repeats the question over a zero-only chart', () => {
+    const question = 'Which levers can improve sales?';
+    const markup = card(
+      answer({
+        takeaway: question,
+        narrative: question,
+        content: '',
+        figures: [],
+        charts: [{ id: 'zero', title: 'Empty trend', kind: 'line', data: [{ y: [0, 0] }], layout: {} }],
+      }),
+      question
+    );
+    expect(markup).toContain('Answer incomplete');
+    expect(markup).toContain('repeated the question without delivering its findings');
+    expect(markup).not.toContain('Empty trend');
+  });
+
   it('keeps the supplied takeaway exact and renders ordered context bullets directly below it', () => {
     const supplied = '42 million unique users';
     const markup = card(

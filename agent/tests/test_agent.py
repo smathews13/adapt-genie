@@ -115,7 +115,7 @@ class Call:
 
 SYNTHESIS_JSON = """{
   "takeaway": "Northwind VLH Online leads active players.",
-  "narrative": "It reached 8,413 active players in the latest 30-day window.",
+  "narrative": "- **Finding:** 8,413 active players.\\n- **Scope:** Latest 30 days.",
   "figures": [
     {"label": "Northwind · VLH Online", "numeric_value": 100,
      "display": "8,413", "comparison": "#1"}
@@ -393,6 +393,50 @@ def test_submit_answer_is_the_only_final_writing_pass():
     )
     assert all(call.get("tools") for call in llm.calls), "a second prose/JSON synthesis call ran"
     assert any(stage["id"].endswith("submit-answer") for stage in stages(response))
+
+
+def test_submit_answer_normalizes_prose_instead_of_shipping_a_wall_or_retrying():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Visibility declined.",
+            "narrative": (
+                "Visibility fell 7.1% below the trailing average.\n"
+                "**Scope:** Trailing 30 days\n"
+                "Run-rate assessment:\n"
+                "• **Action:** Refresh the promotion."
+            ),
+        },
+        "How is visibility trending?",
+    )
+
+    assert synthesis.narrative == (
+        "- **Finding:** Visibility fell 7.1% below the trailing average.\n"
+        "- **Scope:** Trailing 30 days\n"
+        "- **Action:** Refresh the promotion."
+    )
+
+
+def test_submit_answer_keeps_wrapped_bullet_text_in_one_finding():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Visibility declined.",
+            "narrative": (
+                "- **Trend:** Impressions fell below the baseline\n  after the promotion ended."
+            ),
+        },
+        "How is visibility trending?",
+    )
+    assert synthesis.narrative == (
+        "- **Trend:** Impressions fell below the baseline after the promotion ended."
+    )
+
+
+def test_submit_answer_repairs_header_only_output_without_another_turn():
+    synthesis = agent._submitted_synthesis(
+        {"takeaway": "No matching sales were found.", "narrative": "**Run-rate assessment:**"},
+        "What is the recent sales rate?",
+    )
+    assert synthesis.narrative == "- **Summary:** No matching sales were found."
 
 
 def test_an_exact_successful_discovery_call_is_reused_within_the_run():
@@ -944,7 +988,7 @@ def test_a_genuine_no_data_answer_is_not_labelled_as_a_failure():
     answer = ask(build(llm, tools)).custom_outputs["answer"]
 
     assert answer["takeaway"] == "No players matched that label in the window."
-    assert answer["narrative"] == "The query returned no rows."
+    assert answer["narrative"] == "- **Finding:** The query returned no rows."
     caveats = " ".join(answer["caveats"])
     assert "degraded" not in caveats
     assert "did not respond" not in caveats

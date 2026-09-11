@@ -146,6 +146,17 @@ describe('Cost component accuracy presentation', () => {
       { id: 'genie:data', title: 'Data Genie', charged: '12.50 DBU', free: '$0.00' },
     ]);
 
+    const measuredZero = genie({
+      tileId: 'genie:data',
+      allowanceUsedDbus: 0,
+      promotionalDbus: 0,
+      chargedEffectiveDbus: 0,
+      paidUsd: null,
+    });
+    expect(
+      genieCostCardViews(payload([tile({ id: measuredZero.tileId, genieInstanceAccounting: measuredZero })]))
+    ).toEqual([{ id: 'genie:data', title: 'Data Genie', charged: '0.00 DBU', free: '$0.00' }]);
+
     expect(genieCostCardViews(payload([tile({ id: 'genie:data', amount: null, dbus: null })]))).toEqual([
       { id: 'genie:data', title: 'Data Genie', charged: 'Unavailable', free: 'Unavailable' },
     ]);

@@ -16,7 +16,7 @@ import type { OpsCostPayload } from '../../shared/ops-contract';
 import { executionToken } from './execution-credential';
 import { readCostBudgets } from './cost-budgets-store';
 import { readAppBudgetApproval } from './app-budget-approval-store';
-import { buildFoundationCostStatement, foundationCostTile, readFoundationBillingRows } from './ops-foundation-billing';
+import { foundationCostTile, readFoundationBillingRows } from './ops-foundation-billing';
 import { buildGenieAccountingStatement, classifyGenieAccounting, readGenieAccountingRows } from './genie-accounting';
 import type { InsightsAppKit } from '../routes/insights-routes';
 
@@ -90,6 +90,7 @@ async function queryMeasurement(
     host,
     resourceActivityAttribution,
     resolveWorkspaceId,
+    runFoundationCostQuery,
     runStatement,
     QUESTION_COST_RUNS_QUERY,
     questionRun,
@@ -110,7 +111,6 @@ async function queryMeasurement(
   const interactiveComplete = interactiveRuns[0]?.evidenceComplete ?? interactiveRuns.length === 0;
   const built = (await import('./ops-billing')).buildCostStatement(resolved.ids, range);
   if (!built) return null;
-  const foundationBuilt = buildFoundationCostStatement(resolved.ids, range, interactiveRuns);
   const genieBuilt = buildGenieAccountingStatement(
     resolved.ids.workspaceId,
     range,
@@ -135,15 +135,14 @@ async function queryMeasurement(
       interactiveRuns,
     }),
     resourceActivityAttribution(appkit, resolved.ids, range),
-    foundationBuilt
-      ? runStatement({
-          host: workspace,
-          token,
-          warehouseId: warehouse,
-          statement: foundationBuilt.statement,
-          parameters: foundationBuilt.parameters,
-        })
-      : Promise.resolve({ ok: false as const, message: 'Foundation-model billing is unavailable.' }),
+    runFoundationCostQuery({
+      ids: resolved.ids,
+      range,
+      runs: interactiveRuns,
+      host: workspace,
+      token,
+      warehouseId: warehouse,
+    }),
     genieBuilt
       ? runStatement({
           host: workspace,

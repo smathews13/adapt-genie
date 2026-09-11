@@ -553,11 +553,22 @@ export function foundationCostTile(
   const ledgerComplete = runs[0]?.evidenceComplete ?? true;
   const omittedLedgerRuns = Math.max(0, (runs[0]?.runsInRange ?? runs.length) - runs.length);
   const coverageComplete = Boolean(result?.complete) && ledgerComplete;
-  const missingEligibleRequests = Math.max(
+  const missingModelEvidenceRequests = Math.max(
     result?.missingEvidenceRequests ?? 0,
-    (result?.expectedRuns ?? 0) - (result?.coveredRuns ?? 0),
-    omittedLedgerRuns
+    (result?.expectedRuns ?? 0) - (result?.coveredRuns ?? 0)
   );
+  const missingEligibleRequests = omittedLedgerRuns + missingModelEvidenceRequests;
+  const lowerBoundNote = [
+    'Measured lower bound',
+    omittedLedgerRuns > 0
+      ? `${omittedLedgerRuns} eligible Ask${omittedLedgerRuns === 1 ? '' : 's'} were outside the loaded ledger sample`
+      : '',
+    missingModelEvidenceRequests > 0
+      ? `${missingModelEvidenceRequests} eligible Ask${missingModelEvidenceRequests === 1 ? '' : 's'} missing model evidence`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('; ');
   return {
     id: 'foundation-model',
     label: 'Foundation model tokens',
@@ -579,10 +590,7 @@ export function foundationCostTile(
             ? 'Matched Ask model usage is missing a list price.'
             : 'Foundation-model billing could not be attributed.'),
     remedy: '',
-    note:
-      amountAvailable && !coverageComplete
-        ? `Measured lower bound; ${missingEligibleRequests} eligible Ask${missingEligibleRequests === 1 ? '' : 's'} missing model evidence`
-        : '',
+    note: amountAvailable && !coverageComplete ? lowerBoundNote : '',
     evidence: {
       billingRows: result?.billingRows ?? null,
       astrolabeQueries: null,

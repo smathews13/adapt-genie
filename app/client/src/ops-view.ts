@@ -480,11 +480,9 @@ export function genieCostCardViews(payload: OpsCostPayload, unit: CostBudgetUnit
       const promotional = accounting?.promotionalDbus ?? 0;
       const freeDbus = allowance + promotional;
       const measuredChargedDbus =
-        chargedDbus === 0
-          ? '$0.00'
-          : chargedDbus !== null && chargedDbus !== undefined && chargedDbus > 0
-            ? `${chargedDbus.toFixed(2)} DBU`
-            : 'Unavailable';
+        chargedDbus !== null && chargedDbus !== undefined && chargedDbus >= 0
+          ? `${chargedDbus.toFixed(2)} DBU`
+          : 'Unavailable';
       return {
         id: tile.id,
         title: 'Data Genie',

@@ -309,7 +309,7 @@ describe('Aug 26–Sep 1 component-total and marginal Ask audit fixture', () => 
     expect(foundationCostTile(IDS, completeBilling, '', sampledRuns)).toMatchObject({
       amount: 4.08,
       quality: 'estimate',
-      note: 'Measured lower bound; 1174 eligible Asks missing model evidence',
+      note: 'Measured lower bound; 1174 eligible Asks were outside the loaded ledger sample',
       evidence: {
         coverageComplete: false,
         missingEligibleRequests: 1_174,

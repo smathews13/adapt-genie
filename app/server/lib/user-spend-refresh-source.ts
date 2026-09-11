@@ -2,7 +2,7 @@ import type { Request } from 'express';
 
 import { buildCostStatement, buildTiles, readComponentRows, splitBillingRows } from './ops-billing';
 import { buildGenieAccountingStatement, classifyGenieAccounting, readGenieAccountingRows } from './genie-accounting';
-import { buildFoundationCostStatement, foundationCostTile, readFoundationBillingRows } from './ops-foundation-billing';
+import { foundationCostTile, readFoundationBillingRows } from './ops-foundation-billing';
 import {
   USER_ACTIVE_MINUTES_QUERY,
   USER_MONITORING_ACTIVITY_QUERY,
@@ -19,6 +19,7 @@ import {
   questionRun,
   resolveWorkspaceId,
   resourceActivityAttribution,
+  runFoundationCostQuery,
   runStatement,
   warehouseQueryAttribution,
 } from '../routes/ops-routes';
@@ -237,7 +238,6 @@ export function createUserSpendRefreshSource(appkit: InsightsAppKit, req: Reques
       };
     }
     const genieStatement = buildGenieAccountingStatement(ids.workspaceId, monthRange, ids.genieSpaces, genieActivity);
-    const foundationStatement = buildFoundationCostStatement(ids, range, questionRuns);
     const [costOutcome, queryAttribution, genieOutcome, foundationOutcome] = await Promise.all([
       runStatement({
         host,
@@ -263,15 +263,14 @@ export function createUserSpendRefreshSource(appkit: InsightsAppKit, req: Reques
             parameters: genieStatement.parameters,
           })
         : Promise.resolve({ ok: false as const, rows: null, message: 'Genie not configured.' }),
-      foundationStatement
-        ? runStatement({
-            host,
-            token,
-            warehouseId,
-            statement: foundationStatement.statement,
-            parameters: foundationStatement.parameters,
-          })
-        : Promise.resolve({ ok: false as const, rows: null, message: 'Foundation billing not configured.' }),
+      runFoundationCostQuery({
+        ids,
+        range,
+        runs: questionRuns,
+        host,
+        token,
+        warehouseId,
+      }),
     ]);
     if (!costOutcome.ok) throw new Error('Canonical billing source unavailable.');
     const split = splitBillingRows(readComponentRows(costOutcome.rows));

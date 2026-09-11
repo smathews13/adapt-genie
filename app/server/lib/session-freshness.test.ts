@@ -25,19 +25,20 @@ function tokenWithScopes(scope: string | null): string {
   ].join('.');
 }
 
-/** What the demo target declares today. Seven names, four of them the default. */
+/** What the demo target declares today. Eight names, five of them the default. */
 const DECLARED = [
   'serving.serving-endpoints',
   'model-serving',
   'sql',
   'dashboards.genie',
+  'genie',
   'catalog.catalogs:read',
   'catalog.schemas:read',
   'catalog.tables:read',
 ];
 
-/** The four a session from before the catalog declaration carries. */
-const BEFORE_CATALOG = 'serving.serving-endpoints model-serving sql dashboards.genie offline_access';
+/** The five base scopes a session from before the catalog declaration carries. */
+const BEFORE_CATALOG = 'serving.serving-endpoints model-serving sql dashboards.genie genie offline_access';
 
 describe('declaredUserApiScopes', () => {
   it('reads a comma-separated list, which is the form the release passes', () => {
@@ -160,7 +161,7 @@ describe('sessionFreshness', () => {
    */
   it('recognises the OAuth spelling on the token rather than calling it missing', () => {
     const report = sessionFreshness({
-      token: tokenWithScopes('unity-catalog sql dashboards.genie model-serving serving.serving-endpoints'),
+      token: tokenWithScopes('unity-catalog sql dashboards.genie genie model-serving serving.serving-endpoints'),
       declared: DECLARED,
     });
     expect(report.state).toBe('current');
@@ -237,6 +238,7 @@ describe('the authored app.yaml', () => {
       'model-serving',
       'sql',
       'dashboards.genie',
+      'genie',
       'catalog.catalogs:read',
       'catalog.schemas:read',
       'catalog.tables:read',

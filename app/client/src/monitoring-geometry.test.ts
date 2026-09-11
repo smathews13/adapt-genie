@@ -259,17 +259,21 @@ describe('the panel head and identity controls cannot be clipped', () => {
 
   it('gives the nested user link a stronger blue state than the row', () => {
     const link = rule('.monitoring-row .user-drilldown-link,\n.monitoring-question-card .user-drilldown-link');
-    const active = rule(
-      '.monitoring-row .user-drilldown-link:hover .identity-chip,\n.monitoring-row .user-drilldown-link:focus-visible .identity-chip,\n.monitoring-question-card .user-drilldown-link:hover .identity-chip,\n.monitoring-question-card .user-drilldown-link:focus-visible .identity-chip'
+    const hover = rule(
+      '.monitoring-row .user-drilldown-link:hover .identity-chip,\n.monitoring-question-card .user-drilldown-link:hover .identity-chip'
+    );
+    const focus = rule(
+      '.monitoring-row .user-drilldown-link:focus-visible .identity-chip,\n.monitoring-question-card .user-drilldown-link:focus-visible .identity-chip'
     );
 
     expect(link).toMatch(/cursor:\s*pointer/);
     expect(link).toMatch(/opacity:\s*1/);
-    expect(active).toMatch(/border-color:\s*var\(--ast-blue\)/);
-    expect(active).toMatch(/color:\s*var\(--ast-info-text\)/);
-    expect(active).toMatch(
+    expect(hover).toMatch(/border-color:\s*var\(--ast-blue\)/);
+    expect(hover).toMatch(/color:\s*var\(--ast-info-text\)/);
+    expect(hover).toMatch(
       /background:\s*color-mix\(in srgb,\s*var\(--ast-surface-primary\)\s*78%,\s*var\(--ast-blue\)\)/
     );
+    expect(focus).toMatch(/outline:\s*2px solid var\(--ast-blue\)/);
     expect(CSS).not.toContain('.monitoring-question-button');
     expect(CSS).not.toContain('.monitoring-question-card-button');
   });

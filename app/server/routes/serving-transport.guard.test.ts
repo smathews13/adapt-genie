@@ -114,6 +114,7 @@ describe('the production serving transport, exercised as shipped', () => {
       conversation_id: 'conv-prod',
       approved_plan_id: 'plan-prod',
       execute_plan: true,
+      genie_transport: 'direct',
       attachment_text: '## brief.txt\nRetirement scheduled for 2026-11-15.',
     });
   });
@@ -162,6 +163,7 @@ describe('the streaming transport, exercised as shipped', () => {
       conversation_id: 'conv-stream',
       approved_plan_id: 'plan-stream',
       execute_plan: true,
+      genie_transport: 'direct',
     });
     // `stream: true` belongs to the body the route built, not to the transport.
     expect(sent?.payload.stream).toBe(true);

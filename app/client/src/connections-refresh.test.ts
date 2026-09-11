@@ -273,9 +273,8 @@ describe('the Refresh button, which used to look wired to nothing', () => {
     expect(PAGE).toMatch(/import \{ RefreshButton, RefreshControl \} from '\.\/RefreshControl'/);
     expect(PAGE).toMatch(/<RefreshControl busy=\{refreshing\}/);
     expect(PAGE).toMatch(/<RefreshButton busy=\{refreshing\}/);
-    // Nothing hand-rolled left: an icon and a label written here again is how
-    // the header and the alert came to say different words for one action.
-    expect(PAGE).not.toMatch(/RefreshCw/);
+    // The separate "Sync Genie tables" action has its own RefreshCw icon. The
+    // page-level refresh actions themselves must both use the shared controls.
     expect([...PAGE.matchAll(/busy=\{refreshing\}/g)]).toHaveLength(2);
   });
 

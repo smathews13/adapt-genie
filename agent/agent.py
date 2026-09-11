@@ -455,7 +455,7 @@ def _submitted_synthesis(payload: dict[str, Any], question: str) -> Synthesis:
     return synthesis
 
 
-_EVIDENCE_NUMBER = re.compile(r"(?<![\w.])[-+]?\$?\d[\d,]*(?:\.\d+)?%?")
+_EVIDENCE_NUMBER = re.compile(r"(?<![\w.])[-+]?\$?\d[\d,]*(?:\.\d+)?%?[kmb]?", re.I)
 
 
 def _number(value: Any) -> float | None:
@@ -466,7 +466,13 @@ def _number(value: Any) -> float | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return float(value.strip().replace(",", "").replace("$", "").rstrip("%"))
+        cleaned = value.strip().lower().replace(",", "").replace("$", "")
+        suffix = cleaned[-1:] if cleaned[-1:] in {"k", "m", "b"} else ""
+        if suffix:
+            cleaned = cleaned[:-1]
+        cleaned = cleaned.rstrip("%")
+        scale = {"": 1.0, "k": 1_000.0, "m": 1_000_000.0, "b": 1_000_000_000.0}[suffix]
+        return float(cleaned) * scale
     except ValueError:
         return None
 
@@ -507,9 +513,16 @@ def _ungrounded_chart_values(chart: Chart, evidence: list[str]) -> list[float]:
         )
 
     def present(value: float) -> bool:
-        return any(
-            abs(value - candidate) <= max(1e-9, abs(candidate) * 1e-9) for candidate in available
-        )
+        for candidate in available:
+            tolerance = max(1e-9, abs(candidate) * 1e-9)
+            if abs(value - candidate) <= tolerance:
+                return True
+            # Accept ordinary display rounding (8413.4 -> 8413 or 8.41k ->
+            # 8410), but not an arbitrary nearby value. SQL remains responsible
+            # for aggregation; this only recognizes decimal-place rounding.
+            if any(abs(value - round(candidate, digits)) <= tolerance for digits in range(-12, 13)):
+                return True
+        return False
 
     return [value for value in _chart_measurements(chart) if value != 0 and not present(value)]
 

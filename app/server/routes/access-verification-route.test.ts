@@ -446,7 +446,7 @@ describe('POST /api/app-user-api-scopes', () => {
     }
 
     expect(calls[1]).toEqual({
-      user_api_scopes: ['serving.serving-endpoints', 'model-serving', 'sql', 'dashboards.genie', 'postgres'],
+      user_api_scopes: ['serving.serving-endpoints', 'model-serving', 'sql', 'dashboards.genie', 'genie', 'postgres'],
     });
   });
 

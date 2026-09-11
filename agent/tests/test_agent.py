@@ -451,6 +451,20 @@ def test_a_chart_cannot_introduce_values_missing_from_returned_rows():
     assert "incomplete" in plot["output"].lower()
 
 
+def test_chart_grounding_accepts_only_standard_rounding_of_returned_values():
+    evidence = ["run_sql({}) returned:\nmetric\n8,413.4"]
+    rounded = agent.Chart(
+        id="rounded",
+        title="Rounded metric",
+        kind="line",
+        data=[{"type": "scatter", "x": ["one", "two"], "y": [8413, "8.41k"]}],
+    )
+    invented = rounded.model_copy(update={"data": [{"type": "scatter", "x": ["one"], "y": [8408]}]})
+
+    assert agent._ungrounded_chart_values(rounded, evidence) == []
+    assert agent._ungrounded_chart_values(invented, evidence) == [8408.0]
+
+
 #: Tools that answer the question, as against the two that find out what could
 #: answer it. Writing a plan now reads the declared manifest and table METADATA,
 #: which is why these tests no longer assert that a plan turn touched no tool at

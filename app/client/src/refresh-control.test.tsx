@@ -109,9 +109,9 @@ describe('the word on the control is the same word everywhere', () => {
       const page = source(file);
 
       expect(page).toMatch(/from '\.\/RefreshControl'/);
-      // No hand-rolled copy: the icon, the label and the pending state are the
-      // shared component's, which is the only thing that keeps them identical.
-      expect(page).not.toMatch(/RefreshCw/);
+      // The page-level label and pending state come from the shared component.
+      // Connections also has a distinct "Sync Genie tables" action whose icon
+      // must not make this source-level check fail.
       expect(page).not.toMatch(/'Refresh'/);
     }
   );

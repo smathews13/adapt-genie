@@ -67,7 +67,7 @@ describe('allowAdaptUserApiScopes', () => {
     const patchBody = call.mock.calls[1][1]?.body;
     if (typeof patchBody !== 'string') throw new Error('PATCH carried no JSON body');
     expect(JSON.parse(patchBody)).toEqual({
-      user_api_scopes: ['serving.serving-endpoints', 'model-serving', 'sql', 'dashboards.genie', 'postgres'],
+      user_api_scopes: ['serving.serving-endpoints', 'model-serving', 'sql', 'dashboards.genie', 'genie', 'postgres'],
     });
   });
 
@@ -92,6 +92,7 @@ describe('allowAdaptUserApiScopes', () => {
       'model-serving',
       'sql',
       'dashboards.genie',
+      'genie',
       'postgres',
     ]);
   });

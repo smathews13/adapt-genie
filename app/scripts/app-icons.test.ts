@@ -12,8 +12,8 @@ describe('ADAPT application icons', () => {
   it('names ADAPT in the document and manifest', async () => {
     const html = await readFile(INDEX, 'utf8');
     const manifest = JSON.parse(await readFile(path.join(PUBLIC_DIR, 'site.webmanifest'), 'utf8'));
-    expect(html).toContain('<title>ADAPT — Digital Sales</title>');
-    expect(manifest.name).toBe('ADAPT — Digital Sales');
+    expect(html).toContain('<title>ADAPT</title>');
+    expect(manifest.name).toBe('ADAPT');
     expect(manifest.short_name).toBe('ADAPT');
     expect(html.toLowerCase()).not.toContain('<title>astro' + 'labe</title>');
   });

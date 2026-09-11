@@ -103,8 +103,7 @@ describe('the source list', () => {
     expect(rendered).toContain('Data sources');
     expect(rendered).toContain('Caveats');
     expect(rendered.match(/show more/g)).toHaveLength(2);
-    // The answer's run-process disclosure is a third collapsed control. The two
-    // "show more" labels above are the source and caveat panels this test owns.
+    expect(markup.match(/answer-support-toggle[^>]*aria-expanded="false"/g)).toHaveLength(2);
     expect(markup).not.toContain('class="answer-list source-list"');
     expect(markup).not.toContain('class="answer-list keep-in-mind-list"');
   });

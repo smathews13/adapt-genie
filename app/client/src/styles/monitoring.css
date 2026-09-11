@@ -600,13 +600,17 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   opacity: 1;
 }
 .monitoring-row .user-drilldown-link:hover .identity-chip,
-.monitoring-question-card .user-drilldown-link:hover .identity-chip {
+.monitoring-row .user-drilldown-link:focus-visible .identity-chip,
+.monitoring-question-card .user-drilldown-link:hover .identity-chip,
+.monitoring-question-card .user-drilldown-link:focus-visible .identity-chip {
   border-color: var(--ast-blue);
   background: color-mix(in srgb, var(--ast-surface-primary) 78%, var(--ast-blue));
   color: var(--ast-info-text);
 }
 .monitoring-row .user-drilldown-link:hover .identity-chip svg,
-.monitoring-question-card .user-drilldown-link:hover .identity-chip svg {
+.monitoring-row .user-drilldown-link:focus-visible .identity-chip svg,
+.monitoring-question-card .user-drilldown-link:hover .identity-chip svg,
+.monitoring-question-card .user-drilldown-link:focus-visible .identity-chip svg {
   color: currentColor;
 }
 .monitoring-row .user-drilldown-link:focus-visible,

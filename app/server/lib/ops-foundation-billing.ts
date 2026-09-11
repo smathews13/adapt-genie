@@ -537,19 +537,26 @@ export function foundationCostTile(
               ? storedOutputRuns.reduce((sum, run) => sum + (run.outputTokens ?? 0), 0)
               : null,
           total:
-            storedTokenRuns.length > 0 ? storedTokenRuns.reduce((sum, run) => sum + (run.totalTokens ?? 0), 0) : null,
-          requests: runs.length,
-          coveredRequests: storedTokenRuns.length,
+            (runs[0]?.totalRecordedTokens ?? 0) > 0
+              ? runs[0].totalRecordedTokens
+              : storedTokenRuns.length > 0
+                ? storedTokenRuns.reduce((sum, run) => sum + (run.totalTokens ?? 0), 0)
+                : null,
+          requests: runs[0]?.runsInRange ?? runs.length,
+          coveredRequests: runs[0]?.tokenCoveredRuns ?? storedTokenRuns.length,
         }
       : null;
   const amountAvailable =
     result?.amount !== null &&
     result?.amount !== undefined &&
     (result.pricing.match === 'priced' || (result.pricing.match === 'none' && result.billingRows === 0));
-  const coverageComplete = Boolean(result?.complete);
+  const ledgerComplete = runs[0]?.evidenceComplete ?? true;
+  const omittedLedgerRuns = Math.max(0, (runs[0]?.runsInRange ?? runs.length) - runs.length);
+  const coverageComplete = Boolean(result?.complete) && ledgerComplete;
   const missingEligibleRequests = Math.max(
     result?.missingEvidenceRequests ?? 0,
-    (result?.expectedRuns ?? 0) - (result?.coveredRuns ?? 0)
+    (result?.expectedRuns ?? 0) - (result?.coveredRuns ?? 0),
+    omittedLedgerRuns
   );
   return {
     id: 'foundation-model',

@@ -774,6 +774,7 @@ export function DeclaredTablesTable({
               Boolean(scopeCheck?.status === 'unverified' && (!scopeCheck.stopped || scopeCheck.stopped === 'unasked'));
             const connected = scopeCheck ? scopeCheck.status === 'ok' : true;
             const connectionState = connected ? 'connected' : 'disconnected';
+            const reachability = scopeCheck ? tableReachabilityCopy(scopeCheck, checkedAt) : null;
             const confirmOpen = management?.confirming === entry.connection.id;
             return (
               <Fragment key={entry.connection.id}>
@@ -810,10 +811,10 @@ export function DeclaredTablesTable({
                       <ConnectionStateBadge state={connectionState} subject={entry.connection.value} />
                     )}
                   </TableCell>
-                  <TableCell className="connections-table-detail">
+                  <TableCell className="connections-table-detail" title={reachability?.title}>
                     {pending ? null : (
                       <>
-                        {tableRow ? tableReachabilityCopy(tableRow.check, checkedAt).row : scopeCheck?.detail}
+                        {reachability?.row}
                         <ConnectionAddedMetadata entry={entry} />
                       </>
                     )}

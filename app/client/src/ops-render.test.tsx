@@ -1365,7 +1365,7 @@ describe('the cost block', () => {
     const markup = markupOf(<CostBody block={block(payload)} />);
     const visible = text(markup);
     expect(visible).toContain('Agent serving Estimated 1.50 USD');
-    expect(visible).toContain('Data Genie Estimated Free $0.00 Charged Unavailable');
+    expect(visible).toContain('Data Genie Estimated Free Unavailable Charged Unavailable');
     expect(visible).not.toContain('space-data');
     expect(visible).not.toContain('Dictionary Genie');
     expect(visible).not.toContain('space-dictionary');

@@ -134,6 +134,23 @@ describe('Cost component accuracy presentation', () => {
     expect(dbus[0]).toMatchObject({ charged: '9.00 DBU', free: '1.00 DBU' });
   });
 
+  it('keeps measured Genie DBUs visible while USD pricing is unavailable', () => {
+    const unpriced = genie({
+      tileId: 'genie:data',
+      allowanceUsedDbus: 0,
+      promotionalDbus: 0,
+      chargedEffectiveDbus: 12.5,
+      paidUsd: null,
+    });
+    expect(genieCostCardViews(payload([tile({ id: unpriced.tileId, genieInstanceAccounting: unpriced })]))).toEqual([
+      { id: 'genie:data', title: 'Data Genie', charged: '12.50 DBU', free: '$0.00' },
+    ]);
+
+    expect(genieCostCardViews(payload([tile({ id: 'genie:data', amount: null, dbus: null })]))).toEqual([
+      { id: 'genie:data', title: 'Data Genie', charged: 'Unavailable', free: 'Unavailable' },
+    ]);
+  });
+
   it('keeps the exact Free versus Charged distinction in methodology only', () => {
     const source = readFileSync(new URL('./OpsPage.tsx', import.meta.url), 'utf8');
     expect(source).toContain(

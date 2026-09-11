@@ -1713,6 +1713,40 @@ describe('the Unity Catalog tables section', () => {
     expect(text(genericMarkup)).not.toContain('Added schema');
   });
 
+  it('keeps scope details concise and shows complete provenance badges', () => {
+    const markup = render(
+      <DeclaredTablesSection
+        tableChecks={tables}
+        scopeChecks={[
+          check('scope-catalog', 'ok', {
+            kind: 'catalog',
+            name: 'a_catalog',
+            detail: 'The workspace answered with catalog metadata.',
+          }),
+          check('scope-schema', 'ok', {
+            kind: 'schema',
+            name: 'a_catalog.a_schema',
+            detail:
+              'The workspace answered as scope-admin@example.invalid: owned by principal-id. ' +
+              'That is a metadata read. Each table inside it is granted separately.',
+          }),
+        ]}
+        tableConnections={[userCatalog, userSchema]}
+        requestedEntity=""
+        checkedAt="2026-09-11T20:25:00.000Z"
+        allowMutations
+      />
+    );
+    const visible = text(markup);
+    expect(visible).toContain('catalog metadata available · checked');
+    expect(visible).toContain('schema metadata available · checked');
+    expect(visible).not.toContain('The workspace answered as');
+    expect(visible).not.toContain('owned by principal-id');
+    expect(visible).toContain('Added by scope-admin');
+    expect(CONNECTIONS_CSS).toMatch(/\.connections-scope-user\.identity-chip\s*\{[^}]*max-width:\s*none/s);
+    expect(CONNECTIONS_CSS).toMatch(/\.connections-scope-user \.identity-chip-text\s*\{[^}]*overflow:\s*visible/s);
+  });
+
   it('renders authoritative actor/time metadata and newest user assets first', () => {
     const newerSchema = {
       ...userSchema,

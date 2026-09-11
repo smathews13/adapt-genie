@@ -60,11 +60,16 @@ describe('Genie billing classification', () => {
     expect(built?.statement).toContain('GROUP BY record_id');
     expect(built?.statement).toContain('allocation_weight');
     expect(built?.statement).toContain('LEFT JOIN system.billing.list_prices');
-    expect(built?.statement).toContain(`usage.sku_name <> '${GENIE_FREE_SKU}' AND usage.sku_name = p.sku_name`);
+    expect(built?.statement).toContain('usage.sku_name = exact_price.sku_name');
+    expect(built?.statement).toContain('price_proxy.sku_name = proxy_price.sku_name');
+    expect(built?.statement).toContain(
+      'COALESCE(exact_price.pricing.default, proxy_price.pricing.default) AS unit_price'
+    );
+    expect(built?.statement).toContain('INNER JOIN system.billing.list_prices price');
     expect(built?.statement).toContain("LIKE 'ENTERPRISE_SERVERLESS_REAL_TIME_INFERENCE_%'");
-    expect(built?.statement).toContain("UPPER(p.currency_code) = 'USD'");
-    expect(built?.statement).toContain('usage.cloud = p.cloud');
-    expect(built?.statement).toContain('usage.usage_end_time >= p.price_start_time');
+    expect(built?.statement).toContain("UPPER(exact_price.currency_code) = 'USD'");
+    expect(built?.statement).toContain('usage.cloud = exact_price.cloud');
+    expect(built?.statement).toContain('usage.usage_end_time >= exact_price.price_start_time');
     expect(built?.statement).toContain('COUNT(DISTINCT CASE WHEN unit_price IS NOT NULL');
     expect(built?.statement).toContain('observed_paid_skus');
     expect(built?.statement).toContain('workspace_regional_skus');

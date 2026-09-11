@@ -1361,17 +1361,15 @@ async function readLifetimeSpendSnapshot(input: {
           fetchImpl: input.fetchImpl,
         })
       : Promise.resolve({ ok: false as const, rows: [], message: 'No workspace id is configured for Genie billing.' }),
-    interactiveComplete
-      ? runFoundationCostQuery({
-          ids: input.ids,
-          range: effectiveRange,
-          runs,
-          host: input.workspace,
-          token: input.token,
-          warehouseId: input.warehouse,
-          fetchImpl: input.fetchImpl,
-        })
-      : Promise.resolve({ ok: false as const, rows: [], message: 'Foundation-model evidence is incomplete.' }),
+    runFoundationCostQuery({
+      ids: input.ids,
+      range: effectiveRange,
+      runs,
+      host: input.workspace,
+      token: input.token,
+      warehouseId: input.warehouse,
+      fetchImpl: input.fetchImpl,
+    }),
   ]);
   const genieRows = genieOutcome.ok ? readGenieAccountingRows(genieOutcome.rows) : [];
   const genie = genieOutcome.ok
@@ -2017,7 +2015,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
                 fetchImpl: deps.fetchImpl,
               })
             : Promise.resolve({ ok: false as const, message: 'No workspace id is configured for Genie billing.' }),
-          interactiveComplete
+          questionRunsRead.available
             ? runFoundationCostQuery({
                 ids,
                 range,

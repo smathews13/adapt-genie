@@ -1544,6 +1544,9 @@
   margin-left: 8px;
 }
 .connections-scope-date {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   gap: 4px;
   white-space: nowrap;
 }
@@ -1551,8 +1554,13 @@
   width: 12px;
   height: 12px;
 }
-.connections-scope-user.user-identity-chip {
-  min-height: 22px;
+.connections-scope-user.identity-chip {
+  min-height: 24px;
+  max-width: none;
+}
+.connections-scope-user .identity-chip-text {
+  overflow: visible;
+  text-overflow: clip;
 }
 .connections-table-confirm-row:hover {
   background: transparent;

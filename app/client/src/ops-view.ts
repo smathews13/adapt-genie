@@ -474,29 +474,37 @@ export function genieCostCardViews(payload: OpsCostPayload, unit: CostBudgetUnit
     .filter((tile) => tile.id === 'genie:data')
     .map((tile) => {
       const accounting = tile.genieInstanceAccounting;
-      const paid = accounting?.paidUsd ?? tile.amount;
-      const chargedDbus = accounting?.chargedEffectiveDbus ?? tile.dbus;
+      const paid = accounting ? accounting.paidUsd : tile.amount;
+      const chargedDbus = accounting ? accounting.chargedEffectiveDbus : tile.dbus;
       const allowance = accounting?.allowanceUsedDbus ?? 0;
       const promotional = accounting?.promotionalDbus ?? 0;
       const freeDbus = allowance + promotional;
+      const measuredChargedDbus =
+        chargedDbus === 0
+          ? '$0.00'
+          : chargedDbus !== null && chargedDbus !== undefined && chargedDbus > 0
+            ? `${chargedDbus.toFixed(2)} DBU`
+            : 'Unavailable';
       return {
         id: tile.id,
         title: 'Data Genie',
         charged:
           unit === 'USD'
             ? paid === null
-              ? 'Unavailable'
+              ? measuredChargedDbus
               : `$${paid.toFixed(2)}`
             : chargedDbus === null || chargedDbus === undefined
               ? 'Unavailable'
               : `${chargedDbus.toFixed(2)} DBU`,
         free:
           unit === 'USD'
-            ? freeDbus === 0
-              ? '$0.00'
-              : accounting?.freeEquivalentUsd === null || accounting?.freeEquivalentUsd === undefined
-                ? 'Unavailable'
-                : `$${accounting.freeEquivalentUsd.toFixed(2)}`
+            ? !accounting
+              ? 'Unavailable'
+              : freeDbus === 0
+                ? '$0.00'
+                : accounting?.freeEquivalentUsd === null || accounting?.freeEquivalentUsd === undefined
+                  ? 'Unavailable'
+                  : `$${accounting.freeEquivalentUsd.toFixed(2)}`
             : `${freeDbus.toFixed(2)} DBU`,
       };
     });

@@ -271,6 +271,52 @@ describe('Aug 26–Sep 1 component-total and marginal Ask audit fixture', () => 
     });
   });
 
+  it('prices the available run sample when the ledger exceeds its evidence window', () => {
+    const completeBilling = readFoundationBillingRows([
+      [
+        '4.08',
+        'USD',
+        '5.84',
+        'priced',
+        '5.84',
+        '0',
+        '90',
+        '0',
+        '',
+        '0',
+        '0',
+        '2026-01-01T00:00:00Z',
+        '90',
+        '0',
+        '216',
+        '177',
+        '1288343',
+        '93394',
+        '1381737',
+        '26',
+        '26',
+        '0',
+        '0',
+        '39',
+      ],
+    ]);
+    const sampledRuns = runs().map((run) => ({
+      ...run,
+      runsInRange: 1_200,
+      evidenceComplete: false,
+    }));
+
+    expect(foundationCostTile(IDS, completeBilling, '', sampledRuns)).toMatchObject({
+      amount: 4.08,
+      quality: 'estimate',
+      note: 'Measured lower bound; 1174 eligible Asks missing model evidence',
+      evidence: {
+        coverageComplete: false,
+        missingEligibleRequests: 1_174,
+      },
+    });
+  });
+
   it('reconciles marginal serving, token, and Ask SQL to users exactly once', () => {
     const interactive = runs();
     const tiles = buildTiles(

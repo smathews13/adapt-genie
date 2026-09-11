@@ -78,7 +78,13 @@ export function tableReachabilityCopy(check: PreflightCheck, checkedAt: string):
   const countLabel = columns === null ? '' : `${columns} column${columns === 1 ? '' : 's'}`;
   const when = checkedAt ? formatCheckedAt(checkedAt) : 'time not reported';
   if (check.status === 'ok') {
-    const count = countLabel || 'schema metadata available';
+    const count =
+      countLabel ||
+      (check.kind === 'catalog'
+        ? 'catalog metadata available'
+        : check.kind === 'schema'
+          ? 'schema metadata available'
+          : 'table metadata available');
     return {
       row: `${count} · checked ${when}`,
       title: `Connection confirmed. ${countLabel ? `Schema has ${countLabel}. ` : ''}Last checked ${when}.`,

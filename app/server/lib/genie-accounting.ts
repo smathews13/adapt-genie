@@ -113,31 +113,45 @@ genie_usage AS (
     AND UPPER(TRIM(u.usage_unit)) = 'DBU'
 ),
 observed_paid_skus AS (
-  SELECT cloud, usage_unit, sku_name, MAX(usage_end_time) AS observed_at,
+  SELECT usage.cloud, usage.usage_unit, usage.sku_name, MAX(usage.usage_end_time) AS observed_at,
          ROW_NUMBER() OVER (
-           PARTITION BY cloud, usage_unit
-           ORDER BY MAX(usage_end_time) DESC, sku_name
+           PARTITION BY usage.cloud, usage.usage_unit
+           ORDER BY MAX(usage.usage_end_time) DESC, usage.sku_name
          ) AS recency_rank
-  FROM system.billing.usage
-  WHERE billing_origin_product = 'GENIE'
-    AND workspace_id = :workspaceId
-    AND usage_date BETWEEN DATE_ADD(:through_day, -180) AND :through_day
-    AND sku_name <> '${GENIE_FREE_SKU}'
-    AND UPPER(TRIM(usage_unit)) = 'DBU'
-  GROUP BY cloud, usage_unit, sku_name
+  FROM system.billing.usage usage
+  INNER JOIN system.billing.list_prices price
+    ON usage.sku_name = price.sku_name
+   AND usage.cloud = price.cloud
+   AND usage.usage_unit = price.usage_unit
+   AND UPPER(price.currency_code) = 'USD'
+   AND usage.usage_end_time >= price.price_start_time
+   AND (price.price_end_time IS NULL OR usage.usage_end_time < price.price_end_time)
+  WHERE usage.billing_origin_product = 'GENIE'
+    AND usage.workspace_id = :workspaceId
+    AND usage.usage_date BETWEEN DATE_ADD(:through_day, -180) AND :through_day
+    AND usage.sku_name <> '${GENIE_FREE_SKU}'
+    AND UPPER(TRIM(usage.usage_unit)) = 'DBU'
+  GROUP BY usage.cloud, usage.usage_unit, usage.sku_name
 ),
 workspace_regional_skus AS (
-  SELECT cloud, usage_unit, sku_name, MAX(usage_end_time) AS observed_at,
+  SELECT usage.cloud, usage.usage_unit, usage.sku_name, MAX(usage.usage_end_time) AS observed_at,
          ROW_NUMBER() OVER (
-           PARTITION BY cloud, usage_unit
-           ORDER BY MAX(usage_end_time) DESC, sku_name
+           PARTITION BY usage.cloud, usage.usage_unit
+           ORDER BY MAX(usage.usage_end_time) DESC, usage.sku_name
          ) AS recency_rank
-  FROM system.billing.usage
-  WHERE workspace_id = :workspaceId
-    AND usage_date BETWEEN DATE_ADD(:through_day, -180) AND :through_day
-    AND UPPER(sku_name) LIKE 'ENTERPRISE_SERVERLESS_REAL_TIME_INFERENCE_%'
-    AND UPPER(TRIM(usage_unit)) = 'DBU'
-  GROUP BY cloud, usage_unit, sku_name
+  FROM system.billing.usage usage
+  INNER JOIN system.billing.list_prices price
+    ON usage.sku_name = price.sku_name
+   AND usage.cloud = price.cloud
+   AND usage.usage_unit = price.usage_unit
+   AND UPPER(price.currency_code) = 'USD'
+   AND usage.usage_end_time >= price.price_start_time
+   AND (price.price_end_time IS NULL OR usage.usage_end_time < price.price_end_time)
+  WHERE usage.workspace_id = :workspaceId
+    AND usage.usage_date BETWEEN DATE_ADD(:through_day, -180) AND :through_day
+    AND UPPER(usage.sku_name) LIKE 'ENTERPRISE_SERVERLESS_REAL_TIME_INFERENCE_%'
+    AND UPPER(TRIM(usage.usage_unit)) = 'DBU'
+  GROUP BY usage.cloud, usage.usage_unit, usage.sku_name
 ),
 free_price_skus AS (
   SELECT cloud, usage_unit, sku_name
@@ -162,23 +176,26 @@ free_price_skus AS (
 price_hits AS (
   SELECT
     usage.*,
-    p.pricing.default AS unit_price,
-    p.currency_code
+    COALESCE(exact_price.pricing.default, proxy_price.pricing.default) AS unit_price,
+    COALESCE(exact_price.currency_code, proxy_price.currency_code) AS currency_code
   FROM genie_usage usage
-  LEFT JOIN free_price_skus free_price
-    ON usage.sku_name = '${GENIE_FREE_SKU}'
-   AND usage.cloud = free_price.cloud
-   AND usage.usage_unit = free_price.usage_unit
-  LEFT JOIN system.billing.list_prices p
-    ON (
-      (usage.sku_name <> '${GENIE_FREE_SKU}' AND usage.sku_name = p.sku_name)
-      OR (usage.sku_name = '${GENIE_FREE_SKU}' AND free_price.sku_name = p.sku_name)
-   )
-   AND usage.cloud = p.cloud
-   AND usage.usage_unit = p.usage_unit
-   AND UPPER(p.currency_code) = 'USD'
-   AND usage.usage_end_time >= p.price_start_time
-   AND (p.price_end_time IS NULL OR usage.usage_end_time < p.price_end_time)
+  LEFT JOIN free_price_skus price_proxy
+    ON usage.cloud = price_proxy.cloud
+   AND usage.usage_unit = price_proxy.usage_unit
+  LEFT JOIN system.billing.list_prices exact_price
+    ON usage.sku_name = exact_price.sku_name
+   AND usage.cloud = exact_price.cloud
+   AND usage.usage_unit = exact_price.usage_unit
+   AND UPPER(exact_price.currency_code) = 'USD'
+   AND usage.usage_end_time >= exact_price.price_start_time
+   AND (exact_price.price_end_time IS NULL OR usage.usage_end_time < exact_price.price_end_time)
+  LEFT JOIN system.billing.list_prices proxy_price
+    ON price_proxy.sku_name = proxy_price.sku_name
+   AND usage.cloud = proxy_price.cloud
+   AND usage.usage_unit = proxy_price.usage_unit
+   AND UPPER(proxy_price.currency_code) = 'USD'
+   AND usage.usage_end_time >= proxy_price.price_start_time
+   AND (proxy_price.price_end_time IS NULL OR usage.usage_end_time < proxy_price.price_end_time)
 ),
 deduped AS (
   SELECT

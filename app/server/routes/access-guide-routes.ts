@@ -60,10 +60,25 @@ export function setupAccessGuideRoutes(appkit: InsightsAppKit, options: { assetP
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
 
-        const stream = file.createReadStream();
+        const stream = file.createReadStream({ autoClose: false });
+        let closing: Promise<void> | null = null;
+        const closeFile = () => {
+          closing ??=
+            file
+              ?.close()
+              .then(() => undefined)
+              .catch(() => undefined) ?? Promise.resolve();
+          return closing;
+        };
         stream.on('error', (error) => {
+          void closeFile();
           if (!res.headersSent) unavailable(res);
           else res.destroy(error);
+        });
+        stream.on('end', () => void closeFile());
+        res.on('close', () => {
+          if (!stream.destroyed) stream.destroy();
+          void closeFile();
         });
         stream.pipe(res);
       } catch {

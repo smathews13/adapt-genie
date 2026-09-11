@@ -110,9 +110,7 @@ async function queryMeasurement(
   const interactiveComplete = interactiveRuns[0]?.evidenceComplete ?? interactiveRuns.length === 0;
   const built = (await import('./ops-billing')).buildCostStatement(resolved.ids, range);
   if (!built) return null;
-  const foundationBuilt = interactiveComplete
-    ? buildFoundationCostStatement(resolved.ids, range, interactiveRuns)
-    : null;
+  const foundationBuilt = buildFoundationCostStatement(resolved.ids, range, interactiveRuns);
   const genieBuilt = buildGenieAccountingStatement(
     resolved.ids.workspaceId,
     range,
@@ -159,8 +157,8 @@ async function queryMeasurement(
   if (!outcome.ok) return null;
   const split = splitBillingRows(readComponentRows(outcome.rows));
   const foundation = foundationOutcome.ok
-    ? foundationCostTile(resolved.ids, readFoundationBillingRows(foundationOutcome.rows))
-    : foundationCostTile(resolved.ids, null, foundationOutcome.message);
+    ? foundationCostTile(resolved.ids, readFoundationBillingRows(foundationOutcome.rows), '', interactiveRuns)
+    : foundationCostTile(resolved.ids, null, foundationOutcome.message, interactiveRuns);
   const genieRows = genieOutcome.ok ? readGenieAccountingRows(genieOutcome.rows) : [];
   const genie = genieOutcome.ok
     ? classifyGenieAccounting(

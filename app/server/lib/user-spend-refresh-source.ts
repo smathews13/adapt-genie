@@ -237,7 +237,7 @@ export function createUserSpendRefreshSource(appkit: InsightsAppKit, req: Reques
       };
     }
     const genieStatement = buildGenieAccountingStatement(ids.workspaceId, monthRange, ids.genieSpaces, genieActivity);
-    const foundationStatement = interactiveComplete ? buildFoundationCostStatement(ids, range, questionRuns) : null;
+    const foundationStatement = buildFoundationCostStatement(ids, range, questionRuns);
     const [costOutcome, queryAttribution, genieOutcome, foundationOutcome] = await Promise.all([
       runStatement({
         host,
@@ -288,8 +288,8 @@ export function createUserSpendRefreshSource(appkit: InsightsAppKit, req: Reques
         : null;
     const directGenie = genie ? genieDirectRows(genie, genieBefore) : [];
     const foundation = foundationOutcome.ok
-      ? foundationCostTile(ids, readFoundationBillingRows(foundationOutcome.rows))
-      : foundationCostTile(ids, null, foundationOutcome.message);
+      ? foundationCostTile(ids, readFoundationBillingRows(foundationOutcome.rows), '', questionRuns)
+      : foundationCostTile(ids, null, foundationOutcome.message, questionRuns);
     const nonGenieTiles = buildTiles(
       ids,
       split.components,

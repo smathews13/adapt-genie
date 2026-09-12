@@ -130,6 +130,9 @@ describe('release runtime configuration persistence', () => {
       LAKEBASE_ENDPOINT: 'projects/example/branches/production',
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
       PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'false',
+      PLAYER_INSIGHTS_EXPERIMENT_PATH: '/Shared/adapt-genie',
+      ADAPT_ADMIN_GROUP_LABEL: 'ADAPT administrators',
+      ADAPT_USER_GROUP_LABEL: 'ADAPT users',
     };
     const recovered: Partial<Record<ReleaseEnvironmentKey, string>> = {
       PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
@@ -137,21 +140,26 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.txn_steam_sales_with_analytics',
       PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
       PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
       ADAPT_ADMIN_GROUP: 'customer-admins',
       ADAPT_USER_GROUP: 'customer-users',
-      ADAPT_ADMIN_GROUP_LABEL: 'customer-admins',
-      ADAPT_USER_GROUP_LABEL: 'customer-users',
     };
 
-    expect(await restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))).toBe(12);
+    expect(await restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))).toBe(13);
     expect(env).toMatchObject({
       ...recovered,
-      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
+      PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'false',
+      PLAYER_INSIGHTS_EXPERIMENT_PATH: '/Shared/adapt-genie',
+      ADAPT_ADMIN_GROUP_LABEL: 'ADAPT administrators',
+      ADAPT_USER_GROUP_LABEL: 'ADAPT users',
     });
     expect(recorded).toMatchObject(recovered);
     const saved: Partial<Record<ReleaseEnvironmentKey, string>> = recorded ?? {};
-    expect(saved.PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL).toBe('false');
+    expect(saved).not.toHaveProperty('PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL');
+    expect(saved).not.toHaveProperty('PLAYER_INSIGHTS_EXPERIMENT_PATH');
+    expect(saved).not.toHaveProperty('ADAPT_ADMIN_GROUP_LABEL');
+    expect(saved).not.toHaveProperty('ADAPT_USER_GROUP_LABEL');
   });
 
   it('recovers the exact App ACL groups and Watchlist table without customer defaults', () => {
@@ -184,7 +192,6 @@ describe('release runtime configuration persistence', () => {
       ],
       appSchema: 'adapt_customer',
       sharedRail: 'false',
-      env: { PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie' },
       appUserApiScopes: ['sql', 'dashboards.genie', 'catalog.tables:read'],
       telemetrySchema: 'customer_app_catalog.adapt_telemetry',
       confirmedAuthoredGroups: {
@@ -206,6 +213,8 @@ describe('release runtime configuration persistence', () => {
       ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
       ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
     });
+    expect(recovered).not.toHaveProperty('ADAPT_ADMIN_GROUP_LABEL');
+    expect(recovered).not.toHaveProperty('ADAPT_USER_GROUP_LABEL');
   });
 
   it('does not persist authored group names unless the existing workspace confirms them', async () => {
@@ -225,6 +234,7 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.txn_steam_sales_with_analytics',
       PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
       PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql',
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
     };
 
@@ -233,12 +243,7 @@ describe('release runtime configuration persistence', () => {
     ).catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(MissingReleaseEnvironmentSnapshot);
     if (!(failure instanceof MissingReleaseEnvironmentSnapshot)) throw new Error('Expected recovery refusal.');
-    expect(failure.missing).toEqual([
-      'ADAPT_ADMIN_GROUP',
-      'ADAPT_USER_GROUP',
-      'ADAPT_ADMIN_GROUP_LABEL',
-      'ADAPT_USER_GROUP_LABEL',
-    ]);
+    expect(failure.missing).toEqual(['ADAPT_ADMIN_GROUP', 'ADAPT_USER_GROUP']);
   });
 
   it('keeps direct App grants when the same group also has inherited access', () => {
@@ -250,7 +255,6 @@ describe('release runtime configuration persistence', () => {
       ],
       appSchema: 'adapt',
       sharedRail: null,
-      env: {},
     });
 
     expect(recovered).toMatchObject({

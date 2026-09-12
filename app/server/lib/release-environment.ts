@@ -46,11 +46,8 @@ export const REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS: readonly ReleaseEnvironmentK
   'PLAYER_INSIGHTS_LLM_ENDPOINT',
   'PLAYER_INSIGHTS_USER_API_SCOPES',
   'PLAYER_INSIGHTS_APP_SCHEMA',
-  'PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL',
   'ADAPT_ADMIN_GROUP',
   'ADAPT_USER_GROUP',
-  'ADAPT_ADMIN_GROUP_LABEL',
-  'ADAPT_USER_GROUP_LABEL',
 ];
 
 const VALIDATED_RECOVERY_KEYS: readonly ReleaseEnvironmentKey[] = [
@@ -59,11 +56,10 @@ const VALIDATED_RECOVERY_KEYS: readonly ReleaseEnvironmentKey[] = [
   'PLAYER_INSIGHTS_WATCHLIST_TABLE',
   'PLAYER_INSIGHTS_DATA_GENIE_ID',
   'PLAYER_INSIGHTS_LLM_ENDPOINT',
+  'PLAYER_INSIGHTS_USER_API_SCOPES',
   'PLAYER_INSIGHTS_APP_SCHEMA',
   'ADAPT_ADMIN_GROUP',
   'ADAPT_USER_GROUP',
-  'ADAPT_ADMIN_GROUP_LABEL',
-  'ADAPT_USER_GROUP_LABEL',
 ];
 
 export class MissingReleaseEnvironmentSnapshot extends Error {
@@ -141,7 +137,6 @@ export function recoveredReleaseEnvironment(input: {
   groups: readonly RecoverableAppGroup[];
   appSchema: string;
   sharedRail: string | null;
-  env: Record<string, string | undefined>;
   confirmedAuthoredGroups?: { admin: string; user: string };
   appUserApiScopes?: readonly string[];
   telemetrySchema?: string;
@@ -167,14 +162,11 @@ export function recoveredReleaseEnvironment(input: {
     PLAYER_INSIGHTS_DATA_GENIE_ID: configurationValue(input.baked, 'data_genie_space_id'),
     PLAYER_INSIGHTS_LLM_ENDPOINT: configurationValue(input.baked, 'llm_endpoint'),
     PLAYER_INSIGHTS_TELEMETRY_SCHEMA: input.telemetrySchema,
-    PLAYER_INSIGHTS_USER_API_SCOPES:
-      input.appUserApiScopes?.filter(Boolean).join(',') || input.env.PLAYER_INSIGHTS_USER_API_SCOPES,
+    PLAYER_INSIGHTS_USER_API_SCOPES: input.appUserApiScopes?.filter(Boolean).join(','),
     PLAYER_INSIGHTS_APP_SCHEMA: input.appSchema,
-    PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: input.sharedRail ?? input.env.PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL,
+    PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: input.sharedRail ?? undefined,
     ADAPT_ADMIN_GROUP: adminGroup,
     ADAPT_USER_GROUP: userGroup,
-    ADAPT_ADMIN_GROUP_LABEL: adminGroup,
-    ADAPT_USER_GROUP_LABEL: userGroup,
   });
 }
 
@@ -225,7 +217,6 @@ async function recoverExistingReleaseEnvironment(
     groups: appAccessPrincipals(permissions),
     appSchema: appSchema.APP_SCHEMA,
     sharedRail,
-    env,
     ...(adminCheck.exists && userCheck.exists
       ? { confirmedAuthoredGroups: { admin: authoredAdmin, user: authoredUser } }
       : {}),
@@ -263,11 +254,15 @@ export async function restoreReleaseEnvironment(
     restored += 1;
   }
   if (snapshotMissing.length > 0) {
+    const persisted = {
+      ...recovered,
+      ...snapshot,
+    };
     await recordDeploymentDecision(
       store,
       decisionTable(),
       RELEASE_ENVIRONMENT_DECISION,
-      JSON.stringify(combined),
+      JSON.stringify(persisted),
       'automatic Git migration'
     );
   }

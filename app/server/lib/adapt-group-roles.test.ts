@@ -3,16 +3,24 @@ import {
   ADAPT_ADMIN_GROUP,
   ADAPT_USER_GROUP,
   adaptGroupRole,
+  configuredGroupRoleMappings,
   forgetAdaptGroupRoles,
   groupRoleForRequest,
   mergeGroupRoleMappings,
   roleFromAdaptGroups,
+  roleFromGroupMappings,
   scimGroupNames,
   seedRolesWithGroupFloors,
 } from './adapt-group-roles';
 import { groupRoleLookupForStore, rolePayload, type AdminStore, type Role } from './admin-roles';
 
 const EMAIL = 'person@databricks.com';
+const ADMIN_GROUP = 'customer-adapt-admins';
+const USER_GROUP = 'customer-adapt-users';
+const MAPPINGS = [
+  { groupName: ADMIN_GROUP, role: 'admin' as const },
+  { groupName: USER_GROUP, role: 'consumer' as const },
+];
 
 function scim(groups: string[]) {
   return {
@@ -29,10 +37,13 @@ describe('ADAPT group roles', () => {
   beforeEach(() => forgetAdaptGroupRoles());
   afterEach(() => vi.unstubAllEnvs());
 
-  it('maps the customer admin group to admin and the user group to consumer', () => {
-    expect(roleFromAdaptGroups([ADAPT_ADMIN_GROUP])).toBe('admin');
-    expect(roleFromAdaptGroups([ADAPT_USER_GROUP])).toBe('consumer');
-    expect(roleFromAdaptGroups(['unrelated'])).toBeNull();
+  it('has no customer group fallback before release configuration is restored', () => {
+    expect(ADAPT_ADMIN_GROUP).toBe('');
+    expect(ADAPT_USER_GROUP).toBe('');
+    expect(configuredGroupRoleMappings()).toEqual([]);
+    expect(roleFromAdaptGroups([ADMIN_GROUP])).toBeNull();
+    expect(roleFromGroupMappings([ADMIN_GROUP], MAPPINGS)).toBe('admin');
+    expect(roleFromGroupMappings([USER_GROUP], MAPPINGS)).toBe('consumer');
   });
 
   it('honors customer-specific group overrides from the deployment', async () => {
@@ -46,33 +57,33 @@ describe('ADAPT group roles', () => {
   });
 
   it('gives the admin group precedence when a person belongs to both groups', () => {
-    expect(roleFromAdaptGroups([ADAPT_USER_GROUP, ADAPT_ADMIN_GROUP])).toBe('admin');
+    expect(roleFromGroupMappings([USER_GROUP, ADMIN_GROUP], MAPPINGS)).toBe('admin');
   });
 
   it('does not let a stored edit weaken a configured group role', () => {
     expect(
       mergeGroupRoleMappings(
-        [{ groupName: ADAPT_ADMIN_GROUP, role: 'admin' }],
-        [{ groupName: ADAPT_ADMIN_GROUP.toLowerCase(), role: 'consumer' }]
+        [{ groupName: ADMIN_GROUP, role: 'admin' }],
+        [{ groupName: ADMIN_GROUP.toUpperCase(), role: 'consumer' }]
       )
-    ).toEqual([{ groupName: ADAPT_ADMIN_GROUP, role: 'admin' }]);
+    ).toEqual([{ groupName: ADMIN_GROUP, role: 'admin' }]);
   });
 
   it('matches group and user names without case sensitivity', () => {
     const body = {
       Resources: [
-        { userName: EMAIL.toUpperCase(), groups: [{ display: ADAPT_ADMIN_GROUP.toLowerCase() }] },
-        { userName: 'someone-else@databricks.com', groups: [{ display: ADAPT_USER_GROUP }] },
+        { userName: EMAIL.toUpperCase(), groups: [{ display: ADMIN_GROUP.toUpperCase() }] },
+        { userName: 'someone-else@databricks.com', groups: [{ display: USER_GROUP }] },
       ],
     };
-    expect(scimGroupNames(body, EMAIL)).toEqual([ADAPT_ADMIN_GROUP.toLowerCase()]);
-    expect(roleFromAdaptGroups(scimGroupNames(body, EMAIL))).toBe('admin');
+    expect(scimGroupNames(body, EMAIL)).toEqual([ADMIN_GROUP.toUpperCase()]);
+    expect(roleFromGroupMappings(scimGroupNames(body, EMAIL), MAPPINGS)).toBe('admin');
   });
 
   it('reads the exact signed-in user through SCIM and caches the role briefly', async () => {
-    const reader = vi.fn(() => Promise.resolve(scim([ADAPT_ADMIN_GROUP])));
-    await expect(adaptGroupRole(EMAIL, reader)).resolves.toBe('admin');
-    await expect(adaptGroupRole(EMAIL, reader)).resolves.toBe('admin');
+    const reader = vi.fn(() => Promise.resolve(scim([ADMIN_GROUP])));
+    await expect(adaptGroupRole(EMAIL, reader, Date.now(), MAPPINGS)).resolves.toBe('admin');
+    await expect(adaptGroupRole(EMAIL, reader, Date.now(), MAPPINGS)).resolves.toBe('admin');
     expect(reader).toHaveBeenCalledTimes(1);
     expect(reader).toHaveBeenCalledWith('/api/2.0/preview/scim/v2/Users', {
       filter: `userName eq "${EMAIL}"`,
@@ -112,25 +123,6 @@ describe('ADAPT group roles', () => {
     const reader = vi.fn(() => Promise.resolve(scim(['existing-workspace-team'])));
     await expect(groupRoleLookupForStore(store, reader)(EMAIL)).resolves.toBe('admin');
     expect(reader).toHaveBeenCalledWith('/api/2.0/preview/scim/v2/Users', { filter: `userName eq "${EMAIL}"` });
-  });
-
-  it('keeps the configured admin group as an authorization floor', async () => {
-    const store = {
-      query: vi.fn(() =>
-        Promise.resolve({
-          rows: [
-            {
-              group_name: ADAPT_ADMIN_GROUP,
-              role: 'consumer',
-              added_by: 'owner@example.invalid',
-              added_at: '2026-09-08T00:00:00.000Z',
-            },
-          ],
-        })
-      ),
-    } as AdminStore;
-    const reader = vi.fn(() => Promise.resolve(scim([ADAPT_ADMIN_GROUP])));
-    await expect(groupRoleLookupForStore(store, reader)(EMAIL)).resolves.toBe('admin');
   });
 
   it('reuses one injected group answer throughout a request', async () => {

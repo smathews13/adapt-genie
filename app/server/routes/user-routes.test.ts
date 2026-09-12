@@ -14,6 +14,14 @@ import express from 'express';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.hoisted(() => {
+  process.env.ADAPT_ADMIN_GROUP = 'S_TK2_Databricks_Adapt_Genie_Admins';
+  process.env.ADAPT_USER_GROUP = 'S_TK2_Databricks_Adapt_Genie_Users';
+  process.env.ADAPT_ADMIN_GROUP_LABEL = 'S_TK2_Databricks_Adapt_Genie_Admins';
+  process.env.ADAPT_USER_GROUP_LABEL = 'S_TK2_Databricks_Adapt_Genie_Users';
+});
+
 import { setupUserRoutes } from './user-routes';
 import { userEmail, type InsightsAppKit } from './insights-routes';
 import {

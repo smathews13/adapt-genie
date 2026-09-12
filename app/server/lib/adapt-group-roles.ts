@@ -3,9 +3,9 @@ import type { SeedRoles } from './user-roster';
 import { ExpiringLruCache } from './expiring-lru';
 import { SCIM_USERS_PATH, workspaceControlPlaneReader, type ControlPlaneReader } from './control-plane-identity';
 
-/** ADAPT's customer-managed identity groups. Bundle variables may override them. */
-export const ADAPT_ADMIN_GROUP = process.env.ADAPT_ADMIN_GROUP?.trim() || 'S_TK2_Databricks_Adapt_Genie_Admins';
-export const ADAPT_USER_GROUP = process.env.ADAPT_USER_GROUP?.trim() || 'S_TK2_Databricks_Adapt_Genie_Users';
+/** ADAPT's customer-managed identity groups. A release snapshot must supply them. */
+export const ADAPT_ADMIN_GROUP = process.env.ADAPT_ADMIN_GROUP?.trim() || '';
+export const ADAPT_USER_GROUP = process.env.ADAPT_USER_GROUP?.trim() || '';
 export const ADAPT_ADMIN_GROUP_LABEL = process.env.ADAPT_ADMIN_GROUP_LABEL?.trim() || ADAPT_ADMIN_GROUP;
 export const ADAPT_USER_GROUP_LABEL = process.env.ADAPT_USER_GROUP_LABEL?.trim() || ADAPT_USER_GROUP;
 
@@ -58,10 +58,11 @@ export function scimGroupNames(body: unknown, email: string): string[] {
  * permissions are the outer access boundary.
  */
 export function configuredGroupRoleMappings(): GroupRoleMapping[] {
-  return [
+  const mappings: GroupRoleMapping[] = [
     { groupName: ADAPT_ADMIN_GROUP, role: 'admin' },
     { groupName: ADAPT_USER_GROUP, role: 'consumer' },
   ];
+  return mappings.filter((mapping) => mapping.groupName);
 }
 
 /**

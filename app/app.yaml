@@ -98,22 +98,20 @@ env:
   # var.shared_conversation_rail, so set it in the bundle rather than here.
   - name: PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL
     value: 'false'
-  # Workspace groups that form ADAPT's outer App access boundary and role floor.
-  # Bundle releases replace these with var.app_admin_group / var.app_user_group.
-  # Public Git source must never name one customer's groups. A bootstrapped Git
-  # deployment restores them from the app-owned release snapshot and refuses to
-  # start if that snapshot is absent or incomplete.
+  # Take-Two's exact workspace groups. Keep their case: SCIM names are exact and
+  # changing `adapt_genie` to `Adapt_Genie` breaks the group link. Bundle
+  # releases may replace these for a different target.
   - name: ADAPT_ADMIN_GROUP
-    value: ''
+    value: 'S_TK2_Databricks_adapt_genie_admins'
   - name: ADAPT_USER_GROUP
-    value: ''
+    value: 'S_TK2_Databricks_adapt_genie_users'
   # Customer-facing group names shown in Identity. A shared demo workspace may
   # map these labels through generic workspace groups while preserving the
   # Take-Two access model the app is demonstrating.
   - name: ADAPT_ADMIN_GROUP_LABEL
-    value: ''
+    value: 'S_TK2_Databricks_adapt_genie_admins'
   - name: ADAPT_USER_GROUP_LABEL
-    value: ''
+    value: 'S_TK2_Databricks_adapt_genie_users'
   # Greenfield role bootstrap: a comma-separated list of email addresses.
   # The app writes these roles to Lakebase only when the roster is genuinely
   # empty. Once any role row exists, this value is ignored forever: absence or a

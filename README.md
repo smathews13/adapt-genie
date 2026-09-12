@@ -348,23 +348,21 @@ workflow.
 
 ## Updating it: Deploy from Git
 
-**Run the bundle bootstrap above once first.** It creates the telemetry schema,
-experiment, serving endpoint, OAuth scopes, resource bindings, and the app
-itself. The first `bundle/app-release.sh` also records the release's catalog,
-schema, Genie space, watchlist table, MLflow experiment, and related runtime
-scope in the app-owned Lakebase store. Do not start the Git flow before that
-first app release has completed.
-
-After that, **app-code updates are Deploy from Git onto the existing app**, and
-that is the usual path. UI, server and other TypeScript in
+**App-code updates are Deploy from Git onto the existing app.** No preparatory
+bundle release is required. UI, server and other TypeScript in
 `app/build/deploy` are pulled from this repository onto the
 live app.
 
 Deploy from Git replaces the generated `app.yaml` with the public artifact's
-customer-neutral placeholders. On startup, ADAPT restores the last recorded
-bundle-release values before Connections, the Insights Rail, watchlist, or
-MLflow routes initialize. A Git update therefore changes source code without
-blanking the deployment's existing scope.
+target-neutral data placeholders and the exact Take-Two App group names. On
+startup, ADAPT first uses any existing Lakebase snapshot. Older deployments
+without that snapshot automatically reconstruct it from the model version
+already receiving traffic, the App's existing group permissions, its owned
+Lakebase schema, and its saved conversation policy. This happens before
+Connections, the Insights Rail, Watchlist, or MLflow routes initialize. If any
+required value cannot be recovered unambiguously, startup fails and Databricks
+keeps the previous active deployment. A Git update therefore never requires a
+bundle release and never blanks the deployment's existing scope.
 
 1. Open the **existing** app's detail page, not Create app.
 2. Choose **Deploy → From Git**.

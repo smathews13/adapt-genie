@@ -134,12 +134,12 @@ variables:
     description: >-
       Workspace group granted CAN_MANAGE on the App and mapped to ADAPT's admin
       role floor. Override for customers that do not use the Take-Two group.
-    default: S_TK2_Databricks_Adapt_Genie_Admins
+    default: S_TK2_Databricks_adapt_genie_admins
   app_user_group:
     description: >-
       Workspace group granted CAN_USE on the App and mapped to ADAPT's consumer
       role. Override for customers that do not use the Take-Two group.
-    default: S_TK2_Databricks_Adapt_Genie_Users
+    default: S_TK2_Databricks_adapt_genie_users
   shared_conversation_rail:
     description: >-
       Whether users can see shared conversations in the rail. Defaults to

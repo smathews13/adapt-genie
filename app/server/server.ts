@@ -36,8 +36,8 @@ createApp({
     // store before importing modules whose SQL constants capture APP_SCHEMA.
     await preserveOwnedAppSchema(appkit.lakebase);
     // Deploy from Git replaces the generated app.yaml with the public artifact's
-    // empty deployment placeholders. Restore the last bundle release before
-    // route modules capture catalog, schema, Genie, watchlist, or MLflow values.
+    // empty deployment placeholders. Restore or automatically recover the
+    // existing app's values before route modules capture them.
     const restoredReleaseValues = await restoreReleaseEnvironment(appkit.lakebase);
     if (restoredReleaseValues > 0) {
       console.warn(
@@ -121,9 +121,9 @@ createApp({
       onRequestLatencyRecorder: (recorder) => appkit.requestLatencyShutdown.setRecorder(recorder),
       traceTokenEvidenceReader: readMlflowTokenEvidence,
     });
-    // A bundle release is authoritative for target-specific values. Persist its
-    // allowlisted snapshot only after the decisions table migration is ready;
-    // source-only Git boots restore but never overwrite it.
+    // A configured release remains authoritative for target-specific values.
+    // Git boots only backfill a missing/legacy snapshot from existing durable
+    // resources and never replace a complete snapshot with public placeholders.
     void storeReady.then(
       async () => {
         if (await recordReleaseEnvironment(appkit.lakebase)) {

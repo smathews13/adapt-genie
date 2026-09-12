@@ -3,7 +3,7 @@ import type { SeedRoles } from './user-roster';
 import { ExpiringLruCache } from './expiring-lru';
 import { SCIM_USERS_PATH, workspaceControlPlaneReader, type ControlPlaneReader } from './control-plane-identity';
 
-/** ADAPT's customer-managed identity groups. A release snapshot must supply them. */
+/** ADAPT's customer-managed identity groups, restored or recovered before import. */
 export const ADAPT_ADMIN_GROUP = process.env.ADAPT_ADMIN_GROUP?.trim() || '';
 export const ADAPT_USER_GROUP = process.env.ADAPT_USER_GROUP?.trim() || '';
 export const ADAPT_ADMIN_GROUP_LABEL = process.env.ADAPT_ADMIN_GROUP_LABEL?.trim() || ADAPT_ADMIN_GROUP;

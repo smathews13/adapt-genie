@@ -16,10 +16,10 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
-  process.env.ADAPT_ADMIN_GROUP = 'S_TK2_Databricks_Adapt_Genie_Admins';
-  process.env.ADAPT_USER_GROUP = 'S_TK2_Databricks_Adapt_Genie_Users';
-  process.env.ADAPT_ADMIN_GROUP_LABEL = 'S_TK2_Databricks_Adapt_Genie_Admins';
-  process.env.ADAPT_USER_GROUP_LABEL = 'S_TK2_Databricks_Adapt_Genie_Users';
+  process.env.ADAPT_ADMIN_GROUP = 'S_TK2_Databricks_adapt_genie_admins';
+  process.env.ADAPT_USER_GROUP = 'S_TK2_Databricks_adapt_genie_users';
+  process.env.ADAPT_ADMIN_GROUP_LABEL = 'S_TK2_Databricks_adapt_genie_admins';
+  process.env.ADAPT_USER_GROUP_LABEL = 'S_TK2_Databricks_adapt_genie_users';
 });
 
 import { setupUserRoutes } from './user-routes';
@@ -300,8 +300,8 @@ describe('the super admin reads the roster', () => {
     expect(payload.superAdminCount).toBe(ADAPT_SUPER_ADMIN_EMAILS.length + 1);
     expect(payload.groupRoleDefaults).toEqual([
       {
-        displayName: 'S_TK2_Databricks_Adapt_Genie_Admins',
-        groupName: 'S_TK2_Databricks_Adapt_Genie_Admins',
+        displayName: 'S_TK2_Databricks_adapt_genie_admins',
+        groupName: 'S_TK2_Databricks_adapt_genie_admins',
         role: 'admin',
         appPermission: 'CAN_MANAGE',
         source: 'bundle',
@@ -311,8 +311,8 @@ describe('the super admin reads the roster', () => {
         setAt: '',
       },
       {
-        displayName: 'S_TK2_Databricks_Adapt_Genie_Users',
-        groupName: 'S_TK2_Databricks_Adapt_Genie_Users',
+        displayName: 'S_TK2_Databricks_adapt_genie_users',
+        groupName: 'S_TK2_Databricks_adapt_genie_users',
         role: 'consumer',
         appPermission: 'CAN_USE',
         source: 'bundle',
@@ -334,10 +334,10 @@ describe('the super admin reads the roster', () => {
       })
     );
     const app = await startApp(fakeLakebase(), undefined, readGroupMembers);
-    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_Adapt_Genie_Users');
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
     expect(configured.status).toBe(200);
     expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
-    expect(readGroupMembers).toHaveBeenCalledWith('S_TK2_Databricks_Adapt_Genie_Users');
+    expect(readGroupMembers).toHaveBeenCalledWith('S_TK2_Databricks_adapt_genie_users');
 
     const unknown = await app.groupMembers(LEAD, 'unrelated');
     expect(unknown.status).toBe(404);
@@ -362,7 +362,7 @@ describe('the super admin reads the roster', () => {
     );
     const app = await startApp(store, undefined, readGroupMembers);
 
-    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_Adapt_Genie_Users');
+    const configured = await app.groupMembers(LEAD, 'S_TK2_Databricks_adapt_genie_users');
     expect(configured.status).toBe(200);
     expect(await configured.json()).toMatchObject({ members: [{ email: ANALYST }] });
 
@@ -416,7 +416,7 @@ describe('the super admin reads the roster', () => {
     expect((await app.groupMembers(LEAD, 'existing-team')).status).toBe(200);
     expect(members).toHaveBeenCalledWith('existing-team');
 
-    const configured = await app.mapGroup(LEAD, 'S_TK2_Databricks_Adapt_Genie_Admins', 'consumer');
+    const configured = await app.mapGroup(LEAD, 'S_TK2_Databricks_adapt_genie_admins', 'consumer');
     expect(configured.status).toBe(409);
     expect(store.rows.groups).toHaveLength(1);
     await expect(configured.json()).resolves.toMatchObject({ error: 'configured_group_role_is_fixed' });

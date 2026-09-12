@@ -68,10 +68,9 @@ describe('ADAPT deploy app.yaml generation', () => {
     expect(bundler).toContain("name: 'ADAPT_USER_GROUP'");
   });
 
-  it('ships no customer group names in the public Git manifest', () => {
-    for (const name of ['ADAPT_ADMIN_GROUP', 'ADAPT_USER_GROUP', 'ADAPT_ADMIN_GROUP_LABEL', 'ADAPT_USER_GROUP_LABEL']) {
-      expect(authored).toMatch(new RegExp(`- name: ${name}\\n\\s+value: ''`));
-    }
+  it('keeps the exact Take-Two SCIM group case in the Git manifest', () => {
+    expect(authored).toMatch(/- name: ADAPT_ADMIN_GROUP\n\s+value: 'S_TK2_Databricks_adapt_genie_admins'/);
+    expect(authored).toMatch(/- name: ADAPT_USER_GROUP\n\s+value: 'S_TK2_Databricks_adapt_genie_users'/);
   });
 
   it('replaces overrides in place and keeps the generated command self-contained', () => {

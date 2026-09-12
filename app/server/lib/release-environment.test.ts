@@ -159,6 +159,7 @@ describe('release runtime configuration persistence', () => {
       baked: [
         { key: 'catalog', value: 'customer_catalog' },
         { key: 'schema', value: 'sales' },
+        { key: 'app_catalog', value: 'customer_app_catalog' },
         { key: 'data_genie_space_id', value: 'genie-space-123' },
         { key: 'llm_endpoint', value: 'databricks-claude-sonnet-4-6' },
         {
@@ -184,6 +185,8 @@ describe('release runtime configuration persistence', () => {
       appSchema: 'adapt_customer',
       sharedRail: 'false',
       env: { PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie' },
+      appUserApiScopes: ['sql', 'dashboards.genie', 'catalog.tables:read'],
+      telemetrySchema: 'customer_app_catalog.adapt_telemetry',
       confirmedAuthoredGroups: {
         admin: 'S_TK2_Databricks_adapt_genie_admins',
         user: 'S_TK2_Databricks_adapt_genie_users',
@@ -193,10 +196,13 @@ describe('release runtime configuration persistence', () => {
     expect(recovered).toMatchObject({
       PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
       PLAYER_INSIGHTS_SCHEMA: 'sales',
+      PLAYER_INSIGHTS_APP_CATALOG: 'customer_app_catalog',
       PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.txn_steam_sales_with_analytics',
       PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
       PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
+      PLAYER_INSIGHTS_TELEMETRY_SCHEMA: 'customer_app_catalog.adapt_telemetry',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
       ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
       ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
     });

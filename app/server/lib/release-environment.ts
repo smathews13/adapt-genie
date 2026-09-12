@@ -119,6 +119,14 @@ function configurationList(entries: readonly { key: string; value?: unknown }[],
   return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : [];
 }
 
+function recordOf(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean) : [];
+}
+
 export type ReleaseEnvironmentRecovery = () => Promise<Partial<Record<ReleaseEnvironmentKey, string>>>;
 
 interface RecoverableAppGroup {
@@ -135,6 +143,8 @@ export function recoveredReleaseEnvironment(input: {
   sharedRail: string | null;
   env: Record<string, string | undefined>;
   confirmedAuthoredGroups?: { admin: string; user: string };
+  appUserApiScopes?: readonly string[];
+  telemetrySchema?: string;
 }): Partial<Record<ReleaseEnvironmentKey, string>> {
   const manifest = configurationList(input.baked, 'declared_manifest');
   const watchlist = manifest.filter((table) => /\.txn_steam_sales_with_analytics$/i.test(table));
@@ -152,10 +162,13 @@ export function recoveredReleaseEnvironment(input: {
   return releaseEnvironmentSnapshot({
     PLAYER_INSIGHTS_CATALOG: configurationValue(input.baked, 'catalog'),
     PLAYER_INSIGHTS_SCHEMA: configurationValue(input.baked, 'schema'),
+    PLAYER_INSIGHTS_APP_CATALOG: configurationValue(input.baked, 'app_catalog'),
     PLAYER_INSIGHTS_WATCHLIST_TABLE: watchlist.length === 1 ? watchlist[0] : '',
     PLAYER_INSIGHTS_DATA_GENIE_ID: configurationValue(input.baked, 'data_genie_space_id'),
     PLAYER_INSIGHTS_LLM_ENDPOINT: configurationValue(input.baked, 'llm_endpoint'),
-    PLAYER_INSIGHTS_USER_API_SCOPES: input.env.PLAYER_INSIGHTS_USER_API_SCOPES,
+    PLAYER_INSIGHTS_TELEMETRY_SCHEMA: input.telemetrySchema,
+    PLAYER_INSIGHTS_USER_API_SCOPES:
+      input.appUserApiScopes?.filter(Boolean).join(',') || input.env.PLAYER_INSIGHTS_USER_API_SCOPES,
     PLAYER_INSIGHTS_APP_SCHEMA: input.appSchema,
     PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: input.sharedRail ?? input.env.PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL,
     ADAPT_ADMIN_GROUP: adminGroup,
@@ -183,26 +196,30 @@ async function recoverExistingReleaseEnvironment(
     { appAccessPrincipals },
     { readWorkspaceGroup },
     { workspaceControlPlaneReader },
+    { telemetryDestinationFromApp },
     appSchema,
   ] = await Promise.all([
     import('./baked-model-config'),
     import('./app-access-roster'),
     import('./adapt-group-members'),
     import('./control-plane-identity'),
+    import('./ops-telemetry'),
     import('../../shared/app-schema'),
   ]);
-  const baked = await readBakedModelConfig();
   const appName = (env.DATABRICKS_APP_NAME ?? '').trim();
-  const permissions = appName
-    ? await workspaceControlPlaneReader(`/api/2.0/permissions/apps/${encodeURIComponent(appName)}`).catch(() => null)
-    : null;
   const authoredAdmin = (env.ADAPT_ADMIN_GROUP ?? '').trim();
   const authoredUser = (env.ADAPT_USER_GROUP ?? '').trim();
-  const [adminCheck, userCheck] = await Promise.all([
+  const [baked, permissions, app, adminCheck, userCheck, sharedRail] = await Promise.all([
+    readBakedModelConfig(),
+    appName
+      ? workspaceControlPlaneReader(`/api/2.0/permissions/apps/${encodeURIComponent(appName)}`).catch(() => null)
+      : null,
+    appName ? workspaceControlPlaneReader(`/api/2.0/apps/${encodeURIComponent(appName)}`).catch(() => null) : null,
     readWorkspaceGroup(authoredAdmin).catch(() => ({ exists: false })),
     readWorkspaceGroup(authoredUser).catch(() => ({ exists: false })),
+    readDeploymentDecision(store, decisionTable(), 'shared_conversation_rail'),
   ]);
-  const sharedRail = await readDeploymentDecision(store, decisionTable(), 'shared_conversation_rail');
+  const appRecord = recordOf(app);
   return recoveredReleaseEnvironment({
     baked,
     groups: appAccessPrincipals(permissions),
@@ -212,6 +229,8 @@ async function recoverExistingReleaseEnvironment(
     ...(adminCheck.exists && userCheck.exists
       ? { confirmedAuthoredGroups: { admin: authoredAdmin, user: authoredUser } }
       : {}),
+    appUserApiScopes: stringList(appRecord.user_api_scopes ?? appRecord.userApiScopes),
+    telemetrySchema: telemetryDestinationFromApp(app).schema,
   });
 }
 

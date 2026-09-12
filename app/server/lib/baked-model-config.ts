@@ -19,6 +19,7 @@ import type { PreflightConfiguration } from '../routes/insights-routes';
 const BAKED_TTL_MS = 45_000;
 
 const EXTRA_ENV: Record<string, string> = {
+  app_catalog: 'PLAYER_INSIGHTS_APP_CATALOG',
   declared_manifest: 'PLAYER_INSIGHTS_DECLARED_MANIFEST',
   tables: 'PLAYER_INSIGHTS_TABLES',
   manifest_source: 'PLAYER_INSIGHTS_MANIFEST_SOURCE',
@@ -423,7 +424,10 @@ export async function readBakedModelConfig(
       (artifacts.modelId ? await readLoggedModelConfigText(transport, artifacts.modelId).catch(() => '') : '') ||
       (artifacts.runId ? await readModelConfigText(transport, artifacts.runId) : '');
     if (!document) return [];
-    const entries = configurationFromBaked(parseModelConfigDocument(document));
+    const config = parseModelConfigDocument(document);
+    const modelNameParts = served.entityName.split('.').map((part) => part.trim());
+    if (!text(config.app_catalog) && modelNameParts.length >= 3) config.app_catalog = modelNameParts[0];
+    const entries = configurationFromBaked(config);
     cache = { at: now, endpoint: endpointName, entityName: served.entityName, version: served.version, entries };
     return entries;
   } catch (error) {

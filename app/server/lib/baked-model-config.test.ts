@@ -140,6 +140,7 @@ describe('reading the served version as the app', () => {
     const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry]));
     expect(byKey.llm_endpoint.value).toBe('databricks-claude-sonnet-4-6');
     expect(byKey.declared_manifest.value).toHaveLength(12);
+    expect(byKey.app_catalog.value).toBe('a_catalog');
   });
 
   it('reads the MLflow 3 Logged Model served by an implicit route', async () => {

@@ -25,11 +25,13 @@ describe('export surface wiring', () => {
     expect(home).not.toContain('conversation-export-footer');
   });
 
-  it('offers TSV, PNG and PDF directly on parsed answer tables', () => {
+  it('offers only CSV download on parsed answer tables', () => {
     expect(actions).toContain('exportTable(block, sources)');
-    expect(tables).toContain("label: 'Copy TSV'");
-    expect(tables).toContain("label: 'Download PNG'");
-    expect(tables).toContain("label: 'Download PDF'");
+    expect(tables).toContain("label: 'Download CSV'");
+    expect(tables).not.toContain("label: 'Copy TSV'");
+    expect(tables).not.toContain("label: 'Download PNG'");
+    expect(tables).not.toContain("label: 'Download PDF'");
+    expect(actions).toContain("deterministicFilename(tableLabel(table), 'csv')");
   });
 
   it('keeps non-visual export work behind one lazy action boundary', () => {
@@ -60,5 +62,10 @@ describe('export surface wiring', () => {
     expect(menu).toContain('role="menu"');
     expect(menu).toContain('role="menuitem"');
     expect(menu).toContain('aria-live="polite"');
+    expect(menu).toContain("message: 'Export complete'");
+    expect(menu).toContain('export-menu-notice--${notice.tone}');
+    const saved = answerCard.indexOf('{feedback.saved &&');
+    expect(saved).toBeGreaterThan(-1);
+    expect(saved).toBeLessThan(answerCard.indexOf('<ExportMenu', saved));
   });
 });

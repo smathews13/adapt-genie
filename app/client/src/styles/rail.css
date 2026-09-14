@@ -804,11 +804,10 @@
   background: var(--background);
   border-color: var(--db-line-strong);
 }
-.conversation-row.active .user-drilldown-link:hover .conversation-owner,
-.conversation-row.active .user-drilldown-link:focus-visible .conversation-owner {
-  border-color: var(--ast-blue);
-  background: color-mix(in srgb, var(--ast-surface-primary) 78%, var(--ast-blue));
-  color: var(--ast-info-text);
+.conversation-row .user-drilldown-link:is(:hover, :focus-visible) .conversation-owner {
+  border-color: var(--ast-pos-border);
+  background: var(--ast-pos-fill);
+  color: var(--ast-pos-text);
 }
 
 /* The scope note beside "RECENT", when the rail is carrying more than the signed-in

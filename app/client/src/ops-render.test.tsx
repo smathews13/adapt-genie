@@ -868,7 +868,8 @@ describe('the cost block', () => {
     const markup = markupOf(<CostBody block={block<OpsCostPayload>(null, { busy: true })} />);
     expect(markup).toContain('data-testid="ops-cost-pane-loaders"');
     expect(markup.match(/ops-cost-loading-pane/g)).toHaveLength(2);
-    expect(markup.match(/adapt-loader--compact/g)).toHaveLength(2);
+    expect(markup.match(/adapt-loader--panel/g)).toHaveLength(2);
+    expect(markup.match(/adapt-button-mark/g)?.length).toBeGreaterThanOrEqual(2);
     expect(markup).toContain('Loading spend and budgets');
     expect(markup).toContain('Loading resource costs');
   });
@@ -1494,6 +1495,7 @@ describe('the cost block', () => {
     expect(appControlRow).toContain('ops-budget-apply');
     expect(appControlRow).toContain('ops-app-budget-status');
     expect(text(appControlRow)).toContain('Recent monthly spend Jul 2026 $30.00 Jun 2026 — May 2026 $0.00');
+    expect(OPS_STYLES).toMatch(/\.ops-app-budget-status\s*\{[^}]*padding-left:\s*12px/s);
     expect(text(appControlRow)).not.toContain('Month to date');
     expect(appEditor).not.toContain('ops-ticker-assumption-helper');
     expect(markup).toContain('aria-label="Serving endpoint monthly budget in USD"');

@@ -69,9 +69,14 @@ export function WatchlistSettingsPanel({
           JSON.stringify(sections) !== JSON.stringify(saved.sections)
       )
     : 0;
-  const visibleTitles = availableTitles.filter((title) =>
-    title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
-  );
+  const selected = new Set(selectedTitles);
+  const visibleTitles = availableTitles
+    .filter((title) => title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    .sort(
+      (left, right) =>
+        Number(selected.has(right)) - Number(selected.has(left)) ||
+        left.localeCompare(right, undefined, { sensitivity: 'base' })
+    );
   useEffect(() => onDirtyChange(changed), [changed, onDirtyChange]);
 
   async function saveSettings() {

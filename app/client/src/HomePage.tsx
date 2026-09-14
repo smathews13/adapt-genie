@@ -437,6 +437,8 @@ export function HomePage() {
   const [durableRunOpenedAt, setDurableRunOpenedAt] = useState<number | null>(null);
   /** The question in flight, so the live panel can avoid echoing it back. */
   const [askedQuestion, setAskedQuestion] = useState('');
+  /** The exact optimistic user turn, which may be a plan-approval label. */
+  const [inFlightUserMessage, setInFlightUserMessage] = useState('');
   /**
    * Set when a run died mid-flight, holding how far it got.
    *
@@ -773,6 +775,7 @@ export function HomePage() {
     setConversationId(id);
     activeConversationRef.current = id;
     setConversationLoading(true);
+    setInFlightUserMessage('');
     setError(null);
     setStopNotice(null);
     setFeedback({});
@@ -1261,6 +1264,7 @@ export function HomePage() {
     // record, which is what clearing the step list used to mean.
     beginLiveAsk({ conversationId: runConversationId, question });
     setAskedQuestion(question);
+    setInFlightUserMessage(userMessage.content);
     setRunStopped(null);
     setStopNotice(null);
     setError(null);
@@ -1413,6 +1417,7 @@ export function HomePage() {
         updateActiveConversationRuns((runs) => forgetActiveConversationRun(runs, runConversationId));
         setAskStartedAt(null);
         setAskedQuestion('');
+        setInFlightUserMessage('');
         setRunStopped(null);
         setAskUnavailable(null);
         return;
@@ -1540,6 +1545,7 @@ export function HomePage() {
     // opened an empty composer.
     setDraft('');
     setMessages([]);
+    setInFlightUserMessage('');
     setOlderMessages({ hasMore: false, cursor: null });
     setOlderMessagesError(null);
     setOlderMessagesLoading(false);
@@ -2334,6 +2340,22 @@ export function HomePage() {
                 </div>
               );
             })}
+
+          {loading &&
+          inFlightUserMessage.trim() &&
+          !(
+            messages.at(-1)?.role === 'user' &&
+            messages.at(-1)?.content.trim() === inFlightUserMessage.trim()
+          ) ? (
+            <div className="conversation-message conversation-message--in-flight-question">
+              <QuestionAttributionBubble
+                question={inFlightUserMessage}
+                asker={signedInAddress}
+                canOpenUser={adminSharedRail}
+                className="user-message"
+              />
+            </div>
+          ) : null}
 
           {(loading || conversationLoading) && (
             <Card className="answer-card">

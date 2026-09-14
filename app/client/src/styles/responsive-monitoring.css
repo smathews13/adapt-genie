@@ -183,6 +183,9 @@
 }
 
 @media (max-width: 480px) {
+  .monitoring-users-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .user-profile-modal-spend-kpis {
     grid-template-columns: minmax(0, 1fr);
   }

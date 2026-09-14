@@ -1604,10 +1604,17 @@ describe('the Unity Catalog tables section', () => {
           detail: '',
           syncedAt: '2026-09-10T12:00:00Z',
         }}
+        genieSyncNotice={{ tone: 'success', text: '10 Genie sources are up to date.' }}
         onSyncGenie={() => {}}
       />
     );
     expect(text(markup)).toContain('Sync Genie tables');
+    expect(text(markup)).toContain('10 Genie sources are up to date.');
+    expect(markup).toContain('connections-genie-sync-status--success');
+    expect(markup.indexOf('Sync Genie tables')).toBeLessThan(markup.indexOf('10 Genie sources are up to date.'));
+    expect(markup.indexOf('10 Genie sources are up to date.')).toBeLessThan(markup.indexOf('Add asset'));
+    expect(PAGE_SOURCE).toContain('await rereadSettings(false)');
+    expect(PAGE_SOURCE).toContain('Refresh the page to update the visible list.');
     expect(text(markup)).toContain('In scope · synced via Genie');
   });
 

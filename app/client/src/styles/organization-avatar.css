@@ -53,8 +53,9 @@
 
 .roster-organization-logo svg,
 .roster-databricks-symbol svg {
-  width: 100%;
+  width: auto;
   height: 100%;
+  max-width: 100%;
   display: block;
   color: inherit;
 }

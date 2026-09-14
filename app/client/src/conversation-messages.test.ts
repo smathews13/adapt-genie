@@ -118,6 +118,34 @@ describe('conversation message pages', () => {
       storedTurn.map((entry) => entry.id)
     );
   });
+
+  it('keeps a follow-up when the preceding SSE turn was never reconciled to stored ids', () => {
+    const optimisticPrior: ConversationMessage[] = [
+      { id: 'local-q1', role: 'user', content: 'First question' },
+      { id: 'local-a1', role: 'assistant', content: 'First answer' },
+      { id: 'local-follow-up', role: 'user', content: 'Follow-up question' },
+    ];
+    const storedPrior: ConversationMessage[] = [
+      { ...message(0), role: 'user', content: 'First question' },
+      { ...message(1), role: 'assistant', content: 'First answer' },
+    ];
+
+    expect(mergeNewestConversationMessages(optimisticPrior, storedPrior).map((entry) => entry.content)).toEqual([
+      'First question',
+      'First answer',
+      'Follow-up question',
+    ]);
+
+    const storedFollowUp: ConversationMessage[] = [
+      ...storedPrior,
+      { ...message(2), role: 'user', content: 'Follow-up question' },
+    ];
+    expect(mergeNewestConversationMessages(optimisticPrior, storedFollowUp).map((entry) => entry.content)).toEqual([
+      'First question',
+      'First answer',
+      'Follow-up question',
+    ]);
+  });
 });
 
 describe('prepend scroll and focus contract', () => {

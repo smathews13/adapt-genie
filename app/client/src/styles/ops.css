@@ -1380,6 +1380,7 @@ a.ops-cost-resource {
   display: grid;
   align-items: start;
   gap: 4px;
+  padding-left: 12px;
   min-height: 0;
   min-width: 0;
   max-width: 100%;

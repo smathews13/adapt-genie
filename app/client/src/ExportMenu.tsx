@@ -21,17 +21,20 @@ export function ExportMenu({
   const menuId = useId();
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
+  const [completed, setCompleted] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
 
   const invoke = async (action: ExportAction) => {
     setRunning(action.label);
-    setNotice('');
+    setNotice(null);
     try {
       await action.run();
-      setNotice(`${action.label} complete`);
+      setCompleted(action.label);
+      setNotice({ tone: 'success', message: 'Export complete' });
       setOpen(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : `${action.label} failed`);
+      setCompleted(null);
+      setNotice({ tone: 'error', message: error instanceof Error ? error.message : `${action.label} failed` });
     } finally {
       setRunning(null);
     }
@@ -39,6 +42,16 @@ export function ExportMenu({
 
   return (
     <div className="export-menu">
+      {notice ? (
+        <span
+          className={`export-menu-notice export-menu-notice--${notice.tone}`}
+          role={notice.tone === 'error' ? 'alert' : 'status'}
+          aria-live="polite"
+        >
+          {notice.tone === 'success' ? <Check aria-hidden="true" /> : null}
+          {notice.message}
+        </span>
+      ) : null}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -67,7 +80,7 @@ export function ExportMenu({
             >
               {running === action.label ? (
                 <LoaderCircle className="animate-spin" aria-hidden="true" />
-              ) : notice === `${action.label} complete` ? (
+              ) : completed === action.label ? (
                 <Check aria-hidden="true" />
               ) : null}
               {action.label}
@@ -75,9 +88,6 @@ export function ExportMenu({
           ))}
         </PopoverContent>
       </Popover>
-      <span className="sr-only" role={notice.toLowerCase().includes('fail') ? 'alert' : 'status'} aria-live="polite">
-        {notice}
-      </span>
     </div>
   );
 }

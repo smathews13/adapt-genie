@@ -314,7 +314,7 @@ describe('the #24a Roles geometry', () => {
     expect(css).toMatch(/\.roles-table\.settings-actions-table th:last-child \{[^}]*text-align:\s*center/);
     expect(css).toMatch(/\.roles-table \.roster-action \{[^}]*text-align:\s*center/);
     expect(css).toMatch(
-      /\.roles-table \.roster-action > \[data-slot='button'\]\.roster-action-button \{[^}]*width:\s*92px[^}]*height:\s*30px/
+      /\.roles-table \.roster-action > \[data-slot='button'\]\.roster-action-button \{[^}]*width:\s*30px[^}]*height:\s*30px/
     );
   });
 

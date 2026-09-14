@@ -315,6 +315,8 @@ export interface AnswerConditioning {
 export interface MonitoringDetail {
   id: string;
   conversationId: string;
+  /** One-based position of this question inside its conversation. */
+  conversationRun?: number | null;
   question: string;
   askedBy: string;
   askedAt: string;
@@ -358,6 +360,8 @@ export interface MonitoringDetail {
   usefulness?: number | null;
   /** Absent, not dead, when the run recorded no trace id. */
   mlflowUrl: string | null;
+  /** Full MLflow trace id; optional only on older rolling-deploy payloads. */
+  traceId?: string | null;
   /** The run id Run Explorer opens, which is the answer message's id. */
   runId: string | null;
   /**

@@ -321,13 +321,13 @@ export function RosterRows({
                           variant="destructive"
                           data-variant="destructive"
                           className="roster-control settings-destructive roster-action-button"
-                          size="sm"
+                          size="icon"
                           disabled={busy}
                           onClick={() => onRemove(entry)}
-                          aria-label={`Reset ${entry.email} to Consumer`}
+                          aria-label={`Delete role assignment for ${entry.email}`}
+                          title="Delete role assignment"
                         >
                           <Trash2 className="roster-action-icon" aria-hidden="true" />
-                          Reset role
                         </Button>
                       ) : null}
                     </td>

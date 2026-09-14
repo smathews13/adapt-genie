@@ -83,11 +83,17 @@ export function mergeNewestConversationMessages(
   if (newest.length === 0) return [...current];
   const boundary = messageOrder(newest[0]);
   const older = current.filter((message) => typeof message.created_at === 'string' && messageOrder(message) < boundary);
-  const persistedIds = new Set(
-    current.filter((message) => typeof message.created_at === 'string').map((message) => message.id)
-  );
-  const storeHasNewTurn = newest.some((message) => !persistedIds.has(message.id));
-  const optimistic = storeHasNewTurn ? [] : current.filter((message) => typeof message.created_at !== 'string');
+  const represented = (candidate: ConversationMessage) =>
+    newest.some(
+      (stored) =>
+        stored.id === candidate.id || (stored.role === candidate.role && stored.content.trim() === candidate.content.trim())
+    );
+  const optimistic: ConversationMessage[] = [];
+  for (let index = current.length - 1; index >= 0; index -= 1) {
+    const candidate = current[index];
+    if (typeof candidate.created_at === 'string' || represented(candidate)) break;
+    optimistic.unshift(candidate);
+  }
   return prependConversationMessages([...newest, ...optimistic], older);
 }
 

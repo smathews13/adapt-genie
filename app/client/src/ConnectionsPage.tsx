@@ -45,6 +45,7 @@ import {
   CircleAlert,
   CircleHelp,
   Calendar,
+  Check,
   Clock,
   ExternalLink,
   GitCommitHorizontal,
@@ -1164,6 +1165,7 @@ export function DeclaredTablesSection({
   allowMutations = false,
   onChanged = () => {},
   genieSync,
+  genieSyncNotice,
   syncingGenie = false,
   onSyncGenie,
 }: {
@@ -1177,6 +1179,7 @@ export function DeclaredTablesSection({
   allowMutations?: boolean;
   onChanged?: () => void | Promise<void>;
   genieSync?: SettingsPayload['genieScopeSync'];
+  genieSyncNotice?: { tone: 'success' | 'error'; text: string } | null;
   syncingGenie?: boolean;
   onSyncGenie?: () => void;
 }) {
@@ -1268,6 +1271,16 @@ export function DeclaredTablesSection({
             <RefreshCw aria-hidden="true" />
             {syncingGenie ? 'Syncing' : 'Sync Genie tables'}
           </Button>
+        ) : null}
+        {genieSyncNotice ? (
+          <span
+            className={`connections-genie-sync-status connections-genie-sync-status--${genieSyncNotice.tone}`}
+            role={genieSyncNotice.tone === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            {genieSyncNotice.tone === 'success' ? <Check aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
+            {genieSyncNotice.text}
+          </span>
         ) : null}
         <Button
           ref={addButtonRef}
@@ -2005,6 +2018,10 @@ export function ConnectionsPage() {
   const [saving, setSaving] = useState('');
   const [writeError, setWriteError] = useState('');
   const [syncingGenie, setSyncingGenie] = useState(false);
+  const [genieSyncNotice, setGenieSyncNotice] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
   const lakebaseMigration = useLakebaseMigrationStatus(allowMutations);
 
   /**
@@ -2044,22 +2061,30 @@ export function ConnectionsPage() {
    * answers, so re-probing every dependency would be an expensive way of learning
    * nothing. Returns the sentence to show, or '' when it worked.
    */
-  const rereadSettings = useCallback(async () => {
+  const rereadSettings = useCallback(async (reportGlobally = true) => {
     const failure = await reloadSettings();
-    if (failure) setWriteError(failure);
+    if (failure && reportGlobally) setWriteError(failure);
     return failure;
   }, [reloadSettings]);
 
   const syncGenieTables = useCallback(async () => {
     setSyncingGenie(true);
-    setWriteError('');
+    setGenieSyncNotice(null);
     try {
       const response = await fetch('/api/settings/connections/sync-genie', { method: 'POST' });
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        discovered?: number;
+      };
       if (!response.ok) throw new Error(body.detail || `the Genie sync endpoint answered ${response.status}`);
-      await rereadSettings();
+      const readFailure = await rereadSettings(false);
+      const synced = body.detail || `${body.discovered ?? 0} Genie sources are up to date.`;
+      setGenieSyncNotice({
+        tone: 'success',
+        text: readFailure ? `${synced} Refresh the page to update the visible list.` : synced,
+      });
     } catch (caught) {
-      setWriteError((caught as Error).message);
+      setGenieSyncNotice({ tone: 'error', text: (caught as Error).message });
     } finally {
       setSyncingGenie(false);
     }
@@ -2587,6 +2612,7 @@ export function ConnectionsPage() {
         storeAvailable={payload?.storeAvailable ?? true}
         allowMutations={allowMutations}
         genieSync={payload?.genieScopeSync}
+        genieSyncNotice={genieSyncNotice}
         syncingGenie={syncingGenie}
         onSyncGenie={allowMutations ? () => void syncGenieTables() : undefined}
         // The confirmed mutation is already committed into the shared session

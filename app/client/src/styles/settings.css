@@ -1209,11 +1209,11 @@
 }
 
 .roles-table .roster-action > [data-slot='button'].roster-action-button {
-  width: 92px;
-  min-width: 92px;
-  max-width: 92px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
   height: 30px;
-  padding: 0 9px;
+  padding: 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -1250,6 +1250,8 @@
 
 .roles-table.settings-actions-table th:last-child {
   text-align: center;
+  background: var(--roster-header-surface);
+  box-shadow: -1px 0 0 var(--border);
 }
 
 .roles-table td {

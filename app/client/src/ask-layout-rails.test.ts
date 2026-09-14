@@ -11,6 +11,7 @@ import { partial } from './styles/stylesheet';
 const RAIL = withoutComments(partial('rail.css'));
 const INSIGHTS = withoutComments(partial('insight-rail.css'));
 const ASK = withoutComments(partial('ask.css'));
+const COMPOSER = withoutComments(partial('composer.css'));
 const QUESTION = withoutComments(readFileSync(new URL('styles/question-attribution.css', import.meta.url), 'utf8'));
 const TOKENS = withoutComments(partial('tokens.css'));
 const HOME = readFileSync(new URL('HomePage.tsx', import.meta.url), 'utf8');
@@ -53,10 +54,13 @@ describe('the two rails share one width and the card sits in the middle', () => 
   });
 
   it('pulls the answer and working cards a few pixels off both rails', () => {
-    // 16px total, 8px a side. The composer stays on `--conversation-inset`;
-    // shrinking the track would move the box a reader types in as well.
+    // 16px total, 8px a side. The composer uses the same measure so the question
+    // field and the answer it produces share one pair of edges.
     expect(ASK).toMatch(
       /\.conversation-main \.answer-card,\s*\.conversation-main \.plan-card\s*\{[^}]*width:\s*calc\(100% - 16px\)/
+    );
+    expect(COMPOSER).toMatch(
+      /\.composer\s*\{[^}]*width:\s*calc\(100% - 16px\)[^}]*max-width:\s*var\(--conversation-measure\)/
     );
   });
 

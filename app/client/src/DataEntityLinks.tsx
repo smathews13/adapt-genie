@@ -659,24 +659,10 @@ function ProseBlock({
               label="Export table"
               actions={[
                 {
-                  label: 'Copy TSV',
+                  label: 'Download CSV',
                   run: async () => {
-                    const { copyTableExport } = await import('./export-actions');
-                    await copyTableExport(block, origin);
-                  },
-                },
-                {
-                  label: 'Download PNG',
-                  run: async () => {
-                    const { downloadTablePng } = await import('./export-actions');
-                    await downloadTablePng(block, origin);
-                  },
-                },
-                {
-                  label: 'Download PDF',
-                  run: async () => {
-                    const { downloadTablePdf } = await import('./export-actions');
-                    await downloadTablePdf(block, origin);
+                    const { downloadTableCsv } = await import('./export-actions');
+                    downloadTableCsv(block, origin);
                   },
                 },
               ]}

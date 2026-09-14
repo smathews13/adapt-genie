@@ -153,7 +153,8 @@ describe('the ask home is the geometry the mockup gives it', () => {
     // to prevent, one page over.
     expect(partial('tokens.css')).toMatch(/--conversation-inset:\s*clamp\(/);
     expect(body('.conversation-main')).toMatch(/padding:\s*56px var\(--conversation-inset\) 32px/);
-    expect(body('.composer')).toMatch(/width:\s*calc\(100% - 2 \* var\(--conversation-inset\)\)/);
+    expect(body('.composer')).toMatch(/width:\s*calc\(100% - 16px\)/);
+    expect(body('.composer')).toMatch(/max-width:\s*var\(--conversation-measure\)/);
     // No copy of the old literal left anywhere. A single survivor is worse than
     // none of this, because it would be the one rule that stopped moving.
     expect(withoutComments(STYLESHEET)).not.toMatch(/clamp\(28px,\s*3\.5vw,\s*64px\)/);
@@ -514,6 +515,10 @@ describe('the two marks that sign a transcript', () => {
     // Every live, replayed, follow-up and plan-approval user turn reaches this one
     // role branch, so the class is the contract for all question surfaces.
     expect(HOME_PAGE).toMatch(/message\.role === 'user'[\s\S]{0,260}<QuestionAttributionBubble/);
+    expect(HOME_PAGE).toContain('conversation-message--in-flight-question');
+    expect(HOME_PAGE).toMatch(/messages\.at\(-1\)\?\.role === 'user'[\s\S]{0,220}<QuestionAttributionBubble/);
+    expect(HOME_PAGE).toContain('setAskedQuestion(question)');
+    expect(HOME_PAGE).toContain('setInFlightUserMessage(userMessage.content)');
     expect(body('.question-attribution-surface')).toMatch(/border:\s*1px solid var\(--ast-border-input\)/);
     expect(body('.question-attribution-surface')).toMatch(/background:\s*var\(--ast-pane\)/);
     expect(body('.question-attribution-message')).toMatch(/background:\s*transparent/);

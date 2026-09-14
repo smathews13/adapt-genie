@@ -331,7 +331,25 @@ svg {
 .export-menu {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   flex: none;
+}
+.export-menu-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--ast-fs-11);
+  white-space: nowrap;
+}
+.export-menu-notice > svg {
+  width: 13px;
+  height: 13px;
+}
+.export-menu-notice--success {
+  color: var(--ast-pos-text);
+}
+.export-menu-notice--error {
+  color: var(--ast-neg-text);
 }
 .export-menu-trigger {
   gap: 6px;

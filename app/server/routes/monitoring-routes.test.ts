@@ -358,6 +358,8 @@ describe('the query reads questions rather than answers', () => {
   it('bounds a question detail to the range printed on its panel', () => {
     expect(MONITORING_DETAIL_QUERY).toContain('q.created_at >= $3::timestamptz');
     expect(MONITORING_DETAIL_QUERY).toContain('q.created_at < $4::timestamptz');
+    expect(MONITORING_DETAIL_QUERY).toContain('AS conversation_run');
+    expect(MONITORING_DETAIL_QUERY).toContain('(prior.created_at, prior.id) <= (q.created_at, q.id)');
   });
 });
 

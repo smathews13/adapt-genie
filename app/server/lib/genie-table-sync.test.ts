@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { genieTableSources, syncGenieTables } from './genie-table-sync';
+import { genieTableSources, syncGenieTables, userGenieControlPlaneReader } from './genie-table-sync';
 import type { LakebaseReader } from './lakebase-store';
 
 const SERIALIZED = JSON.stringify({
@@ -76,5 +76,36 @@ describe('Genie table scope sync', () => {
     expect(result).toMatchObject({ status: 'synced', discovered: 3, added: 2 });
     expect(writes.map((params) => params[4])).toEqual(['catalog.sales.customers', 'catalog.sales.revenue_metrics']);
     expect(writes.every((params) => params[6] === 'genie')).toBe(true);
+  });
+
+  it('reads the Genie inventory with the signed-in user token', async () => {
+    const call = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ serialized_space: SERIALIZED })));
+    const reader = userGenieControlPlaneReader({
+      host: 'https://workspace.example',
+      token: 'user-token',
+      fetchImpl: call,
+    });
+
+    await expect(reader('/api/2.0/genie/spaces/space-1', { include_serialized_space: 'true' })).resolves.toMatchObject({
+      serialized_space: SERIALIZED,
+    });
+    expect(String(call.mock.calls[0]?.[0])).toBe(
+      'https://workspace.example/api/2.0/genie/spaces/space-1?include_serialized_space=true'
+    );
+    expect(new Headers(call.mock.calls[0]?.[1]?.headers).get('authorization')).toBe('Bearer user-token');
+  });
+
+  it('reports the permission the signed-in user needs beside the sync control', async () => {
+    const result = await syncGenieTables({
+      store: { lakebase: { query: vi.fn() } } as LakebaseReader,
+      spaceId: 'space-1',
+      actor: 'admin@example.test',
+      reader: () => Promise.reject(new Error('User does not have read permission for this Genie space')),
+    });
+
+    expect(result.status).toBe('unavailable');
+    expect(result.detail).toContain('CAN EDIT');
   });
 });

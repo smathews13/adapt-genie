@@ -81,7 +81,7 @@ import {
 import type { ModelReleaseDeclaration, ReleasePreflight } from '../../shared/model-release';
 import { setupResourceTagRoutes } from './resource-tag-routes';
 import { readExperimentalSettings } from '../lib/experimental-settings-store';
-import { syncGenieTables } from '../lib/genie-table-sync';
+import { syncGenieTables, userGenieControlPlaneReader } from '../lib/genie-table-sync';
 
 const WriteBody = z.object({
   value: z.string().trim().max(500),
@@ -405,6 +405,10 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         store: appkit,
         spaceId: configuredGenieSpaceId(report),
         actor,
+        reader: userGenieControlPlaneReader({
+          host: normalizeWorkspaceHost(process.env.DATABRICKS_HOST),
+          token: executionToken(req) ?? '',
+        }),
       });
       if (result.added > 0) {
         await recordAdminAction(appkit.lakebase, {

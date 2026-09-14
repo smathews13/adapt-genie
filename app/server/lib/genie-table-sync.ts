@@ -18,6 +18,36 @@ export interface GenieTableSyncResult {
   syncedAt: string;
 }
 
+export function userGenieControlPlaneReader(input: {
+  host: string;
+  token: string;
+  fetchImpl?: typeof fetch;
+}): ControlPlaneReader {
+  const host = input.host.replace(/\/+$/, '');
+  const token = input.token.trim();
+  return async (path, query = {}) => {
+    if (!host || !token) throw new Error('Your Databricks sign-in is unavailable. Sign in again before syncing Genie.');
+    const url = new URL(`${host}${path}`);
+    for (const [name, value] of Object.entries(query)) url.searchParams.set(name, value);
+    const response = await (input.fetchImpl ?? fetch)(url, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+    });
+    const text = await response.text();
+    let body: unknown = {};
+    try {
+      body = text ? (JSON.parse(text) as unknown) : {};
+    } catch {
+      body = {};
+    }
+    if (!response.ok) {
+      const message = typeof record(body).message === 'string' ? String(record(body).message).trim() : '';
+      throw new Error(message || `The Genie space answered HTTP ${response.status}.`);
+    }
+    return body;
+  };
+}
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -121,12 +151,15 @@ export async function syncGenieTables(input: {
     };
   } catch (error) {
     console.warn('[connections] Genie source inventory could not be synchronized:', (error as Error).message);
+    const message = (error as Error).message;
     return {
       status: 'unavailable',
       spaceId,
       discovered: 0,
       added: 0,
-      detail: 'The connected Genie space could not be read, so the existing app scope was left unchanged.',
+      detail: /permission|can edit|forbidden/i.test(message)
+        ? 'Your Databricks sign-in needs CAN EDIT on the connected Genie space before its tables can be synced.'
+        : message || 'The connected Genie space could not be read, so the existing app scope was left unchanged.',
       syncedAt,
     };
   }

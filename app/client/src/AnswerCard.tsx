@@ -530,6 +530,30 @@ export function AnswerCard({
             >
               <ThumbsDown aria-hidden="true" />
             </Button>
+            {feedback.open && (
+              <div className="feedback-comment">
+                <Input
+                  ref={feedbackInputRef}
+                  value={feedback.comment}
+                  onChange={(event) => onFeedbackChange({ comment: event.target.value })}
+                  placeholder="What could be better?"
+                  aria-label="Tell us what could be better"
+                />
+                <Button size="sm" disabled={feedback.saving} onClick={() => void saveFeedback('down')}>
+                  <AdaptBusyButtonContent busy={feedback.saving} label="Save feedback" busyLabel="Saving" />
+                </Button>
+              </div>
+            )}
+            {feedback.saved && (
+              <span className="saved" role="status" aria-live="polite">
+                <Check /> Feedback saved
+              </span>
+            )}
+            {feedback.error && (
+              <span className="feedback-error" role="alert" aria-live="assertive">
+                {feedback.error}
+              </span>
+            )}
             <ExportMenu
               label="Export question and answer"
               actions={[
@@ -556,33 +580,14 @@ export function AnswerCard({
                 },
               ]}
             />
-            {feedback.open && (
-              <div className="feedback-comment">
-                <Input
-                  ref={feedbackInputRef}
-                  value={feedback.comment}
-                  onChange={(event) => onFeedbackChange({ comment: event.target.value })}
-                  placeholder="What could be better?"
-                  aria-label="Tell us what could be better"
-                />
-                <Button size="sm" disabled={feedback.saving} onClick={() => void saveFeedback('down')}>
-                  <AdaptBusyButtonContent busy={feedback.saving} label="Save feedback" busyLabel="Saving" />
-                </Button>
-              </div>
-            )}
-            {feedback.saved && (
-              <span className="saved" role="status" aria-live="polite">
-                <Check /> Feedback saved
-              </span>
-            )}
-            {feedback.error && (
-              <span className="feedback-error" role="alert" aria-live="assertive">
-                {feedback.error}
-              </span>
-            )}
           </div>
         ) : (
           <div className="feedback answer-export-only">
+            {feedback.saved ? (
+              <span className="saved" role="status" aria-live="polite">
+                <Check /> Feedback saved
+              </span>
+            ) : null}
             <ExportMenu
               label="Export question and answer"
               actions={[

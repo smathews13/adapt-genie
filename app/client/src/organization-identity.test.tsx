@@ -21,6 +21,7 @@ const ORGANIZATION_CSS = readFileSync(new URL('./styles/organization-avatar.css'
 const MONITORING_CSS = readFileSync(new URL('./styles/monitoring.css', import.meta.url), 'utf8');
 const RESPONSIVE_CSS = readFileSync(new URL('./styles/responsive-monitoring.css', import.meta.url), 'utf8');
 const DENSITY_CSS = readFileSync(new URL('./styles/density-monitoring.css', import.meta.url), 'utf8');
+const RAIL_CSS = readFileSync(new URL('./styles/rail.css', import.meta.url), 'utf8');
 const MULTISELECT_SOURCE = [
   readFileSync(new URL('./AppMultiSelect.tsx', import.meta.url), 'utf8'),
   readFileSync(new URL('./AppMultiSelectMenu.tsx', import.meta.url), 'utf8'),
@@ -53,11 +54,17 @@ describe('organization identity assets', () => {
     expect(ORGANIZATION_CSS).toMatch(/\.roster-organization-mark--branded[^}]*background:\s*var\(--card\)/s);
     expect(ORGANIZATION_CSS).toMatch(/\.roster-organization-logo svg[^}]*color:\s*inherit/s);
     expect(ORGANIZATION_CSS).toMatch(
+      /\.roster-organization-logo svg,[\s\S]*?width:\s*auto;[\s\S]*?height:\s*100%;[\s\S]*?max-width:\s*100%/
+    );
+    expect(ORGANIZATION_CSS).toMatch(
       /@media \(forced-colors: active\)[\s\S]*\.roster-organization-mark:not\([^}]*color:\s*CanvasText/s
     );
     expect(MONITORING_CSS).toContain('.monitoring-organization-trigger');
     expect(RESPONSIVE_CSS).toMatch(/\.monitoring-organization-trigger[^}]*width:\s*100%/s);
     expect(DENSITY_CSS).toContain('.app-menu-option');
+    expect(RAIL_CSS).toMatch(
+      /\.conversation-row \.user-drilldown-link:is\(:hover, :focus-visible\) \.conversation-owner\s*\{[^}]*background:\s*var\(--ast-pos-fill\)[^}]*color:\s*var\(--ast-pos-text\)/s
+    );
   });
 
   it('renders Databricks identities as the naked official symbol', () => {

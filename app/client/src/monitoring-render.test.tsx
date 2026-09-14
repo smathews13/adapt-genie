@@ -1020,6 +1020,7 @@ function detail(overrides: Partial<MonitoringDetail> = {}): MonitoringDetail {
   return {
     id: 'q1',
     conversationId: 'c1',
+    conversationRun: 2,
     question: 'Which countries grew fastest this quarter?',
     askedBy: 'first.person@example.test',
     askedAt: '2026-08-15T06:40:00Z',
@@ -1044,6 +1045,7 @@ function detail(overrides: Partial<MonitoringDetail> = {}): MonitoringDetail {
     feedback: 'down',
     comment: 'Exactly what I needed.',
     mlflowUrl: 'https://example.test/ml/experiments/1/traces',
+    traceId: 'tr-1234567890abcdef',
     runId: 'a1',
     ...overrides,
   };
@@ -1145,16 +1147,21 @@ describe('the detail modal', () => {
    * because every presence assertion in this file passed while they were at the
    * bottom.
    */
-  it('keeps only the authorized user drilldown above the answer and trace', () => {
+  it('shows MLflow, conversation, and run context above the question and answer', () => {
     const markup = render(<QuestionDrawer detail={detail()} onClose={() => {}} canOpenUser />);
+    const context = markup.indexOf('aria-label="Run context"');
+    const question = markup.indexOf('Which countries grew fastest this quarter?');
 
     const person = markup.indexOf(
       'aria-label="Open user overview for User first.person@example.test; organization example.test"'
     );
     expect(person).toBeGreaterThan(-1);
-    expect(markup).not.toContain('Open the MLflow trace');
+    expect(markup).toContain('MLflow <span class="ast-num">tr-123456789</span>');
+    expect(markup).toContain('Conversation <span class="ast-num">c1</span>');
+    expect(markup).toContain('Run <span class="ast-num">2</span>');
     expect(markup).not.toContain('Open in Run Explorer');
 
+    expect(context).toBeLessThan(question);
     expect(person).toBeLessThan(markup.indexOf('The leading title is ahead on daily active players.'));
     expect(person).toBeLessThan(markup.indexOf('Run process'));
     expect(person).toBeLessThan(markup.indexOf('1,200 tokens recorded on this run.'));
@@ -1166,8 +1173,10 @@ describe('the detail modal', () => {
       render(<QuestionDrawer detail={detail({ mlflowUrl: null })} onClose={() => {}} canOpenUser />)
     );
 
-    expect(rendered).not.toContain('Open the MLflow trace');
+    expect(rendered).toContain('MLflow tr-123456789');
     expect(rendered).not.toContain('Open in Run Explorer');
+    expect(rendered).toContain('Conversation c1');
+    expect(rendered).toContain('Run 2');
     expect(rendered.indexOf('first.person')).toBeLessThan(rendered.indexOf('The leading title is ahead'));
   });
 
@@ -1199,7 +1208,7 @@ describe('the detail modal', () => {
     expect(rendered).toContain('1,200 tokens recorded on this run.');
     expect(rendered).toContain('Not helpful');
     expect(rendered).toContain('Exactly what I needed.');
-    expect(rendered).not.toContain('Open the MLflow trace');
+    expect(rendered).toContain('MLflow tr-123456789');
     expect(rendered).not.toContain('Open in Run Explorer');
     // No tone on the note: it is body text in the same type as the prose.
     expect(markup).toContain('class="monitoring-conditioned"');
@@ -1224,13 +1233,15 @@ describe('the detail modal', () => {
     expect(text(body('ready'))).not.toContain(GRANTS_UNRESOLVED_LINE);
   });
 
-  it('never offers trace or Run Explorer navigation from the question detail', () => {
+  it('omits unavailable trace navigation while retaining conversation context', () => {
     const rendered = text(
       render(<QuestionDrawer detail={detail({ mlflowUrl: null })} onClose={() => {}} canOpenUser />)
     );
 
-    expect(rendered).not.toContain('Open the MLflow trace');
+    expect(rendered).toContain('MLflow tr-123456789');
     expect(rendered).not.toContain('Open in Run Explorer');
+    expect(rendered).toContain('Conversation c1');
+    expect(rendered).toContain('Run 2');
     expect(rendered).toContain('first.person');
   });
 
@@ -1418,6 +1429,9 @@ describe('the User Monitoring browser', () => {
     expect(markup).toContain('aria-modal="true"');
     expect(visible).toContain('User Monitoring');
     expect(markup).toContain('placeholder="Search users…');
+    expect(MONITORING_CSS).toMatch(
+      /\.monitoring-users-toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto[^}]*align-items:\s*center/s
+    );
     expect(visible).toContain('ada.reader');
     expect(visible).toContain('$8.50');
     expect(visible).toContain('Admin');

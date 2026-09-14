@@ -399,6 +399,12 @@ export const MONITORING_RUN_BY_TURN_QUERY = `
 export const MONITORING_DETAIL_QUERY = `
   SELECT q.id AS question_id, q.conversation_id, q.content AS question,
          q.created_at AS asked_at, c.user_email,
+         (SELECT COUNT(*)::int
+            FROM ${APP_SCHEMA}.messages prior
+           WHERE prior.conversation_id = q.conversation_id
+             AND prior.role = 'user'
+             AND prior.content <> $2
+             AND (prior.created_at, prior.id) <= (q.created_at, q.id)) AS conversation_run,
          a.id AS answer_id, a.trace_id, a.response_json,
          jsonb_path_exists(a.response_json->'trace', '$.stages[*] ? (@.status == "failed" ${VERDICT_STAGE_EXEMPTION_SQL})') AS trace_failed,
          jsonb_path_exists(
@@ -1358,6 +1364,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
       const detail: MonitoringDetail = {
         id: text(row.question_id),
         conversationId: text(row.conversation_id),
+        conversationRun: integer(row.conversation_run),
         question: text(row.question),
         askedBy: text(row.user_email),
         askedAt: stamp(row.asked_at),
@@ -1401,6 +1408,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         // workspace links off. Withheld HERE rather than in the drawer: a URL
         // suppressed in the browser is a URL that was already delivered.
         mlflowUrl: (await workspaceLinksAllowed(appkit)) ? (mlflow?.url ?? null) : null,
+        traceId: traceId || null,
         runId: answerId || null,
         // Always sent, even when the answer body is withheld: the budget is a
         // record of the agent, not of anybody's data.

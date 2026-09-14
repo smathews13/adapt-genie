@@ -9,7 +9,7 @@ import {
   conversationMarkdown,
   deterministicFilename,
   exportTable,
-  tableTsv,
+  tableCsv,
 } from './export-serializers';
 
 export async function copyAnswerExport(question: string, answer: Answer): Promise<void> {
@@ -33,29 +33,9 @@ function tableLabel(table: ReturnType<typeof parsedTable>): string {
   return table.headers.filter(Boolean).join('-') || 'answer-table';
 }
 
-export async function copyTableExport(
-  block: Extract<Block, { kind: 'table' }>,
-  sources: readonly SourceRef[]
-): Promise<void> {
-  await copyExportText(tableTsv(parsedTable(block, sources)));
-}
-
-export async function downloadTablePng(
-  block: Extract<Block, { kind: 'table' }>,
-  sources: readonly SourceRef[]
-): Promise<void> {
+export function downloadTableCsv(block: Extract<Block, { kind: 'table' }>, sources: readonly SourceRef[]): void {
   const table = parsedTable(block, sources);
-  const { tablePng } = await import('./export-generators');
-  downloadExportBlob(await tablePng(table), deterministicFilename(tableLabel(table), 'png'));
-}
-
-export async function downloadTablePdf(
-  block: Extract<Block, { kind: 'table' }>,
-  sources: readonly SourceRef[]
-): Promise<void> {
-  const table = parsedTable(block, sources);
-  const { tablePdf } = await import('./export-generators');
-  downloadExportBlob(await tablePdf(table), deterministicFilename(tableLabel(table), 'pdf'));
+  downloadExportText(tableCsv(table), deterministicFilename(tableLabel(table), 'csv'), 'text/csv;charset=utf-8');
 }
 
 async function storedConversationMarkdown(conversationId: string, title: string): Promise<string> {

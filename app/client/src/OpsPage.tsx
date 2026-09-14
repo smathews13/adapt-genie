@@ -45,6 +45,7 @@ import { BrandIcon } from './BrandIcon';
 import { ExperimentalBadge } from './ExperimentalBadge';
 import { HealthResourceIcon } from './HealthResourceIcon';
 import { AdaptBusyButtonContent, AdaptLoader } from './AdaptLoadingAnimation';
+import { OpsLoadingState } from './OpsLoadingState';
 import { Disclosure, PageHeading } from './page-chrome';
 import { RefreshButton, RefreshControl } from './RefreshControl';
 import { ageAgo, checkedAgoLine } from './refresh-state';
@@ -623,10 +624,10 @@ export function CostBody({
         {block.busy && !payload ? (
           <div className="ops-cost-loading" data-testid="ops-cost-pane-loaders">
             <div className="ops-cost-loading-pane">
-              <AdaptLoader variant="compact" label="Loading spend and budgets" />
+              <OpsLoadingState label="Loading spend and budgets" />
             </div>
             <div className="ops-cost-loading-pane">
-              <AdaptLoader variant="compact" label="Loading resource costs" />
+              <OpsLoadingState label="Loading resource costs" />
             </div>
           </div>
         ) : payload ? (

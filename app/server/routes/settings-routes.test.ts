@@ -215,6 +215,8 @@ describe('what /api/settings makes of this release, without asking the agent', (
     expect(source).toContain(
       "app.post('/api/settings/connections/sync-genie', requireAdmin(appkit.lakebase, userEmail)"
     );
+    expect(source).toContain('reader: userGenieControlPlaneReader({');
+    expect(source).toContain('token: executionToken(req)');
   });
 
   it('unions configured and discovered tables even when their counts do not grow', () => {

@@ -77,21 +77,20 @@ describe('Identity table polish', () => {
 
   it('keeps the Actions column and its controls pinned inside the table frame', () => {
     const markup = roster();
-    const stickyRule = CSS.match(
-      /\.settings-actions-table th:last-child,\s*\.settings-actions-table td:last-child \{([^}]*)\}/s
-    )?.[1];
     expect(markup).toContain('settings-actions-table');
     expect(markup).toContain('<th scope="col">Actions</th>');
     expect(markup).toContain(
-      'aria-label="Reset an.identity.with.a.deliberately.long.local.part@outside.example.invalid to Consumer"'
+      'aria-label="Delete role assignment for an.identity.with.a.deliberately.long.local.part@outside.example.invalid"'
     );
     expect(markup).toContain('data-variant="destructive"');
-    expect(markup).toMatch(/roster-action-icon[\s\S]*Reset role<\/button>/);
+    expect(markup).toMatch(/title="Delete role assignment"[\s\S]*roster-action-icon[\s\S]*<\/button>/);
     expect(CSS).toMatch(
       /\.settings-actions-table th:last-child,\s*\.settings-actions-table td:last-child \{[^}]*position:\s*sticky[^}]*right:\s*0/s
     );
     expect(CSS).toMatch(/\.settings-actions-table td:last-child \{[^}]*white-space:\s*nowrap/s);
-    expect(stickyRule).not.toMatch(/background|box-shadow/);
+    expect(CSS).toMatch(
+      /\.roles-table\.settings-actions-table th:last-child \{[^}]*background:\s*var\(--roster-header-surface\)[^}]*box-shadow:\s*-1px 0 0 var\(--border\)/s
+    );
   });
 
   it('uses semantic panel, header, row, hover, focus, and selected surfaces in both themes', () => {
@@ -231,7 +230,7 @@ describe('Identity table polish', () => {
     expect(loading).toContain('aria-busy="true"');
     expect(loading).toContain('>Adding<');
     expect(CSS).toMatch(
-      /\.roles-table \.roster-action > \[data-slot='button'\]\.roster-action-button \{[^}]*width:\s*92px[^}]*min-width:\s*92px[^}]*max-width:\s*92px[^}]*height:\s*30px[^}]*padding:\s*0 9px[^}]*align-items:\s*center[^}]*justify-content:\s*center[^}]*gap:\s*6px[^}]*text-align:\s*center/s
+      /\.roles-table \.roster-action > \[data-slot='button'\]\.roster-action-button \{[^}]*width:\s*30px[^}]*min-width:\s*30px[^}]*max-width:\s*30px[^}]*height:\s*30px[^}]*padding:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/s
     );
     expect(CSS).toMatch(
       /\.roster-action-button \.roster-action-icon \{[^}]*width:\s*14px[^}]*height:\s*14px[^}]*flex:\s*none/s
@@ -250,7 +249,7 @@ describe('Identity table polish', () => {
   it('disables destructive controls while a roster mutation is in progress', () => {
     const markup = roster(true);
     expect(markup).toMatch(
-      /disabled=""[^>]*aria-label="Reset an\.identity\.with\.a\.deliberately\.long\.local\.part@outside\.example\.invalid to Consumer"/
+      /disabled=""[^>]*aria-label="Delete role assignment for an\.identity\.with\.a\.deliberately\.long\.local\.part@outside\.example\.invalid"/
     );
   });
 });

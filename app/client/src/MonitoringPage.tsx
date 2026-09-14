@@ -48,6 +48,9 @@ import { SourceEntityName, VisitInDatabricks } from './DataEntityLinks';
 import { UserIdentityChip } from './UserIdentityChip';
 import { OrganizationUserBadge } from './OrganizationUserBadge';
 import { QuestionAttributionBubble } from './QuestionAttributionBubble';
+import { CopyIdChip } from './CopyIdChip';
+import { abbreviatedConversationId } from './display-id';
+import { shortRunId } from './run-header';
 import { UnitSegmentedControl } from './UnitSegmentedControl';
 import { RoleBadgePill } from './RoleBadge';
 import { EstimatedBadge } from './EstimatedBadge';
@@ -1018,6 +1021,38 @@ export function QuestionDrawer({
       labelledBy="monitoring-question-title"
       onDismiss={onClose}
     >
+      <div className="monitoring-run-context" aria-label="Run context">
+        {detail.traceId && detail.mlflowUrl ? (
+          <a className="monitoring-context-badge" href={detail.mlflowUrl} target="_blank" rel="noreferrer">
+            <BrandIcon product="mlflow" size={12} />
+            MLflow <span className="ast-num">{shortRunId(detail.traceId)}</span>
+          </a>
+        ) : detail.traceId ? (
+          <CopyIdChip
+            className="monitoring-context-badge"
+            value={detail.traceId}
+            title={detail.traceId}
+            label={`Copy full MLflow trace id ${detail.traceId}`}
+          >
+            MLflow <span className="ast-num">{shortRunId(detail.traceId)}</span>
+          </CopyIdChip>
+        ) : null}
+        {detail.conversationId ? (
+          <CopyIdChip
+            className="monitoring-context-badge"
+            value={detail.conversationId}
+            title={detail.conversationId}
+            label={`Copy full conversation id ${detail.conversationId}`}
+          >
+            Conversation <span className="ast-num">{abbreviatedConversationId(detail.conversationId)}</span>
+          </CopyIdChip>
+        ) : null}
+        {detail.conversationRun ? (
+          <span className="monitoring-context-badge" title={`Run ${detail.conversationRun} in this conversation`}>
+            Run <span className="ast-num">{detail.conversationRun}</span>
+          </span>
+        ) : null}
+      </div>
       <div className="monitoring-drawer-head">
         <QuestionAttributionBubble
           question={detail.question}

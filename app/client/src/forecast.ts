@@ -464,6 +464,21 @@ export function deriveForecastBaseline(
     });
   }
 
+  const genie = cost.tiles.find((tile) => tile.id === 'genie:data');
+  if (genie) {
+    const amount = dailyInWindow(genie, days, unit);
+    const unavailable = amount === null ? tileReason(genie, 'No priced Data Genie baseline is available.', unit) : '';
+    baseline.fixedDailyCosts.push({
+      id: genie.id,
+      label: genie.label || 'Data Genie',
+      amount,
+      unavailable,
+    });
+    if (amount === null) {
+      baseline.exclusions.push({ component: genie.label || 'Data Genie', reason: unavailable });
+    }
+  }
+
   const app = cost.tiles.find((tile) => tile.id === 'app-compute');
   const appDaily = dailyInWindow(app, days, unit);
   baseline.appComputeDaily = appDaily;

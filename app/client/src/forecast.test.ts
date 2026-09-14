@@ -163,6 +163,7 @@ describe('forecast arithmetic', () => {
       ['serving-endpoint', 2],
       ['sql-warehouse', 1],
       ['app-compute', 2],
+      ['genie:data', null],
     ]);
     expect(result.horizons.map((horizon) => horizon.days)).toEqual([7, 30, 180]);
     expect(result.horizons[0].total).toBeCloseTo(35);
@@ -327,11 +328,12 @@ describe('missing and excluded baselines', () => {
 
     expect(result.components.map((component) => [component.id, component.dailyAmount])).toEqual([
       ['app-compute', null],
+      ['genie:data', null],
     ]);
     expect(baseline.exclusions.map((item) => item.component)).toEqual(
       expect.arrayContaining(['Serving endpoint', 'ADAPT SQL'])
     );
-    expect(baseline.exclusions.map((item) => item.component)).not.toContain('Data Genie');
+    expect(baseline.exclusions.map((item) => item.component)).toContain('Data Genie');
     expect(baseline.exclusions.map((item) => item.component)).not.toContain('App compute');
     expect(baseline.exclusions.find((item) => item.component === 'ADAPT SQL')?.reason).toContain(
       'Query History is incomplete'
@@ -414,7 +416,7 @@ describe('missing and excluded baselines', () => {
     expect(result.horizons[0].total).toBeCloseTo(21);
   });
 
-  it('excludes configured Genie workflows from fixed forecast components', () => {
+  it('keeps the configured Data Genie row while excluding unrelated Genie totals', () => {
     const payload = cost({
       range: { from: '2027-01-24', to: '2027-01-30' },
       throughDay: '2027-01-30',
@@ -467,11 +469,13 @@ describe('missing and excluded baselines', () => {
       deriveForecastBaseline(payload, traffic()),
       deriveForecastBaseline(payload, traffic()).defaults
     );
-    expect(result.components.every((item) => !item.id.startsWith('genie:'))).toBe(true);
-    expect(result.horizons.every((horizon) => horizon.components.every((item) => !item.id.startsWith('genie:')))).toBe(
-      true
-    );
-    expect(result.horizons.every((horizon) => horizon.total === null)).toBe(true);
+    expect(result.components.map((item) => item.id)).toEqual(['app-compute', 'genie:data']);
+    expect(result.horizons.map((horizon) => horizon.components.map((item) => item.id))).toEqual([
+      ['app-compute', 'genie:data'],
+      ['app-compute', 'genie:data'],
+      ['app-compute', 'genie:data'],
+    ]);
+    expect(result.horizons.map((horizon) => horizon.total)).toEqual([5.5, 22.75, 135.25]);
   });
 });
 

@@ -135,16 +135,16 @@ export function exportTable(block: Extract<Block, { kind: 'table' }>, sources: r
   };
 }
 
-function tsvCell(value: string): string {
-  return value.replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+function csvCell(value: string): string {
+  const normalized = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  return /[",\n]/.test(normalized) ? `"${normalized.replace(/"/g, '""')}"` : normalized;
 }
 
-export function tableTsv(table: ExportTable): string {
+export function tableCsv(table: ExportTable): string {
   const lines: string[] = [];
-  if (table.sources.length > 0) lines.push(`# Source: ${table.sources.join(', ')}`);
-  if (table.headers.length > 0) lines.push(table.headers.map(tsvCell).join('\t'));
-  lines.push(...table.rows.map((row) => row.map(tsvCell).join('\t')));
-  return lines.join('\n');
+  if (table.headers.length > 0) lines.push(table.headers.map(csvCell).join(','));
+  lines.push(...table.rows.map((row) => row.map(csvCell).join(',')));
+  return lines.join('\r\n');
 }
 
 export function deterministicFilename(label: string, extension: string): string {

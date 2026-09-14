@@ -318,18 +318,49 @@ describe('Forecasting visibility and placement', () => {
       /\.ops-forecast-breakdown th:not\(:first-child\),\s*\.ops-forecast-breakdown td\s*\{[^}]*font-variant-numeric:\s*tabular-nums/
     );
 
-    for (const component of ['serving-endpoint', 'sql-warehouse', 'app-compute']) {
+    for (const component of ['serving-endpoint', 'sql-warehouse', 'app-compute', 'genie:data']) {
       expect(breakdown).toContain(`data-cost-component="${component}"`);
     }
-    expect(breakdown).not.toContain('Data Genie');
+    expect(breakdown).toContain('Data Genie');
     expect(breakdown).not.toContain('Dictionary Genie');
     expect(breakdown).not.toContain('Legacy add-on');
     expect(markup).not.toContain('Dictionary Genie pricing is unavailable.');
     expect(breakdown).toContain('<span>Subtotal</span>');
-    expect(markup.match(/35\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
-    expect(markup.match(/150\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
-    expect(markup.match(/900\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(markup.match(/63\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(markup.match(/270\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(markup.match(/1,610\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
     expect(breakdown.match(/data-cost-component="sql-warehouse"/g)).toHaveLength(1);
+  });
+
+  it('keeps a zero-cost Data Genie row in the projection breakdown', () => {
+    const payload = cost();
+    payload.tiles.push({
+      id: 'genie:data',
+      label: 'Data Genie',
+      resourceId: 'data-space',
+      quality: 'rate',
+      amount: 0,
+      basis: 'per-day',
+      population: 'This space',
+      attribution: 'deployment',
+      unavailable: '',
+      remedy: '',
+      note: 'Free',
+    });
+    const baseline = deriveForecastBaseline(payload, traffic());
+    const breakdown = renderToStaticMarkup(
+      <ProjectionBreakdown
+        result={calculateForecast(baseline, baseline.defaults)}
+        currency="USD"
+        partial={false}
+        open
+        onToggle={() => {}}
+      />
+    );
+
+    expect(breakdown).toContain('data-cost-component="genie:data"');
+    expect(breakdown).toContain('Data Genie');
+    expect(breakdown.match(/0\.00 USD/g)?.length).toBeGreaterThanOrEqual(1);
   });
 
   it('includes attributable Foundation Model and Lakebase spend in reconciled forecast subtotals', () => {

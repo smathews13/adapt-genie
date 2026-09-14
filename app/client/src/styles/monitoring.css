@@ -881,6 +881,42 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   justify-content: space-between;
   gap: 12px;
 }
+.monitoring-run-context {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.monitoring-context-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--ast-pane);
+  color: var(--ast-text-long);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+button.monitoring-context-badge,
+a.monitoring-context-badge {
+  cursor: pointer;
+}
+.monitoring-context-badge:is(:hover, :focus-visible) {
+  border-color: var(--ast-pos-border);
+  background: var(--ast-pos-fill);
+  color: var(--ast-pos-text);
+}
+.monitoring-context-badge > svg {
+  width: 12px;
+  height: 12px;
+}
 /*
  * The block holding the name, allowed to shrink. The close button beside it is
  * `flex: none`, so without this a long address takes its minimum width out of
@@ -1484,7 +1520,8 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   top: -16px;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
   padding: 12px 0;
   background: var(--card);
@@ -1499,6 +1536,7 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
 }
 .monitoring-users-toolbar-view {
   justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 .monitoring-users-toolbar .monitoring-users-search {
   flex: 0 1 220px;

@@ -550,7 +550,7 @@
   color: var(--ast-neg-text);
 }
 .feedback > .export-menu {
-  margin-left: 2px;
+  margin-left: auto;
 }
 .feedback.answer-export-only {
   justify-content: flex-end;

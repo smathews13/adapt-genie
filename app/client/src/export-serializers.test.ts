@@ -7,7 +7,7 @@ import {
   conversationMarkdown,
   deterministicFilename,
   exportTable,
-  tableTsv,
+  tableCsv,
 } from './export-serializers';
 
 const answer = normalizeAnswer({
@@ -56,11 +56,18 @@ describe('reader-facing export serializers', () => {
     expect(markdown).toContain('East led.');
   });
 
-  it('serializes parsed tables with headers and source attribution', () => {
+  it('serializes parsed tables as standards-compatible CSV', () => {
     const block = parseAnswerMarkdown(answer.narrative).find((entry) => entry.kind === 'table');
     if (!block || block.kind !== 'table') throw new Error('Expected a parsed table');
     const table = exportTable(block, answer.sources);
-    expect(tableTsv(table)).toBe('# Source: catalog.gold.revenue\nRegion\tRevenue\nEast\t$12');
+    expect(tableCsv(table)).toBe('Region,Revenue\r\nEast,$12');
+    expect(
+      tableCsv({
+        headers: ['Title', 'Note'],
+        rows: [['NBA 2K26, PC', 'He said "go"\nnext line']],
+        sources: [],
+      })
+    ).toBe('Title,Note\r\n"NBA 2K26, PC","He said ""go""\nnext line"');
   });
 
   it('creates stable filesystem-safe names', () => {

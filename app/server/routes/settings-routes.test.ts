@@ -205,6 +205,17 @@ describe('deleting a user-added connection', () => {
 });
 
 describe('what /api/settings makes of this release, without asking the agent', () => {
+  it('serves durable table scope without waiting for dependency probes', () => {
+    const source = readFileSync(new URL('./settings-routes.ts', import.meta.url), 'utf8');
+    const scopeRead = source.slice(
+      source.indexOf("app.get('/api/settings/scope'"),
+      source.indexOf("app.get('/api/settings'", source.indexOf("app.get('/api/settings/scope'") + 1)
+    );
+    expect(scopeRead).toContain('readDeclaredConnections(appkit)');
+    expect(scopeRead).not.toContain('readOrchestratorReport');
+    expect(scopeRead).not.toContain('readReachability');
+  });
+
   it('keeps the consumer-visible settings read free of Genie scope writes', () => {
     const source = readFileSync(new URL('./settings-routes.ts', import.meta.url), 'utf8');
     const settingsRead = source.slice(

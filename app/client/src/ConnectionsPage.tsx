@@ -589,8 +589,11 @@ function declaredTableRows(
       error: '',
       remedy: null,
     };
-    rows.push({ check, connection, pending: connection.connection.state === 'declared' });
-    byName.set(key, { check, pending: true });
+    // A durable declaration with no probe result is "Not checked", not an
+    // operation still in flight. The old `pending: true` was never reconciled
+    // after a settings timeout, so these rows spun forever.
+    rows.push({ check, connection, pending: false });
+    byName.set(key, { check, pending: false });
   }
   return rows.sort((a, b) => {
     const aUser = a.connection?.connection.origin === 'app';
@@ -770,9 +773,8 @@ export function DeclaredTablesTable({
                       check.kind === entry.connection.resourceType &&
                       normalizedConnectionValue(check.name) === normalizedConnectionValue(entry.connection.value)
                   );
-            const pending =
-              Boolean(tableRow?.pending) ||
-              Boolean(scopeCheck?.status === 'unverified' && (!scopeCheck.stopped || scopeCheck.stopped === 'unasked'));
+            const pending = Boolean(tableRow?.pending);
+            const unchecked = scopeCheck?.status === 'unverified';
             const connected = scopeCheck ? scopeCheck.status === 'ok' : true;
             const connectionState = connected ? 'connected' : 'disconnected';
             const reachability = scopeCheck ? tableReachabilityCopy(scopeCheck, checkedAt) : null;
@@ -808,6 +810,14 @@ export function DeclaredTablesTable({
                         className="connections-table-status-loader"
                         label={`Checking ${entry.connection.label || entry.connection.value}`}
                       />
+                    ) : unchecked ? (
+                      <Badge
+                        variant="outline"
+                        className="ast-pill ast-pill--neutral-outline connection-state-badge"
+                        aria-label={`${entry.connection.value} connection status: Not checked`}
+                      >
+                        Not checked
+                      </Badge>
                     ) : (
                       <ConnectionStateBadge state={connectionState} subject={entry.connection.value} />
                     )}
@@ -942,6 +952,14 @@ export function DeclaredTablesTable({
                           className="connections-table-status-loader"
                           label={`Checking ${check.label || check.name}`}
                         />
+                    ) : check.status === 'unverified' ? (
+                      <Badge
+                        variant="outline"
+                        className="ast-pill ast-pill--neutral-outline connection-state-badge"
+                        aria-label={`${check.label || check.name} connection status: Not checked`}
+                      >
+                        Not checked
+                      </Badge>
                       ) : (
                         <ConnectionStateBadge
                           state={check.status === 'ok' ? 'connected' : 'disconnected'}

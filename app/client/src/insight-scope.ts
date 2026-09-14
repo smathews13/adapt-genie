@@ -169,6 +169,7 @@ export function insightConfidence(payload: unknown): ConfidenceLine[] {
  * if it could not be read.
  */
 let settingsRequest: Promise<unknown> | null = null;
+let scopeRequest: Promise<unknown> | null = null;
 
 function readSettingsOnce(): Promise<unknown> {
   settingsRequest ??= fetch('/api/settings')
@@ -177,15 +178,44 @@ function readSettingsOnce(): Promise<unknown> {
   return settingsRequest;
 }
 
+function readScopeOnce(): Promise<unknown> {
+  scopeRequest ??= fetch('/api/settings/scope')
+    .then((response) => (response.ok ? (response.json() as Promise<unknown>) : null))
+    .catch(() => null);
+  return scopeRequest;
+}
+
 export function useInsightScope(): { report: unknown; loading: boolean } {
   const [report, setReport] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let live = true;
-    void readSettingsOnce().then((payload) => {
+    let settled = 0;
+    let durableScope: unknown = null;
+    let fullSettings: Record<string, unknown> | null = null;
+    const finish = (payload: unknown) => {
       if (!live) return;
-      setReport(payload);
-      setLoading(false);
+      settled += 1;
+      if (payload) {
+        setReport(payload);
+        setLoading(false);
+      } else if (settled === 2) {
+        setLoading(false);
+      }
+    };
+    // Durable declarations render first; the full settings read enriches them
+    // with reachability and confidence whenever its probes settle.
+    void readScopeOnce().then((payload) => {
+      durableScope = payload;
+      const scope = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+      finish(fullSettings ? { ...fullSettings, connections: fullSettings.connections ?? scope?.connections } : payload);
+    });
+    void readSettingsOnce().then((payload) => {
+      const settings = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+      const scope =
+        durableScope && typeof durableScope === 'object' ? (durableScope as Record<string, unknown>) : null;
+      fullSettings = settings;
+      finish(settings ? { ...settings, connections: settings.connections ?? scope?.connections } : durableScope);
     });
     return () => {
       live = false;

@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { insightTables } from './insight-scope';
 
 describe('insightTables', () => {
+  it('loads durable declarations independently of the full probe request', () => {
+    const source = readFileSync(new URL('./insight-scope.ts', import.meta.url), 'utf8');
+    expect(source).toContain("fetch('/api/settings/scope')");
+    expect(source).toContain('void readScopeOnce().then');
+    expect(source).toContain('void readSettingsOnce().then');
+  });
+
   it('falls back to declared Unity Catalog tables only', () => {
     expect(
       insightTables({

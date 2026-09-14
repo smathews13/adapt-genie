@@ -304,6 +304,26 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
     });
 
     /**
+     * The durable table declarations without any workspace or model probes.
+     *
+     * The Ask rail needs to name what is in scope immediately. Making that list
+     * wait for `/api/settings` coupled a Lakebase read to every control-plane
+     * probe, so one slow table check could leave the rail empty even though the
+     * Connections page already had the declarations.
+     */
+    app.get('/api/settings/scope', async (_req, res) => {
+      try {
+        const connections = await readDeclaredConnections(appkit);
+        res.json({ connections });
+      } catch (error) {
+        res.status(503).json({
+          error: 'scope_unavailable',
+          detail: `The declared data scope could not be read: ${(error as Error).message}`,
+        });
+      }
+    });
+
+    /**
      * Every connection, with what it was configured as, what the running system
      * used, and what somebody intends it to be.
      *

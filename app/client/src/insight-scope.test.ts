@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { insightTables } from './insight-scope';
+import { insightConfidence, insightTables } from './insight-scope';
 
 describe('insightTables', () => {
   it('loads durable declarations independently of the full probe request', () => {
@@ -45,5 +45,25 @@ describe('insightTables', () => {
         status: 'ok',
       },
     ]);
+  });
+
+  it('counts the authoritative declarations independently of reachability probes', () => {
+    const payload = {
+      checks: [
+        { kind: 'serving-endpoint', name: 'adapt', status: 'ok' },
+        { kind: 'genie-space', name: 'space', status: 'ok' },
+      ],
+      connections: Array.from({ length: 11 }, (_, index) => ({
+        connection: {
+          state: 'declared',
+          resourceType: 'table',
+          value: `main.analytics.table_${index + 1}`,
+        },
+      })),
+    };
+    expect(insightConfidence(payload)).toContainEqual({
+      tone: 'ok',
+      text: '11 tables in scope',
+    });
   });
 });

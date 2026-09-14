@@ -106,7 +106,6 @@ export function tableStatusTone(status: PreflightStatus): 'pos' | 'neg' | 'grey'
  */
 export function insightConfidence(payload: unknown): ConfidenceLine[] {
   const checks = checksOf(payload);
-  if (checks.length === 0) return [];
   const lines: ConfidenceLine[] = [];
 
   const byKind = (kind: string) => checks.filter((check) => check.kind === kind);
@@ -133,6 +132,14 @@ export function insightConfidence(payload: unknown): ConfidenceLine[] {
         ? { tone: 'ok', text: `All ${tables.length} tables in scope reachable under your grants` }
         : { tone: 'warn', text: `${up} of ${tables.length} tables in scope reachable under your grants` }
     );
+  } else {
+    const declared = insightTables(payload);
+    if (declared.length > 0) {
+      lines.push({
+        tone: 'ok',
+        text: `${declared.length} ${declared.length === 1 ? 'table' : 'tables'} in scope`,
+      });
+    }
   }
 
   // The Genie space the questions are answered against.

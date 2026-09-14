@@ -2,6 +2,7 @@ import {
   APP_SCHEMA,
   APP_SCHEMA_ENV,
   APP_TARGET_ENV,
+  DEFAULT_APP_SCHEMA,
   LAKEBASE_ENDPOINT_ENV,
   LEGACY_APP_SCHEMA,
   adoptAppSchema,
@@ -27,7 +28,8 @@ export async function preserveOwnedAppSchema(
   const target = (env[APP_TARGET_ENV] ?? '').trim();
   const endpoint = (env[LAKEBASE_ENDPOINT_ENV] ?? '').trim();
   const authored = (env[APP_SCHEMA_ENV] ?? '').trim();
-  const sourceGitDeploy = !target && Boolean(endpoint) && (!authored || authored === LEGACY_APP_SCHEMA);
+  const sourceGitDeploy =
+    !target && Boolean(endpoint) && (!authored || authored === LEGACY_APP_SCHEMA || authored === DEFAULT_APP_SCHEMA);
   if (!sourceGitDeploy) return APP_SCHEMA;
 
   try {

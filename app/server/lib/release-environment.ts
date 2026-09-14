@@ -66,7 +66,7 @@ export class MissingReleaseEnvironmentSnapshot extends Error {
   constructor(readonly missing: readonly ReleaseEnvironmentKey[]) {
     super(
       `Deploy from Git was stopped because these values could not be recovered from the existing app: ${missing.join(', ')}. ` +
-        'The previous active deployment remains unchanged; no bundle release is required.'
+        'Existing Lakebase state remains unchanged; correct the recovery source and redeploy. No bundle release is required.'
     );
     this.name = 'MissingReleaseEnvironmentSnapshot';
   }

@@ -2,46 +2,47 @@
 import{WATCHLIST_METRIC_LABEL,WatchlistSettingsPatchSchema,readWatchlistSettings,userEmail,writeWatchlistSettings}from"./chunk-QQJCLA2N.mjs";import"./chunk-GRUXLPKC.mjs";import"./chunk-A3UHBMOK.mjs";import"./chunk-LIDXDLZN.mjs";import{recordAdminAction}from"./chunk-Q55RYAQC.mjs";import"./chunk-W6ISJYIL.mjs";import"./chunk-66G4LGYE.mjs";import{normalizeWorkspaceHost}from"./chunk-3SZ5WCG5.mjs";import"./chunk-3LJPB2Y3.mjs";import"./chunk-ALFCGEZB.mjs";import{SettingsRevisionConflict}from"./chunk-BZ3SX762.mjs";import"./chunk-LOICDKUA.mjs";import"./chunk-FYRVKI3Q.mjs";import{forwardedUserToken}from"./chunk-JX2D4OX6.mjs";import{sqlQueryTags}from"./chunk-DC3NGZXW.mjs";import"./chunk-KX6GWMVX.mjs";import{external_exports}from"./chunk-DDLERORI.mjs";import"./chunk-YDSOP3SS.mjs";import"./chunk-A7SHUGSC.mjs";var PERIOD_DAYS=7;var TABLE_ENV="PLAYER_INSIGHTS_WATCHLIST_TABLE";var TABLE_IDENTIFIER=/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/;var WatchlistWrite=external_exports.strictObject({revision:external_exports.number().int().nonnegative(),patch:WatchlistSettingsPatchSchema});function validatedWatchlistTable(value){const table=(value??"").trim();return TABLE_IDENTIFIER.test(table)?table:null}function quotedTable(table){return table.split(".").map(part=>`\`${part}\``).join(".")}function watchlistStatement(table,titleCount){const configured=Array.from({length:titleCount},(_,index)=>`${index===0?"SELECT":"UNION ALL SELECT"} :title_${index} AS title`).join("\n");const source=quotedTable(table);return`WITH configured AS (
   ${configured}
 ),
-anchors AS (
-  SELECT configured.title, MAX(source.DATE) AS as_of_date
+scoped AS (
+  SELECT /*+ BROADCAST(configured) */
+    configured.title,
+    source.DATE,
+    source.NET_REV_USD_AMT,
+    source.UNIT_QTY,
+    MAX(source.DATE) OVER (PARTITION BY configured.title) AS as_of_date
   FROM configured
   LEFT JOIN ${source} source
     ON lower(source.TITLE_ROLL_UP_DESC) = lower(configured.title)
-  GROUP BY configured.title
-),
-display_anchor AS (
-  SELECT MAX(as_of_date) AS as_of_date FROM anchors
 ),
 periods AS (
   SELECT
-    anchors.title,
-    SUM(CASE WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS}) THEN source.NET_REV_USD_AMT ELSE 0 END) AS recent_rev,
-    SUM(CASE WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS}) THEN source.UNIT_QTY ELSE 0 END) AS recent_units,
+    scoped.title,
+    MAX(scoped.as_of_date) AS title_as_of,
+    SUM(CASE WHEN scoped.DATE > date_sub(scoped.as_of_date, ${PERIOD_DAYS}) THEN scoped.NET_REV_USD_AMT ELSE 0 END) AS recent_rev,
+    SUM(CASE WHEN scoped.DATE > date_sub(scoped.as_of_date, ${PERIOD_DAYS}) THEN scoped.UNIT_QTY ELSE 0 END) AS recent_units,
     SUM(CASE
-      WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS*2})
-       AND source.DATE <= date_sub(anchors.as_of_date, ${PERIOD_DAYS})
-      THEN source.NET_REV_USD_AMT ELSE 0 END) AS preceding_rev,
+      WHEN scoped.DATE > date_sub(scoped.as_of_date, ${PERIOD_DAYS*2})
+       AND scoped.DATE <= date_sub(scoped.as_of_date, ${PERIOD_DAYS})
+      THEN scoped.NET_REV_USD_AMT ELSE 0 END) AS preceding_rev,
     SUM(CASE
-      WHEN source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS*2})
-       AND source.DATE <= date_sub(anchors.as_of_date, ${PERIOD_DAYS})
-      THEN source.UNIT_QTY ELSE 0 END) AS preceding_units
-  FROM anchors
-  LEFT JOIN ${source} source
-    ON lower(source.TITLE_ROLL_UP_DESC) = lower(anchors.title)
-   AND source.DATE > date_sub(anchors.as_of_date, ${PERIOD_DAYS*2})
-  GROUP BY anchors.title
+      WHEN scoped.DATE > date_sub(scoped.as_of_date, ${PERIOD_DAYS*2})
+       AND scoped.DATE <= date_sub(scoped.as_of_date, ${PERIOD_DAYS})
+      THEN scoped.UNIT_QTY ELSE 0 END) AS preceding_units
+  FROM scoped
+  GROUP BY scoped.title
+),
+display_anchor AS (
+  SELECT MAX(title_as_of) AS as_of_date FROM periods
 )
-SELECT anchors.title,
+SELECT periods.title,
        CASE WHEN COALESCE(SUM(periods.recent_units), 0) = 0 THEN NULL
             ELSE COALESCE(SUM(periods.recent_rev), 0) / SUM(periods.recent_units) END,
        CASE WHEN COALESCE(SUM(periods.preceding_units), 0) = 0 THEN NULL
             ELSE COALESCE(SUM(periods.preceding_rev), 0) / SUM(periods.preceding_units) END,
        CAST(display_anchor.as_of_date AS STRING)
-FROM anchors
+FROM periods
 CROSS JOIN display_anchor
-LEFT JOIN periods ON lower(periods.title) = lower(anchors.title)
-GROUP BY anchors.title, display_anchor.as_of_date
-ORDER BY anchors.title`}function watchlistTitlesStatement(table){return`SELECT DISTINCT trim(TITLE_ROLL_UP_DESC) AS title
+GROUP BY periods.title, display_anchor.as_of_date
+ORDER BY periods.title`}function watchlistTitlesStatement(table){return`SELECT DISTINCT trim(TITLE_ROLL_UP_DESC) AS title
 FROM ${quotedTable(table)}
 WHERE TITLE_ROLL_UP_DESC IS NOT NULL
   AND trim(TITLE_ROLL_UP_DESC) <> ''

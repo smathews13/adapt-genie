@@ -43,8 +43,8 @@ describe('watchlist query contract', () => {
 
   it('builds adjacent seven-day periods against net revenue and units', () => {
     const sql = watchlistStatement('catalog.schema.sales', 2);
-    expect(sql).toContain('date_sub(anchors.as_of_date, 7)');
-    expect(sql).toContain('date_sub(anchors.as_of_date, 14)');
+    expect(sql).toContain('date_sub(scoped.as_of_date, 7)');
+    expect(sql).toContain('date_sub(scoped.as_of_date, 14)');
     expect(sql).toContain('NET_REV_USD_AMT');
     expect(sql).toContain('UNIT_QTY');
     expect(sql).not.toContain('WISHLIST_ADDS');
@@ -52,11 +52,11 @@ describe('watchlist query contract', () => {
     expect(sql).not.toContain('NBA 2K26');
   });
 
-  it('anchors each watched title to its own latest sale instead of the table-wide date', () => {
+  it('anchors each watched title to its own latest sale in one source scan', () => {
     const sql = watchlistStatement('catalog.schema.sales', 2);
-    expect(sql).toContain('SELECT configured.title, MAX(source.DATE) AS as_of_date');
-    expect(sql).toContain('GROUP BY configured.title');
-    expect(sql).toContain('ON lower(source.TITLE_ROLL_UP_DESC) = lower(anchors.title)');
+    expect(sql).toContain('MAX(source.DATE) OVER (PARTITION BY configured.title) AS as_of_date');
+    expect(sql).toContain('/*+ BROADCAST(configured) */');
+    expect(sql.match(/LEFT JOIN `catalog`.`schema`.`sales` source/g)).toHaveLength(1);
     expect(sql).not.toContain('SELECT MAX(DATE) AS as_of_date FROM');
   });
 

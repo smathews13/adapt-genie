@@ -1679,13 +1679,13 @@ describe('the Unity Catalog tables section', () => {
     );
   });
 
-  it('lists an added table once without an endless pending check', () => {
+  it('lists an added table once with a compact connected badge and no row loader', () => {
     const tableMarkup = render(
       <DeclaredTablesSection tableChecks={tables} tableConnections={[userTable]} requestedEntity="" allowMutations />
     );
     const genericMarkup = render(<DeclaredConnectionsCard entries={[userTable]} allowMutations onChanged={() => {}} />);
     expect(tableMarkup.match(/id="declared-table-row-table-a-catalog-a-schema-added"/g)).toHaveLength(1);
-    expect(text(tableMarkup)).toContain('Not checked');
+    expect(text(tableMarkup)).toContain('Connected');
     expect(text(tableMarkup)).not.toContain('Checking');
     expect(text(tableMarkup)).not.toContain('Connection check pending');
     expect(tableMarkup).toContain('Delete connection: a_catalog.a_schema.added_table');

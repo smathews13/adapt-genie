@@ -54,6 +54,8 @@ describe('application loading treatment', () => {
     // animation and clipped the live step in progress. Every live run now seats
     // the same AdaptLoadingAnimation, so the compact header is gone.
     expect(home).toContain('<AdaptLoadingAnimation variant="ask"');
+    expect(home).toContain("className={conversationLoading ? 'pt-6 space-y-5' : 'ast-splash'}");
+    expect(home).not.toContain('seatForTranscript');
     expect(home).not.toContain('className="answer-preparing-header"');
   });
 

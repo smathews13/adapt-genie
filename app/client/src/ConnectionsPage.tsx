@@ -773,9 +773,7 @@ export function DeclaredTablesTable({
                       check.kind === entry.connection.resourceType &&
                       normalizedConnectionValue(check.name) === normalizedConnectionValue(entry.connection.value)
                   );
-            const pending = Boolean(tableRow?.pending);
-            const unchecked = scopeCheck?.status === 'unverified';
-            const connected = scopeCheck ? scopeCheck.status === 'ok' : true;
+            const connected = scopeCheck?.status !== 'failed';
             const connectionState = connected ? 'connected' : 'disconnected';
             const reachability = scopeCheck ? tableReachabilityCopy(scopeCheck, checkedAt) : null;
             const confirmOpen = management?.confirming === entry.connection.id;
@@ -803,32 +801,11 @@ export function DeclaredTablesTable({
                     </span>
                   </TableCell>
                   <TableCell>
-                    {pending ? (
-                      <AdaptLoader
-                        as="span"
-                        announce={false}
-                        className="connections-table-status-loader"
-                        label={`Checking ${entry.connection.label || entry.connection.value}`}
-                      />
-                    ) : unchecked ? (
-                      <Badge
-                        variant="outline"
-                        className="ast-pill ast-pill--neutral-outline connection-state-badge"
-                        aria-label={`${entry.connection.value} connection status: Not checked`}
-                      >
-                        Not checked
-                      </Badge>
-                    ) : (
-                      <ConnectionStateBadge state={connectionState} subject={entry.connection.value} />
-                    )}
+                    <ConnectionStateBadge state={connectionState} subject={entry.connection.value} />
                   </TableCell>
                   <TableCell className="connections-table-detail" title={reachability?.title}>
-                    {pending ? null : (
-                      <>
-                        {reachability?.row}
-                        <ConnectionAddedMetadata entry={entry} />
-                      </>
-                    )}
+                    {reachability?.row}
+                    <ConnectionAddedMetadata entry={entry} />
                   </TableCell>
                   {management ? (
                     <TableCell className="connections-table-actions">
@@ -945,27 +922,10 @@ export function DeclaredTablesTable({
                 ran, and the strip above this table counts through the same
                 function so the two cannot disagree. */}
                     <TableCell>
-                      {declared?.pending ? (
-                        <AdaptLoader
-                          as="span"
-                          announce={false}
-                          className="connections-table-status-loader"
-                          label={`Checking ${check.label || check.name}`}
-                        />
-                    ) : check.status === 'unverified' ? (
-                      <Badge
-                        variant="outline"
-                        className="ast-pill ast-pill--neutral-outline connection-state-badge"
-                        aria-label={`${check.label || check.name} connection status: Not checked`}
-                      >
-                        Not checked
-                      </Badge>
-                      ) : (
-                        <ConnectionStateBadge
-                          state={check.status === 'ok' ? 'connected' : 'disconnected'}
-                          subject={check.label || check.name}
-                        />
-                      )}
+                    <ConnectionStateBadge
+                      state={check.status === 'failed' ? 'disconnected' : 'connected'}
+                      subject={check.label || check.name}
+                    />
                     </TableCell>
                     {/* A STATUS, NOT AN ESSAY. This cell used to print the check's whole
                 detail, and on this deployment one missing OAuth scope gives all

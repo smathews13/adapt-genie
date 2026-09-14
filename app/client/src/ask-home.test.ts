@@ -624,6 +624,13 @@ describe('the inspector while a run is still going', () => {
     expect(HOME_PAGE).not.toMatch(/showAdminTrace\s*&&\s*!conversationLoading/);
   });
 
+  it('does not draw a second working card after an answer is visible', () => {
+    expect(HOME_PAGE).toContain("const terminalAnswerVisible = messages.at(-1)?.role === 'assistant';");
+    expect(HOME_PAGE).toMatch(
+      /const loading =\s*!terminalAnswerVisible && Boolean\(liveAsk\?\.inFlight \|\| isWorkingConversationRun\(activeConversationRun\)\)/
+    );
+  });
+
   it('does not relabel a stored Complete turn as Partial only because it was truncated', () => {
     expect(HOME_PAGE).toContain('title={`Latest turn: ${summary.status}`}');
     expect(HOME_PAGE).toContain('{summary.status}');

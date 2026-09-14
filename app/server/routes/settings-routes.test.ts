@@ -212,6 +212,7 @@ describe('what /api/settings makes of this release, without asking the agent', (
       source.indexOf("app.get('/api/settings'", source.indexOf("app.get('/api/settings/scope'") + 1)
     );
     expect(scopeRead).toContain('readDeclaredConnections(appkit)');
+    expect(scopeRead).toContain('connections.map((connection) => ({ connection }))');
     expect(scopeRead).not.toContain('readOrchestratorReport');
     expect(scopeRead).not.toContain('readReachability');
   });

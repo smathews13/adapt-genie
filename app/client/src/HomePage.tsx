@@ -143,7 +143,7 @@ import {
 import { failedAskSettlement, settleAskDisplay, terminalSettlementForResponse } from './ask-terminal-state';
 import { AstrolabeMark } from './AstrolabeMark';
 import { AdaptBusyButtonContent, AdaptLoader, AdaptLoadingAnimation } from './AdaptLoadingAnimation';
-import { elapsedSeconds, seatForTranscript } from './working-animation';
+import { elapsedSeconds } from './working-animation';
 import { deriveCurrentStageView, PLANNING_STAGE_LABEL, WORKING_STAGE_LABEL } from './current-stage-view';
 import {
   normalizeAnswer,
@@ -605,7 +605,14 @@ export function HomePage() {
   const liveAsk = useLiveAsk(conversationId);
   const activeConversationRun = activeConversationRuns.get(conversationId)?.status ?? null;
   const liveStages = liveAsk?.stages ?? NO_LIVE_STAGES;
-  const loading = Boolean(liveAsk?.inFlight || isWorkingConversationRun(activeConversationRun));
+  // A completed assistant turn is terminal UI evidence. Durable run polling can
+  // lag behind the stored answer; letting that stale RUNNING state win rendered
+  // a second "Preparing answer" card underneath an answer that already existed.
+  // A genuine follow-up appends its user turn before it starts, so it remains
+  // eligible for the live panel.
+  const terminalAnswerVisible = messages.at(-1)?.role === 'assistant';
+  const loading =
+    !terminalAnswerVisible && Boolean(liveAsk?.inFlight || isWorkingConversationRun(activeConversationRun));
   useEffect(() => {
     if (loading) startStoredAnswerRendererPreload();
   }, [loading]);
@@ -695,11 +702,6 @@ export function HomePage() {
    * rather than a figure that looks live.
    */
   const railElapsedMs = runningElapsed({ loading, runningSince, now });
-  /*
-   * Which seating the working animation takes. Follow-ups use the same splash
-   * as the first question so the live steps keep a real viewport.
-   */
-  const workingSeat = seatForTranscript(messages);
   const workingLabel = (() => {
     const view = deriveCurrentStageView({ stages: liveStages, runActive: loading });
     return view.mode === 'planning' || view.mode === 'idle' ? PLANNING_STAGE_LABEL : WORKING_STAGE_LABEL;
@@ -2360,9 +2362,7 @@ export function HomePage() {
           {(loading || conversationLoading) && (
             <Card className="answer-card">
               <CardContent
-                className={
-                  conversationLoading ? 'pt-6 space-y-5' : workingSeat === 'splash' ? 'ast-splash' : 'pt-6 space-y-5'
-                }
+                className={conversationLoading ? 'pt-6 space-y-5' : 'ast-splash'}
               >
                 {/* The working animation is for a run that is actually running.
                   Restoring a saved conversation from Lakebase is not the agent

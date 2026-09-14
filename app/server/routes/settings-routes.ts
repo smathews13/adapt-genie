@@ -314,7 +314,10 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
     app.get('/api/settings/scope', async (_req, res) => {
       try {
         const connections = await readDeclaredConnections(appkit);
-        res.json({ connections });
+        // Match the ConnectionEntry envelope consumed by the rail and the full
+        // settings payload. Returning the raw store rows made every valid table
+        // invisible because the browser correctly looked under `.connection`.
+        res.json({ connections: connections.map((connection) => ({ connection })) });
       } catch (error) {
         res.status(503).json({
           error: 'scope_unavailable',

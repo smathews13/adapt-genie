@@ -609,7 +609,7 @@ export function CostBody({
               <Button variant="default" size="sm" className="ops-user-spend-link" asChild>
                 <Link to={userMonitoringHref}>
                   <Users aria-hidden="true" />
-                  See per-user spend
+                  User Monitoring
                 </Link>
               </Button>
             ) : null}
@@ -706,6 +706,7 @@ function CostCardGrid({
                 <dd className="ast-num">{card.charged}</dd>
               </div>
             </dl>
+            <CostPeriodBadges range={range} />
             <div className="ops-cost-card-footer">
               <GenieDatabricksLink href={href} title={card.title} />
             </div>
@@ -748,21 +749,25 @@ function PrimaryCostCard({
       </p>
       {card.secondaryMetric ? <p className="ops-tile-secondary">{card.secondaryMetric}</p> : null}
       {!concise && card.basis ? <p className="ops-tile-basis">{card.basis}</p> : null}
-      {!concise ? (
-        <div className="ops-tile-evidence">
-          <DateRangeBadges
-            accessibleLabel={`Cost period from ${range.from} through ${range.to}`}
-            value={{
-              start: dateOnlyBadgeValue(range.from),
-              end: dateOnlyBadgeValue(range.to),
-            }}
-          />
-        </div>
-      ) : null}
+      <CostPeriodBadges range={range} />
       <div className="ops-cost-card-footer">
         {card.resource ? <CostResourceLine label={card.resource} href={href} /> : null}
       </div>
     </article>
+  );
+}
+
+function CostPeriodBadges({ range }: { range: OpsCostPayload['range'] }) {
+  return (
+    <div className="ops-tile-evidence">
+      <DateRangeBadges
+        accessibleLabel={`Cost period from ${range.from} through ${range.to}`}
+        value={{
+          start: dateOnlyBadgeValue(range.from),
+          end: dateOnlyBadgeValue(range.to),
+        }}
+      />
+    </div>
   );
 }
 

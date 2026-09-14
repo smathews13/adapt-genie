@@ -405,6 +405,10 @@ export function setupSettingsRoutes(appkit: InsightsAppKit) {
         store: appkit,
         spaceId: configuredGenieSpaceId(report),
         actor,
+        existingScope: accessDependenciesFrom({
+          configuration: report?.configuration ?? [],
+          env: process.env,
+        }).tables,
         reader: userGenieControlPlaneReader({
           host: normalizeWorkspaceHost(process.env.DATABRICKS_HOST),
           token: executionToken(req) ?? '',

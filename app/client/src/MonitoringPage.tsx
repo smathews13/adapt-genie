@@ -1052,6 +1052,9 @@ export function QuestionDrawer({
             Run <span className="ast-num">{detail.conversationRun}</span>
           </span>
         ) : null}
+        <time className="monitoring-context-badge" dateTime={detail.askedAt}>
+          {askedAtLabel(detail.askedAt)}
+        </time>
       </div>
       <div className="monitoring-drawer-head">
         <QuestionAttributionBubble
@@ -1067,9 +1070,6 @@ export function QuestionDrawer({
           <X className="size-3" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </Button>
-      </div>
-      <div className="monitoring-drawer-meta-row">
-        <p className="monitoring-drawer-meta">{askedAtLabel(detail.askedAt)}</p>
       </div>
       {detail.conditioning ? (
         /* One line where the content would have been, in the same type as the

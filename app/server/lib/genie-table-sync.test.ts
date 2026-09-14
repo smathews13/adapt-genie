@@ -97,6 +97,22 @@ describe('Genie table scope sync', () => {
     expect(new Headers(call.mock.calls[0]?.[1]?.headers).get('authorization')).toBe('Bearer user-token');
   });
 
+  it('reports existing model-scope tables as already synced', async () => {
+    const query = vi.fn((statement: string) =>
+      Promise.resolve({ rows: statement.includes('SELECT id, label, kind') ? [] : [] })
+    );
+    const result = await syncGenieTables({
+      store: { lakebase: { query } } as LakebaseReader,
+      spaceId: 'space-1',
+      actor: 'admin@example.test',
+      existingScope: ['catalog.sales.orders', 'catalog.sales.customers', 'catalog.sales.revenue_metrics'],
+      reader: () => Promise.resolve({ serialized_space: SERIALIZED }),
+    });
+
+    expect(result).toMatchObject({ status: 'up-to-date', discovered: 3, added: 0 });
+    expect(result.detail).toBe('All 3 Genie sources are already in scope.');
+  });
+
   it('reports the permission the signed-in user needs beside the sync control', async () => {
     const result = await syncGenieTables({
       store: { lakebase: { query: vi.fn() } } as LakebaseReader,

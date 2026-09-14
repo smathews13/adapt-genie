@@ -1159,6 +1159,8 @@ describe('the detail modal', () => {
     expect(markup).toContain('MLflow <span class="ast-num">tr-123456789</span>');
     expect(markup).toContain('Conversation <span class="ast-num">c1</span>');
     expect(markup).toContain('Run <span class="ast-num">2</span>');
+    expect(markup).toContain('<time class="monitoring-context-badge" dateTime="2026-08-15T06:40:00Z">');
+    expect(markup).not.toContain('monitoring-drawer-meta-row');
     expect(markup).not.toContain('Open in Run Explorer');
 
     expect(context).toBeLessThan(question);

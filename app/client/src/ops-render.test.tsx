@@ -342,7 +342,7 @@ describe('the Cost Tracking user-spend cross-link', () => {
     const markup = markupOf(
       <CostBody block={block(cost())} userMonitoringHref="/monitoring?range=30d&users=1&userUnit=DBU" />
     );
-    expect(text(markup)).toContain('See per-user spend');
+    expect(text(markup)).toContain('User Monitoring');
     expect(markup).toContain('ops-user-spend-link');
     expect(markup).toContain('lucide-users');
     expect(markup).toContain('/monitoring?range=30d');
@@ -351,7 +351,7 @@ describe('the Cost Tracking user-spend cross-link', () => {
   });
 
   it('renders no user enumeration action when no admin-authorized link is supplied', () => {
-    expect(text(markupOf(<CostBody block={block(cost())} />))).not.toContain('See per-user spend');
+    expect(text(markupOf(<CostBody block={block(cost())} />))).not.toContain('User Monitoring');
   });
 });
 
@@ -1495,7 +1495,8 @@ describe('the cost block', () => {
     expect(appControlRow).toContain('ops-budget-apply');
     expect(appControlRow).toContain('ops-app-budget-status');
     expect(text(appControlRow)).toContain('Recent monthly spend Jul 2026 $30.00 Jun 2026 — May 2026 $0.00');
-    expect(OPS_STYLES).toMatch(/\.ops-app-budget-status\s*\{[^}]*padding-left:\s*12px/s);
+    expect(OPS_STYLES).toMatch(/\.ops-app-budget-status\s*\{[^}]*padding-left:\s*24px/s);
+    expect(OPS_STYLES).toMatch(/\.ops-cost-total \.ops-budget-apply\s*\{[^}]*width:\s*72px/s);
     expect(text(appControlRow)).not.toContain('Month to date');
     expect(appEditor).not.toContain('ops-ticker-assumption-helper');
     expect(markup).toContain('aria-label="Serving endpoint monthly budget in USD"');
@@ -1627,6 +1628,9 @@ describe('the cost block', () => {
     expect(markup).toContain('aria-label="Cost period from 2026-08-08 through 2026-08-14"');
     expect(markup).toContain('dateTime="2026-08-14"');
     expect(markup).toContain('Aug 14, 2026');
+    expect(markup.match(/aria-label="Cost period from 2026-08-08 through 2026-08-14"/g)).toHaveLength(
+      markup.match(/class="ops-tile ops-primary-cost-card(?:\s|")/g)?.length ?? 0
+    );
     expect(text(markup)).not.toContain('Billing through 2026-08-14');
   });
 
@@ -2085,9 +2089,9 @@ describe('the cost block', () => {
       primaryGrid.indexOf('ops-primary-cost-card--concise'),
       primaryGrid.indexOf('Ask SQL')
     );
-    expect(text(foundationCard)).toContain(
-      'Foundation model tokens Estimated 0.42 USD 1,265,000 total tokens foundation-endpoint-id'
-    );
+    expect(text(foundationCard)).toContain('Foundation model tokens Estimated 0.42 USD 1,265,000 total tokens');
+    expect(text(foundationCard)).toContain('Aug 8, 2026 – Aug 14, 2026');
+    expect(text(foundationCard)).toContain('foundation-endpoint-id');
     expect(text(foundationCard)).not.toMatch(
       /Interactive Ask tokens|Ask model calls|input|output|Cache|missing evidence/
     );

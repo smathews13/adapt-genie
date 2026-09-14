@@ -217,6 +217,7 @@ describe('what /api/settings makes of this release, without asking the agent', (
     );
     expect(source).toContain('reader: userGenieControlPlaneReader({');
     expect(source).toContain('token: executionToken(req)');
+    expect(source).toContain('existingScope: accessDependenciesFrom({');
   });
 
   it('unions configured and discovered tables even when their counts do not grow', () => {

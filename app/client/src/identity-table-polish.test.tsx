@@ -64,18 +64,19 @@ describe('Identity table polish', () => {
     expect(CSS).toMatch(
       /\.settings-table-frame \{[^}]*max-width:\s*100%[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s
     );
-    expect(CSS).toMatch(/\.roles-table \{[^}]*min-width:\s*898px/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-organization-column \{[^}]*width:\s*220px/s);
+    expect(CSS).toMatch(/\.roster-frame \{[^}]*overflow-x:\s*hidden[^}]*scrollbar-width:\s*none/s);
+    expect(CSS).toMatch(/\.roles-table \{[^}]*width:\s*100%[^}]*min-width:\s*0/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-organization-column \{[^}]*width:\s*200px/s);
     expect(CSS).not.toMatch(/\.roles-table--editable \.roster-set-by-column/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*196px/s);
-    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*110px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-role-column \{[^}]*width:\s*170px/s);
+    expect(CSS).toMatch(/\.roles-table--editable \.roster-action-column \{[^}]*width:\s*64px/s);
     expect(CSS).toMatch(
       /\.settings-modal-content \{[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s
     );
     expect(RESPONSIVE).toMatch(/@media \(max-width:\s*800px\)[\s\S]*\.settings-modal-content \{[^}]*padding:\s*14px/s);
   });
 
-  it('keeps the Actions column and its controls pinned inside the table frame', () => {
+  it('keeps the Actions column inside the table flow without a clipping overlay', () => {
     const markup = roster();
     expect(markup).toContain('settings-actions-table');
     expect(markup).toContain('<th scope="col">Actions</th>');
@@ -84,12 +85,11 @@ describe('Identity table polish', () => {
     );
     expect(markup).toContain('data-variant="destructive"');
     expect(markup).toMatch(/title="Delete role assignment"[\s\S]*roster-action-icon[\s\S]*<\/button>/);
-    expect(CSS).toMatch(
-      /\.settings-actions-table th:last-child,\s*\.settings-actions-table td:last-child \{[^}]*position:\s*sticky[^}]*right:\s*0/s
-    );
+    expect(CSS).toMatch(/\.roles-table\.settings-actions-table th:last-child \{[^}]*position:\s*static/s);
+    expect(CSS).toMatch(/\.roles-table\.settings-actions-table td:last-child \{[^}]*position:\s*static/s);
     expect(CSS).toMatch(/\.settings-actions-table td:last-child \{[^}]*white-space:\s*nowrap/s);
     expect(CSS).toMatch(
-      /\.roles-table\.settings-actions-table th:last-child \{[^}]*background:\s*var\(--roster-header-surface\)[^}]*box-shadow:\s*-1px 0 0 var\(--border\)/s
+      /\.roles-table\.settings-actions-table th:last-child \{[^}]*background:\s*var\(--roster-header-surface\)[^}]*box-shadow:\s*none/s
     );
   });
 

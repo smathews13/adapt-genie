@@ -907,6 +907,8 @@
   border-radius: var(--radius-md);
   background: var(--roster-panel-surface);
   box-shadow: 0 1px 2px color-mix(in oklab, var(--db-ink-deep) 10%, transparent);
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
 
 .settings-table-frame::-webkit-scrollbar {
@@ -1058,7 +1060,8 @@
 }
 
 .roles-table {
-  min-width: 898px;
+  width: 100%;
+  min-width: 0;
 }
 
 .roles-table--editable .roster-email-column {
@@ -1066,15 +1069,15 @@
 }
 
 .roles-table--editable .roster-organization-column {
-  width: 220px;
+  width: 200px;
 }
 
 .roles-table--editable .roster-role-column {
-  width: 196px;
+  width: 170px;
 }
 
 .roles-table--editable .roster-action-column {
-  width: 110px;
+  width: 64px;
 }
 
 .roles-table--assignment-only {
@@ -1249,9 +1252,18 @@
 }
 
 .roles-table.settings-actions-table th:last-child {
+  position: static;
+  right: auto;
+  z-index: auto;
   text-align: center;
   background: var(--roster-header-surface);
-  box-shadow: -1px 0 0 var(--border);
+  box-shadow: none;
+}
+
+.roles-table.settings-actions-table td:last-child {
+  position: static;
+  right: auto;
+  z-index: auto;
 }
 
 .roles-table td {

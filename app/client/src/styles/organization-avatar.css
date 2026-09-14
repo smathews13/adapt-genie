@@ -14,6 +14,7 @@
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
+  line-height: 0;
 }
 
 .roster-organization-mark--branded {
@@ -40,8 +41,10 @@
 .roster-databricks-symbol {
   width: 19px;
   height: 19px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
 }
 
 .roster-organization-logo-image {
@@ -49,6 +52,7 @@
   height: 19px;
   display: block;
   object-fit: contain;
+  object-position: center;
 }
 
 .roster-organization-logo svg,

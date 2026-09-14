@@ -94,6 +94,7 @@ export async function syncGenieTables(input: {
   store: LakebaseReader;
   spaceId: string;
   actor: string;
+  existingScope?: readonly string[];
   reader?: ControlPlaneReader;
   now?: Date;
 }): Promise<GenieTableSyncResult> {
@@ -120,6 +121,7 @@ export async function syncGenieTables(input: {
       };
     }
     const existing = await readDeclaredConnections(input.store);
+    const alreadyInScope = new Set((input.existingScope ?? []).map((name) => name.trim().toLocaleLowerCase()));
     const byName = new Map(
       existing
         .filter((entry) => entry.resourceType === 'table')
@@ -127,6 +129,7 @@ export async function syncGenieTables(input: {
     );
     let added = 0;
     for (const table of tables) {
+      if (alreadyInScope.has(table.identifier.toLocaleLowerCase())) continue;
       const prior = byName.get(table.identifier.toLocaleLowerCase());
       if (prior?.state === 'declared') continue;
       await writeDeclaredConnection(input.store, {
@@ -146,7 +149,10 @@ export async function syncGenieTables(input: {
       spaceId,
       discovered: tables.length,
       added,
-      detail: added > 0 ? `${added} new Genie ${added === 1 ? 'source was' : 'sources were'} added to scope.` : '',
+      detail:
+        added > 0
+          ? `${added} new Genie ${added === 1 ? 'source was' : 'sources were'} added to scope.`
+          : `All ${tables.length} Genie ${tables.length === 1 ? 'source is' : 'sources are'} already in scope.`,
       syncedAt,
     };
   } catch (error) {

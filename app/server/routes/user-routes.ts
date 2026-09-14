@@ -64,10 +64,10 @@ import type { Request, Response } from 'express';
 import { parseOrganizationMappings } from '../../shared/organization-mapping';
 import { deploymentOwnerEmail } from '../lib/app-deployment-lifetime';
 import {
-  ADAPT_ADMIN_GROUP,
-  ADAPT_ADMIN_GROUP_LABEL,
-  ADAPT_USER_GROUP,
-  ADAPT_USER_GROUP_LABEL,
+  adaptAdminGroup,
+  adaptAdminGroupLabel,
+  adaptUserGroup,
+  adaptUserGroupLabel,
   groupRoleForRequest,
   seedRolesWithGroupFloors,
   type GroupRoleLookup,
@@ -179,6 +179,8 @@ export function setupUserRoutes(
   const readGroupRole = deps.readGroupRole ?? groupRoleLookupForStore(appkit.lakebase);
   const readGroupMembers = deps.readGroupMembers ?? readAdaptGroupMembers;
   const confirmWorkspaceGroup = deps.readWorkspaceGroup ?? readWorkspaceGroup;
+  const adminGroup = adaptAdminGroup();
+  const userGroup = adaptUserGroup();
   const roleFloors = (req: Request, rows: readonly StoredRole[], extra: readonly string[] = []) => {
     const base = seedRoles();
     return seedRolesWithGroupFloors(base, [...rows.map((row) => row.email), ...extra], (email) =>
@@ -186,8 +188,8 @@ export function setupUserRoutes(
     );
   };
   const configuredGroups = [
-    { displayName: ADAPT_ADMIN_GROUP_LABEL, groupName: ADAPT_ADMIN_GROUP, role: 'admin' as const },
-    { displayName: ADAPT_USER_GROUP_LABEL, groupName: ADAPT_USER_GROUP, role: 'consumer' as const },
+    { displayName: adaptAdminGroupLabel(), groupName: adminGroup, role: 'admin' as const },
+    { displayName: adaptUserGroupLabel(), groupName: userGroup, role: 'consumer' as const },
   ];
   const isConfiguredGroup = (name: string) =>
     configuredGroups.some((group) => group.groupName.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
@@ -241,7 +243,7 @@ export function setupUserRoutes(
 
     app.get('/api/users/groups/:groupName/members', async (req, res) => {
       const requested = req.params.groupName.trim();
-      let allowed = [ADAPT_ADMIN_GROUP, ADAPT_USER_GROUP].find(
+      let allowed = [adminGroup, userGroup].find(
         (group) => group.toLocaleLowerCase() === requested.toLocaleLowerCase()
       );
       if (!allowed) {

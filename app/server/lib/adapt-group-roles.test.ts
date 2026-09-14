@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ADAPT_ADMIN_GROUP,
-  ADAPT_USER_GROUP,
+  adaptAdminGroup,
+  adaptUserGroup,
   adaptGroupRole,
   configuredGroupRoleMappings,
   forgetAdaptGroupRoles,
@@ -38,22 +38,21 @@ describe('ADAPT group roles', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it('has no customer group fallback before release configuration is restored', () => {
-    expect(ADAPT_ADMIN_GROUP).toBe('');
-    expect(ADAPT_USER_GROUP).toBe('');
+    expect(adaptAdminGroup()).toBe('');
+    expect(adaptUserGroup()).toBe('');
     expect(configuredGroupRoleMappings()).toEqual([]);
     expect(roleFromAdaptGroups([ADMIN_GROUP])).toBeNull();
     expect(roleFromGroupMappings([ADMIN_GROUP], MAPPINGS)).toBe('admin');
     expect(roleFromGroupMappings([USER_GROUP], MAPPINGS)).toBe('consumer');
   });
 
-  it('honors customer-specific group overrides from the deployment', async () => {
+  it('reads customer-specific group overrides after startup recovery', () => {
     vi.stubEnv('ADAPT_ADMIN_GROUP', 'customer-adapt-admins');
     vi.stubEnv('ADAPT_USER_GROUP', 'customer-adapt-users');
-    vi.resetModules();
-    const configured = await import('./adapt-group-roles');
-    expect(configured.roleFromAdaptGroups(['customer-adapt-admins'])).toBe('admin');
-    expect(configured.roleFromAdaptGroups(['customer-adapt-users'])).toBe('consumer');
-    vi.resetModules();
+    expect(adaptAdminGroup()).toBe('customer-adapt-admins');
+    expect(adaptUserGroup()).toBe('customer-adapt-users');
+    expect(roleFromAdaptGroups(['customer-adapt-admins'])).toBe('admin');
+    expect(roleFromAdaptGroups(['customer-adapt-users'])).toBe('consumer');
   });
 
   it('gives the admin group precedence when a person belongs to both groups', () => {

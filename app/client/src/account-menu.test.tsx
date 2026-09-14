@@ -165,7 +165,7 @@ describe('account menu', () => {
   it('offers GitHub alone until a deployment supplies a validated Slack target', () => {
     const githubOnly = renderToStaticMarkup(<AccountFeedbackChoices targets={accountFeedbackTargets()} />);
     expect(githubOnly).toContain('GitHub issue');
-    expect(githubOnly).toContain('https://github.com/manish-namburi_data/adapt-genie/issues/new');
+    expect(githubOnly).toContain('https://github.com/smathews13/adapt-genie/issues/new');
     expect(githubOnly.match(/target="_blank"/g)).toHaveLength(1);
     expect(githubOnly).toContain('lucide-github');
     expect(githubOnly).not.toContain('lucide-slack');

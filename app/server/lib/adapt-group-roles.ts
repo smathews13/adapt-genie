@@ -3,11 +3,22 @@ import type { SeedRoles } from './user-roster';
 import { ExpiringLruCache } from './expiring-lru';
 import { SCIM_USERS_PATH, workspaceControlPlaneReader, type ControlPlaneReader } from './control-plane-identity';
 
-/** ADAPT's customer-managed identity groups, restored or recovered before import. */
-export const ADAPT_ADMIN_GROUP = process.env.ADAPT_ADMIN_GROUP?.trim() || '';
-export const ADAPT_USER_GROUP = process.env.ADAPT_USER_GROUP?.trim() || '';
-export const ADAPT_ADMIN_GROUP_LABEL = process.env.ADAPT_ADMIN_GROUP_LABEL?.trim() || ADAPT_ADMIN_GROUP;
-export const ADAPT_USER_GROUP_LABEL = process.env.ADAPT_USER_GROUP_LABEL?.trim() || ADAPT_USER_GROUP;
+/** Read after Git recovery; bundling may evaluate this module before startup restoration. */
+export function adaptAdminGroup(): string {
+  return process.env.ADAPT_ADMIN_GROUP?.trim() || '';
+}
+
+export function adaptUserGroup(): string {
+  return process.env.ADAPT_USER_GROUP?.trim() || '';
+}
+
+export function adaptAdminGroupLabel(): string {
+  return process.env.ADAPT_ADMIN_GROUP_LABEL?.trim() || adaptAdminGroup();
+}
+
+export function adaptUserGroupLabel(): string {
+  return process.env.ADAPT_USER_GROUP_LABEL?.trim() || adaptUserGroup();
+}
 
 const GROUP_ROLE_TTL_MS = 60_000;
 const GROUP_ROLE_CACHE_MAX_ENTRIES = 512;
@@ -59,8 +70,8 @@ export function scimGroupNames(body: unknown, email: string): string[] {
  */
 export function configuredGroupRoleMappings(): GroupRoleMapping[] {
   const mappings: GroupRoleMapping[] = [
-    { groupName: ADAPT_ADMIN_GROUP, role: 'admin' },
-    { groupName: ADAPT_USER_GROUP, role: 'consumer' },
+    { groupName: adaptAdminGroup(), role: 'admin' },
+    { groupName: adaptUserGroup(), role: 'consumer' },
   ];
   return mappings.filter((mapping) => mapping.groupName);
 }

@@ -70,8 +70,8 @@ export function scimGroupNames(body: unknown, email: string): string[] {
  */
 export function configuredGroupRoleMappings(): GroupRoleMapping[] {
   const mappings: GroupRoleMapping[] = [
-    { groupName: adaptAdminGroup(), role: 'admin' },
-    { groupName: adaptUserGroup(), role: 'consumer' },
+    { groupName: adaptAdminGroupLabel(), role: 'admin' },
+    { groupName: adaptUserGroupLabel(), role: 'consumer' },
   ];
   return mappings.filter((mapping) => mapping.groupName);
 }

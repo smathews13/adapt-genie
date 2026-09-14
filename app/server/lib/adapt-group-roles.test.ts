@@ -55,6 +55,17 @@ describe('ADAPT group roles', () => {
     expect(roleFromAdaptGroups(['customer-adapt-users'])).toBe('consumer');
   });
 
+  it('uses the exact displayed group names as the authorization mappings', () => {
+    vi.stubEnv('ADAPT_ADMIN_GROUP', '');
+    vi.stubEnv('ADAPT_USER_GROUP', '');
+    vi.stubEnv('ADAPT_ADMIN_GROUP_LABEL', 'S_TK2_Databricks_Adapt_Genie_Admins');
+    vi.stubEnv('ADAPT_USER_GROUP_LABEL', 'S_TK2_Databricks_Adapt_Genie_Users');
+    expect(configuredGroupRoleMappings()).toEqual([
+      { groupName: 'S_TK2_Databricks_Adapt_Genie_Admins', role: 'admin' },
+      { groupName: 'S_TK2_Databricks_Adapt_Genie_Users', role: 'consumer' },
+    ]);
+  });
+
   it('gives the admin group precedence when a person belongs to both groups', () => {
     expect(roleFromGroupMappings([USER_GROUP, ADMIN_GROUP], MAPPINGS)).toBe('admin');
   });

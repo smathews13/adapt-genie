@@ -2274,7 +2274,7 @@ export function ConnectionsPage() {
    * disagree with the row above it about one app.
    */
   const build = buildFacts({
-    appBuildSha: payload?.appBuildSha ?? '',
+    appBuildSha: payload?.app?.source.gitRef ?? payload?.appBuildSha ?? '',
     modelBuildSha: payload?.modelBuildSha ?? '',
     appBuildAncestors: payload?.appBuildAncestors ?? [],
     appServing: payload?.app?.serving,

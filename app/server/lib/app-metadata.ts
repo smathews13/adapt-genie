@@ -269,7 +269,7 @@ export function appFacts(input: {
   const sourcePath = gitBacked ? textOf(gitSource.source_code_path) : textOf(deployment.source_code_path);
   const appName = textOf(body.name);
   const workspaceHost = normalizeWorkspaceHost(input.workspaceHost);
-  const gitRef = textOf(gitSource.branch) || textOf(gitSource.tag) || textOf(gitSource.commit);
+  const gitRef = textOf(gitSource.commit) || textOf(gitSource.tag) || textOf(gitSource.branch);
   const workspaceId = textOf(input.workspaceId) || workspaceIdFromAppUrl(appUrl);
   // Never for a Git deployment, whatever id it was handed: see
   // `sourceFolderPath` for why a workspace path on a Git-sourced app is the

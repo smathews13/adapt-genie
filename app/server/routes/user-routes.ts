@@ -64,9 +64,7 @@ import type { Request, Response } from 'express';
 import { parseOrganizationMappings } from '../../shared/organization-mapping';
 import { deploymentOwnerEmail } from '../lib/app-deployment-lifetime';
 import {
-  adaptAdminGroup,
   adaptAdminGroupLabel,
-  adaptUserGroup,
   adaptUserGroupLabel,
   groupRoleForRequest,
   seedRolesWithGroupFloors,
@@ -179,8 +177,8 @@ export function setupUserRoutes(
   const readGroupRole = deps.readGroupRole ?? groupRoleLookupForStore(appkit.lakebase);
   const readGroupMembers = deps.readGroupMembers ?? readAdaptGroupMembers;
   const confirmWorkspaceGroup = deps.readWorkspaceGroup ?? readWorkspaceGroup;
-  const adminGroup = adaptAdminGroup();
-  const userGroup = adaptUserGroup();
+  const adminGroup = adaptAdminGroupLabel();
+  const userGroup = adaptUserGroupLabel();
   const roleFloors = (req: Request, rows: readonly StoredRole[], extra: readonly string[] = []) => {
     const base = seedRoles();
     return seedRolesWithGroupFloors(base, [...rows.map((row) => row.email), ...extra], (email) =>

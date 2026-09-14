@@ -195,8 +195,8 @@ describe('release runtime configuration persistence', () => {
       appUserApiScopes: ['sql', 'dashboards.genie', 'catalog.tables:read'],
       telemetrySchema: 'customer_app_catalog.adapt_telemetry',
       confirmedAuthoredGroups: {
-        admin: 'S_TK2_Databricks_adapt_genie_admins',
-        user: 'S_TK2_Databricks_adapt_genie_users',
+        admin: 'S_TK2_Databricks_Adapt_Genie_Admins',
+        user: 'S_TK2_Databricks_Adapt_Genie_Users',
       },
     });
 
@@ -210,8 +210,8 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
       PLAYER_INSIGHTS_TELEMETRY_SCHEMA: 'customer_app_catalog.adapt_telemetry',
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
-      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
-      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
     });
     expect(recovered).not.toHaveProperty('ADAPT_ADMIN_GROUP_LABEL');
     expect(recovered).not.toHaveProperty('ADAPT_USER_GROUP_LABEL');
@@ -258,8 +258,8 @@ describe('release runtime configuration persistence', () => {
     const env: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',
       LAKEBASE_ENDPOINT: 'projects/example/branches/production',
-      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
-      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
     };
     const recovered = {
       PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
@@ -274,11 +274,42 @@ describe('release runtime configuration persistence', () => {
     await expect(
       restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))
     ).resolves.toBeGreaterThan(0);
-    expect(env.ADAPT_ADMIN_GROUP).toBe('S_TK2_Databricks_adapt_genie_admins');
-    expect(env.ADAPT_USER_GROUP).toBe('S_TK2_Databricks_adapt_genie_users');
+    expect(env.ADAPT_ADMIN_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Admins');
+    expect(env.ADAPT_USER_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Users');
     expect(JSON.parse(persisted)).toMatchObject({
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
+    });
+  });
+
+  it('canonicalizes the retired lowercase Take-Two group names in an existing snapshot', async () => {
+    const snapshot = {
+      PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
+      PLAYER_INSIGHTS_SCHEMA: 'sales',
+      PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.txn_steam_sales_with_analytics',
+      PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
+      PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql',
+      PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
       ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
       ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+      ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_admins',
+      ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_users',
+    };
+    const env: Record<string, string | undefined> = {
+      PLAYER_INSIGHTS_TARGET: '',
+      LAKEBASE_ENDPOINT: 'projects/example/branches/production',
+    };
+    const recover = vi.fn(() => Promise.resolve({}));
+
+    await restoreReleaseEnvironment(readingStore(JSON.stringify(snapshot)), env, recover);
+
+    expect(recover).not.toHaveBeenCalled();
+    expect(env).toMatchObject({
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
+      ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Users',
     });
   });
 
@@ -323,8 +354,8 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql,dashboards.genie,catalog.tables:read',
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
       PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL: 'true',
-      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
-      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
       ADAPT_ADMIN_GROUP_LABEL: 'ADAPT administrators',
       ADAPT_USER_GROUP_LABEL: 'ADAPT users',
     };

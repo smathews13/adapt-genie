@@ -47,10 +47,10 @@ describe('Genie billing classification', () => {
       },
       SPACES
     );
-    expect(built?.statement).toContain('usage_metadata.genie.surface');
-    expect(built?.statement).toContain('usage_metadata.genie.channel');
-    expect(built?.statement).toContain('product_features.genie.offering_type');
-    expect(built?.statement).toContain('identity_metadata.run_as');
+    expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.genie.surface')");
+    expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.genie.channel')");
+    expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.product_features), '$.genie.offering_type')");
+    expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.identity_metadata), '$.run_as')");
     expect(built?.statement).toContain("DATE_TRUNC('MONTH', :through_day)");
     expect(built?.statement).toContain("LEAST(:from_day, DATE_TRUNC('MONTH', :through_day))");
     expect(built?.statement).toContain('query_source.genie_space_id');

@@ -430,12 +430,12 @@ describe('the chart panel is a panel on this card, not a second page', () => {
 
   it('keeps all three interactions the removed line described', () => {
     // Deleting the caption must not delete the behaviour it narrated. These are
-    // the affordances a reader still has, and the mode bar is what discloses
-    // them now, so the buttons that reset and zoom may not be stripped from it.
+    // Customer answer charts are static evidence, so no Plotly controls may
+    // overlay the result.
     const plot = readFileSync(new URL('./plotly-config.ts', import.meta.url), 'utf8');
-    expect(plot).toContain("doubleClick: 'reset'");
-    expect(plot).toContain("displayModeBar: 'hover'");
-    expect(plot).not.toMatch(/resetScale2d|zoom2d|pan2d/);
+    expect(plot).toContain('doubleClick: false');
+    expect(plot).toContain('displayModeBar: false');
+    expect(plot).toContain('staticPlot: true');
   });
 
   it('holds the plot and the skeleton at the same one number', () => {

@@ -1,7 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Skeleton } from './ui';
 import { AnswerOriginLinks } from './DataEntityLinks';
-import { renderableCharts, type Chart } from './answer-chart-data';
+import { limitChartResults, renderableCharts, type Chart } from './answer-chart-data';
 import { figureSources } from './answer-table-origins';
 import type { SourceRef } from './answer-shape';
 
@@ -124,7 +124,7 @@ function ChartPanel({ chart, onFailure }: { chart: Chart; onFailure?: () => void
         <Suspense fallback={<Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}>
           <PlotlyFigure
             kind={chart.kind}
-            data={chart.data}
+            data={limitChartResults(chart)}
             layout={chart.layout}
             title={name}
             height={CHART_HEIGHT}

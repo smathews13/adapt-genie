@@ -30,7 +30,7 @@ describe('watchlist settings and rail', () => {
   it('renders governed trend states and contains no demo percentages', () => {
     const home = readFileSync(new URL('./HomePage.tsx', import.meta.url), 'utf8');
     const settings = readFileSync(new URL('./WatchlistSettingsPanel.tsx', import.meta.url), 'utf8');
-    expect(home).toContain("fetch('/api/watchlist-trends')");
+    expect(home).toContain("fetchWithTimeout('/api/watchlist-trends', {}, 40_000)");
     expect(home).toContain('WATCHLIST_METRIC_LABEL');
     expect(home).not.toContain('className="insight-watch-metric"');
     expect(home).toContain('Source table');

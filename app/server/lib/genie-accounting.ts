@@ -101,10 +101,10 @@ genie_usage AS (
     u.usage_unit,
     u.usage_quantity,
     COALESCE(u.record_type, 'ORIGINAL') AS record_type,
-    NULLIF(TRIM(u.identity_metadata.run_as), '') AS run_as,
-    NULLIF(UPPER(TRIM(u.usage_metadata.genie.surface)), '') AS surface,
-    NULLIF(UPPER(TRIM(u.usage_metadata.genie.channel)), '') AS channel,
-    NULLIF(UPPER(TRIM(u.product_features.genie.offering_type)), '') AS offering_type
+    NULLIF(TRIM(GET_JSON_OBJECT(TO_JSON(u.identity_metadata), '$.run_as')), '') AS run_as,
+    NULLIF(UPPER(TRIM(GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.genie.surface'))), '') AS surface,
+    NULLIF(UPPER(TRIM(GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.genie.channel'))), '') AS channel,
+    NULLIF(UPPER(TRIM(GET_JSON_OBJECT(TO_JSON(u.product_features), '$.genie.offering_type'))), '') AS offering_type
   FROM system.billing.usage u
   WHERE u.billing_origin_product = 'GENIE'
     AND u.workspace_id = :workspaceId

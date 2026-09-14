@@ -63,9 +63,22 @@ const VALIDATED_RECOVERY_KEYS: readonly ReleaseEnvironmentKey[] = [
 ];
 
 const TRUSTED_GIT_GROUP_DEFAULTS: Partial<Record<ReleaseEnvironmentKey, string>> = {
+  ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
+  ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
+  ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Admins',
+  ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Users',
+};
+
+const RETIRED_GIT_GROUP_DEFAULTS: Partial<Record<ReleaseEnvironmentKey, string>> = {
   ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
   ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+  ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_admins',
+  ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_users',
 };
+
+function canonicalReleaseValue(key: ReleaseEnvironmentKey, value: string): string {
+  return RETIRED_GIT_GROUP_DEFAULTS[key] === value ? (TRUSTED_GIT_GROUP_DEFAULTS[key] ?? value) : value;
+}
 
 function trustedGitGroupDefaults(
   env: Record<string, string | undefined>
@@ -112,7 +125,9 @@ function parsedSnapshot(value: string | null): Partial<Record<ReleaseEnvironment
     return Object.fromEntries(
       RELEASE_ENVIRONMENT_KEYS.flatMap((key) => {
         const value = source[key];
-        return typeof value === 'string' && value.trim() ? [[key, value.trim()] as const] : [];
+        return typeof value === 'string' && value.trim()
+          ? [[key, canonicalReleaseValue(key, value.trim())] as const]
+          : [];
       })
     );
   } catch {

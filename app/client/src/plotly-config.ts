@@ -1,12 +1,13 @@
 import type { PlotConfig, PlotData, PlotLayout } from 'plotly.js-cartesian-dist-min';
 import { egressPathAllowed } from './egress-policy';
 
-export const FIGURE_CONFIG: PlotConfig = {
+export const FIGURE_CONFIG: PlotConfig & { staticPlot: true } = {
   displaylogo: false,
-  displayModeBar: 'hover',
+  displayModeBar: false,
+  staticPlot: true,
   responsive: true,
   scrollZoom: false,
-  doubleClick: 'reset',
+  doubleClick: false,
   editable: false,
   showAxisRangeEntryBoxes: false,
   showEditInChartStudio: false,

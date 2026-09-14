@@ -631,6 +631,11 @@ describe('the inspector while a run is still going', () => {
     );
   });
 
+  it('renders the first answer from the raw wire response instead of normalizing it twice', () => {
+    expect(HOME_PAGE).toContain('response_json: body');
+    expect(HOME_PAGE).not.toContain('response_json: result,');
+  });
+
   it('does not relabel a stored Complete turn as Partial only because it was truncated', () => {
     expect(HOME_PAGE).toContain('title={`Latest turn: ${summary.status}`}');
     expect(HOME_PAGE).toContain('{summary.status}');

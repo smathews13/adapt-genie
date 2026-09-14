@@ -200,10 +200,10 @@ billing AS (
     AND u.usage_date >= :from_day
     AND u.usage_date <= :to_day
     ${range.fromTimestamp ? 'AND u.usage_start_time >= :from_instant' : ''}
-    AND REGEXP_REPLACE(LOWER(u.usage_metadata.endpoint_name), '[^a-z0-9]', '') =
+    AND REGEXP_REPLACE(LOWER(GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name')), '[^a-z0-9]', '') =
         REGEXP_REPLACE(LOWER(:foundationModel), '[^a-z0-9]', '')
     AND u.billing_origin_product IN ('MODEL_SERVING', 'AI_GATEWAY')
-    AND u.usage_metadata.endpoint_name <> :agentEndpoint
+    AND COALESCE(GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name'), '') <> :agentEndpoint
 ),
 price_hits AS (
   SELECT

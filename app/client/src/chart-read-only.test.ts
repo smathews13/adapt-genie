@@ -124,22 +124,15 @@ describe('nothing a reader sees in a chart accepts a keystroke', () => {
   });
 });
 
-describe('the reading interactions the design asks for are untouched', () => {
-  it('keeps the tooltip, drag to zoom and double-click to reset', () => {
-    // The trade that mattered while closing the write path: none of these share a
-    // gate with editing, so nothing had to be given up. `staticPlot` would have taken
-    // all three at once and is the wrong fix.
-    expect(FIGURE_CONFIG.doubleClick).toBe('reset');
-    expect(FIGURE_CONFIG.displayModeBar).toBe('hover');
-    expect(FIGURE_CONFIG).not.toHaveProperty('staticPlot');
-    expect(SOURCE).not.toContain('staticPlot');
+describe('answer charts are static evidence', () => {
+  it('removes zoom, pan, reset, hover controls, and the entire mode bar', () => {
+    expect(FIGURE_CONFIG.doubleClick).toBe(false);
+    expect(FIGURE_CONFIG.displayModeBar).toBe(false);
+    expect(FIGURE_CONFIG.staticPlot).toBe(true);
   });
 
-  it('leaves the axis drag handles alone, which is what the entry box shared a click with', () => {
-    // `showAxisRangeEntryBoxes` fires on a single click on an axis handle; the drag
-    // behaviour on that same handle is `showAxisDragHandles` and is a different flag.
-    // Closing the first must not close the second.
-    expect(FIGURE_CONFIG.showAxisDragHandles ?? true).toBe(true);
+  it('does not expose axis drag handles', () => {
+    expect(FIGURE_CONFIG.staticPlot).toBe(true);
   });
 
   it('strips no button a reader inspects the figure with', () => {

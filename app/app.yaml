@@ -99,19 +99,19 @@ env:
   - name: PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL
     value: 'false'
   # Take-Two's exact workspace groups. Keep their case: SCIM names are exact and
-  # changing `adapt_genie` to `Adapt_Genie` breaks the group link. Bundle
+  # changing `Adapt_Genie` to lowercase breaks the group link. Bundle
   # releases may replace these for a different target.
   - name: ADAPT_ADMIN_GROUP
-    value: 'S_TK2_Databricks_adapt_genie_admins'
+    value: 'S_TK2_Databricks_Adapt_Genie_Admins'
   - name: ADAPT_USER_GROUP
-    value: 'S_TK2_Databricks_adapt_genie_users'
+    value: 'S_TK2_Databricks_Adapt_Genie_Users'
   # Customer-facing group names shown in Identity. A shared demo workspace may
   # map these labels through generic workspace groups while preserving the
   # Take-Two access model the app is demonstrating.
   - name: ADAPT_ADMIN_GROUP_LABEL
-    value: 'S_TK2_Databricks_adapt_genie_admins'
+    value: 'S_TK2_Databricks_Adapt_Genie_Admins'
   - name: ADAPT_USER_GROUP_LABEL
-    value: 'S_TK2_Databricks_adapt_genie_users'
+    value: 'S_TK2_Databricks_Adapt_Genie_Users'
   # Greenfield role bootstrap: a comma-separated list of email addresses.
   # The app writes these roles to Lakebase only when the roster is genuinely
   # empty. Once any role row exists, this value is ignored forever: absence or a

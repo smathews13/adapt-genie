@@ -387,9 +387,14 @@ describe('foundation billing query contract', () => {
     expect(built?.statement).not.toContain("LIKE '%CACHE%READ%' THEN 0");
     expect(built?.statement).toContain("record_type ILIKE '%CORRECT%'");
     expect(built?.statement).toContain("REGEXP_REPLACE(LOWER(e.endpoint_name), '[^a-z0-9]', '')");
+    expect(built?.statement).toContain(
+      "GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name')"
+    );
     expect(built?.statement).toContain('GROUP BY record_id');
     expect(built?.statement).toContain('MAX(usage_quantity) AS usage_quantity');
-    expect(built?.statement).toContain('u.usage_metadata.endpoint_name <> :agentEndpoint');
+    expect(built?.statement).toContain(
+      "COALESCE(GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name'), '') <> :agentEndpoint"
+    );
     expect(built?.statement).not.toMatch(/input_tokens\s*\+\s*[2-9]\s*\*/);
     expect(built?.parameters.find((parameter) => parameter.name === 'interactive_runs_json')?.value).not.toContain(
       '@example.test'

@@ -187,6 +187,7 @@ import { OrganizationUserBadge } from './OrganizationUserBadge';
 import { organizationForEmail, organizationOptionsForEmails } from '../../shared/organization-mapping';
 import { FeedbackWriteQueue } from './feedback-write-queue';
 import { notifyFeedbackChanged } from './feedback-events';
+import { fetchWithTimeout } from './fetch-timeout';
 
 const ConversationFilters = lazy(() =>
   import('./ConversationFilters').then(({ ConversationFilters: filters }) => ({ default: filters }))
@@ -534,7 +535,7 @@ export function HomePage() {
     let active = true;
     const loadTrends = () => {
       if (active) setWatchlist(null);
-      void fetch('/api/watchlist-trends')
+      void fetchWithTimeout('/api/watchlist-trends', {}, 40_000)
         .then((response) => watchlistTrendsFromResponse(response))
         .then((result) => {
           if (active) setWatchlist(result);
@@ -1367,7 +1368,12 @@ export function HomePage() {
               : result.type === 'clarification'
                 ? result.clarification.question
                 : result.narrative,
-          response_json: result,
+          // Keep the wire body on the optimistic row. `MessageItem` normalizes
+          // every message exactly once; storing the already-normalized result
+          // here made the first paint normalize it a second time and return
+          // null, leaving only the question until a refresh loaded the raw
+          // stored response.
+          response_json: body,
         },
       ]);
       if (approval && result.type === 'plan') {

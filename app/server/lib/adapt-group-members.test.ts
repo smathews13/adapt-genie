@@ -31,7 +31,7 @@ describe('ADAPT workspace group members', () => {
     const reader = vi.fn((path: string) => {
       if (path === SCIM_GROUPS_PATH) {
         return Promise.resolve({
-          Resources: [{ id: 'group-1', displayName: 'S_TK2_Databricks_adapt_genie_users' }],
+          Resources: [{ id: 'group-1', displayName: 'S_TK2_Databricks_Adapt_Genie_Users' }],
         });
       }
       if (path === `${SCIM_GROUPS_PATH}/group-1`) {
@@ -48,8 +48,8 @@ describe('ADAPT workspace group members', () => {
         return Promise.resolve({ userName: 'second@take2games.com', displayName: 'Second User' });
       throw new Error('unexpected read');
     });
-    await expect(readAdaptGroupMembers('S_TK2_Databricks_adapt_genie_users', reader)).resolves.toEqual({
-      groupName: 'S_TK2_Databricks_adapt_genie_users',
+    await expect(readAdaptGroupMembers('S_TK2_Databricks_Adapt_Genie_Users', reader)).resolves.toEqual({
+      groupName: 'S_TK2_Databricks_Adapt_Genie_Users',
       readable: true,
       detail: '',
       members: [

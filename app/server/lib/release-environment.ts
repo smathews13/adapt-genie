@@ -62,6 +62,21 @@ const VALIDATED_RECOVERY_KEYS: readonly ReleaseEnvironmentKey[] = [
   'ADAPT_USER_GROUP',
 ];
 
+const TRUSTED_GIT_GROUP_DEFAULTS: Partial<Record<ReleaseEnvironmentKey, string>> = {
+  ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
+  ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+};
+
+function trustedGitGroupDefaults(
+  env: Record<string, string | undefined>
+): Partial<Record<ReleaseEnvironmentKey, string>> {
+  return Object.fromEntries(
+    Object.entries(TRUSTED_GIT_GROUP_DEFAULTS).flatMap(([key, expected]) =>
+      expected && env[key]?.trim() === expected ? [[key, expected]] : []
+    )
+  );
+}
+
 export class MissingReleaseEnvironmentSnapshot extends Error {
   constructor(readonly missing: readonly ReleaseEnvironmentKey[]) {
     super(
@@ -236,11 +251,13 @@ export async function restoreReleaseEnvironment(
   const snapshotMissing = REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS.filter((key) => !snapshot?.[key]);
   const recovered = snapshotMissing.length > 0 ? await recover() : {};
   const authored = releaseEnvironmentSnapshot(env);
+  const trustedAuthoredGroups = trustedGitGroupDefaults(env);
   if (snapshotMissing.length > 0) {
     for (const key of VALIDATED_RECOVERY_KEYS) delete authored[key];
   }
   const combined = {
     ...authored,
+    ...trustedAuthoredGroups,
     ...recovered,
     ...snapshot,
   };
@@ -255,6 +272,7 @@ export async function restoreReleaseEnvironment(
   }
   if (snapshotMissing.length > 0) {
     const persisted = {
+      ...trustedAuthoredGroups,
       ...recovered,
       ...snapshot,
     };

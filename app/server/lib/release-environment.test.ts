@@ -246,6 +246,42 @@ describe('release runtime configuration persistence', () => {
     expect(failure.missing).toEqual(['ADAPT_ADMIN_GROUP', 'ADAPT_USER_GROUP']);
   });
 
+  it('uses and persists the exact customer-shared Git group defaults when SCIM cannot confirm them', async () => {
+    let persisted = '';
+    const store: DecisionStore = {
+      query: vi.fn((text: string, params: unknown[] = []) => {
+        if (text.startsWith('SELECT value')) return Promise.resolve({ rows: [] });
+        persisted = String(params[1] ?? '');
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    const env: Record<string, string | undefined> = {
+      PLAYER_INSIGHTS_TARGET: '',
+      LAKEBASE_ENDPOINT: 'projects/example/branches/production',
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+    };
+    const recovered = {
+      PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
+      PLAYER_INSIGHTS_SCHEMA: 'sales',
+      PLAYER_INSIGHTS_WATCHLIST_TABLE: 'customer_catalog.sales.txn_steam_sales_with_analytics',
+      PLAYER_INSIGHTS_DATA_GENIE_ID: 'genie-space-123',
+      PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
+      PLAYER_INSIGHTS_USER_API_SCOPES: 'sql',
+      PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
+    };
+
+    await expect(
+      restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))
+    ).resolves.toBeGreaterThan(0);
+    expect(env.ADAPT_ADMIN_GROUP).toBe('S_TK2_Databricks_adapt_genie_admins');
+    expect(env.ADAPT_USER_GROUP).toBe('S_TK2_Databricks_adapt_genie_users');
+    expect(JSON.parse(persisted)).toMatchObject({
+      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
+      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
+    });
+  });
+
   it('keeps direct App grants when the same group also has inherited access', () => {
     const recovered = recoveredReleaseEnvironment({
       baked: [],

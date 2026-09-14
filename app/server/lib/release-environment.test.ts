@@ -282,7 +282,7 @@ describe('release runtime configuration persistence', () => {
     });
   });
 
-  it('canonicalizes the retired lowercase Take-Two group names in an existing snapshot', async () => {
+  it('uses exact case-sensitive ADAPT group ids when an existing snapshot carries those labels', async () => {
     const snapshot = {
       PLAYER_INSIGHTS_CATALOG: 'customer_catalog',
       PLAYER_INSIGHTS_SCHEMA: 'sales',
@@ -291,10 +291,8 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_LLM_ENDPOINT: 'databricks-claude-sonnet-4-6',
       PLAYER_INSIGHTS_USER_API_SCOPES: 'sql',
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
-      ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
-      ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
-      ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_admins',
-      ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_users',
+      ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Admins',
+      ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Users',
     };
     const env: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',

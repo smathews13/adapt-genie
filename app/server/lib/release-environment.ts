@@ -62,23 +62,14 @@ const VALIDATED_RECOVERY_KEYS: readonly ReleaseEnvironmentKey[] = [
   'ADAPT_USER_GROUP',
 ];
 
+const TAKE_TWO_ADMIN_GROUP = 'S_TK2_Databricks_Adapt_Genie_Admins';
+const TAKE_TWO_USER_GROUP = 'S_TK2_Databricks_Adapt_Genie_Users';
 const TRUSTED_GIT_GROUP_DEFAULTS: Partial<Record<ReleaseEnvironmentKey, string>> = {
-  ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
-  ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
-  ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Admins',
-  ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_Adapt_Genie_Users',
+  ADAPT_ADMIN_GROUP: TAKE_TWO_ADMIN_GROUP,
+  ADAPT_USER_GROUP: TAKE_TWO_USER_GROUP,
+  ADAPT_ADMIN_GROUP_LABEL: TAKE_TWO_ADMIN_GROUP,
+  ADAPT_USER_GROUP_LABEL: TAKE_TWO_USER_GROUP,
 };
-
-const RETIRED_GIT_GROUP_DEFAULTS: Partial<Record<ReleaseEnvironmentKey, string>> = {
-  ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_adapt_genie_admins',
-  ADAPT_USER_GROUP: 'S_TK2_Databricks_adapt_genie_users',
-  ADAPT_ADMIN_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_admins',
-  ADAPT_USER_GROUP_LABEL: 'S_TK2_Databricks_adapt_genie_users',
-};
-
-function canonicalReleaseValue(key: ReleaseEnvironmentKey, value: string): string {
-  return RETIRED_GIT_GROUP_DEFAULTS[key] === value ? (TRUSTED_GIT_GROUP_DEFAULTS[key] ?? value) : value;
-}
 
 function trustedGitGroupDefaults(
   env: Record<string, string | undefined>
@@ -122,14 +113,19 @@ function parsedSnapshot(value: string | null): Partial<Record<ReleaseEnvironment
     const candidate = JSON.parse(value) as unknown;
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
     const source = candidate as Record<string, unknown>;
-    return Object.fromEntries(
+    const parsed = Object.fromEntries(
       RELEASE_ENVIRONMENT_KEYS.flatMap((key) => {
         const value = source[key];
-        return typeof value === 'string' && value.trim()
-          ? [[key, canonicalReleaseValue(key, value.trim())] as const]
-          : [];
+        return typeof value === 'string' && value.trim() ? [[key, value.trim()] as const] : [];
       })
     );
+    if (parsed.ADAPT_ADMIN_GROUP_LABEL === TAKE_TWO_ADMIN_GROUP) {
+      parsed.ADAPT_ADMIN_GROUP = TAKE_TWO_ADMIN_GROUP;
+    }
+    if (parsed.ADAPT_USER_GROUP_LABEL === TAKE_TWO_USER_GROUP) {
+      parsed.ADAPT_USER_GROUP = TAKE_TWO_USER_GROUP;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -272,8 +268,8 @@ export async function restoreReleaseEnvironment(
   }
   const combined = {
     ...authored,
-    ...trustedAuthoredGroups,
     ...recovered,
+    ...trustedAuthoredGroups,
     ...snapshot,
   };
   const missing = REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS.filter((key) => !combined[key]);
@@ -287,8 +283,8 @@ export async function restoreReleaseEnvironment(
   }
   if (snapshotMissing.length > 0) {
     const persisted = {
-      ...trustedAuthoredGroups,
       ...recovered,
+      ...trustedAuthoredGroups,
       ...snapshot,
     };
     await recordDeploymentDecision(

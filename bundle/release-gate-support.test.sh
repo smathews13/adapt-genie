@@ -14,7 +14,7 @@ assert contract["app_resource"] == {
     "file": "resources/adapt_app.app.yml",
     "bundle_key": "apps.adapt_app",
 }
-assert set(contract["model_scopes"]) == {"dashboards.genie", "sql"}
+assert set(contract["model_scopes"]) == {"dashboards.genie", "genie", "sql"}
 forbidden = tuple(
     "".join(parts)
     for parts in (

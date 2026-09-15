@@ -71,8 +71,8 @@ mistaken for removing it. All of these count:
 - the Genie space instructions, which reach a reader through the model's answer
   and which no re-log removes, because they live on the space rather than baking
   into the artifact. These are now HARDER to reach, not easier: the bundle
-  attaches to spaces it does not create, so a deploy no longer pushes this text
-  and the live space is the copy that matters. `genie/sample_schema_space.json`
+  attaches to a space it does not create, so a deploy no longer pushes this text
+  and the live space is the copy that matters. `genie/adapt_poc_space.json`
   records the ADAPT body for review, but editing it changes nothing by itself.
   The wording also has to be fixed on the space, in the Genie UI;
 - **Unity Catalog metadata**: table and column comments, schema and volume

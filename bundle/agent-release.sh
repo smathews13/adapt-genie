@@ -101,8 +101,8 @@ MANIFEST_SOURCE="$(bundle_var_or_empty manifest_source)"
 # a diff is a control that comes back off by accident. See databricks.yml.
 ALLOW_UNATTRIBUTED_FIGURES="$(bundle_var_or_empty allow_unattributed_figures)"
 
-# Genie spaces must already exist. Environment values may override the required
-# bundle variables for a one-off release.
+# The configured Genie space must already exist. An environment value may
+# override the required bundle variable for a one-off release.
 DATA_GENIE_ADOPTED=""
 if [[ -n "${PLAYER_INSIGHTS_DATA_GENIE_ID:-}" ]]; then
   DATA_GENIE_ID="$PLAYER_INSIGHTS_DATA_GENIE_ID"
@@ -611,10 +611,10 @@ Re-run with --apply to:
      would have removed rather than staying quiet about it.
 
 Before --apply, confirm the model's declared resources still cover every table
-both Genie spaces curate. A table outside the manifest fails nothing loudly: the
-space fails every call with a passthrough credential error, and the agent's SQL
-fallback answers anyway, so the endpoint looks healthy while it has stopped using
-Genie at all.
+the configured Genie space curates. A curated table outside the manifest is
+unavailable to both Genie evidence admission and guarded direct SQL. Runs may
+still answer from the remaining in-scope tables, which can mask incomplete
+coverage while the endpoint itself looks healthy.
 See the manifest a log would declare, and every table it excludes with the
 reason, without logging anything:
   (cd agent && uv run --python 3.13 python manifest_dryrun.py)

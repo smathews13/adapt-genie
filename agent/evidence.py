@@ -25,8 +25,8 @@ tell that a gateway is now in the path.
 
 WHAT THIS MODULE DOES NOT DECIDE. It does not fetch, execute, or retry anything,
 and it holds no client. It is given what a tool found and answers one question
-about it. That is what lets the same object serve SQL, both Genie spaces, and
-whatever surface is added next, and it is why it can be tested without a
+about it. That is what lets the same object serve SQL, the configured Genie
+path, and whatever surface is added next, and it is why it can be tested without a
 workspace.
 """
 

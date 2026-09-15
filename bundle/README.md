@@ -1,6 +1,9 @@
 # `bundle/`: the imperative steps
 
-All of these default to a dry run. `--apply` executes.
+`agent-release.sh`, `app-release.sh`, `app-spec.sh`, and
+`prune-served-entities.py` default to a dry run; `--apply` executes.
+`deploy.sh` runs an interactive bundle deployment immediately, and
+`app-db-grant.sh` applies its idempotent database grants immediately.
 
 **Read `DECISIONS.md` before changing a target's variables.** It records the
 standing product decisions a release must not contradict, each with the date it
@@ -25,11 +28,11 @@ quiet at the one moment it is cheap to act on.
 `genie-drift.sh` answers a different and narrower question: does the Genie
 content committed under `genie/` still match what the workspace is serving? It
 reads and changes nothing, so it is safe to run mid-deploy or mid-demo. Exit 0
-means the reference bodies and the live spaces agree; exit 1 means they do not.
+means the reference body and the live space agree; exit 1 means they do not.
 
 It compares the TEXT rather than `serialized_space.version` or the instruction
-ids. The spaces themselves are **not** bundle-managed any more: this bundle
-attaches by id and does not overwrite instructions or curated tables on deploy.
+ids. The space itself is **not** bundle-managed: this bundle attaches by id and
+does not overwrite instructions or curated tables on deploy.
 Use the drift check when you deliberately want to know whether a reference body
 and the live space have diverged; fixing drift is a Genie UI (or reference
 re-export) step, not a `bundle deploy`.
@@ -68,8 +71,9 @@ attach until the agent release creates it.
 0. Provision the app catalog/schema, Lakebase (project / branch / database),
    SQL warehouse, and Genie space **outside** this bundle. Name them in
    `.databricks/bundle/<target>/variable-overrides.json`
-   (`lakebase_project_id`, `genie_data_space_id`, plus `warehouse_id`,
-   `watchlist_table`, `admin_emails`, and the other required inputs).
+   (`app_catalog`, `app_schema`, `data_catalogs`, `lakebase_project_id`,
+   `lakebase_database_id`, `genie_data_space_id`, `warehouse_id`,
+   `watchlist_table`, `app_source_code_path`, and `admin_emails`).
    If this deploy recreates a deleted App against a retained Lakebase database,
    also set `lakebase_app_schema` to a new, unused schema. A recreated App has a
    new service principal and cannot own the prior App's schema. The app release
@@ -113,7 +117,8 @@ were workarounds for a deleted gate.
 Two inputs outside the app release still need an operator. The administrator
 input fails validation when skipped; Genie sharing still requires review.
 
-- **Name the deployment's administrators**, before step 4, because there is no
+- **Name the deployment's administrators**, before the first release command,
+  because there is no
   way to appoint the first one from inside the running app:
 
   ```bash
@@ -144,11 +149,11 @@ input fails validation when skipped; Genie sharing still requires review.
   **`build/deploy/app.yaml` is where the addresses actually land, and it is
   tracked.** The release uploads the local build tree directly, so the container
   gets the list without a commit. Do not commit it:
-  `git restore player-insights-agent/build/deploy/app.yaml`. The build prints
+  `git restore app/build/deploy/app.yaml`. The build prints
   the same warning, and a test fails while the addresses are there:
 
   ```bash
-  cd player-insights-agent && npm test -- scripts/deploy-app-yaml.test.ts
+  cd app && npm test -- scripts/deploy-app-yaml.test.ts
   ```
 
   **That test is the only thing catching this before the commit**, so do not
@@ -181,12 +186,14 @@ input fails validation when skipped; Genie sharing still requires review.
   Skipped, every route answers from representative data at HTTP 200 with no
   error anywhere, and AppKit's persistent cache stays in-memory across restarts.
 
-- **Share each Genie space with the people or groups who will use the app, at
+- **Share the configured Genie space with the people or groups who will use the app, at
   `CAN RUN`.** With `execution_identity: user-authorization`, Genie runs as the
   person who asked, not as the app or serving-endpoint service principal.
-  Skipped, every Genie call fails `PermissionDenied` and the agent's SQL fallback
-  answers anyway. Those same callers also need `CAN USE` on the warehouse and
-  `SELECT` on the curated tables, because Genie's query runs under their grants.
+  Skipped, every Genie call fails `PermissionDenied`. The direct SQL path may
+  still answer, which can mask the missing share, but the run is degraded and
+  records that Genie did not answer. Treat this as a release blocker. Those same
+  callers also need `CAN USE` on the warehouse and `SELECT` on the curated
+  tables, because Genie's query runs under their grants.
   There is no bundle resource for the grant, but there **is** a CLI, so it need
   not be a UI step:
 
@@ -205,7 +212,7 @@ input fails validation when skipped; Genie sharing still requires review.
 | --- | --- |
 | `agent-release.sh` | Log the model, enforce the serving endpoint's three-entity ceiling before deployment, deploy, wait for the traffic switch, then prune superseded entities. At the ceiling it removes idle entities first and refuses if no slot can be made; `--served` lists versions and traffic without releasing, while `--no-prune` leaves idle entities and refuses a fourth. |
 | `prune-served-entities.py` | Remove idle served entities from the endpoint, keeping whatever holds traffic plus `var.serving_rollbacks_kept` rollbacks, which defaults to **none**, because the version a kept rollback reaches is the one released *before* the current fix. Run by `agent-release.sh`; also runnable alone. Reports by default, acts on `--apply`, exits 3 when there is something to prune and it was not asked to. Endpoint only: it has no code path that reaches the registry, so every version stays registered and can be served again with `deploy_agent.py --model-version N`. That is the rollback path, and it needs no idle entity held open for it. |
-| `app-release.sh` | Resolve the MLflow experiment id, build and fingerprint the dependency-free tree, gate on `app-db-grant.sh`, replace only the validated `/Workspace/Users/<current-user>/adapt-genie-src` staging directory, and deploy it with Databricks App `SNAPSHOT` mode. An existing non-SNAPSHOT deployment is refused before cleanup. The only way app code is pushed; `npm run deploy` is an alias for it. `--rollback-to <workspace-path>` applies the same grant gate and re-points the app at a known-good source directory without rebuilding. |
+| `app-release.sh` | Resolve the MLflow experiment id, build and fingerprint the dependency-free tree, gate on `app-db-grant.sh`, replace only the validated `/Workspace/Users/<current-user>/adapt-genie-src` staging directory, and deploy it with Databricks App `SNAPSHOT` mode. An existing non-SNAPSHOT deployment is refused before cleanup. This is the CLI path for initial release and SNAPSHOT recovery; routine post-bootstrap app-code updates use Deploy from Git. `npm run deploy` is an alias for it. `--rollback-to <workspace-path>` applies the same grant gate and re-points the app at a known-good source directory without rebuilding. |
 | `app-db-grant.sh` | Resolve the app role, direct branch host, database, operator role and app schema from the target and live resources, then run `scripts/grant-app-db-access.mjs`. Called by every app release; runnable directly after Lakebase reattach without a full release. |
 | `app-spec.sh` | Emit the complete app spec for a target, generated from `bundle validate` so it can only carry that target's own values. Prints by default; `--apply` sends it and verifies what the API kept. Recovery only: the bundle owns this resource. Refuses to write on a host mismatch, a Lakebase project absent from the workspace, a serving endpoint that does not exist, a lost load-bearing `user_api_scopes` entry, or a `sql-warehouse` resource with no id. There is no `--allow-missing-endpoint`. |
 | `deploy.sh` | Run one complete interactive bundle deploy. Refuses `--auto-approve`, blocks stale local state that still owns Lakebase, and gates `--force-lock` on explicit confirmation that no deploy is live. It does not require `bundle plan`, which has crashed in affected CLI versions. |
@@ -247,6 +254,7 @@ canned representative data, and none of these fail loudly. Establish that:
   holds, which is the one place a lost attachment shows;
 - the serving endpoint exists and is reachable;
 - the app's Postgres role holds grants on the schema the app's own DDL creates;
-- every table each Genie space curates is inside the manifest the logged model
-  declares. A table outside it fails every Genie call, and the agent's SQL
-  fallback answers anyway.
+- every table the configured Genie space curates is inside the manifest the logged model
+  declares. A table outside it is unavailable to both Genie evidence admission
+  and guarded direct SQL; answers from other in-scope tables can mask that
+  incomplete coverage.

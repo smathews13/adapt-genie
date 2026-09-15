@@ -83,21 +83,39 @@ else
 fi
 
 # --- 5. A fresh deployment creates the endpoint before attaching it ----------
-RUNBOOK="$HERE/README.md"
-AGENT_LINE="$(grep -n 'bundle/agent-release.sh --apply' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
-DEPLOY_LINE="$(grep -n 'bash bundle/deploy.sh' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
-APP_LINE="$(grep -n 'bundle/app-release.sh --apply' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
-if [[ -n "$AGENT_LINE" && -n "$DEPLOY_LINE" && -n "$APP_LINE" \
-   && "$AGENT_LINE" -lt "$DEPLOY_LINE" && "$DEPLOY_LINE" -lt "$APP_LINE" ]]; then
-  pass "fresh deployment creates the serving endpoint before the App attaches it"
-else
-  fail "fresh deployment order must be agent-release, bundle deploy, then app-release"
-fi
+for RUNBOOK in "$HERE/README.md" "$HERE/../README.md"; do
+  AGENT_LINE="$(grep -n 'bundle/agent-release.sh --apply' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
+  DEPLOY_LINE="$(grep -n 'bash bundle/deploy.sh' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
+  APP_LINE="$(grep -n 'bundle/app-release.sh --apply' "$RUNBOOK" | awk -F: 'NR == 1 { print $1 }' || true)"
+  if [[ -n "$AGENT_LINE" && -n "$DEPLOY_LINE" && -n "$APP_LINE" \
+     && "$AGENT_LINE" -lt "$DEPLOY_LINE" && "$DEPLOY_LINE" -lt "$APP_LINE" ]]; then
+    pass "$(basename "$(dirname "$RUNBOOK")")/README.md uses agent, bundle, app order"
+  else
+    fail "$RUNBOOK must order agent-release, bundle deploy, then app-release"
+  fi
+done
 
 if grep -A4 '^  app_schema:' "$HERE/../databricks.yml" | grep -q 'does not create or manage it'; then
   pass "app schema is documented as a pre-provisioned dependency"
 else
   fail "app_schema must not claim the bundle creates a schema it only attaches"
+fi
+
+STEP_ZERO="$(awk '/^0\. Provision/,/^1\. Log/' "$HERE/README.md")"
+for variable in app_catalog app_schema data_catalogs lakebase_project_id lakebase_database_id \
+  genie_data_space_id warehouse_id watchlist_table app_source_code_path admin_emails; do
+  if grep -q "\`$variable\`" <<<"$STEP_ZERO"; then
+    pass "fresh-deployment prerequisites name $variable"
+  else
+    fail "fresh-deployment prerequisites omit $variable"
+  fi
+done
+
+if grep -q 'app/build/deploy' "$HERE/../databricks.yml" \
+   && grep -q 'app/build/deploy' "$APP_YML"; then
+  pass "bundle comments name the public Deploy-from-Git source path"
+else
+  fail "bundle comments must name public Git source path app/build/deploy"
 fi
 
 printf '\n'

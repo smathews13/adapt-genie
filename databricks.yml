@@ -22,7 +22,7 @@ variables:
   app_catalog:
     description: >-
       REQUIRED. Unity Catalog catalog for objects owned by this deployment,
-      including the registered orchestrator model, volume, and telemetry.
+      including the registered orchestrator model and optional telemetry.
       Keep it separate from production data catalogs.
   app_schema:
     description: >-
@@ -87,7 +87,7 @@ variables:
     description: >-
       Source for the model's table manifest and resulting data grants. Empty,
       the default, uses allowlisted schemas and the data contract. Use `genie`
-      to declare only tables curated by the Genie spaces. Changing this value
+      to declare only tables curated by the configured Genie space. Changing this value
       requires a model re-log and redeploy.
     default: ""
   model_name:
@@ -101,14 +101,14 @@ variables:
     default: "2500"
   # Genie
   #
-  # This bundle ATTACHES to Genie spaces that already exist. It does not create
-  # them, does not curate their tables, and does not overwrite their
-  # instructions. Name the space by id; what it curates is read from the
+  # This bundle ATTACHES to one Genie space that already exists. It does not create
+  # it, does not curate its tables, and does not overwrite its instructions.
+  # Name the space by id; what it curates is read from the
   # workspace at model-log time.
   #
-  # There is deliberately no table list here. A deployment names spaces, not
-  # their contents: `manifest_source: genie` derives the model's table manifest
-  # from what the live spaces curate (agent/preflight.py `_manifest_from_genie`),
+  # There is deliberately no table list here. A deployment names the space, not
+  # its contents: `manifest_source: genie` derives the model's table manifest
+  # from what the live space curates (agent/preflight.py `_manifest_from_genie`),
   # and refuses to log a model when any curated table falls outside
   # data_catalogs. That refusal is where read-scope containment is enforced, so
   # discovering tables rather than typing them does not widen the boundary.
@@ -205,10 +205,10 @@ variables:
     description: >-
       REQUIRED FOR THE INITIAL BUNDLE BOOTSTRAP AND CLI APP RELEASE. Absolute
       workspace path containing the uploaded build/deploy tree. This is not the
-      repo-relative Source code path used by Deploy from Git; that UI value is
-      `player-insights-agent/build/deploy`. The workspace directory must not
-      contain package.json because the app would run `npm install` during
-      deployment. Set it to the canonical mutable staging path
+      repo-relative Source code path used by Deploy from Git from the public
+      repository; that UI value is `app/build/deploy`. The workspace directory
+      must not contain package.json because the app would run `npm install`
+      during deployment. Set it to the canonical mutable staging path
       `/Workspace/Users/<release-actor>/adapt-genie-src`; SNAPSHOT deployment
       moves the active app to a separate immutable platform path before the next
       release replaces staging. Set this in the git-ignored
@@ -275,7 +275,7 @@ targets:
     workspace:
       root_path: ${var.bundle_root_path}
     variables:
-      # Declare only tables curated by the Genie spaces.
+      # Declare only tables curated by the configured Genie space.
       manifest_source: genie
       # Run governed data calls as the signed-in user. Release matching app and
       # model versions together.

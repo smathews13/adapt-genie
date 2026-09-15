@@ -1,5 +1,6 @@
-# MLflow experiment for ADAPT runs and traces.
-# Declaring it creates the experiment and permissions before the first model log.
+# MLflow experiment for ADAPT runs and traces. On a fresh workspace, the
+# agent-first release may create this path while logging the model; the later
+# bundle deploy adopts it as a resource and applies group permissions.
 
 resources:
   experiments:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compare committed Genie reference content with the existing live spaces.
+# Compare committed Genie reference content with the existing live space.
 # This command is read-only and does not create or update a Genie space.
 #
 # Usage:
@@ -11,7 +11,7 @@
 # Exit status:
 #   0  in sync: a deploy would change nothing
 #   1  drifted: what is committed is not what is running
-#   2  at least one space could not be read, so nothing was established
+#   2  the space or committed reference could not be read
 
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
@@ -32,6 +32,7 @@ fi
 
 step "Genie content: this repository vs. the live workspace (target: $TARGET)"
 
-bundle_json | python3 "$BUNDLE_ROOT/bundle/genie-drift-check.py" \
+python3 "$BUNDLE_ROOT/bundle/genie-drift-check.py" \
   --profile "$PROFILE" \
+  --reference "$BUNDLE_ROOT/genie/adapt_poc_space.json" \
   --space "data genie space      " data_genie_space       "$DATA_ID"

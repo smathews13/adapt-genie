@@ -144,10 +144,11 @@ installed Chrome or Edge instead with `PLAYWRIGHT_CHANNEL=chrome`.
 
 The CLI path below builds and directly releases the app from a maintainer's
 working copy. Internal and customer deployments use the same three-command
-bootstrap in the root README: complete bundle deploy, agent release, then app
-release. After the bundle has created the app and its bindings, normal app-code
+bootstrap in the root README: agent release, complete bundle deploy, then app
+release. The agent release creates the endpoint before the App attaches it.
+After the bundle has created the App and its bindings, normal app-code
 updates use the existing app's **Deploy → From Git** flow, pointed at the
-committed `app/build/deploy` directory.
+public repository's committed `app/build/deploy` directory.
 That Git flow does not rebuild, reconcile resources, or change roles; Lakebase
 is the runtime source of truth for every role. Maintainers refresh and commit
 the deploy snapshot with `npm run build:deploy`; customers select the newer
@@ -171,9 +172,10 @@ TARGET=<target> PROFILE=<your-profile> npm run deploy
 it would take and the paths it resolved.
 
 `--apply` builds the client, esbuilds the server into a **dependency-free** tree,
-prints the findings of any local advisory checks the tree carries, uploads with
-`workspace import-dir` and deploys. Those checks report and never gate: a release
-continues whatever they say, and a tree that carries none is released the same way.
+passes the fail-closed live release gate, prints any separate advisory findings,
+applies the Postgres ownership and grant gates, uploads with `workspace
+import-dir`, and deploys. Advisory checks report without gating; the release,
+ownership, and grant checks stop before an unsafe upload.
 The deployed tree must have no `package.json`: Databricks Apps would then run
 `npm install` against 508 packages on compute with no registry egress and hang.
 
@@ -184,7 +186,7 @@ automatic rollback. Recovery is to re-point the app at a source directory
 already in the workspace that holds a known-good build:
 
 ```bash
-TARGET=<target> npm run deploy:rollback -- /Workspace/Users/you@corp.com/app-src
+TARGET=<target> npm run deploy:rollback -- /Workspace/Users/you@corp.com/adapt-genie-src
 ```
 
 Nothing is rebuilt or uploaded, so this is only a rollback if that directory
@@ -193,10 +195,11 @@ still holds the build you want.
 ### The rest of the stack
 
 For the initial bootstrap only, this app is one step of a longer deployment.
-Unity Catalog, both Genie spaces, Lakebase, the setup job and the agent serving
-endpoint come first, and the asset bundle at the repository root deploys them in
-that order. Run `databricks bundle deploy -t <target>` before the app exists,
-not before a later Deploy-from-Git code update.
+Provision the Unity Catalog app schema, Lakebase database, SQL warehouse, and
+configured Genie space first. Then run the agent release to create the serving
+endpoint, the root bundle deploy to create the App and attach existing
+resources, and the app release to apply Lakebase grants and code. Do not run any
+of those commands as part of a later Deploy-from-Git code update.
 
 ## Project structure
 

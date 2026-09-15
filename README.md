@@ -51,7 +51,8 @@ run returns a clarification instead of a plausible number.
 Browser ──▶ Databricks App ──▶ Orchestrator (Model Serving)
                   │                   │
                   │                   ├──▶ Foundation model
-                  │                   ├──▶ data_genie  ──▶ Genie space ──▶ SQL warehouse ──▶ Unity Catalog
+                  │                   ├──▶ guarded run_sql ──────────────▶ SQL warehouse ──▶ Unity Catalog
+                  │                   ├──▶ data_genie fallback ─▶ Genie space ─▶ SQL warehouse ─▶ Unity Catalog
                   │                   └──▶ MLflow experiment  (trace)
                   └──▶ Lakebase (Postgres)
 ```
@@ -59,16 +60,16 @@ Browser ──▶ Databricks App ──▶ Orchestrator (Model Serving)
 **The Orchestrator always owns the run.** It is the served model version, and it
 plans the answer, decides what to ask, and writes the final prose.
 
-**Genie is the one data capability.** ADAPT runs Genie-only: the agent's sole
-data tool is `data_genie`, over a single Genie space — *ADAPT — Steam Sales &
-Analytics*, curating Take-Two's Steam sales, wishlist and store-visibility
-tables. There is no agent-authored SQL fallback and no separate data-dictionary
-space; Genie authors and runs the SQL, and the agent cites the space. Under
-`execution_identity: user-authorization`, Genie runs as the person who asked.
+**Direct governed queries are the primary data path.** ADAPT starts with the
+smallest metadata and SQL reads needed over its declared table manifest. If that
+path cannot answer, it may ask one Genie space — *ADAPT — Steam Sales &
+Analytics* — once. Both paths run under the asking user's grants. If Genie is
+unavailable or not shared, the run records that caveat rather than pretending
+Genie answered. There is no separate data-dictionary space.
 
 **The warehouse and Unity Catalog are where governance actually happens.** The
-warehouse runs Genie's SQL read-only; the catalog applies the reader's own grants
-to every row and column.
+warehouse runs both guarded direct SQL and Genie-authored SQL read-only; the
+catalog applies the reader's own grants to every row and column.
 
 **Lakebase (Postgres) is what the deployment keeps.** Conversations, messages,
 uploads, feedback, benchmark runs, user roles, and live runtime settings. It is
@@ -214,8 +215,10 @@ server, and is the one the platform reads.
 
 ### What the workspace needs first
 
-The bundle declares the app, its Unity Catalog schema and volume, and its MLflow
-experiment. The release scripts log the model and create the serving endpoint.
+The bundle declares the App, its optional telemetry schema, and its MLflow
+experiment. The model's Unity Catalog schema is pre-provisioned and attached by
+name; ADAPT has no bundle-managed volume. The release scripts log the model and
+create the serving endpoint.
 
 **Lakebase and the Genie space are attached, not created.** The bundle binds to a
 Lakebase database that already exists and names a Genie space that already exists.
@@ -224,14 +227,14 @@ curation a deploy has no business overwriting.
 
 Have these before you start:
 
-- an existing Unity Catalog catalog for the app's own objects;
+- an existing Unity Catalog catalog and schema for the app's own objects;
 - the production catalogs or schemas the agent may read;
 - **an existing Lakebase project, branch, and database**: create one in the
   Lakebase UI or with `databricks postgres create-project`, then read the ids
   back with `databricks postgres list-projects`. No owner role is needed; that
   was an input to creating the database;
 - **one existing Genie space**, with its tables already curated. You supply its
-  id, not its contents. `genie/sample_schema_space.json` is the committed ADAPT
+  id, not its contents. `genie/adapt_poc_space.json` is the committed ADAPT
   space definition used to curate it;
 - an existing SQL warehouse;
 - a workspace source path for the committed deploy tree;
@@ -302,25 +305,20 @@ effect at the next model re-log.
 
 ### Deploy
 
-Three commands, in this order:
+Three commands, in this order. The agent release must create the serving
+endpoint before the bundle creates an App that attaches it:
 
 ```bash
-TARGET=customer PROFILE='<your-profile>' bash bundle/deploy.sh
 TARGET=customer PROFILE='<your-profile>' bash bundle/agent-release.sh --apply
+TARGET=customer PROFILE='<your-profile>' bash bundle/deploy.sh
 TARGET=customer PROFILE='<your-profile>' bash bundle/app-release.sh --apply
 ```
 
-The first runs one complete, interactive `databricks bundle deploy` for the
-target, including the App. It does not require a separate `bundle plan`, it never
-auto-approves, and it refuses to run against stale local Lakebase state. Read the
-change list it prints. The second logs the model and updates the serving
-endpoint. The third applies the app's database grants and releases the app code.
-
-> **Greenfield gotcha.** On a brand-new workspace the App resource cannot bind the
-> serving endpoint on the first `bundle/deploy.sh` (the endpoint does not exist
-> yet). Run `agent-release.sh` to create the endpoint, then re-run
-> `bundle/deploy.sh` so the App attaches it. After the bootstrap, app-code updates
-> use the Deploy-from-Git flow below (or a repeat of `app-release.sh`).
+The first logs the model and creates or updates the serving endpoint. The second
+runs one complete, interactive `databricks bundle deploy` for the target,
+including the App. It does not require a separate `bundle plan`, never
+auto-approves, and refuses stale local Lakebase state. Read the change list it
+prints. The third applies the app's database grants and releases the app code.
 
 **Do not create the App by hand**, exclude it with `--select`, or introduce a
 Terraform-engine path as an alternative. The App is bundle-owned.
@@ -406,13 +404,14 @@ Do not run `databricks bundle deploy`, `bundle/agent-release.sh`, or
 If the app is created directly from Git instead of updating a bundle-bootstrapped
 app, configure the App resource's `user_api_scopes` as well as its bindings.
 `app.yaml` tells the app which scopes to check; it cannot change the App resource
-or cause Databricks to mint those scopes into a user's token. Every deployment
-needs these four scopes:
+or cause Databricks to mint those scopes into a user's token. The current ask
+path needs these five scopes:
 
 - `serving.serving-endpoints`
 - `model-serving`
 - `sql`
 - `dashboards.genie`
+- `genie`
 
 Catalog, schema, table, and workspace read scopes are optional Connections
 browsing capabilities. `postgres` is optional Lakebase browsing.
@@ -493,7 +492,9 @@ routes fall back to representative data and the cache resets on every restart.
 app.** Under `execution_identity: user-authorization`, Genie runs as the person
 who asked. Those same callers also need `CAN USE` on the SQL warehouse and
 `SELECT` on the curated tables. Skipped, every Genie call fails
-`PermissionDenied`.
+`PermissionDenied`; the guarded direct-SQL fallback may still answer under the
+same user's grants, so the run must be treated as degraded rather than as proof
+that Genie is correctly shared.
 
 ```bash
 databricks permissions update genie <space_id> \
@@ -547,7 +548,7 @@ and one that works.
 
 ## Compatibility identifiers
 
-ADAPT owns its product surface, Genie-only orchestrator, customer bundle, model,
-endpoint, experiment, storage schemas, and billing tag. The
+ADAPT owns its product surface, direct-query orchestrator with a governed Genie
+fallback, customer bundle, model, endpoint, experiment, storage schemas, and billing tag. The
 `PLAYER_INSIGHTS_*` environment-variable prefix remains an internal
 compatibility interface; it is not a deployed resource name.

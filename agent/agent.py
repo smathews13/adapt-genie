@@ -843,10 +843,9 @@ SUBMIT_ANSWER_TOOL = {
     },
 }
 
-#: The agent's single data capability: the governed Genie space over the five
-#: curated tables. There is no SQL-authoring or discovery path -- every data
-#: question is answered by asking `data_genie`. `request_clarification` is the
-#: only non-data tool, kept so the agent can ask one short question when a
+#: Governed direct metadata and SQL tools are the primary path. The configured
+#: Genie space is a bounded fallback when those tools cannot answer.
+#: `request_clarification` remains available for one short question when a
 #: request cannot be answered as posed.
 ANALYSIS_TOOLS = [
     RESOLVE_TABLE_TOOL,
@@ -1582,8 +1581,8 @@ _DICTIONARY_TRIGGERS = _word_matcher(
 
 
 def _needs_dictionary(question: str) -> bool:
-    # This deployment has no dictionary Genie space: data_genie is the only data
-    # tool, so no plan step ever proposes a separate definitions lookup.
+    # This deployment has no dictionary Genie space, so no plan step proposes a
+    # separate definitions lookup alongside direct SQL or the data Genie fallback.
     return False
 
 
@@ -2330,8 +2329,8 @@ class RunLog:
         self.sources_complete = True
         #: Tool calls that raised, as (tool name, reason). Kept because nothing
         #: else keeps them: failed calls are excluded from `evidence`, which is
-        #: all `_synthesize` reads, so without this a run with both Genie spaces
-        #: down answers from `run_sql` with no marker on it.
+        #: all `_synthesize` reads, so without this a run whose Genie fallback
+        #: is unavailable could answer from direct SQL with no marker on it.
         self.failures: list[tuple[str, str]] = []
         #: Governance refusals, as the reasons the guard gave. Separate from
         #: failures because they are not the same event and must not be
@@ -5077,8 +5076,8 @@ Tables available to this analysis, with their columns:
         if log.failures:
             # Disclosed from what the run DID, not from what the model recalled:
             # a failure is otherwise an `ERROR:` string mid-loop and a trace stage
-            # nobody opens, and an outage of both Genie spaces reads as a
-            # confident answer over the one surface that was up.
+            # nobody opens, and an outage of the configured Genie path can read
+            # as a confident answer over the direct surface that was up.
             caveats.insert(
                 0,
                 f"{DEGRADED_ANSWER_MARKER} {_surfaces(log.failures)} did not respond "

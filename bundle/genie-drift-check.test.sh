@@ -8,10 +8,9 @@
 # same instruction id, different words. A check that passes that case is the
 # original bug with more output.
 #
-# The other half is the direction people forget. `bundle deploy` overwrites these
-# bodies whole, so a table that is live and NOT committed is drift too: the next
-# deploy deletes it and somebody's analysts lose a table nobody meant to remove.
-# That is CASE 3, and it is the more expensive of the two.
+# The other half is the direction people forget. A table that is live and not in
+# the committed reference is drift too: reviewers otherwise reason from a stale
+# file while the workspace serves something else. That is CASE 3.
 #
 # Every case asserts on the VERDICT and the EXIT STATUS rather than on the check
 # having run, because "unreadable" reported as "in sync" is precisely the failure
@@ -181,6 +180,24 @@ live["serialized_space"] = json.loads(live["serialized_space"])
 json.dump(live, open(f"{stubs}/live.json", "w"))
 PY
 run_case "serialized_space as an object compares the same as a string" "IN SYNC" 0
+
+echo "attach-by-id reference"
+python3 - "$STUBS" <<'PY'
+import json, sys
+stubs = sys.argv[1]
+bundle = json.load(open(f"{stubs}/bundle.json"))
+space = bundle["resources"]["genie_spaces"]["data_genie_space"]
+json.dump(json.loads(space["serialized_space"]), open(f"{stubs}/reference.json", "w"))
+PY
+out="$(python3 "$HERE/genie-drift-check.py" --profile p \
+        --reference "$STUBS/reference.json" \
+        --space "space" data_genie_space "01abc" 2>&1)"; status=$?
+if [[ "$out" == *"IN SYNC"* && "$status" -eq 0 ]]; then
+  PASS=$((PASS + 1)); printf '  ok    %s\n' "an attach-by-id bundle compares the committed reference"
+else
+  FAIL=$((FAIL + 1))
+  printf '  FAIL  %s (exit %d)\n' "an attach-by-id bundle compares the committed reference" "$status"
+fi
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [[ "$FAIL" -eq 0 ]] || exit 1

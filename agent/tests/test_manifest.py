@@ -1636,9 +1636,9 @@ def test_the_bundle_declares_no_genie_space_and_no_lakebase_resource():
     tables and instructions both -- and a Lakebase project/branch/database
     declared there is created, owned, and destroyed with the bundle.
 
-    This replaces a test that asserted the two spaces took their table lists from
-    bundle variables. That was the right check for a bundle that populated the
-    spaces. This one is the right check for a bundle that must not.
+    This replaces a test that asserted bundle-managed spaces took their table
+    lists from variables. That was the right check for a bundle that populated
+    them. This one is the right check for a bundle that must not.
 
     The curated reference bodies still exist, under genie/, which is deliberately
     not part of `include:`.
@@ -1648,7 +1648,7 @@ def test_the_bundle_declares_no_genie_space_and_no_lakebase_resource():
     spaces = sorted(p.name for p in (root / "resources").glob("*.genie_space.yml"))
     assert spaces == [], (
         f"resources/ declares Genie spaces again ({spaces}), so a deploy would "
-        "overwrite the live spaces. Attach by genie_data_space_id instead."
+        "overwrite the configured live space. Attach by genie_data_space_id instead."
     )
     postgres = sorted(p.name for p in (root / "resources").glob("*.postgres.yml"))
     assert postgres == [], (

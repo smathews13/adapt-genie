@@ -10,23 +10,20 @@ rewritten paragraph, so a change can be committed, deployed, reported as
 successful, and never land -- and the tag agrees with the deploy rather than with
 the workspace. That has already happened here once and cost a day.
 
-So this compares the TEXT. It reads the body the bundle would push, out of
-`databricks bundle validate -o json` with every `${var.*}` already resolved, and
-the body the workspace is actually serving, out of the Genie API, and reports
-what differs. A tag that was never bumped changes nothing about the answer.
+So this compares the TEXT. For the current attach-by-ID bundle, it reads the
+committed reference body under `genie/` and compares it with the body the
+workspace is actually serving from the Genie API. A tag that was never bumped
+changes nothing about the answer.
 
-WHAT COUNTS AS DRIFT, AND WHAT DELIBERATELY DOES NOT. Only the fields the bundle
-DECLARES are compared. `space_id`, `etag`, `create_time` and `update_time` are
-the server's and appear in no YAML, so they are not drift and are never reported
-as such -- a check that flagged them would cry drift on every single run and
-would be switched off within a week.
+WHAT COUNTS AS DRIFT, AND WHAT DELIBERATELY DOES NOT. With `--reference`, the
+committed serialized-space body is compared exactly. Legacy bundle-managed
+fixtures may also compare the top-level fields they declare. `space_id`, `etag`,
+`create_time` and `update_time` are the server's, so they are not drift and are
+never reported as such.
 
-Within a declared field the comparison is EXACT, in both directions, because a
-`bundle deploy` overwrites these bodies wholesale. A table that is live and not
-committed is drift just as much as one that is committed and not live: the next
-deploy deletes it, and somebody's analysts lose a table nobody meant to remove.
-That direction is the one a "did my change land?" check forgets, and it is the
-more dangerous of the two.
+Within the committed body the comparison is EXACT, in both directions. A table
+that is live and not committed is drift just as much as one that is committed
+and not live: either way, the reference no longer describes the workspace.
 
 WHAT THIS CANNOT TELL YOU. That an instruction which landed is being FOLLOWED.
 The two look identical from here, and the only way to tell them apart is to ask
@@ -40,7 +37,7 @@ is safe to run against a live deployment, including one somebody is mid-deploy
 on or demonstrating.
 
 Exit status is the point of the whole file:
-  0  every space checked is in sync; a deploy would change nothing
+  0  every space checked is in sync with its committed reference
   1  at least one space has drifted; the committed content is not what is live
   2  at least one space could not be read, so nothing is established either way
 """
@@ -110,6 +107,7 @@ def api_get(profile: str, path: str) -> dict:
         ["databricks", "api", "get", path, "--profile", profile],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         raise Unreachable((result.stderr or result.stdout).strip() or "no error text")
@@ -255,7 +253,7 @@ def check_space(profile: str, label: str, key: str, space_id: str, committed: di
     compare(committed_body, live_body, "serialized_space", findings)
 
     if not findings:
-        print("    IN SYNC   every field this bundle declares matches the live space.")
+        print("    IN SYNC   every committed reference field matches the live space.")
         print(f"              (live etag {live.get('etag', '(none)')}, last updated "
               f"{live.get('update_time', '(unknown)')})")
         return "in-sync"
@@ -265,14 +263,11 @@ def check_space(profile: str, label: str, key: str, space_id: str, committed: di
     for finding in findings:
         print(f"      - {finding}")
     # Deliberately NOT "deploy this space to close it". The bundle attaches to
-    # spaces it does not own, so this branch is only reachable if something
-    # declared one again -- and deploying that would overwrite a live space's
-    # instructions and curated tables, which is the failure, not the fix.
-    print( "          Close it in the Genie UI, on whichever side is wrong.")
-    print(f"          If the bundle is declaring genie_spaces.{key} again, that is the")
-    print( "          real finding: this bundle attaches to existing spaces by id and")
-    print( "          must not create or overwrite them. Reference bodies live in")
-    print( "          genie/, which is not part of `include:`.")
+    # the space and does not manage its content.
+    print( "          Correct the live space in the Genie UI or re-export the")
+    print( "          approved live body into the committed reference.")
+    print( "          Do not run bundle deploy: this bundle attaches by id and")
+    print( "          must not create or overwrite the Genie space.")
     return "drifted"
 
 
@@ -285,20 +280,35 @@ def main() -> int:
         action="append",
         metavar=("LABEL", "KEY", "ID"),
         default=[],
-        help="KEY is the resources.genie_spaces.<key> this id corresponds to.",
+        help="KEY identifies the space in output and supports legacy bundle-managed fixtures.",
+    )
+    parser.add_argument(
+        "--reference",
+        help="Committed serialized-space JSON to compare for every supplied space.",
     )
     args = parser.parse_args()
 
-    try:
-        bundle = json.load(sys.stdin)
-    except json.JSONDecodeError as error:
-        print("")
-        print(f"  FAIL  the resolved bundle configuration could not be read ({error}).")
-        print("        This is fed `databricks bundle validate -t <target> -o json`.")
-        return 2
-    declared: dict = (bundle.get("resources") or {}).get("genie_spaces") or {}
+    committed_reference = None
+    declared: dict = {}
+    if args.reference:
+        try:
+            with open(args.reference, encoding="utf-8") as handle:
+                committed_reference = {"serialized_space": json.load(handle)}
+        except (OSError, json.JSONDecodeError) as error:
+            print()
+            print(f"  FAIL  committed Genie reference could not be read ({error}).")
+            return 2
+    else:
+        try:
+            bundle = json.load(sys.stdin)
+        except json.JSONDecodeError as error:
+            print()
+            print(f"  FAIL  the resolved bundle configuration could not be read ({error}).")
+            print("        Supply --reference for an attach-by-ID bundle.")
+            return 2
+        declared = (bundle.get("resources") or {}).get("genie_spaces") or {}
 
-    print("  note  comparing the CONTENT the bundle would push against the content the")
+    print("  note  comparing committed Genie reference CONTENT against what the")
     print("        workspace is serving. `serialized_space.version` and the instruction")
     print("        ids are compared like any other field and decide nothing on their own:")
     print("        an unbumped version above rewritten text is exactly the failure this")
@@ -306,7 +316,7 @@ def main() -> int:
 
     verdicts: list[str] = []
     for label, key, space_id in args.space:
-        committed = declared.get(key)
+        committed = committed_reference or declared.get(key)
         if committed is None:
             print(f"\n  {label}  {space_id or '(no id)'}")
             print(f"    SKIP  the bundle declares no genie_spaces.{key} for this target, so")
@@ -317,23 +327,23 @@ def main() -> int:
         verdicts.append(check_space(args.profile, label, key, space_id, committed))
 
     if not verdicts:
-        print("")
+        print()
         print("  FAIL  nothing was compared: no --space was supplied.")
         print("        A run that checks nothing must not exit 0.")
         return 2
 
     drifted = verdicts.count("drifted")
     unreadable = verdicts.count("unreadable")
-    print("")
+    print()
     if drifted:
         print(f"  {drifted} of {len(verdicts)} thing(s) checked have drifted. The committed content is NOT what is live.")
-        print( "  Until a deploy closes it, this repository is not a description of the")
-        print( "  running demo, and a reader reasoning from the YAML will be wrong.")
+        print( "  Until the reference or the live Genie space is corrected, this repository")
+        print( "  is not a description of the running deployment.")
     if unreadable:
         print(f"  {unreadable} space(s) could not be established either way. Not a pass.")
     if not drifted and not unreadable:
-        print("  Every space checked is in sync. A deploy would change nothing.")
-    print("")
+        print("  Every space checked matches its committed reference.")
+    print()
     print("  What this does NOT establish: that an instruction which landed is being")
     print("  FOLLOWED. Ask the space a question that depends on the change.")
 

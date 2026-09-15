@@ -535,7 +535,7 @@ export function HomePage() {
     let active = true;
     const loadTrends = () => {
       if (active) setWatchlist(null);
-      void fetchWithTimeout('/api/watchlist-trends', {}, 40_000)
+      void fetchWithTimeout('/api/watchlist-trends', {}, 45_000)
         .then((response) => watchlistTrendsFromResponse(response))
         .then((result) => {
           if (active) setWatchlist(result);

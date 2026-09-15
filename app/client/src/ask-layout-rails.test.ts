@@ -60,7 +60,7 @@ describe('the two rails share one width and the card sits in the middle', () => 
       /\.conversation-main \.answer-card,\s*\.conversation-main \.plan-card\s*\{[^}]*width:\s*calc\(100% - 16px\)/
     );
     expect(COMPOSER).toMatch(
-      /\.composer\s*\{[^}]*width:\s*calc\(100% - 16px\)[^}]*max-width:\s*var\(--conversation-measure\)/
+      /\.composer\s*\{[^}]*width:\s*calc\(100% - 16px\)[^}]*max-width:\s*min\(720px,\s*var\(--conversation-measure\)\)/
     );
   });
 

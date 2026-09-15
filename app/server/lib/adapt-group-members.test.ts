@@ -65,6 +65,25 @@ describe('ADAPT workspace group members', () => {
     expect(result.detail).toContain('not found');
   });
 
+  it('never serves an injected reader from the shared cache', async () => {
+    // The production identity's reads are cached to spare the SCIM fan-out, but a
+    // test (or any caller with its own reader) must always see a fresh call, so a
+    // second read re-runs the same lookups rather than returning a remembered answer.
+    const reader = vi.fn((path: string) => {
+      if (path === SCIM_GROUPS_PATH) {
+        return Promise.resolve({ Resources: [{ id: 'group-1', displayName: 'Cached Team' }] });
+      }
+      if (path === `${SCIM_GROUPS_PATH}/group-1`) {
+        return Promise.resolve({ members: [{ value: 'user-1', display: 'Only User' }] });
+      }
+      return Promise.resolve({ userName: 'only@take2games.com', displayName: 'Only User' });
+    });
+    await readAdaptGroupMembers('Cached Team', reader);
+    const callsAfterFirst = reader.mock.calls.length;
+    await readAdaptGroupMembers('Cached Team', reader);
+    expect(reader.mock.calls.length).toBe(callsAfterFirst * 2);
+  });
+
   it('confirms only an exact SCIM group match', async () => {
     const reader = vi.fn(() => Promise.resolve({ Resources: [{ id: 'group-1', displayName: 'Existing Team' }] }));
     await expect(readWorkspaceGroup('existing team', reader)).resolves.toEqual({

@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { autoCheckClaimed, claimAutoCheck, forgetChecks, recallChecks, rememberChecks } from './check-session';
+import { timedOutMessage } from './fetch-timeout';
 import {
   beginConnectionMutation,
   commitConnectionAddition,
@@ -314,7 +315,7 @@ describe('what one run reads, and what it keeps', () => {
     await vi.advanceTimersByTimeAsync(SESSION_CHECK_TIMEOUT_MS);
     await run;
 
-    expect(recallChecks()?.error).toContain(`within ${SESSION_CHECK_TIMEOUT_MS} ms`);
+    expect(recallChecks()?.error).toContain(timedOutMessage(SESSION_CHECK_TIMEOUT_MS));
   });
 });
 

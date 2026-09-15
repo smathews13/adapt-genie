@@ -1,9 +1,34 @@
 import type { GroupMember, GroupMembersResponse } from '../../shared/user-roster-contract';
 import { workspaceControlPlaneReader, type ControlPlaneReader } from './control-plane-identity';
+import { ExpiringLruCache } from './expiring-lru';
 
 export const SCIM_GROUPS_PATH = '/api/2.0/preview/scim/v2/Groups';
 const MAX_GROUP_MEMBERS = 500;
 const USER_READ_CONCURRENCY = 12;
+
+/**
+ * Expanding a group is one group read plus one SCIM user read per member (up to
+ * MAX_GROUP_MEMBERS, twelve at a time), and the roster screen re-asks for the same
+ * group as an operator pages, filters, and reopens it. Nothing about a workspace
+ * group's membership changes second to second, so a short shared cache turns that
+ * repeated fan-out into one round trip per group per minute -- which is what the
+ * ops latency panel was flagging as "slower than baseline" on this route.
+ *
+ * Only the production identity's reads are cached, and only readable answers: a
+ * test that injects its own reader always sees a fresh call, and a transient
+ * permission or transport failure is never remembered as if it were the truth.
+ */
+const GROUP_MEMBERS_CACHE_MAX_ENTRIES = 32;
+const GROUP_MEMBERS_TTL_MS = 60_000;
+const groupMembersCache = new ExpiringLruCache<GroupMembersResponse>(
+  GROUP_MEMBERS_CACHE_MAX_ENTRIES,
+  GROUP_MEMBERS_TTL_MS
+);
+
+/** Drop any cached membership so a deliberate re-read (or a test) starts clean. */
+export function clearGroupMembersCache(): void {
+  groupMembersCache.clear();
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -115,6 +140,12 @@ export async function readAdaptGroupMembers(
 ): Promise<GroupMembersResponse> {
   const requested = groupName.trim();
   if (!requested) return { groupName: '', members: [], readable: false, detail: 'No workspace group was named.' };
+  const cacheable = reader === workspaceControlPlaneReader;
+  const cacheKey = requested.toLocaleLowerCase();
+  if (cacheable) {
+    const cached = groupMembersCache.get(cacheKey);
+    if (cached) return cached;
+  }
   try {
     const found = await readWorkspaceGroup(requested, reader);
     const id = found.groupId;
@@ -160,7 +191,7 @@ export async function readAdaptGroupMembers(
       (left, right) => left.displayName.localeCompare(right.displayName) || left.email.localeCompare(right.email)
     );
     const unresolved = rawMembers.length - members.length;
-    return {
+    const result: GroupMembersResponse = {
       groupName: requested,
       members,
       readable: true,
@@ -171,6 +202,8 @@ export async function readAdaptGroupMembers(
             ? `${unresolved} nested group or unreadable member ${unresolved === 1 ? 'was' : 'were'} omitted.`
             : '',
     };
+    if (cacheable) groupMembersCache.set(cacheKey, result);
+    return result;
   } catch {
     return {
       groupName: requested,

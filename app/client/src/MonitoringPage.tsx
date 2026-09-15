@@ -162,6 +162,7 @@ import {
 } from './user-spend-total-cache';
 import { listenForIdentitySettingsChanges } from './identity-settings-events';
 import { USER_SPEND_DIAGNOSES, userSpendHttpDiagnosis, userSpendPayloadDiagnosis } from './user-spend-diagnosis';
+import { PanelRequestError, panelErrorReason } from './panel-error-reason';
 import { Dialog } from './Dialog';
 import { FeedbackBrowserPanel } from './FeedbackBrowserPanel';
 import {
@@ -2394,7 +2395,7 @@ function usePanelRequest<T>(
 
     void fetch(url, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 403 ? 'forbidden' : `http_${response.status}`);
+        if (!response.ok) throw new PanelRequestError(await panelErrorReason(response, errorMessage));
         return decode(await response.json());
       })
       .then((data) => {
@@ -2404,10 +2405,8 @@ function usePanelRequest<T>(
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
-        const message =
-          error instanceof Error && error.message === 'forbidden'
-            ? 'You do not have access to these Monitoring details.'
-            : errorMessage;
+        // Show the server's own reason when it gave one; otherwise the panel's line.
+        const message = error instanceof PanelRequestError ? error.message : errorMessage;
         if (!retained) setState((current) => rejectPanelLoad(current, key, requestId, message));
       })
       .finally(() => setRefreshingKey((current) => (current === key ? '' : current)));

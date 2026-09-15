@@ -270,6 +270,13 @@ export interface CostCardView {
   basis: string;
   evidence: string;
   detail: string;
+  /**
+   * Why a figure is absent, when it is -- shown on the card itself so a reader
+   * is never left with a bare "unavailable". Empty once a measured figure
+   * arrives. `detail` is the same text but rides in a tooltip and is suppressed
+   * on the concise foundation card; this field is always safe to render.
+   */
+  reason: string;
   resource: string;
 }
 
@@ -278,6 +285,8 @@ export interface GenieCardView {
   title: string;
   charged: string;
   free: string;
+  /** Why the figures are unavailable, when they are. Empty once a figure arrives. */
+  note: string;
 }
 
 /** The words for the two bases. A rate drawn as a total is the whole hazard. */
@@ -406,6 +415,7 @@ export function costCardView(
     basis: primaryBasis(tile),
     evidence: '',
     detail: partial ? 'Some request or price coverage is incomplete.' : view.absence,
+    reason: view.figure ? '' : view.absence,
     resource: [tile.resourceId, tile.secondaryResourceId].filter(Boolean).join(' · '),
   };
 }
@@ -455,6 +465,8 @@ export function questionCostCardView(payload: OpsCostPayload, unit: CostBudgetUn
         : partial
           ? 'Components without a safe measured amount are excluded from this estimate.'
           : QUESTION_COST_FORMULA,
+    // The amount ("No measured average") already states the absence; no second line.
+    reason: '',
     resource: '',
   };
 }
@@ -483,27 +495,36 @@ export function genieCostCardViews(payload: OpsCostPayload, unit: CostBudgetUnit
         chargedDbus !== null && chargedDbus !== undefined && chargedDbus >= 0
           ? `${chargedDbus.toFixed(2)} DBU`
           : 'Unavailable';
+      const charged =
+        unit === 'USD'
+          ? paid === null
+            ? measuredChargedDbus
+            : `$${paid.toFixed(2)}`
+          : chargedDbus === null || chargedDbus === undefined
+            ? 'Unavailable'
+            : `${chargedDbus.toFixed(2)} DBU`;
+      const free =
+        unit === 'USD'
+          ? !accounting
+            ? 'Unavailable'
+            : freeDbus === 0
+              ? '$0.00'
+              : accounting?.freeEquivalentUsd === null || accounting?.freeEquivalentUsd === undefined
+                ? 'Unavailable'
+                : `$${accounting.freeEquivalentUsd.toFixed(2)}`
+          : `${freeDbus.toFixed(2)} DBU`;
+      // Whenever a figure the reader will actually see reads a bare "Unavailable"
+      // -- charge or free, in either unit -- the card would otherwise leave them
+      // nothing to act on. The tile already carries the reason (no workspace id
+      // configured, a billing read that was refused, no classified rows), so
+      // surface it whenever either figure comes up unmeasured.
+      const unmeasured = charged === 'Unavailable' || free === 'Unavailable';
       return {
         id: tile.id,
         title: 'Data Genie',
-        charged:
-          unit === 'USD'
-            ? paid === null
-              ? measuredChargedDbus
-              : `$${paid.toFixed(2)}`
-            : chargedDbus === null || chargedDbus === undefined
-              ? 'Unavailable'
-              : `${chargedDbus.toFixed(2)} DBU`,
-        free:
-          unit === 'USD'
-            ? !accounting
-              ? 'Unavailable'
-              : freeDbus === 0
-                ? '$0.00'
-                : accounting?.freeEquivalentUsd === null || accounting?.freeEquivalentUsd === undefined
-                  ? 'Unavailable'
-                  : `$${accounting.freeEquivalentUsd.toFixed(2)}`
-            : `${freeDbus.toFixed(2)} DBU`,
+        note: unmeasured ? tile.unavailable || 'Genie billing could not be classified.' : '',
+        charged,
+        free,
       };
     });
 }

@@ -60,6 +60,9 @@ describe('organization identity assets', () => {
       /@media \(forced-colors: active\)[\s\S]*\.roster-organization-mark:not\([^}]*color:\s*CanvasText/s
     );
     expect(MONITORING_CSS).toContain('.monitoring-organization-trigger');
+    expect(MONITORING_CSS).toMatch(
+      /\.monitoring-organization-option-content \.roster-databricks-symbol\s*\{[^}]*transform:\s*translateY\(2px\)/
+    );
     expect(RESPONSIVE_CSS).toMatch(/\.monitoring-organization-trigger[^}]*width:\s*100%/s);
     expect(DENSITY_CSS).toContain('.app-menu-option');
     expect(RAIL_CSS).toMatch(

@@ -706,6 +706,11 @@ function CostCardGrid({
                 <dd className="ast-num">{card.charged}</dd>
               </div>
             </dl>
+            {card.note ? (
+              <p className="ops-tile-note" role="note">
+                {card.note}
+              </p>
+            ) : null}
             <CostPeriodBadges range={range} />
             <div className="ops-cost-card-footer">
               <GenieDatabricksLink href={href} title={card.title} />
@@ -747,6 +752,11 @@ function PrimaryCostCard({
       <p className="ops-tile-figure" title={!concise && card.detail ? card.detail : undefined}>
         <span className="ast-num">{card.amount}</span>
       </p>
+      {card.reason ? (
+        <p className="ops-tile-note" role="note">
+          {card.reason}
+        </p>
+      ) : null}
       {card.secondaryMetric ? <p className="ops-tile-secondary">{card.secondaryMetric}</p> : null}
       {!concise && card.basis ? <p className="ops-tile-basis">{card.basis}</p> : null}
       <CostPeriodBadges range={range} />

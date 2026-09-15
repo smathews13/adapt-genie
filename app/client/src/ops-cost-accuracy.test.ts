@@ -53,7 +53,10 @@ function payload(tiles: CostTile[]): OpsCostPayload {
   } as unknown as OpsCostPayload;
 }
 
-function genie(overrides: Partial<GenieInstanceAccounting> & Pick<GenieInstanceAccounting, 'tileId'>) {
+function genie(
+  overrides: Omit<Partial<GenieInstanceAccounting>, 'chargedEffectiveDbus'> &
+    Pick<GenieInstanceAccounting, 'tileId'> & { chargedEffectiveDbus?: number | null }
+) {
   return {
     spaceId: `space-${overrides.tileId}`,
     label: overrides.tileId,
@@ -70,7 +73,7 @@ function genie(overrides: Partial<GenieInstanceAccounting> & Pick<GenieInstanceA
     pricingState: 'priced',
     surfaces: [],
     ...overrides,
-  } satisfies GenieInstanceAccounting;
+  } as GenieInstanceAccounting;
 }
 
 describe('Cost component accuracy presentation', () => {
@@ -126,7 +129,7 @@ describe('Cost component accuracy presentation', () => {
     const views = genieCostCardViews(
       payload([tile({ id: chargedHigher.tileId, genieInstanceAccounting: chargedHigher })])
     );
-    expect(views).toEqual([{ id: 'genie:data', title: 'Data Genie', charged: '$4.51', free: '$0.53' }]);
+    expect(views).toEqual([{ id: 'genie:data', title: 'Data Genie', note: '', charged: '$4.51', free: '$0.53' }]);
     const dbus = genieCostCardViews(
       payload([tile({ id: chargedHigher.tileId, genieInstanceAccounting: chargedHigher })]),
       'DBU'
@@ -143,7 +146,7 @@ describe('Cost component accuracy presentation', () => {
       paidUsd: null,
     });
     expect(genieCostCardViews(payload([tile({ id: unpriced.tileId, genieInstanceAccounting: unpriced })]))).toEqual([
-      { id: 'genie:data', title: 'Data Genie', charged: '12.50 DBU', free: '$0.00' },
+      { id: 'genie:data', title: 'Data Genie', note: '', charged: '12.50 DBU', free: '$0.00' },
     ]);
 
     const measuredZero = genie({
@@ -155,10 +158,50 @@ describe('Cost component accuracy presentation', () => {
     });
     expect(
       genieCostCardViews(payload([tile({ id: measuredZero.tileId, genieInstanceAccounting: measuredZero })]))
-    ).toEqual([{ id: 'genie:data', title: 'Data Genie', charged: '0.00 DBU', free: '$0.00' }]);
+    ).toEqual([{ id: 'genie:data', title: 'Data Genie', note: '', charged: '0.00 DBU', free: '$0.00' }]);
 
     expect(genieCostCardViews(payload([tile({ id: 'genie:data', amount: null, dbus: null })]))).toEqual([
-      { id: 'genie:data', title: 'Data Genie', charged: 'Unavailable', free: 'Unavailable' },
+      {
+        id: 'genie:data',
+        title: 'Data Genie',
+        note: 'Genie billing could not be classified.',
+        charged: 'Unavailable',
+        free: 'Unavailable',
+      },
+    ]);
+  });
+
+  it('surfaces the reason whenever either figure comes up Unavailable', () => {
+    // DBU unit: USD is priced but the effective-DBU charge is missing, so the
+    // charged figure reads Unavailable and the note must explain why.
+    const unmeasuredDbu = genie({
+      tileId: 'genie:data',
+      chargedEffectiveDbus: null,
+      paidUsd: 7.5,
+    });
+    expect(
+      genieCostCardViews(
+        payload([tile({ id: unmeasuredDbu.tileId, unavailable: 'No workspace id configured.', genieInstanceAccounting: unmeasuredDbu })]),
+        'DBU'
+      )
+    ).toEqual([
+      { id: 'genie:data', title: 'Data Genie', note: 'No workspace id configured.', charged: 'Unavailable', free: '0.00 DBU' },
+    ]);
+
+    // USD unit: the paid charge is known but the free-equivalent USD is missing,
+    // so the free figure reads Unavailable and the note must still appear.
+    const unmeasuredFree = genie({
+      tileId: 'genie:data',
+      allowanceUsedDbus: 1,
+      paidUsd: 4.51,
+      freeEquivalentUsd: null,
+    });
+    expect(
+      genieCostCardViews(
+        payload([tile({ id: unmeasuredFree.tileId, unavailable: 'A billing read was refused.', genieInstanceAccounting: unmeasuredFree })])
+      )
+    ).toEqual([
+      { id: 'genie:data', title: 'Data Genie', note: 'A billing read was refused.', charged: '$4.51', free: 'Unavailable' },
     ]);
   });
 

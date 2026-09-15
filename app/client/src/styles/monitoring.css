@@ -1590,6 +1590,9 @@ a.monitoring-context-badge {
   height: 24px;
   align-self: center;
 }
+.monitoring-organization-option-content .roster-databricks-symbol {
+  transform: translateY(2px);
+}
 .monitoring-organization-option-content > span:last-child {
   display: flex;
   align-items: center;

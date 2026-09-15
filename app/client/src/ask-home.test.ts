@@ -154,7 +154,7 @@ describe('the ask home is the geometry the mockup gives it', () => {
     expect(partial('tokens.css')).toMatch(/--conversation-inset:\s*clamp\(/);
     expect(body('.conversation-main')).toMatch(/padding:\s*56px var\(--conversation-inset\) 32px/);
     expect(body('.composer')).toMatch(/width:\s*calc\(100% - 16px\)/);
-    expect(body('.composer')).toMatch(/max-width:\s*var\(--conversation-measure\)/);
+    expect(body('.composer')).toMatch(/max-width:\s*min\(720px,\s*var\(--conversation-measure\)\)/);
     // No copy of the old literal left anywhere. A single survivor is worse than
     // none of this, because it would be the one rule that stopped moving.
     expect(withoutComments(STYLESHEET)).not.toMatch(/clamp\(28px,\s*3\.5vw,\s*64px\)/);

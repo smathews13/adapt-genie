@@ -9,6 +9,8 @@ import { DEFAULT_INSIGHT_RAIL_SECTIONS, type InsightRailSections } from '../../s
 export interface WatchlistSettingsDocument {
   settings: WatchlistSettings;
   revision: number;
+  source: 'default' | 'override';
+  canReset: boolean;
 }
 
 const INSIGHTS_SETTINGS_CHANGED = 'adapt:insights-settings-changed';
@@ -93,12 +95,17 @@ function watchlistSettings(value: unknown): WatchlistSettings | null {
 export async function watchlistSettingsFromResponse(response: Response): Promise<WatchlistSettingsDocument> {
   const body = await json(response);
   if (!response.ok) throw new Error(detail(body) || `Watchlist settings answered ${response.status}.`);
-  const candidate = body as { settings?: unknown; revision?: unknown };
+  const candidate = body as { settings?: unknown; revision?: unknown; source?: unknown; canReset?: unknown };
   const settings = watchlistSettings(candidate.settings);
   if (!settings || !Number.isInteger(candidate.revision) || Number(candidate.revision) < 0) {
     throw new Error('The server returned incomplete watchlist settings.');
   }
-  return { settings, revision: Number(candidate.revision) };
+  return {
+    settings,
+    revision: Number(candidate.revision),
+    source: candidate.source === 'override' ? 'override' : 'default',
+    canReset: candidate.canReset === true,
+  };
 }
 
 export async function watchlistTrendsFromResponse(response: Response): Promise<WatchlistTrendsResponse> {

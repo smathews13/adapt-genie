@@ -44,6 +44,7 @@ import { settingsDismissalAction } from './settings-dismissal';
 import { saveExperimentalSettings, type ExperimentalSettingsDocument } from './experimental-settings-api';
 import { WatchlistSettingsPanel, WATCHLIST_SETTINGS_FORM_ID } from './WatchlistSettingsPanel';
 import { AskStartersSettingsPanel, ASK_STARTERS_SETTINGS_FORM_ID } from './AskStartersSettingsPanel';
+import { GeneralSettingsPanel } from './GeneralSettingsPanel';
 
 const noopClose = () => {};
 
@@ -309,6 +310,7 @@ export function SettingsPage({
         </nav>
         <div className="settings-modal-content">
           <SettingsPaneBoundary key={active} section={active}>
+            {active === 'general' ? <GeneralSettingsPanel /> : null}
             {active === 'identity' ? (
               <div className="settings-pane settings-identity">
                 <div className="settings-pane-heading">

@@ -71,6 +71,7 @@ describe('ADAPT deploy app.yaml generation', () => {
   it('keeps the exact Take-Two SCIM group case in the Git manifest', () => {
     expect(authored).toMatch(/- name: ADAPT_ADMIN_GROUP\n\s+value: 'S_TK2_Databricks_Adapt_Genie_Admins'/);
     expect(authored).toMatch(/- name: ADAPT_USER_GROUP\n\s+value: 'S_TK2_Databricks_Adapt_Genie_Users'/);
+    expect(authored).toMatch(/- name: PLAYER_INSIGHTS_IDLE_TIMEOUT_MINUTES\n\s+value: '120'/);
   });
 
   it('replaces overrides in place and keeps the generated command self-contained', () => {

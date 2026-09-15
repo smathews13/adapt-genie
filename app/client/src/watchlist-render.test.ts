@@ -78,6 +78,8 @@ describe('watchlist settings and rail', () => {
         },
       },
       revision: 2,
+      source: 'default',
+      canReset: false,
     });
     await expect(
       watchlistTitlesFromResponse(

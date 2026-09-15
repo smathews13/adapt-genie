@@ -90,7 +90,7 @@ export function WatchlistSettingsPanel({
     setFailure('');
     onSaveState({ kind: 'saving' });
     try {
-      const response = await fetch('/api/admin/watchlist-settings', {
+      const response = await fetch('/api/watchlist-settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ revision: revision.current, patch: { titles: selectedTitles, sections } }),

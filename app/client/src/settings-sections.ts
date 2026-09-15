@@ -7,11 +7,13 @@ import {
   Network,
   Palette,
   ServerCog,
+  Settings2,
   type LucideIcon,
 } from 'lucide-react';
 import { showsEgressControls, type ExperimentalFeatures } from './experimental-features';
 
 export type SettingsSection =
+  | 'general'
   | 'identity'
   | 'runtime'
   | 'environment'
@@ -23,6 +25,7 @@ export type SettingsSection =
 
 /** Every Settings destination owns one distinct, decorative navigation mark. */
 export const SETTINGS_SECTION_ICONS = {
+  general: Settings2,
   identity: BadgeCheck,
   runtime: Gauge,
   environment: ServerCog,
@@ -34,6 +37,7 @@ export const SETTINGS_SECTION_ICONS = {
 } satisfies Record<SettingsSection, LucideIcon>;
 
 export const BASE_SETTINGS_SECTIONS: readonly { id: SettingsSection; label: string }[] = [
+  { id: 'general', label: 'General' },
   { id: 'identity', label: 'Identity' },
   { id: 'environment', label: 'Environment' },
   { id: 'appearance', label: 'Appearance' },

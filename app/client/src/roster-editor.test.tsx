@@ -169,19 +169,13 @@ describe('workspace group defaults', () => {
       recoveryStatement: '',
     };
     const markup = renderToStaticMarkup(<GroupRoleDefaults payload={payload} />);
-    expect(text(markup)).toContain(
-      'S_TK2_Databricks_Adapt_Genie_Admins Workspace mapping: customer-admins Admin Can manage'
-    );
-    expect(text(markup)).toContain(
-      'S_TK2_Databricks_Adapt_Genie_Users Workspace mapping: customer-users Consumer Can use'
-    );
-    expect(markup).toContain('href="https://accounts.cloud.databricks.com"');
-    expect(markup).toContain('Open Databricks identity management for customer-admins');
-    expect(markup.match(/href=/g)).toHaveLength(1);
+    expect(text(markup)).toContain('S_TK2_Databricks_Adapt_Genie_Admins Admin Can manage');
+    expect(text(markup)).toContain('S_TK2_Databricks_Adapt_Genie_Users Consumer Can use');
+    expect(text(markup)).not.toMatch(/Workspace mapping|Deployment bundle|Databricks identity management|Mapped by/);
 
     const editable = renderToStaticMarkup(<GroupRoleDefaults payload={payload} canManage onRoleChange={() => {}} />);
     expect(editable).not.toContain('aria-label="ADAPT role for S_TK2_Databricks_Adapt_Genie_Admins: Admin"');
-    expect(text(editable)).toContain('S_TK2_Databricks_Adapt_Genie_Admins Workspace mapping: customer-admins Admin');
+    expect(text(editable)).toContain('S_TK2_Databricks_Adapt_Genie_Admins Admin');
   });
 
   it('offers a simple group browser entry point', () => {

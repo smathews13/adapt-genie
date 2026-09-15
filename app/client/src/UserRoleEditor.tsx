@@ -415,19 +415,6 @@ function GroupRoleRow({
               ) : (
                 <span className="admin-row-address">{entry.displayName}</span>
               )}
-              <span className="roster-organization-name">
-                {entry.displayName !== entry.groupName ? (
-                  <>
-                    Workspace mapping: <GroupIdentityLink entry={entry} label={entry.groupName} />
-                  </>
-                ) : entry.source === 'bundle' ? (
-                  `${entry.scimConfirmed ? 'Databricks identity management · ' : ''}Deployment bundle`
-                ) : (
-                  `${entry.scimConfirmed ? 'Databricks identity management · ' : ''}Mapped by ${
-                    entry.setBy || 'a super admin'
-                  }`
-                )}
-              </span>
             </span>
           </div>
         </td>

@@ -74,6 +74,7 @@ describe('Settings modal', () => {
     );
     const buttons = nav.match(/<button[\s\S]*?<\/button>/g) ?? [];
     const tabs = [
+      ['general', 'lucide-settings', 'General'],
       ['identity', 'lucide-badge-check', 'Identity'],
       ['environment', 'lucide-server-cog', 'Environment'],
       ['appearance', 'lucide-palette', 'Appearance'],

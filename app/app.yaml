@@ -6,6 +6,8 @@ env:
   # approved target without asking the customer to edit bundle configuration.
   - name: PLAYER_INSIGHTS_TARGET
     value: ''
+  - name: PLAYER_INSIGHTS_IDLE_TIMEOUT_MINUTES
+    value: '120'
   - name: LAKEBASE_ENDPOINT
     valueFrom: postgres
   - name: DATABRICKS_SERVING_ENDPOINT_NAME

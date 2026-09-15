@@ -2655,7 +2655,7 @@ describe('the latency block', () => {
     expect(text(header)).not.toContain('App-owned request timings');
     expect(header).toContain('ops-latency-head-controls');
     expect(header).toContain('ops-latency-search');
-    expect(header).toContain('monitoring-search-icon');
+    expect(header).not.toContain('monitoring-search-icon');
     expect(header).toContain('ops-latency-trend-filters');
     expect(header).toContain('Within baseline');
     expect(header).toContain('Outside baseline');

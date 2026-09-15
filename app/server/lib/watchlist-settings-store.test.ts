@@ -1,7 +1,54 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readWatchlistSettings, writeWatchlistSettings } from './watchlist-settings-store';
+import {
+  readResolvedWatchlistSettings,
+  deleteUserWatchlistSettings,
+  readWatchlistSettings,
+  writeWatchlistSettings,
+} from './watchlist-settings-store';
 
 describe('watchlist settings store', () => {
+  it('resolves a user title override ahead of Rida’s effective titles', async () => {
+    const sections = {
+      dataInScope: true,
+      savedQueries: true,
+      watchlist: true,
+      answerConfidence: true,
+    };
+    const query = vi.fn((_sql: string, values: unknown[] = []) =>
+      Promise.resolve({
+        rows:
+          values[0] === 'effective'
+            ? [{ settings: { titles: ['Borderlands 4'], sections }, revision: 4 }]
+            : values[0] === 'user:reader@example.com'
+              ? [{ settings: { titles: ['NBA 2K26'], sections }, revision: 2 }]
+              : [],
+      })
+    );
+    await expect(
+      readResolvedWatchlistSettings({ lakebase: { query } }, 'Reader@Example.com')
+    ).resolves.toMatchObject({
+      settings: { titles: ['NBA 2K26'] },
+      revision: 2,
+      source: 'override',
+      canReset: true,
+    });
+  });
+
+  it('deletes only the caller override and reveals Rida’s effective titles', async () => {
+    const effective = {
+      titles: ['Borderlands 4'],
+      sections: { dataInScope: true, savedQueries: true, watchlist: true, answerConfidence: true },
+    };
+    const query = vi.fn((sql: string, values: unknown[] = []) => {
+      if (sql.includes('DELETE FROM')) return Promise.resolve({ rows: [] });
+      return Promise.resolve({ rows: values[0] === 'effective' ? [{ settings: effective, revision: 4 }] : [] });
+    });
+    await expect(
+      deleteUserWatchlistSettings({ lakebase: { query } }, 'reader@example.com')
+    ).resolves.toMatchObject({ settings: effective, revision: 4, source: 'default', canReset: false });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM'), ['user:reader@example.com']);
+  });
+
   it('pre-populates the customer watchlist until an admin saves an override', async () => {
     const client = { lakebase: { query: vi.fn().mockResolvedValue({ rows: [] }) } };
     await expect(readWatchlistSettings(client)).resolves.toEqual({

@@ -183,7 +183,7 @@ export function RuntimeSettingsPanel({
       const changed = savedSettings.current ? changedSettingKeys(savedSettings.current, settings).length : 0;
       const before = savedSettings.current;
       if (!before) throw new Error('Runtime settings have not loaded from Lakebase.');
-      const response = await fetch('/api/admin/runtime-settings', {
+      const response = await fetch('/api/runtime-settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

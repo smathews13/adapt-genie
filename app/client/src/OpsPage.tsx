@@ -38,7 +38,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, ExternalLink, Search, Users, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Users, X } from 'lucide-react';
 import { Button, Input } from './ui';
 import { astPill } from './astrolabe-pill';
 import { BrandIcon } from './BrandIcon';
@@ -1174,7 +1174,6 @@ export function LatencyBody({
         control={
           <div className="ops-latency-head-controls">
             <div className="run-search monitoring-search ops-latency-search">
-              <Search className="monitoring-search-icon" aria-hidden="true" />
               <Input
                 type="search"
                 placeholder="Search routes or methods…"

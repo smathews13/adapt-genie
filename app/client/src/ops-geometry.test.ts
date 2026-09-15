@@ -183,6 +183,7 @@ describe('the figures line up', () => {
     expect(field).toMatch(/max-height:\s*32px/);
     expect(field).toMatch(/padding-top:\s*0/);
     expect(field).toMatch(/padding-bottom:\s*0/);
+    expect(field).toMatch(/padding-left:\s*10px/);
   });
 
   it('keeps the TREND pills the same 32px height as search and Refresh', () => {

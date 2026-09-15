@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { normalizeWorkspaceHost } from '../../shared/databricks-links';
 import {
   WATCHLIST_METRIC_LABEL,
@@ -8,8 +9,14 @@ import {
   type WatchlistTrendsResponse,
 } from '../../shared/watchlist';
 import { recordAdminAction } from '../lib/admin-roles';
+import { ownsPreferenceDefaults } from '../../shared/preference-default-owner';
 import { sqlQueryTags } from '../lib/sql-query-tags';
-import { readWatchlistSettings, writeWatchlistSettings } from '../lib/watchlist-settings-store';
+import {
+  deleteUserWatchlistSettings,
+  readResolvedWatchlistSettings,
+  writeUserWatchlistSettings,
+  writeWatchlistSettings,
+} from '../lib/watchlist-settings-store';
 import { SettingsRevisionConflict } from '../lib/versioned-settings-store';
 import { forwardedUserToken } from './access-verification';
 import { userEmail, type InsightsAppKit } from './insights-routes';
@@ -257,9 +264,9 @@ async function queryTitles(token: string, table: string): Promise<WatchlistTitle
 
 export function setupWatchlistRoutes(appkit: InsightsAppKit): void {
   appkit.server.extend((app) => {
-    app.get('/api/watchlist-settings', async (_req, res) => {
+    app.get('/api/watchlist-settings', async (req, res) => {
       try {
-        res.json(await readWatchlistSettings(appkit));
+        res.json(await readResolvedWatchlistSettings(appkit, userEmail(req)));
       } catch (error) {
         res.status(503).json({
           error: 'watchlist_settings_unavailable',
@@ -268,34 +275,64 @@ export function setupWatchlistRoutes(appkit: InsightsAppKit): void {
       }
     });
 
-    app.put('/api/admin/watchlist-settings', async (req, res) => {
+    const saveWatchlist = async (req: ExpressRequest, res: ExpressResponse) => {
       const parsed = WatchlistWrite.safeParse(req.body);
       if (!parsed.success) {
         res.status(400).json({ error: 'invalid_watchlist_settings', detail: parsed.error.message });
         return;
       }
-      let document: Awaited<ReturnType<typeof writeWatchlistSettings>>;
+      const actor = userEmail(req);
+      if (!actor) {
+        res.status(401).json({ error: 'identity_unavailable', detail: 'A signed-in user is required.' });
+        return;
+      }
       try {
-        document = await writeWatchlistSettings(appkit, parsed.data.patch, parsed.data.revision, userEmail(req));
+        const document = ownsPreferenceDefaults(actor)
+          ? await writeWatchlistSettings(appkit, parsed.data.patch, parsed.data.revision, actor).then((value) => ({
+              ...value,
+              source: 'default' as const,
+              canReset: false,
+            }))
+          : await writeUserWatchlistSettings(appkit, actor, parsed.data.patch, parsed.data.revision);
+        if (ownsPreferenceDefaults(actor)) {
+          await recordAdminAction(appkit.lakebase, {
+            actor,
+            action: 'watchlist-settings-updated',
+            subject: 'watchlist',
+            detail: `Configured ${document.settings.titles.length} default watchlist titles.`,
+          }).catch((error) =>
+            console.warn('[watchlist] Saved settings, but could not write the admin audit row:', error)
+          );
+        }
+        res.json(document);
       } catch (error) {
         const conflict = error instanceof SettingsRevisionConflict;
         res.status(conflict ? 409 : 503).json({
           error: conflict ? 'watchlist_settings_conflict' : 'watchlist_settings_unavailable',
           detail: conflict ? error.message : `The watchlist was not saved: ${(error as Error).message}`,
         });
+      }
+    };
+    app.put('/api/watchlist-settings', saveWatchlist);
+    app.put('/api/admin/watchlist-settings', saveWatchlist);
+    app.delete('/api/watchlist-settings', async (req, res) => {
+      const actor = userEmail(req);
+      if (!actor) {
+        res.status(401).json({ error: 'identity_unavailable', detail: 'A signed-in user is required.' });
+        return;
+      }
+      if (ownsPreferenceDefaults(actor)) {
+        res.status(409).json({ error: 'default_owner_cannot_reset', detail: 'Rida’s settings are the default.' });
         return;
       }
       try {
-        await recordAdminAction(appkit.lakebase, {
-          actor: userEmail(req),
-          action: 'watchlist-settings-updated',
-          subject: 'watchlist',
-          detail: `Configured ${document.settings.titles.length} watchlist titles.`,
-        });
+        res.json(await deleteUserWatchlistSettings(appkit, actor));
       } catch (error) {
-        console.warn('[watchlist] Saved settings, but could not write the admin audit row:', error);
+        res.status(503).json({
+          error: 'watchlist_settings_unavailable',
+          detail: `The override was not reset: ${(error as Error).message}`,
+        });
       }
-      res.json(document);
     });
 
     app.get('/api/watchlist-titles', async (req, res) => {
@@ -342,9 +379,9 @@ export function setupWatchlistRoutes(appkit: InsightsAppKit): void {
         } satisfies WatchlistTrendsResponse);
         return;
       }
-      let document: Awaited<ReturnType<typeof readWatchlistSettings>>;
+      let document: Awaited<ReturnType<typeof readResolvedWatchlistSettings>>;
       try {
-        document = await readWatchlistSettings(appkit);
+        document = await readResolvedWatchlistSettings(appkit, userEmail(req));
       } catch (error) {
         res.status(503).json({
           status: 'unavailable',

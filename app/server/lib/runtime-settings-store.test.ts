@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RUNTIME_SETTINGS } from '../../shared/runtime-settings';
 import {
   forgetRuntimeSettings,
+  deleteUserRuntimeSettings,
   readRuntimeSettingsDocument,
+  readResolvedRuntimeSettings,
   writeRuntimeSettingsPatch,
 } from './runtime-settings-store';
 import { SettingsRevisionConflict } from './versioned-settings-store';
@@ -34,6 +36,37 @@ class MemorySettingsDb {
 }
 
 describe('versioned runtime and Appearance settings persistence', () => {
+  it('resolves a user override ahead of Rida’s effective default', async () => {
+    const dark = { ...DEFAULT_RUNTIME_SETTINGS, colorScheme: 'dark' as const };
+    const light = { ...DEFAULT_RUNTIME_SETTINGS, colorScheme: 'light' as const };
+    const query = vi.fn((_sql: string, values: unknown[] = []) =>
+      Promise.resolve({
+        rows:
+          values[0] === 'effective'
+            ? [{ settings: dark, revision: 3 }]
+            : values[0] === 'user:reader@example.com'
+              ? [{ settings: light, revision: 2 }]
+              : [],
+      })
+    );
+    await expect(
+      readResolvedRuntimeSettings({ lakebase: { query } } as never, 'Reader@Example.com')
+    ).resolves.toMatchObject({ settings: light, revision: 2, source: 'override', canReset: true });
+  });
+
+  it('deletes only the caller override and reveals the effective default', async () => {
+    const query = vi.fn((sql: string, values: unknown[] = []) => {
+      if (sql.includes('DELETE FROM')) return Promise.resolve({ rows: [] });
+      return Promise.resolve({
+        rows: values[0] === 'effective' ? [{ settings: DEFAULT_RUNTIME_SETTINGS, revision: 4 }] : [],
+      });
+    });
+    await expect(
+      deleteUserRuntimeSettings({ lakebase: { query } } as never, 'reader@example.com')
+    ).resolves.toMatchObject({ revision: 4, source: 'default', canReset: false });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM'), ['user:reader@example.com']);
+  });
+
   it('survives a process restart and a different build SHA', async () => {
     const db = new MemorySettingsDb();
     const saved = await writeRuntimeSettingsPatch(db as never, { answer: { takeaway: false } }, 0, 'admin');

@@ -2491,10 +2491,6 @@ a.ops-bar-count:hover {
   height: 32px;
 }
 
-.ops-latency-head-controls .ops-latency-search .monitoring-search-icon {
-  top: 16px;
-}
-
 /*
  * `.monitoring-search` shrinks to 160px and, below 1180px, takes `flex: 1 1 100%`.
  * Either floor clips "Search routes or methods…". This pair outranks that rule so
@@ -2520,6 +2516,7 @@ a.ops-bar-count:hover {
   padding-top: 0;
   padding-bottom: 0;
   box-sizing: border-box;
+  padding-left: 10px;
 }
 
 @media (max-width: 800px) {

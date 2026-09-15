@@ -36,8 +36,8 @@ describe('runtime and appearance modal sections', () => {
     expect(source).toContain("export const RUNTIME_SETTINGS_FORM_ID = 'settings-runtime-form'");
   });
 
-  it('writes through the admin route and preserves real errors and load retry', () => {
-    expect(source).toContain("fetch('/api/admin/runtime-settings'");
+  it('writes through the caller-scoped route and preserves real errors and load retry', () => {
+    expect(source).toContain("fetch('/api/runtime-settings'");
     expect(source).toContain("runtimeSettingsDocumentFromResponse(response, 'loaded')");
     expect(source).toContain("runtimeSettingsDocumentFromResponse(response, 'saved')");
     expect(source).toContain("failure?.operation === 'load'");

@@ -104,6 +104,7 @@ import { appServicePrincipal } from './execution-identity';
 import { buildUserSpendMetrics } from '../lib/user-spend-metrics';
 import { ADMIN_REQUIRED_BODY, recordAdminAction, resolveRoleForRequest, seedRoles } from '../lib/admin-roles';
 import { readAdaptMonitoringRoster, type AdaptGroupMembersReader } from '../lib/adapt-monitoring-roster';
+import { everyKnownUser } from '../lib/user-roster';
 import { canCheckHealthResources, isRole, type Role } from '../../shared/user-roster-contract';
 import { USER_MONITORING_SCHEMA_REVISION } from '../../shared/user-monitoring-contract';
 import type { CostBudgetUnit } from '../../shared/cost-budgets';
@@ -1709,7 +1710,12 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
             .then((roster) => ({ available: true as const, roster, reason: roster.reason }))
             .catch((error: Error) => ({
               available: false as const,
-              roster: { entries: [], complete: false, reason: '', revision: '' },
+              roster: {
+                entries: everyKnownUser({ seed: seedRoles(), stored: [] }),
+                complete: false,
+                reason: '',
+                revision: '',
+              },
               reason: `Current app roles could not be read: ${error.message}`,
             }))
         : {

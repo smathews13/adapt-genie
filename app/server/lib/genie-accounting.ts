@@ -207,21 +207,6 @@ deduped AS (
   FROM price_hits
   GROUP BY record_id, usage_date, sku_name, usage_quantity, record_type, run_as, surface, channel, offering_type
 ),
-query_space_evidence AS (
-  SELECT
-    CAST(q.start_time AS DATE) AS usage_date,
-    LOWER(TRIM(q.executed_by)) AS run_as,
-    q.query_source.genie_space_id AS space_id,
-    COUNT(*) AS query_count,
-    SUM(COALESCE(q.execution_duration_ms, 0)) AS execution_ms
-  FROM system.query.history q
-  INNER JOIN configured_spaces configured
-    ON q.query_source.genie_space_id = configured.space_id
-  WHERE q.workspace_id = :workspaceId
-    AND q.start_time >= TIMESTAMP(LEAST(:from_day, DATE_TRUNC('MONTH', :through_day)))
-    AND q.start_time < TIMESTAMP(DATE_ADD(:through_day, 1))
-  GROUP BY CAST(q.start_time AS DATE), LOWER(TRIM(q.executed_by)), q.query_source.genie_space_id
-),
 app_space_evidence AS (
   SELECT
     TO_DATE(activity.usage_day) AS usage_date,
@@ -247,17 +232,10 @@ space_evidence AS (
     usage_date,
     run_as,
     space_id,
-    SUM(query_count) AS query_count,
-    SUM(execution_ms) AS execution_ms,
-    SUM(app_calls) AS app_calls
-  FROM (
-    SELECT usage_date, run_as, space_id, query_count, execution_ms, CAST(0 AS DOUBLE) AS app_calls
-    FROM query_space_evidence
-    UNION ALL
-    SELECT usage_date, run_as, space_id, CAST(0 AS BIGINT), CAST(0 AS DOUBLE), app_calls
-    FROM app_space_evidence
-  )
-  GROUP BY usage_date, run_as, space_id
+    CAST(0 AS BIGINT) AS query_count,
+    CAST(0 AS DOUBLE) AS execution_ms,
+    app_calls
+  FROM app_space_evidence
 ),
 query_weights AS (
   SELECT

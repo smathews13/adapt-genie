@@ -53,7 +53,8 @@ describe('Genie billing classification', () => {
     expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.identity_metadata), '$.run_as')");
     expect(built?.statement).toContain("DATE_TRUNC('MONTH', :through_day)");
     expect(built?.statement).toContain("LEAST(:from_day, DATE_TRUNC('MONTH', :through_day))");
-    expect(built?.statement).toContain('query_source.genie_space_id');
+    expect(built?.statement).not.toContain('system.query');
+    expect(built?.statement).toContain('FROM app_space_evidence');
     expect(built?.statement).toContain(':appGenieActivity');
     expect(built?.statement).toContain("'app-ledger-exact'");
     expect(built?.statement).toContain("'app-ledger-allocation'");

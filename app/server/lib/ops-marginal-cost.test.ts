@@ -373,8 +373,9 @@ describe('Aug 26–Sep 1 component-total and marginal Ask audit fixture', () => 
 describe('foundation billing query contract', () => {
   it('uses priced model/time/request evidence without a guessed token price or endpoint overlap', () => {
     const built = buildFoundationCostStatement(IDS, RANGE, runs());
-    expect(built?.statement).toContain('system.serving.endpoint_usage');
-    expect(built?.statement).toContain('system.ai_gateway.usage');
+    expect(built?.statement).not.toContain('system.serving');
+    expect(built?.statement).not.toContain('system.ai_gateway');
+    expect(built?.statement).toContain('FROM run_evidence');
     expect(built?.statement).toContain('system.billing.list_prices');
     expect(built?.statement).toContain("request.request_class IN ('ask-exact', 'ask-bounded')");
     expect(built?.statement).toContain("'known-excluded'");
@@ -386,7 +387,6 @@ describe('foundation billing query contract', () => {
     expect(built?.statement).toContain("LIKE '%CACHE%' THEN request.input_tokens");
     expect(built?.statement).not.toContain("LIKE '%CACHE%READ%' THEN 0");
     expect(built?.statement).toContain("record_type ILIKE '%CORRECT%'");
-    expect(built?.statement).toContain("REGEXP_REPLACE(LOWER(e.endpoint_name), '[^a-z0-9]', '')");
     expect(built?.statement).toContain(
       "GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name')"
     );
@@ -403,7 +403,7 @@ describe('foundation billing query contract', () => {
 
   it('clips nested model requests and billing rows at the exact first deployment instant', () => {
     const built = buildFoundationCostStatement(IDS, { ...RANGE, fromTimestamp: '2026-08-26T18:42:11.000Z' }, runs());
-    expect(built?.statement).toContain('u.request_time >= :from_instant');
+    expect(built?.statement).toContain('CAST(started_at AS TIMESTAMP) >= :from_instant');
     expect(built?.statement).toContain('u.usage_start_time >= :from_instant');
     expect(built?.parameters).toContainEqual({
       name: 'from_instant',

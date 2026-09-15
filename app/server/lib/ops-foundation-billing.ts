@@ -27,8 +27,6 @@ export interface FoundationBillingResult {
   complete: boolean;
 }
 
-export type FoundationUsageSource = 'all' | 'serving' | 'gateway';
-
 function finite(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -52,8 +50,7 @@ function text(value: unknown): string {
 export function buildFoundationCostStatement(
   ids: CostIdentifiers,
   range: CostRange,
-  runs: readonly QuestionRunInput[],
-  usageSource: FoundationUsageSource = 'all'
+  runs: readonly QuestionRunInput[]
 ): CostStatement | null {
   if (!ids.workspaceId || !ids.foundationModel) return null;
   const evidence = runs.map((run) => ({
@@ -63,64 +60,31 @@ export function buildFoundationCostStatement(
     trace_id: run.traceId,
     started_at: run.startedAt ?? '',
     completed_at: run.completedAt,
+    input_tokens: run.inputTokens ?? 0,
+    output_tokens: run.outputTokens ?? 0,
   }));
-  const servingRequests = `SELECT
-    COALESCE(
-      NULLIF(LOWER(TRIM(CAST(u.databricks_request_id AS STRING))), ''),
-      CONCAT('anonymous:', CAST(u.request_time AS STRING), ':', CAST(u.served_entity_id AS STRING))
-    ) AS request_id,
-    u.request_time,
-    COALESCE(u.input_token_count, 0) AS input_tokens,
-    COALESCE(u.output_token_count, 0) AS output_tokens
-  FROM system.serving.endpoint_usage u
-  JOIN system.serving.served_entities e
-    ON u.served_entity_id = e.served_entity_id
-  WHERE u.workspace_id = :workspaceId
-    AND e.workspace_id = :workspaceId
-    AND REGEXP_REPLACE(LOWER(e.endpoint_name), '[^a-z0-9]', '') =
-        REGEXP_REPLACE(LOWER(:foundationModel), '[^a-z0-9]', '')
-    AND u.request_time >= CAST(:from_day AS DATE)
-    ${range.fromTimestamp ? 'AND u.request_time >= :from_instant' : ''}
-    AND u.request_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))`;
-  const gatewayRequests = `SELECT
-    COALESCE(
-      NULLIF(LOWER(TRIM(CAST(u.invocation_id AS STRING))), ''),
-      NULLIF(LOWER(TRIM(CAST(u.request_id AS STRING))), ''),
-      CONCAT('anonymous:', CAST(u.event_time AS STRING), ':', CAST(u.endpoint_id AS STRING))
-    ) AS request_id,
-    u.event_time AS request_time,
-    COALESCE(u.input_tokens, 0) AS input_tokens,
-    COALESCE(u.output_tokens, 0) AS output_tokens
-  FROM system.ai_gateway.usage u
-  WHERE u.workspace_id = :workspaceId
-    AND (
-      REGEXP_REPLACE(LOWER(u.endpoint_name), '[^a-z0-9]', '') =
-        REGEXP_REPLACE(LOWER(:foundationModel), '[^a-z0-9]', '')
-      OR REGEXP_REPLACE(LOWER(u.destination_name), '[^a-z0-9]', '') =
-        REGEXP_REPLACE(LOWER(:foundationModel), '[^a-z0-9]', '')
-    )
-    AND u.event_time >= CAST(:from_day AS DATE)
-    ${range.fromTimestamp ? 'AND u.event_time >= :from_instant' : ''}
-    AND u.event_time < DATEADD(DAY, 1, CAST(:to_day AS DATE))`;
-  const requestSources =
-    usageSource === 'serving'
-      ? servingRequests
-      : usageSource === 'gateway'
-        ? gatewayRequests
-        : `${servingRequests}
-  UNION ALL
-  ${gatewayRequests}`;
   const statement = `WITH run_evidence AS (
   SELECT run.*
   FROM EXPLODE(
     FROM_JSON(
       :interactive_runs_json,
-      'ARRAY<STRUCT<run_id:STRING,request_id:STRING,correlation_id:STRING,trace_id:STRING,started_at:STRING,completed_at:STRING>>'
+      'ARRAY<STRUCT<run_id:STRING,request_id:STRING,correlation_id:STRING,trace_id:STRING,started_at:STRING,completed_at:STRING,input_tokens:DOUBLE,output_tokens:DOUBLE>>'
     )
   ) AS source(run)
 ),
 raw_model_requests AS (
-  ${requestSources}
+  SELECT
+    COALESCE(
+      NULLIF(LOWER(TRIM(request_id)), ''),
+      NULLIF(LOWER(TRIM(correlation_id)), ''),
+      NULLIF(LOWER(TRIM(trace_id)), ''),
+      LOWER(TRIM(run_id))
+    ) AS request_id,
+    CAST(started_at AS TIMESTAMP) AS request_time,
+    COALESCE(input_tokens, 0) AS input_tokens,
+    COALESCE(output_tokens, 0) AS output_tokens
+  FROM run_evidence
+  ${range.fromTimestamp ? 'WHERE CAST(started_at AS TIMESTAMP) >= :from_instant' : ''}
 ),
 model_requests AS (
   SELECT

@@ -446,11 +446,7 @@ export async function runStatement(input: {
   return { ok: true, rows: body.result?.data_array ?? [], message: '' };
 }
 
-/**
- * Not every workspace exposes both serving usage system tables. Probe the
- * combined view first, then retain whichever source this deployment supports
- * instead of losing all foundation-model usage to one unavailable relation.
- */
+/** Price Foundation Model usage from system.billing and ADAPT's own run ledger. */
 export async function runFoundationCostQuery(input: {
   ids: CostIdentifiers;
   range: CostRange;
@@ -460,26 +456,16 @@ export async function runFoundationCostQuery(input: {
   warehouseId: string;
   fetchImpl?: typeof fetch;
 }): Promise<StatementOutcome> {
-  const failures: string[] = [];
-  for (const source of ['all', 'serving', 'gateway'] as const) {
-    const built = buildFoundationCostStatement(input.ids, input.range, input.runs, source);
-    if (!built) return { ok: false, rows: null, message: 'No configured foundation model is available.' };
-    const outcome = await runStatement({
-      host: input.host,
-      token: input.token,
-      warehouseId: input.warehouseId,
-      statement: built.statement,
-      parameters: built.parameters,
-      fetchImpl: input.fetchImpl,
-    });
-    if (outcome.ok) return outcome;
-    failures.push(`${source}: ${outcome.message}`);
-  }
-  return {
-    ok: false,
-    rows: null,
-    message: `Foundation-model usage could not be read from either supported system table (${failures.join('; ')}).`,
-  };
+  const built = buildFoundationCostStatement(input.ids, input.range, input.runs);
+  if (!built) return { ok: false, rows: null, message: 'No configured foundation model is available.' };
+  return runStatement({
+    host: input.host,
+    token: input.token,
+    warehouseId: input.warehouseId,
+    statement: built.statement,
+    parameters: built.parameters,
+    fetchImpl: input.fetchImpl,
+  });
 }
 
 /** Where this app is, or '' when the container was told nothing. */

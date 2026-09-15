@@ -69,15 +69,12 @@ describe('the ranged cost route', () => {
     expect(questionRun({ evidence_complete: 'f' }).evidenceComplete).toBe(false);
   });
 
-  it('falls back to the available foundation usage table', async () => {
+  it('prices foundation usage without serving or AI Gateway schema access', async () => {
     const statements: string[] = [];
     const fetchImpl = vi.fn((_input: string | URL | globalThis.Request, init?: RequestInit) => {
       const statement = (JSON.parse(String(init?.body)) as { statement: string }).statement;
       statements.push(statement);
-      const body =
-        statements.length === 1
-          ? { status: { state: 'FAILED', error: { message: 'TABLE_OR_VIEW_NOT_FOUND: system.ai_gateway.usage' } } }
-          : { status: { state: 'SUCCEEDED' }, result: { data_array: [] } };
+      const body = { status: { state: 'SUCCEEDED' }, result: { data_array: [] } };
       return Promise.resolve(
         new globalThis.Response(JSON.stringify(body), {
           status: 200,
@@ -107,11 +104,10 @@ describe('the ranged cost route', () => {
         fetchImpl: fetchImpl as typeof fetch,
       })
     ).resolves.toMatchObject({ ok: true });
-    expect(statements).toHaveLength(2);
-    expect(statements[0]).toContain('system.serving.endpoint_usage');
-    expect(statements[0]).toContain('system.ai_gateway.usage');
-    expect(statements[1]).toContain('system.serving.endpoint_usage');
-    expect(statements[1]).not.toContain('system.ai_gateway.usage');
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toContain('system.billing.usage');
+    expect(statements[0]).not.toContain('system.serving');
+    expect(statements[0]).not.toContain('system.ai_gateway');
   });
 
   it('attributes legacy Genie traces by configured space without double-counting current resource calls', () => {

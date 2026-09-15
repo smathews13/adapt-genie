@@ -26,8 +26,9 @@ variables:
       Keep it separate from production data catalogs.
   app_schema:
     description: >-
-      REQUIRED. Schema inside ${var.app_catalog} for objects owned by this
-      deployment. The bundle creates and protects this schema.
+      REQUIRED. Existing schema inside ${var.app_catalog} for objects owned by
+      this deployment, including the registered model. Provision it before the
+      first agent release; this bundle does not create or manage it.
   data_catalogs:
     description: >-
       REQUIRED. Complete Unity Catalog read scope for the agent. Supply a list
@@ -205,7 +206,7 @@ variables:
       REQUIRED FOR THE INITIAL BUNDLE BOOTSTRAP AND CLI APP RELEASE. Absolute
       workspace path containing the uploaded build/deploy tree. This is not the
       repo-relative Source code path used by Deploy from Git; that UI value is
-      `app/build/deploy`. The workspace directory must not
+      `player-insights-agent/build/deploy`. The workspace directory must not
       contain package.json because the app would run `npm install` during
       deployment. Set it to the canonical mutable staging path
       `/Workspace/Users/<release-actor>/adapt-genie-src`; SNAPSHOT deployment

@@ -60,12 +60,13 @@ app queries net revenue per unit sold as each signed-in reader.
 
 ## Deployment order on a fresh workspace
 
-Internal and customer targets use the same sequence. Start with one complete,
-interactive bundle reconciliation, including the App, then release the model
-and app code:
+Internal and customer targets use the same sequence. Create the serving
+endpoint before the complete interactive bundle reconciliation: the App
+resource attaches that existing endpoint and a fresh workspace has nothing to
+attach until the agent release creates it.
 
-0. Provision Lakebase (project / branch / database) and curate the Genie
-   space **outside** this bundle. Name it in
+0. Provision the app catalog/schema, Lakebase (project / branch / database),
+   SQL warehouse, and Genie space **outside** this bundle. Name them in
    `.databricks/bundle/<target>/variable-overrides.json`
    (`lakebase_project_id`, `genie_data_space_id`, plus `warehouse_id`,
    `watchlist_table`, `admin_emails`, and the other required inputs).
@@ -74,11 +75,18 @@ and app code:
    new service principal and cannot own the prior App's schema. The app release
    ownership gate refuses that old schema; keep it for deliberate migration
    rather than deleting it to unblock the release.
-1. Run the deployment:
+1. Log and deploy the agent first. This creates the serving endpoint referenced
+   by the App resource:
+
+   ```bash
+   TARGET=<target> PROFILE='<profile>' bundle/agent-release.sh --apply
+   ```
+
+2. Reconcile the complete bundle interactively, including the App, and then
+   release its code and Lakebase grants:
 
    ```bash
    TARGET=<target> PROFILE='<profile>' bash bundle/deploy.sh
-   TARGET=<target> PROFILE='<profile>' bundle/agent-release.sh --apply
    TARGET=<target> PROFILE='<profile>' bundle/app-release.sh --apply
    ```
 
@@ -136,11 +144,11 @@ input fails validation when skipped; Genie sharing still requires review.
   **`build/deploy/app.yaml` is where the addresses actually land, and it is
   tracked.** The release uploads the local build tree directly, so the container
   gets the list without a commit. Do not commit it:
-  `git restore app/build/deploy/app.yaml`. The build prints
+  `git restore player-insights-agent/build/deploy/app.yaml`. The build prints
   the same warning, and a test fails while the addresses are there:
 
   ```bash
-  cd app && npm test -- scripts/deploy-app-yaml.test.ts
+  cd player-insights-agent && npm test -- scripts/deploy-app-yaml.test.ts
   ```
 
   **That test is the only thing catching this before the commit**, so do not

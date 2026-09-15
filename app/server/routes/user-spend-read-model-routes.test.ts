@@ -59,7 +59,11 @@ function response() {
   return { json, status } as unknown as Response & { json: ReturnType<typeof vi.fn>; status: ReturnType<typeof vi.fn> };
 }
 
-function routes(rows = [storedRow()], rosterRows = rows) {
+function routes(
+  rows = [storedRow()],
+  rosterRows = rows,
+  groupMembers: Record<string, Array<{ email: string; displayName: string }>> = {}
+) {
   const handlers = new Map<string, (req: Request, res: Response) => Promise<void>>();
   const calls: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn((sql: string, params: unknown[] = []) => {
@@ -112,6 +116,13 @@ function routes(rows = [storedRow()], rosterRows = rows) {
   setupUserSpendReadModelRoutes(appkit, {
     isAdminRoute,
     now: () => Date.parse('2026-09-01T04:30:00Z'),
+    readGroupMembers: (groupName) =>
+      Promise.resolve({
+        groupName,
+        readable: true,
+        detail: '',
+        members: groupMembers[groupName] ?? [],
+      }),
   });
   return { handlers, query, calls };
 }
@@ -176,6 +187,65 @@ describe('User Monitoring read-model routes', () => {
         }),
       })
     );
+  });
+
+  it('includes configured group members in the list, role filters, revision, and profile checks', async () => {
+    const previousAdminGroup = process.env.ADAPT_ADMIN_GROUP;
+    const previousUserGroup = process.env.ADAPT_USER_GROUP;
+    process.env.ADAPT_ADMIN_GROUP = 'adapt-admins';
+    process.env.ADAPT_USER_GROUP = 'adapt-users';
+    try {
+      const neha = storedRow({
+        display_email: 'neha@example.test',
+        app_role: 'admin',
+        identity_updated_at: null,
+      });
+      const { handlers, calls } = routes([neha], [storedRow()], {
+        'adapt-admins': [{ email: 'neha@example.test', displayName: 'Neha' }],
+        'adapt-users': [{ email: 'neha@example.test', displayName: 'Neha' }],
+      });
+      const listResponse = response();
+      await handlers.get('/api/monitoring/user-spend')!(
+        {
+          query: { from: '2026-08-25', to: '2026-08-31', role: 'admin' },
+          headers: { 'x-forwarded-email': 'admin@example.test' },
+          header: (name: string) => (name.toLowerCase() === 'x-forwarded-email' ? 'admin@example.test' : undefined),
+        } as unknown as Request,
+        listResponse
+      );
+      const summary = calls.find((call) => call.sql === READ_USER_SPEND_SUMMARY_QUERY);
+      expect(summary?.params[13]).toContain('"email":"neha@example.test","role":"admin"');
+      expect(listResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          users: [expect.objectContaining({ email: 'neha@example.test', role: 'admin' })],
+          identityRevision: expect.stringMatching(/^[a-f0-9]{24}$/),
+        })
+      );
+      const listRevision = (listResponse.json.mock.calls[0]?.[0] as { identityRevision: string }).identityRevision;
+
+      const profileResponse = response();
+      await handlers.get('/api/monitoring/user-spend/:email')!(
+        {
+          params: { email: 'neha@example.test' },
+          query: { from: '2026-08-25', to: '2026-08-31' },
+          headers: { 'x-forwarded-email': 'admin@example.test' },
+          header: (name: string) => (name.toLowerCase() === 'x-forwarded-email' ? 'admin@example.test' : undefined),
+        } as unknown as Request,
+        profileResponse
+      );
+      expect(profileResponse.status).not.toHaveBeenCalledWith(404);
+      expect(profileResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          users: [expect.objectContaining({ email: 'neha@example.test' })],
+          identityRevision: listRevision,
+        })
+      );
+    } finally {
+      if (previousAdminGroup === undefined) delete process.env.ADAPT_ADMIN_GROUP;
+      else process.env.ADAPT_ADMIN_GROUP = previousAdminGroup;
+      if (previousUserGroup === undefined) delete process.env.ADAPT_USER_GROUP;
+      else process.env.ADAPT_USER_GROUP = previousUserGroup;
+    }
   });
 
   it('builds the Databricks facet from the full roster instead of the current page', async () => {

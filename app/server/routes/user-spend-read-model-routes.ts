@@ -33,7 +33,7 @@ import {
 } from '../lib/user-spend-hourly-read-model';
 import { buildUserSpendMetrics } from '../lib/user-spend-metrics';
 import { invalidAdminEmail, seedRoles } from '../lib/admin-roles';
-import { everyKnownUser, readRosterForRequest } from '../lib/user-roster';
+import { readAdaptMonitoringRoster, type AdaptGroupMembersReader } from '../lib/adapt-monitoring-roster';
 import { userEmail, type InsightsAppKit } from './insights-routes';
 
 export const USER_SPEND_RESPONSE_REVISION = 2;
@@ -167,7 +167,9 @@ function listPayload(
   offset: number,
   limit: number,
   organizations: OrganizationFilterOption[],
-  manifest: readonly OrganizationMapping[]
+  manifest: readonly OrganizationMapping[],
+  rosterRevision = '',
+  rosterReason = ''
 ): UserMonitoringPayload {
   const first = page.rows[0];
   const appUsd = first?.appSpendUsd ?? null;
@@ -178,8 +180,8 @@ function listPayload(
     readAt: page.freshness.computedAt ?? new Date().toISOString(),
     range,
     unit,
-    state: page.available ? (complete ? 'ready' : 'partial') : 'unavailable',
-    reason: page.available ? '' : 'The user spend read model has not completed its first refresh.',
+    state: page.available ? (complete && !rosterReason ? 'ready' : 'partial') : 'unavailable',
+    reason: page.available ? rosterReason : 'The user spend read model has not completed its first refresh.',
     users: page.rows.map((row) => ({
       email: row.email,
       role: row.role,
@@ -201,7 +203,7 @@ function listPayload(
     })),
     dataRevision: USER_SPEND_RESPONSE_REVISION,
     organizations,
-    identityRevision: identityRevision(page),
+    identityRevision: rosterRevision || identityRevision(page),
     pagination: {
       total: page.total,
       pageSize: limit,
@@ -234,6 +236,8 @@ export interface UserSpendReadModelRouteDeps {
   source?: UserSpendRefreshSource;
   sourceForRequest?: (req: Request) => UserSpendRefreshSource | null;
   now?: () => number;
+  /** Test seam for expanding the configured ADAPT access groups. */
+  readGroupMembers?: AdaptGroupMembersReader;
 }
 
 /**
@@ -250,6 +254,8 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
   }
   const clock = deps.now ?? Date.now;
   const sourceFor = (req: Request) => deps.sourceForRequest?.(req) ?? deps.source ?? null;
+  const readMonitoringRoster = (req: Request) =>
+    readAdaptMonitoringRoster(appkit.lakebase, req, seedRoles(), deps.readGroupMembers);
   const enqueueIfStale = (page: UserSpendReadModelPage, source: UserSpendRefreshSource | null) => {
     if (!source || (!page.freshness.isStale && page.available)) return;
     void runUserSpendReadModelRefresh(appkit.lakebase, source).catch((error: Error) => {
@@ -380,10 +386,14 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
       const manifest = parseOrganizationMappings(process.env.PLAYER_INSIGHTS_ORGANIZATIONS);
       let organizations: OrganizationFilterOption[];
       let rosterEntries: UserSpendRosterEntry[];
+      let rosterRevision = '';
+      let rosterReason = '';
       try {
-        const roster = await readRosterForRequest(appkit.lakebase, req);
-        const entries = everyKnownUser({ seed: seedRoles(), stored: roster.rows });
-        rosterEntries = entries;
+        const roster = await readMonitoringRoster(req);
+        const entries = roster.entries;
+        rosterEntries = roster.entries;
+        rosterRevision = roster.revision;
+        rosterReason = roster.reason;
         const search = queryText(req, 'q').toLowerCase();
         const role = queryText(req, 'role');
         const representedEmails = entries.map((entry) => entry.email);
@@ -445,7 +455,9 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
           offset,
           limit,
           organizations,
-          manifest
+          manifest,
+          rosterRevision,
+          rosterReason
         )
       );
     });
@@ -464,9 +476,13 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
       const unit = queryText(req, 'unit') === 'DBU' ? 'DBU' : 'USD';
       const source = sourceFor(req);
       let rosterEntries: UserSpendRosterEntry[];
+      let rosterComplete = true;
+      let rosterRevision = '';
       try {
-        const roster = await readRosterForRequest(appkit.lakebase, req);
-        rosterEntries = everyKnownUser({ seed: seedRoles(), stored: roster.rows });
+        const roster = await readMonitoringRoster(req);
+        rosterEntries = roster.entries;
+        rosterComplete = roster.complete;
+        rosterRevision = roster.revision;
       } catch {
         res.status(503).json({
           error: 'identity_roster_unavailable',
@@ -475,6 +491,13 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
         return;
       }
       if (!rosterEntries.some((entry) => entry.email === email)) {
+        if (!rosterComplete) {
+          res.status(503).json({
+            error: 'identity_roster_unavailable',
+            detail: 'This profile could not be checked because configured workspace group membership was unavailable.',
+          });
+          return;
+        }
         res.status(404).json({ error: 'monitoring_user_not_rostered' });
         return;
       }
@@ -559,7 +582,7 @@ export function setupUserSpendReadModelRoutes(appkit: InsightsAppKit, deps: User
         range,
         state: current.available ? (selected.row?.billingComplete ? 'ready' : 'partial') : 'unavailable',
         reason: current.available ? '' : 'The user spend read model has not completed its first refresh.',
-        identityRevision: identityRevision(current),
+        identityRevision: rosterRevision || identityRevision(current),
         users: profile ? [profile] : [],
         unattributed: [],
         reconciliation: {

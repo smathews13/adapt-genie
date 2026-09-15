@@ -57,8 +57,12 @@ import { resolveExperimentId } from '../lib/app-settings';
 import { normalizeWorkspaceHost } from '../../shared/databricks-links';
 import { APP_ACTIVITY_TABLE } from '../lib/app-activity';
 import { APP_SESSION_TABLE, appSessionDeployment } from '../lib/app-session';
-import { effectiveRole, everyKnownUser, readRosterForRequest } from '../lib/user-roster';
 import { invalidAdminEmail, seedRoles } from '../lib/admin-roles';
+import {
+  readAdaptMonitoringRoster,
+  type AdaptGroupMembersReader,
+  type AdaptMonitoringRoster,
+} from '../lib/adapt-monitoring-roster';
 import { organizationForEmail, parseOrganizationMappings } from '../../shared/organization-mapping';
 import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import { isMlflowTraceId } from '../../shared/mlflow-trace-id';
@@ -1129,6 +1133,8 @@ export interface MonitoringDeps {
   now?: () => number;
   /** One cached, redacted trace read for an opened answer; never used by the list. */
   traceTokenEvidenceReader?: TraceTokenEvidenceReader;
+  /** Test seam for the person panel's configured access-group roster. */
+  readGroupMembers?: AdaptGroupMembersReader;
 }
 
 /**
@@ -1427,15 +1433,19 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         res.status(400).json({ error: 'invalid_monitoring_user' });
         return;
       }
-      let roster: Awaited<ReturnType<typeof readRosterForRequest>>;
+      let roster: AdaptMonitoringRoster;
       try {
-        roster = await readRosterForRequest(appkit.lakebase, req);
+        roster = await readAdaptMonitoringRoster(appkit.lakebase, req, seedRoles(), deps.readGroupMembers);
       } catch {
         res.status(503).json({ error: 'identity_roster_unavailable' });
         return;
       }
-      const identityRoster = everyKnownUser({ seed: seedRoles(), stored: roster.rows });
-      if (!identityRoster.some((entry) => entry.email === person.trim().toLowerCase())) {
+      const identity = roster.entries.find((entry) => entry.email === person.trim().toLowerCase());
+      if (!identity) {
+        if (!roster.complete) {
+          res.status(503).json({ error: 'identity_roster_unavailable' });
+          return;
+        }
         res.status(404).json({ error: 'monitoring_user_not_rostered' });
         return;
       }
@@ -1583,7 +1593,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
       } catch (error) {
         console.warn(`[monitoring] First and last seen could not be read for ${person}: ${(error as Error).message}`);
       }
-      const role = effectiveRole({ seed: seedRoles(), stored: roster.rows, email: person });
+      const role = identity.role;
 
       const payload: PersonPanelPayload = {
         email: person,

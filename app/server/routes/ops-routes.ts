@@ -103,7 +103,7 @@ import { appSessionDeployment } from '../lib/app-session';
 import { appServicePrincipal } from './execution-identity';
 import { buildUserSpendMetrics } from '../lib/user-spend-metrics';
 import { ADMIN_REQUIRED_BODY, recordAdminAction, resolveRoleForRequest, seedRoles } from '../lib/admin-roles';
-import { everyKnownUser, readRosterForRequest } from '../lib/user-roster';
+import { readAdaptMonitoringRoster, type AdaptGroupMembersReader } from '../lib/adapt-monitoring-roster';
 import { canCheckHealthResources, isRole, type Role } from '../../shared/user-roster-contract';
 import { USER_MONITORING_SCHEMA_REVISION } from '../../shared/user-monitoring-contract';
 import type { CostBudgetUnit } from '../../shared/cost-budgets';
@@ -1456,6 +1456,8 @@ export interface OpsDeps {
   readFirstAppDeployment?: () => Promise<{ deployedAt: string } | null>;
   /** Test seam for the Apps control-plane telemetry destination. */
   readTelemetryDestination?: TelemetryDestinationReader;
+  /** Test seam for expanding the two configured ADAPT access groups. */
+  readGroupMembers?: AdaptGroupMembersReader;
 }
 
 /**
@@ -1702,6 +1704,19 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
       const userUnit: CostBudgetUnit = requestedUnit === 'DBU' ? 'DBU' : 'USD';
       const requestedRole = queryText(req, 'role');
       const userRole: Role | '' = isRole(requestedRole) ? requestedRole : '';
+      const monitoringRosterRead = userBrowse
+        ? await readAdaptMonitoringRoster(appkit.lakebase, req, seedRoles(), deps.readGroupMembers)
+            .then((roster) => ({ available: true as const, roster, reason: roster.reason }))
+            .catch((error: Error) => ({
+              available: false as const,
+              roster: { entries: [], complete: false, reason: '', revision: '' },
+              reason: `Current app roles could not be read: ${error.message}`,
+            }))
+        : {
+            available: true as const,
+            roster: { entries: [], complete: true, reason: '', revision: '' },
+            reason: '',
+          };
       const userMonitoringCacheKey = [
         userEmail(req),
         range.from,
@@ -1713,6 +1728,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
         queryText(req, 'pageSize'),
         USER_MONITORING_SCHEMA_REVISION,
         userSpendDataRevision(),
+        monitoringRosterRead.roster.revision,
       ].join('|');
       if (userBrowse) {
         const cached = userMonitoringCache.get(userMonitoringCacheKey);
@@ -1826,15 +1842,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
                 reason: `User interaction evidence could not be read: ${error.message}`,
               }))
           : Promise.resolve({ available: true as const, users: [], reason: '' }),
-        userBrowse
-          ? readRosterForRequest(appkit.lakebase, req)
-              .then((roster) => ({ available: true as const, rows: roster.rows, reason: '' }))
-              .catch((error: Error) => ({
-                available: false as const,
-                rows: [],
-                reason: `Current app roles could not be read: ${error.message}`,
-              }))
-          : Promise.resolve({ available: true as const, rows: [], reason: '' }),
+        Promise.resolve(monitoringRosterRead),
         appkit.lakebase
           .query(QUESTION_COST_RUNS_QUERY, [range.from, range.to])
           .then((result) => ({
@@ -1882,12 +1890,10 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
       };
       const userMonitoringFor = (spend: ReturnType<typeof buildSpendByUser>, coveredDays = 0) => {
         if (!userBrowse) return undefined;
-        const seed = seedRoles();
-        const roles = new Map(
-          everyKnownUser({ seed, stored: rosterRead.rows }).map((entry) => [entry.email, entry.role])
-        );
+        const roles = new Map(rosterRead.roster.entries.map((entry) => [entry.email, entry.role]));
         const enrichmentReason = [
           rosterRead.available ? '' : rosterRead.reason,
+          rosterRead.roster.complete ? '' : rosterRead.roster.reason,
           interactionRead.available ? '' : interactionRead.reason,
         ].filter(Boolean);
         return buildUserMonitoringPage({
@@ -1904,11 +1910,7 @@ export function setupOpsRoutes(appkit: InsightsAppKit, deps: OpsDeps) {
           interactions: interactionRead.users,
           roles,
           coveredDays,
-          identityRevision:
-            rosterRead.rows
-              .map((row) => row.setAt)
-              .sort()
-              .slice(-1)[0] ?? '',
+          identityRevision: rosterRead.roster.revision,
           unit: userUnit,
           search: queryText(req, 'userSearch'),
           role: userRole,

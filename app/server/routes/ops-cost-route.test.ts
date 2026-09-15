@@ -24,6 +24,8 @@ const saved = {
   dictGenie: process.env.PLAYER_INSIGHTS_DICTIONARY_GENIE_ID,
   dictTitle: process.env.PLAYER_INSIGHTS_DICTIONARY_GENIE_TITLE,
   admins: process.env.PLAYER_INSIGHTS_ADMIN_EMAILS,
+  adaptAdminGroup: process.env.ADAPT_ADMIN_GROUP,
+  adaptUserGroup: process.env.ADAPT_USER_GROUP,
 };
 
 const ENV_NAMES: Record<keyof typeof saved, string> = {
@@ -36,6 +38,8 @@ const ENV_NAMES: Record<keyof typeof saved, string> = {
   dictGenie: 'PLAYER_INSIGHTS_DICTIONARY_GENIE_ID',
   dictTitle: 'PLAYER_INSIGHTS_DICTIONARY_GENIE_TITLE',
   admins: 'PLAYER_INSIGHTS_ADMIN_EMAILS',
+  adaptAdminGroup: 'ADAPT_ADMIN_GROUP',
+  adaptUserGroup: 'ADAPT_USER_GROUP',
 };
 
 beforeEach(() => {
@@ -49,6 +53,8 @@ beforeEach(() => {
   delete process.env.PLAYER_INSIGHTS_DICTIONARY_GENIE_ID;
   delete process.env.PLAYER_INSIGHTS_DICTIONARY_GENIE_TITLE;
   delete process.env.PLAYER_INSIGHTS_ADMIN_EMAILS;
+  process.env.ADAPT_ADMIN_GROUP = 'S_TK2_Databricks_Adapt_Genie_Admins';
+  process.env.ADAPT_USER_GROUP = 'S_TK2_Databricks_Adapt_Genie_Users';
 });
 
 afterEach(() => {
@@ -233,6 +239,16 @@ describe('the ranged cost route', () => {
               ],
             }),
         },
+        readGroupMembers: (groupName) =>
+          Promise.resolve({
+            groupName,
+            readable: true,
+            detail: '',
+            members:
+              groupName === 'S_TK2_Databricks_Adapt_Genie_Users'
+                ? [{ email: 'neha@take2games.com', displayName: 'Neha' }]
+                : [],
+          }),
       }
     );
 
@@ -289,11 +305,13 @@ describe('the ranged cost route', () => {
     expect(payload.userMonitoring?.users.map((row) => row.email).sort()).toEqual([
       'active@example.test',
       'emily.huang@take2games.com',
+      'neha@take2games.com',
       'rida.qureshi@take2games.com',
       'sam.mathews@databricks.com',
       'session-only@example.test',
     ]);
-    expect(payload.userMonitoring?.pagination.total).toBe(5);
+    expect(payload.userMonitoring?.pagination.total).toBe(6);
+    expect(payload.userMonitoring?.users.find((row) => row.email === 'neha@take2games.com')?.role).toBe('consumer');
     expect(
       payload.userMonitoring?.users.every(
         (row) => row.lastActive === null || Number.isFinite(Date.parse(row.lastActive))

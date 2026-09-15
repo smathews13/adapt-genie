@@ -317,6 +317,7 @@ describe('individual user spend attribution', () => {
     expect(USER_MONITORING_ACTIVITY_QUERY).toContain(APP_ACTIVITY_TABLE);
     expect(USER_MONITORING_ACTIVITY_QUERY).not.toMatch(/roster|permission|persona|admin_role/i);
     expect(OPS_ROUTE_SOURCE).toContain('USER_MONITORING_SCHEMA_REVISION');
+    expect(OPS_ROUTE_SOURCE).toContain('monitoringRosterRead.roster.revision');
   });
 
   it('uses the selected activity window for population, including retained all-time evidence', () => {

@@ -17,7 +17,7 @@ describe('watchlist settings and rail', () => {
     expect(page).toContain('WATCHLIST_SETTINGS_FORM_ID');
     expect(panel).toContain("fetch('/api/watchlist-titles')");
     expect(panel).toContain('placeholder="Search games"');
-    expect(panel).toContain('Number(selected.has(right)) - Number(selected.has(left))');
+    expect(panel).toContain('orderedWatchlistTitles(availableTitles, selectedTitles, query)');
     expect(panel).toContain("if (event.key === 'Enter') event.preventDefault()");
     expect(panel).toContain('Insights Rail (righthand bar)');
     expect(panel).not.toContain("['savedQueries', 'Saved queries']");

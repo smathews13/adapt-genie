@@ -1,4 +1,5 @@
 import { appTable } from '../../shared/app-schema';
+import { ownsPreferenceDefaults } from '../../shared/preference-default-owner';
 import { DEFAULT_WATCHLIST_SETTINGS, parseWatchlistSettings, type WatchlistSettings } from '../../shared/watchlist';
 import type { LakebaseReader } from './lakebase-store';
 import {
@@ -57,10 +58,13 @@ export async function readResolvedWatchlistSettings(
   email: string
 ): Promise<ResolvedWatchlistSettings> {
   const defaults = await readWatchlistSettings(client);
+  if (ownsPreferenceDefaults(email)) {
+    return { ...defaults, source: 'default', canReset: false };
+  }
   const override = await readVersionedSettings(client, storeFor(userKey(email), defaults.settings));
   return override.revision > 0
     ? { ...override, source: 'override', canReset: true }
-    : { ...defaults, source: 'default', canReset: false };
+    : { settings: defaults.settings, revision: 0, source: 'default', canReset: false };
 }
 
 export async function writeUserWatchlistSettings(
@@ -86,7 +90,7 @@ export async function deleteUserWatchlistSettings(
 ): Promise<ResolvedWatchlistSettings> {
   await client.lakebase.query(`DELETE FROM ${WATCHLIST_SETTINGS_TABLE} WHERE id = $1`, [userKey(email)]);
   const defaults = await readWatchlistSettings(client);
-  return { ...defaults, source: 'default', canReset: false };
+  return { settings: defaults.settings, revision: 0, source: 'default', canReset: false };
 }
 
 export async function deleteWatchlistSettingsDefaults(client: LakebaseReader): Promise<ResolvedWatchlistSettings> {

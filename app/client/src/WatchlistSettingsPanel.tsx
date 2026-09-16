@@ -15,6 +15,7 @@ import {
 } from './watchlist-api';
 import { VisitInDatabricks } from './DataEntityLinks';
 import { AdaptLoader } from './AdaptLoadingAnimation';
+import { orderedWatchlistTitles } from './watchlist-title-order';
 
 export const WATCHLIST_SETTINGS_FORM_ID = 'settings-watchlist-form';
 
@@ -69,14 +70,7 @@ export function WatchlistSettingsPanel({
           JSON.stringify(sections) !== JSON.stringify(saved.sections)
       )
     : 0;
-  const selected = new Set(selectedTitles);
-  const visibleTitles = availableTitles
-    .filter((title) => title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-    .sort(
-      (left, right) =>
-        Number(selected.has(right)) - Number(selected.has(left)) ||
-        left.localeCompare(right, undefined, { sensitivity: 'base' })
-    );
+  const visibleTitles = orderedWatchlistTitles(availableTitles, selectedTitles, query);
   useEffect(() => onDirtyChange(changed), [changed, onDirtyChange]);
 
   async function saveSettings() {

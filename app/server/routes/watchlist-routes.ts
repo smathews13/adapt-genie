@@ -394,7 +394,7 @@ export function setupWatchlistRoutes(appkit: InsightsAppKit): void {
       if (document.settings.titles.length === 0) {
         res.json({
           status: 'not-configured',
-          detail: 'No titles are configured. An administrator can add them in Settings → Insights.',
+          detail: 'No titles are configured. Add them in Settings → Insights.',
           sourceTable: table,
           trends: [],
         } satisfies WatchlistTrendsResponse);

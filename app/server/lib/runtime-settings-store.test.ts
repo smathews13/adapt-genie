@@ -63,8 +63,28 @@ describe('versioned runtime and Appearance settings persistence', () => {
     });
     await expect(
       deleteUserRuntimeSettings({ lakebase: { query } } as never, 'reader@example.com')
-    ).resolves.toMatchObject({ revision: 4, source: 'default', canReset: false });
+    ).resolves.toMatchObject({ revision: 0, source: 'default', canReset: false });
     expect(query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM'), ['user:reader@example.com']);
+  });
+
+  it('separates a new user revision from Rida’s default revision', async () => {
+    const query = vi.fn((_sql: string, values: unknown[] = []) =>
+      Promise.resolve({
+        rows: values[0] === 'effective' ? [{ settings: DEFAULT_RUNTIME_SETTINGS, revision: 4 }] : [],
+      })
+    );
+    const client = { lakebase: { query } } as never;
+
+    await expect(readResolvedRuntimeSettings(client, 'reader@example.com')).resolves.toMatchObject({
+      revision: 0,
+      source: 'default',
+      canReset: false,
+    });
+    await expect(readResolvedRuntimeSettings(client, 'rida.qureshi@take2games.com')).resolves.toMatchObject({
+      revision: 4,
+      source: 'default',
+      canReset: false,
+    });
   });
 
   it('survives a process restart and a different build SHA', async () => {

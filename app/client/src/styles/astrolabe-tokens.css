@@ -81,6 +81,7 @@
   --ast-white: #ffffff;
   --ast-navy: #11171c; /* ink structure, dark bands, wordmark */
   --ast-blue: #0d7168; /* action, identity, agent-at-work. Same value as --db-blue-600 */
+  --ast-live-fill: #0d7168; /* solid Live badge; stays dark when --ast-blue brightens on dark surfaces */
   --ast-blue-on-dark: #58d9cc; /* blue's slightly brighter form on navy surfaces */
   /*
    * A dark primary control is a raised piece of the night surface, not a slab of

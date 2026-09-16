@@ -237,10 +237,10 @@ describe('the night sky belongs to dark mode alone', () => {
     expect(rule(RAIL, `html${NOT_DARK} .trace-inspector .run-status--dark.ast-pill--neutral-outline`)).toMatch(
       /color:\s*var\(--ast-neutral-text\)/
     );
-    /* Live stays the solid blue with a white word, which is §1's agent-at-work
+    /* Live stays the solid dark action green with a white word, which is the agent-at-work
        register and `.run-status.is-live`'s own treatment. */
     const live = rule(RAIL, `html${NOT_DARK} .trace-inspector .run-status--dark.is-live`);
-    expect(live).toMatch(/background:\s*var\(--ast-blue\)/);
+    expect(live).toMatch(/background:\s*var\(--ast-live-fill\)/);
     expect(live).toMatch(/color:\s*var\(--ast-white\)/);
   });
 });

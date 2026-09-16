@@ -475,7 +475,9 @@ describe('the run says which of four things it is doing', () => {
     // identical, but a `border-color` beside a `background` is two declarations of
     // one mass and the next person to read it has to decide which one is the edge.
     expect(body('.run-status.is-live')).toMatch(/border-color:\s*transparent/);
-    expect(body('.run-status.is-live')).toMatch(/background:\s*var\(--ast-blue\)/);
+    expect(body('.run-status.is-live')).toMatch(/background:\s*var\(--ast-live-fill\)/);
+    expect(withoutComments(STYLESHEET)).toMatch(/--ast-live-fill:\s*#0d7168/);
+    expect(withoutComments(STYLESHEET).match(/--ast-live-fill\s*:/g)).toHaveLength(1);
     expect(body('.run-status.is-live')).not.toMatch(/--db-orange/);
   });
 

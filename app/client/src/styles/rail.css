@@ -285,11 +285,11 @@
    sets the word's colour. The one that remains below is live, which is a solid
    the five families do not draw. */
 /*
- * The agent is working, and it is BLUE.
+ * The agent is working, in the app's dark action green.
  *
- * §4 gives this pill as "Ready (green) or Live (solid blue #0d7168)", and §1
- * moves the whole agent-at-work register with it: "The agent at work is blue
- * #0d7168: live pill, in-flight bar, active step edge". It was orange, and the
+ * The dedicated live-fill token keeps #0d7168 solid in both themes. Using
+ * `--ast-blue` here was wrong because dark mode intentionally remaps that token
+ * to a light mint accent, producing a bright fill behind white text. It was orange, and the
  * note here used to argue for it at some length -- that a sweep meaning "working,
  * right now" was the definition of that token. The restyle takes the argument
  * away rather than answering it: §2 has no orange in the palette at all, and the
@@ -306,7 +306,7 @@
  */
 .run-status.is-live {
   border-color: transparent;
-  background: var(--ast-blue);
+  background: var(--ast-live-fill);
   color: var(--ast-white);
 }
 
@@ -1223,6 +1223,6 @@ html:not([data-theme='dark']) .trace-inspector .run-status--dark.ast-pill--neutr
    `--dark` rule above overrides it inside this column. */
 html:not([data-theme='dark']) .trace-inspector .run-status--dark.is-live {
   border-color: transparent;
-  background: var(--ast-blue);
+  background: var(--ast-live-fill);
   color: var(--ast-white);
 }

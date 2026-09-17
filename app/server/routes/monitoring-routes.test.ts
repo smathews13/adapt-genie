@@ -662,6 +662,7 @@ describe('server-side list filters', () => {
         outcome: 'completed',
         feedback: 'down',
         table: 'MAIN.FINANCE.REVENUE',
+        appGroup: '',
         search: 'revenue',
       }).map((question) => question.id)
     ).toEqual(['q2']);
@@ -674,6 +675,7 @@ describe('server-side list filters', () => {
         outcome: '',
         feedback: 'none',
         table: '',
+        appGroup: '',
         search: '',
       })
     ).toEqual([]);

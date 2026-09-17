@@ -1634,6 +1634,77 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
   font-weight: 700;
 }
 
+/* ── App groups ─────────────────────────────────────────────────────────── */
+
+.app-groups {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.app-group-list {
+  display: grid;
+  gap: 12px;
+}
+
+.app-group-card {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.app-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-group-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.app-group-count {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.app-group-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.app-group-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+
+.app-group-add-member,
+.app-group-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-group-member-select {
+  min-width: 220px;
+}
+
+.app-group-create {
+  margin-top: 4px;
+}
+
 .access-guide-download-row {
   width: min(100%, 520px);
   max-width: 100%;

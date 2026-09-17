@@ -141,6 +141,7 @@ import type {
   MonitoringQuestionsPayload,
   PersonPanelPayload,
 } from '../../shared/monitoring-contract';
+import type { AppGroupOption } from '../../shared/app-groups';
 import type { OpsCostPayload } from '../../shared/ops-contract';
 import type { UserSpendKpi } from '../../shared/user-spend-contract';
 import { deriveCoreUserSpendMetrics, deriveUserTokenAverages } from '../../shared/user-spend-metrics';
@@ -517,6 +518,7 @@ export function FilterRow({
   filters,
   people,
   tables,
+  appGroups = [],
   onChange,
   onClearFilters,
   onOpenUsers,
@@ -524,6 +526,7 @@ export function FilterRow({
   filters: MonitoringFilters;
   people: string[];
   tables: string[];
+  appGroups?: AppGroupOption[];
   onChange: (next: MonitoringFilters) => void;
   onClearFilters: () => void;
   onOpenUsers?: () => void;
@@ -571,6 +574,29 @@ export function FilterRow({
         onChange={(table) => onChange({ ...filters, table })}
         options={[{ value: '', label: 'Any table' }, ...tables.map((table) => ({ value: table, label: table }))]}
       />
+      {/* App groups. Filters to the questions asked by the members of one group,
+          resolved from the asker's email, so a group created today still catches
+          what its people asked before it existed.
+
+          Shown when the deployment has any group OR one is already selected: a
+          group deleted elsewhere would otherwise leave `appGroup` set with no
+          chip to clear it, an invisible filter the reader could only escape via
+          Clear filters. The selected id is always an option (labelled as gone
+          when it is no longer configured) so it stays selectable and clearable. */}
+      {appGroups.length > 0 || filters.appGroup ? (
+        <FilterChip
+          label="App group"
+          value={filters.appGroup}
+          onChange={(appGroup) => onChange({ ...filters, appGroup })}
+          options={[
+            { value: '', label: 'All app groups' },
+            ...appGroups.map((group) => ({ value: group.id, label: group.name })),
+            ...(filters.appGroup && !appGroups.some((group) => group.id === filters.appGroup)
+              ? [{ value: filters.appGroup, label: 'Removed group' }]
+              : []),
+          ]}
+        />
+      ) : null}
       {/* Clearing the whole row, offered here whenever anything is set.
           
           It was only ever offered from the empty state, which meant the reader
@@ -2212,6 +2238,7 @@ export function MonitoringBody({
         filters={filters}
         people={payload?.people ?? []}
         tables={payload?.tables ?? []}
+        appGroups={payload?.appGroups ?? []}
         onChange={onChangeFilters}
         onClearFilters={onClearFilters}
         onOpenUsers={onOpenUsers}

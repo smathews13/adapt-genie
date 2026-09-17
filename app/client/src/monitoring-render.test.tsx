@@ -535,6 +535,7 @@ describe('removing a filter', () => {
           outcome: 'refused',
           feedback: 'down',
           table: 'a_catalog.a_schema.gold_title_daily_summary',
+          appGroup: '',
           search: 'refund',
           ...over,
         }}

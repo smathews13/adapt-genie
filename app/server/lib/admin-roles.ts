@@ -720,6 +720,8 @@ export type AdminAction =
   | 'access-revoked'
   | 'runtime-settings-updated'
   | 'watchlist-settings-updated'
+  /** An admin created, renamed, deleted, or changed the membership of the app groups. */
+  | 'app-groups-updated'
   | 'ask-starters-updated'
   /** An admin changed which unfinished surfaces this deployment offers. */
   | 'experimental-settings-updated'

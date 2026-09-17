@@ -30,6 +30,7 @@ import {
 } from './app-deployment-lifetime';
 import { LAKEBASE_BINDING_PLAN_DDL, LAKEBASE_BINDING_PLAN_TABLE } from './lakebase-binding-plan';
 import { GROUP_ROLE_MAPPINGS_DDL, GROUP_ROLE_MAPPINGS_TABLE } from './group-role-mappings';
+import { APP_GROUPS_DDL, APP_GROUPS_TABLE } from './app-groups-store';
 /**
  * The numbered schema versions, and the rules for adding one.
  *
@@ -1083,6 +1084,12 @@ ON CONFLICT (id) DO UPDATE SET
   updated_by = EXCLUDED.updated_by`,
     ],
     down: null,
+  },
+  {
+    version: 47,
+    name: 'app groups',
+    statements: [APP_GROUPS_DDL],
+    down: [`DROP TABLE IF EXISTS ${APP_GROUPS_TABLE}`],
   },
 ];
 

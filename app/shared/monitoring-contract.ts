@@ -21,6 +21,7 @@ import { FAILURE_TAXONOMY, isFailureCode, type FailureCode, type FailureLayer } 
 import type { OrganizationMapping } from './organization-mapping';
 import type { Role } from './user-roster-contract';
 import type { RunRuntimeUsed } from './run-runtime-used';
+import type { AppGroupOption } from './app-groups';
 
 /**
  * What came of one question, using the same run vocabulary as Run Explorer.
@@ -205,6 +206,12 @@ export interface MonitoringQuestion {
   rating?: 'up' | 'down' | null;
   /** Fully-qualified tables this run read, as the answer recorded them. */
   tables: string[];
+  /**
+   * The ids of the app groups the asker belongs to, resolved from their email at
+   * read time. Empty when they are in none. Drives the App group filter's
+   * defensive client pass; the authoritative narrowing is done in SQL.
+   */
+  askerAppGroups?: string[];
 }
 
 /**
@@ -282,6 +289,12 @@ export interface MonitoringQuestionsPayload {
   people: string[];
   /** Distinct tables read in range, for the table-touched chip. */
   tables: string[];
+  /**
+   * The deployment's app groups, for the App group chip. Independent of the
+   * range: an administrator can filter by a group even when nobody in it asked
+   * anything in the window, and the empty list is the answer to that.
+   */
+  appGroups?: AppGroupOption[];
   /**
    * Whether the admin's own table grants could be resolved for this range.
    *

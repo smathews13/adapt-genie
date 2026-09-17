@@ -64,6 +64,14 @@ import {
   type AdaptMonitoringRoster,
 } from '../lib/adapt-monitoring-roster';
 import { organizationForEmail, parseOrganizationMappings } from '../../shared/organization-mapping';
+import {
+  appGroupOptions,
+  appGroupsForEmail,
+  memberEmailsForGroup,
+  DEFAULT_APP_GROUPS_SETTINGS,
+  type AppGroupsSettings,
+} from '../../shared/app-groups';
+import { readAppGroupsSettings } from '../lib/app-groups-store';
 import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import { isMlflowTraceId } from '../../shared/mlflow-trace-id';
 import { failureDefinition, isFailureCode } from '../../shared/failure-taxonomy';
@@ -159,7 +167,11 @@ export function pageFrom(req: Request): {
  * `$1` is the plan-approval sentinel, which is a stored user message and is not a
  * question anybody asked. `$2` and `$3` bound the range. `$4` is one more than
  * the requested page size, `$5` optionally scopes to one person, `$6`/`$7` are
- * the keyset cursor, and `$8` is question-or-asker search.
+ * the keyset cursor, `$8` is question-or-asker search, and `$9`/`$10` scope to
+ * one app group: `$9` is the group id (or '' for no group filter) and `$10` the
+ * member emails resolved from the app-groups store, lower-cased. The membership
+ * is resolved at read time from the asker's email rather than snapshotted, so a
+ * group filters questions asked before it existed.
  *
  * An answer is an assistant message that CARRIES A TRACE, which is the same
  * definition `RUNS_QUERY` uses in insights-routes.ts, and the reason this reads
@@ -284,6 +296,7 @@ export const MONITORING_QUESTIONS_QUERY = `
         OR lower(u.content) LIKE ('%' || lower($8) || '%')
         OR lower(c.user_email) LIKE ('%' || lower($8) || '%')
       )
+      AND ($9 = '' OR lower(c.user_email) = ANY($10::text[]))
     ORDER BY u.created_at DESC, u.id DESC
     LIMIT $4
   ),
@@ -301,6 +314,7 @@ export const MONITORING_QUESTIONS_QUERY = `
         OR lower(u.content) LIKE ('%' || lower($8) || '%')
         OR lower(c.user_email) LIKE ('%' || lower($8) || '%')
       )
+      AND ($9 = '' OR lower(c.user_email) = ANY($10::text[]))
   )
   SELECT t.asked_total, t.thread_total, t.people_list,
          q.question_id, q.conversation_id, q.question, q.asked_at, q.user_email,
@@ -994,6 +1008,8 @@ export interface MonitoringFilterQuery {
   rating?: string;
   table: string;
   search: string;
+  /** App group id to scope to, or '' for all. */
+  appGroup: string;
 }
 
 function filtersFrom(req: Request, person = queryString(req.query.person).trim()): MonitoringFilterQuery {
@@ -1007,7 +1023,25 @@ function filtersFrom(req: Request, person = queryString(req.query.person).trim()
     feedback: ['up', 'down', 'none', 'unrated'].includes(feedback) ? (feedback === 'unrated' ? 'none' : feedback) : '',
     table: queryString(req.query.table).trim(),
     search: queryString(req.query.q).trim(),
+    appGroup: queryString(req.query.group).trim(),
   };
+}
+
+/**
+ * The app groups, best effort.
+ *
+ * An empty configuration on any read failure, which makes the App group filter
+ * offer nothing and match nobody rather than taking the page down. The store's
+ * table can be legitimately absent on a deployment whose role does not own the
+ * schema, the same reason the run ledger is read separately below.
+ */
+async function readAppGroups(appkit: InsightsAppKit): Promise<AppGroupsSettings> {
+  try {
+    return (await readAppGroupsSettings(appkit)).settings;
+  } catch (error) {
+    console.warn(`[monitoring] App groups could not be read (${(error as Error).message}). The filter offers none.`);
+    return DEFAULT_APP_GROUPS_SETTINGS;
+  }
 }
 
 export function matchingQuestions(
@@ -1026,6 +1060,7 @@ export function matchingQuestions(
       return false;
     }
     if (table && !question.tables.some((name) => name.toLowerCase() === table)) return false;
+    if (filters.appGroup && !(question.askerAppGroups ?? []).includes(filters.appGroup)) return false;
     if (
       search &&
       !`${question.question} ${question.askedBy} ${question.askedBy.split('@')[0]}`.toLowerCase().includes(search)
@@ -1182,6 +1217,8 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         res.status(400).json({ error: page.refusal });
         return;
       }
+      const appGroups = await readAppGroups(appkit);
+      const groupMemberEmails = filters.appGroup ? memberEmailsForGroup(appGroups, filters.appGroup) : [];
       const stored = await readStored(appkit, 'GET /api/monitoring/questions', MONITORING_QUESTIONS_QUERY, [
         PLAN_APPROVAL_SENTINEL,
         range.from,
@@ -1191,6 +1228,8 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         page.cursor?.askedAt ?? '',
         page.cursor?.id ?? '',
         filters.search,
+        filters.appGroup,
+        groupMemberEmails,
       ]);
       // Sifted BEFORE `chooseRows`, not after. The statement joins a one-row
       // totals aggregate to the page, so it answers with a row whatever the
@@ -1223,7 +1262,15 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
 
       const answerIds = rows.map((row) => text(row.answer_id)).filter((id) => id !== '');
       const ledger = await readLedger(appkit, answerIds);
-      const rawPage = rows.map((row) => questionFromRow(row, ledger));
+      // Each row is annotated with the asker's app groups, resolved from the same
+      // configuration that scoped the SQL. The annotation carries the group
+      // membership to the browser for the App group chip's defensive pass and for
+      // any per-row display, while the SQL predicate above is what actually
+      // bounds the page.
+      const rawPage = rows.map((row) => {
+        const question = questionFromRow(row, ledger);
+        return { ...question, askerAppGroups: appGroupsForEmail(appGroups, question.askedBy) };
+      });
       const pageRows = rawPage.slice(0, page.limit);
       const all = matchingQuestions(pageRows, filters);
 
@@ -1271,6 +1318,7 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         questions: all,
         people: peopleOptions,
         tables: tableOptions,
+        appGroups: appGroupOptions(appGroups),
         grantsResolution: grants.resolved ? 'ok' : 'failed',
         pagination,
       } satisfies MonitoringQuestionsPayload);
@@ -1451,7 +1499,10 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
       }
       const range = rangeFrom(req, clock());
       const page = pageFrom(req);
-      const filters = filtersFrom(req, person);
+      // The panel is one person; an app-group scope is meaningless here and its
+      // rows carry no group annotation, so a stray `group` param must not narrow
+      // the defensive pass to nothing.
+      const filters = { ...filtersFrom(req, person), appGroup: '' };
       if (page.refusal) {
         res.status(400).json({ error: page.refusal });
         return;
@@ -1466,6 +1517,10 @@ export function setupMonitoringRoutes(appkit: InsightsAppKit, deps: MonitoringDe
         page.cursor?.askedAt ?? '',
         page.cursor?.id ?? '',
         filters.search,
+        // The person panel is already scoped to one asker, so the app-group
+        // predicate is left inert: '' disables it and the member array is unused.
+        '',
+        [],
       ]);
       if (!stored.available) {
         res.status(503).json({ error: 'storage_unavailable' });

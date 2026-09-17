@@ -75,6 +75,7 @@ createApp({
       { setupRunLabelRoutes },
       { setupWatchlistRoutes },
       { setupAskStarterRoutes },
+      { setupAppGroupsRoutes },
       { bootstrapSeedRoles, isAdminRoute },
       { respondToHandlerFailures },
     ] = await Promise.all([
@@ -107,6 +108,7 @@ createApp({
       import('./routes/run-label-routes'),
       import('./routes/watchlist-routes'),
       import('./routes/ask-starter-routes'),
+      import('./routes/app-groups-routes'),
       import('./lib/admin-roles'),
       import('./lib/handler-failures'),
     ]);
@@ -166,6 +168,7 @@ createApp({
     setupBenchmarkSettingsRoutes(appkit);
     setupWatchlistRoutes(appkit);
     setupAskStarterRoutes(appkit);
+    setupAppGroupsRoutes(appkit);
     setupEvalDatasetRoutes(appkit);
     setupBenchmarkLabRoutes(appkit);
     setupEnvironmentRoutes(appkit);

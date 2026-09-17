@@ -314,6 +314,7 @@ describe('paged list request contracts', () => {
         outcome: 'refused',
         feedback: 'down',
         table: 'main.player.gold',
+        appGroup: '',
         search: 'refund rate',
       },
     });

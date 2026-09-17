@@ -37,6 +37,7 @@ import {
   type SettingsSection,
 } from './settings-sections';
 import { UserRoleEditor } from './UserRoleEditor';
+import { AppGroupEditor } from './AppGroupEditor';
 import { Button, Switch } from './ui';
 import { Dialog } from './Dialog';
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
@@ -317,6 +318,7 @@ export function SettingsPage({
                   <h3>Identity</h3>
                 </div>
                 <UserRoleEditor canManageHumanRoles={managesUserRoster(role.state)} />
+                <AppGroupEditor canManage={showsAdminSurfaces(role.state)} />
               </div>
             ) : null}
             {active === 'appearance' ? (

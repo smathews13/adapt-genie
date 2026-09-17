@@ -70,7 +70,7 @@ function question(overrides: Partial<MonitoringQuestion> = {}): MonitoringQuesti
 describe('the filters live in the URL', () => {
   it('reads every filter back out of a search string', () => {
     const filters = filtersFromParams(
-      params('person=first.person@example.test&outcome=refused&feedback=down&table=a.b.c&q=spending')
+      params('person=first.person@example.test&outcome=refused&feedback=down&table=a.b.c&group=grp_1&q=spending')
     );
 
     expect(filters).toEqual({
@@ -78,6 +78,7 @@ describe('the filters live in the URL', () => {
       outcome: 'refused',
       feedback: 'down',
       table: 'a.b.c',
+      appGroup: 'grp_1',
       search: 'spending',
     });
     expect(filtersActive(filters)).toBe(true);
@@ -111,6 +112,7 @@ describe('the filters live in the URL', () => {
       outcome: 'failed',
       feedback: 'up',
       table: 'a.b.c',
+      appGroup: '',
       search: 'net bookings',
     } as const;
     const search = withFilters('', filters);
@@ -300,6 +302,18 @@ describe('the filters combine with AND', () => {
   it('treats No feedback as a filter rather than as the absence of one', () => {
     expect(applyFilters(rows, { ...NO_FILTERS, feedback: 'none' }).map((row) => row.id)).toEqual(['b']);
     expect(applyFilters(rows, NO_FILTERS)).toHaveLength(3);
+  });
+
+  /** The App group filter matches on the asker's resolved group membership. */
+  it('narrows to the members of an app group', () => {
+    const grouped = [
+      question({ id: 'a', askerAppGroups: ['g1', 'g2'] }),
+      question({ id: 'b', askerAppGroups: ['g2'] }),
+      question({ id: 'c', askerAppGroups: [] }),
+    ];
+    expect(applyFilters(grouped, { ...NO_FILTERS, appGroup: 'g1' }).map((row) => row.id)).toEqual(['a']);
+    expect(applyFilters(grouped, { ...NO_FILTERS, appGroup: 'g2' }).map((row) => row.id)).toEqual(['a', 'b']);
+    expect(applyFilters(grouped, { ...NO_FILTERS, appGroup: 'none' })).toHaveLength(0);
   });
 });
 

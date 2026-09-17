@@ -154,7 +154,7 @@ describe('the ask home is the geometry the mockup gives it', () => {
     expect(partial('tokens.css')).toMatch(/--conversation-inset:\s*clamp\(/);
     expect(body('.conversation-main')).toMatch(/padding:\s*56px var\(--conversation-inset\) 32px/);
     expect(body('.composer')).toMatch(/width:\s*calc\(100% - 16px\)/);
-    expect(body('.composer')).toMatch(/max-width:\s*min\(720px,\s*var\(--conversation-measure\)\)/);
+    expect(body('.composer')).toMatch(/max-width:\s*min\(640px,\s*var\(--conversation-measure\)\)/);
     // No copy of the old literal left anywhere. A single survivor is worse than
     // none of this, because it would be the one rule that stopped moving.
     expect(withoutComments(STYLESHEET)).not.toMatch(/clamp\(28px,\s*3\.5vw,\s*64px\)/);
@@ -270,18 +270,14 @@ describe('the ask home is the geometry the mockup gives it', () => {
     expect(measure).toBeGreaterThanOrEqual(1100);
   });
 
-  it('gives the headline and the composer one width to share', () => {
-    // The suggestion grid that used to sit between these two is gone. The two
-    // remaining parts of the empty state still need one centre line and one
-    // measure; otherwise removing the cards would leave the input visibly
-    // unrelated to the question that introduces it.
-    //
-    // The composer takes that 720px only while it is the card under the hero: once
-    // there is a transcript it is a docked footer spanning the whole column, so
-    // the shared measure is asserted off its empty-state rule, which is the only
-    // place the two are on screen together.
+  it('keeps the composer narrower than the headline in every seating', () => {
+    // The question field is an action, not another reading card. Holding it to
+    // 640px leaves a visible inset inside the 720px hero and avoids the
+    // full-column rectangle reported on both empty and active conversations.
     expect(body('.ask-hero')).toMatch(/max-width:\s*720px/);
-    expect(body('.conversation-main.is-empty .composer')).toMatch(/max-width:\s*720px/);
+    expect(body('.conversation-main.is-empty .composer')).toMatch(
+      /max-width:\s*min\(640px,\s*var\(--conversation-measure\)\)/
+    );
     expect(body('.conversation-main.is-empty .composer')).toMatch(/margin-inline:\s*auto/);
   });
 

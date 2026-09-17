@@ -336,12 +336,12 @@
    * `100vw - rail - inspector`, and the transcript filled every pixel of it less
    * the inset above. On a 1512px laptop that is an answer card 864px wide, which
    * is fine; on a 2560px monitor it is 1888px, set in 13px type, while the hero
-   * and the composer directly above and below it cap themselves at 720px. So the
+   * caps at 720px and the composer at 640px. So the
    * complaint that the text "needs more padding and more width" was two
    * different faults wearing one sentence: the reading measure was unbounded at
    * the wide end and the gutter was thin at the narrow end.
    *
-   * 1280px is wider than the 720px the hero and composer cap at because an
+   * 1280px is wider than the 720px hero and 640px composer because an
    * answer carries tables, charts and a source list. Body prose remains inside
    * surfaced cards; result tables use the extra measure and keep their own
    * horizontal scroller when their natural width is larger still.

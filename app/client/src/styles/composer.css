@@ -2,7 +2,7 @@
   position: static;
   width: calc(100% - 16px);
   margin: 28px auto 0;
-  max-width: min(720px, var(--conversation-measure));
+  max-width: min(640px, var(--conversation-measure));
   background: var(--ast-pane);
   border: 1px solid var(--db-line-strong);
   border-radius: var(--radius-md);
@@ -17,7 +17,7 @@
  * form is already the last child of `.conversation-main`, so returning it to the
  * flow puts it directly under the hero -- and the hero is the only thing above it
  * when the transcript is empty. `max-width` and `margin-inline: auto` still hold,
- * so it keeps the same 720px measure, centred in the same column, and lands in the
+ * so it keeps the same 640px measure, centred in the same column, and lands in the
  * same place a reader's eye already is.
  *
  * A `top` in the tens of vh was the alternative and it is the version that breaks:
@@ -37,10 +37,10 @@
   /*
    * On an empty transcript the composer is not a footer over anything -- it is a
    * card in the flow under the hero -- so it takes back the bordered, rounded
-   * panel the docked bar sheds. The 720px measure, centred, is the suggestion
-   * grid's own width, so the two line up as the design intends.
+   * panel the docked bar sheds. The 640px measure keeps the input visibly
+   * narrower than the surrounding page instead of reading as another full-width card.
    */
-  max-width: 720px;
+  max-width: min(640px, var(--conversation-measure));
   margin-inline: auto;
   border: 1px solid var(--db-line-strong);
   border-radius: var(--radius-md);

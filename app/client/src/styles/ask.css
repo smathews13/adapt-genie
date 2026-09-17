@@ -100,7 +100,7 @@
 .conversation-main .answer-card > [data-slot='card-header'] {
   padding: 8px;
 }
-/* Wide enough for the suggestion grid and the composer, both of which cap at 720px. */
+/* The hero keeps the wider 720px introduction measure; the composer below caps at 640px. */
 .ask-hero {
   width: 100%;
   max-width: 720px;

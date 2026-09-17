@@ -4869,19 +4869,12 @@ Tables available to this analysis, with their columns:
                     "total_tokens": log.total_tokens,
                 }
             )
-            if log.total_tokens:
-                # Trace-level Tokens column aggregates from child LLM spans when
-                # they each carry `mlflow.chat.tokenUsage`; also stamp the parent
-                # with the turn total so a reader who only opens the loop span
-                # sees the same meter the app stores on `answer.trace`.
-                span.set_attribute(
-                    "mlflow.chat.tokenUsage",
-                    {
-                        "input_tokens": log.prompt_tokens,
-                        "output_tokens": log.completion_tokens,
-                        "total_tokens": log.total_tokens,
-                    },
-                )
+            # Child LLM spans already carry provider usage. Do not stamp the
+            # cumulative turn total as a usage attribute on this ancestor:
+            # hosted trace aggregation may add the parent roll-up to its
+            # descendants and report roughly twice the real tokens. The outputs
+            # above retain the same cumulative diagnostic without participating
+            # in MLflow's trace-level usage aggregation.
 
         if outcome.clarification is not None:
             yield log.close_stage(

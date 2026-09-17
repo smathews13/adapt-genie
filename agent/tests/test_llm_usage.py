@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import mlflow
@@ -78,3 +79,15 @@ def test_answer_trace_aggregates_usage_from_fake_client():
     assert trace["prompt_tokens"] == 30
     assert trace["completion_tokens"] == 12
     assert trace["total_tokens"] == 42
+
+
+def test_orchestrator_parent_keeps_totals_out_of_usage_aggregation():
+    """The parent may display its roll-up, but only child LLM spans meter usage."""
+
+    source = (Path(__file__).resolve().parents[1] / "agent.py").read_text()
+    start = source.index('with mlflow.start_span(name="orchestrator.loop"')
+    end = source.index("if outcome.clarification is not None:", start)
+    parent = source[start:end]
+
+    assert '"total_tokens": log.total_tokens' in parent
+    assert '"mlflow.chat.tokenUsage"' not in parent

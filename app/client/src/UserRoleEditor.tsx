@@ -638,7 +638,6 @@ export function GroupRoleDefaults({
 export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanRoles?: boolean }) {
   const [payload, setPayload] = useState<RosterPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyAction, setBusyAction] = useState<'add' | 'other' | null>(null);
   const [writeError, setWriteError] = useState('');
   const [groupDraft, setGroupDraft] = useState('');
@@ -652,7 +651,6 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
   const load = useCallback(async (showLoading = true) => {
     const generation = ++loadGeneration.current;
     if (showLoading) setLoading(true);
-    setError('');
     const humanResult = await Promise.resolve(loadHumanRoster()).then(
       (value) => ({ status: 'fulfilled' as const, value }),
       (reason: unknown) => ({ status: 'rejected' as const, reason })
@@ -660,10 +658,9 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     if (generation !== loadGeneration.current) return;
     if (humanResult.status === 'fulfilled') setPayload(humanResult.value);
     else {
-      setError(
-        humanResult.reason instanceof Error
-          ? humanResult.reason.message
-          : 'The individual-user roster could not be read.'
+      console.warn(
+        '[identity] The roster could not be read:',
+        humanResult.reason instanceof Error ? humanResult.reason.message : humanResult.reason
       );
     }
     setLoading(false);
@@ -768,11 +765,6 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
           />
         ) : null}
         {loading ? <AdaptLoader label="Reading identity settings" className="admin-list-note" /> : null}
-        {error ? (
-          <p className="admin-list-note admin-list-error">
-            The roster could not be read. Nobody has lost a role. Reload the page.
-          </p>
-        ) : null}
         {payload ? (
           <>
             <p className="admin-list-note">

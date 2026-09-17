@@ -843,6 +843,36 @@ SUBMIT_ANSWER_TOOL = {
     },
 }
 
+
+def system_text(content: Any) -> str:
+    """The system prompt as text, whether sent plain or as cacheable blocks."""
+
+    if isinstance(content, str) or content is None:
+        return content or ""
+    if isinstance(content, list):
+        return "".join(
+            str(block.get("text") or "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return str(content)
+
+
+def _cacheable(text: str) -> list[dict[str, Any]]:
+    """Send one stable system prompt as an ephemeral cacheable content block."""
+
+    return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
+
+
+def _cacheable_tools(tools: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Copy tools and put one cache breakpoint after the final definition."""
+
+    if not tools:
+        return []
+    cached = [dict(tool) for tool in tools]
+    cached[-1] = {**cached[-1], "cache_control": {"type": "ephemeral"}}
+    return cached
+
+
 #: Governed direct metadata and SQL tools are the primary path. The configured
 #: Genie space is a bounded fallback when those tools cannot answer.
 #: `request_clarification` remains available for one short question when a
@@ -858,6 +888,7 @@ ANALYSIS_TOOLS = [
     REQUEST_CLARIFICATION_TOOL,
     SUBMIT_ANSWER_TOOL,
 ]
+CACHED_ANALYSIS_TOOLS = _cacheable_tools(ANALYSIS_TOOLS)
 
 # Same direct metadata/SQL surface, with only the Genie transport replaced.
 # Consumers and deployments with the saved experiment off keep ANALYSIS_TOOLS
@@ -874,6 +905,7 @@ MCP_ANALYSIS_TOOLS = [
     REQUEST_CLARIFICATION_TOOL,
     SUBMIT_ANSWER_TOOL,
 ]
+CACHED_MCP_ANALYSIS_TOOLS = _cacheable_tools(MCP_ANALYSIS_TOOLS)
 
 ORCHESTRATOR_INSTRUCTIONS = """# Role
 You are the analysis orchestrator for Take-Two Steam sales, marketing analytics, and
@@ -3262,7 +3294,9 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         if self.user_authorization:
             log.executed_as = self._measured_identity(tools.workspace)
         system = knowledge.add_packaged_knowledge(ORCHESTRATOR_INSTRUCTIONS, PACKAGED_KNOWLEDGE)
-        analysis_tools = MCP_ANALYSIS_TOOLS if genie_transport == "mcp" else ANALYSIS_TOOLS
+        analysis_tools = (
+            CACHED_MCP_ANALYSIS_TOOLS if genie_transport == "mcp" else CACHED_ANALYSIS_TOOLS
+        )
         if genie_transport == "mcp":
             system += (
                 "\n\n# Genie transport for this run\n"
@@ -3273,7 +3307,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         if runtime_prompt:
             system = f"{system}\n\n{runtime_prompt}"
 
-        messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+        messages: list[dict[str, Any]] = [{"role": "system", "content": _cacheable(system)}]
         # The notebook's finder gets exactly one self-contained user message. The
         # The loop receives one self-contained user message. Earlier turns are
         # inert JSON and attachment text is fenced as untrusted data.
@@ -3995,7 +4029,7 @@ Tables actually read this run:
             kwargs = {
                 "model": self.settings.llm_endpoint,
                 "messages": [
-                    {"role": "system", "content": system},
+                    {"role": "system", "content": _cacheable(system)},
                     {"role": "user", "content": user},
                 ],
                 "temperature": 0.1,
@@ -4140,7 +4174,7 @@ Statements run, for column names and grain:
                 response = client.chat.completions.create(
                     model=self.settings.llm_endpoint,
                     messages=[
-                        {"role": "system", "content": plot_instructions},
+                        {"role": "system", "content": _cacheable(plot_instructions)},
                         {"role": "user", "content": user},
                     ],
                     temperature=0.0,
@@ -4383,7 +4417,9 @@ Statements run, for column names and grain:
                 messages=[
                     {
                         "role": "system",
-                        "content": PLAN_SELECTION_INSTRUCTIONS.format(limit=PLAN_MAX_TABLES),
+                        "content": _cacheable(
+                            PLAN_SELECTION_INSTRUCTIONS.format(limit=PLAN_MAX_TABLES)
+                        ),
                     },
                     {
                         "role": "user",
@@ -4428,7 +4464,7 @@ Tables available to this analysis, with their columns:
             response = client.chat.completions.create(
                 model=self.settings.llm_endpoint,
                 messages=[
-                    {"role": "system", "content": PLAN_FACTS_INSTRUCTIONS},
+                    {"role": "system", "content": _cacheable(PLAN_FACTS_INSTRUCTIONS)},
                     {"role": "user", "content": user},
                 ],
                 temperature=0.0,

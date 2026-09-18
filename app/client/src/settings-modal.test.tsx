@@ -61,6 +61,7 @@ describe('Settings modal', () => {
     ]) {
       expect(markup).toContain(`>${label}</span>`);
     }
+    expect(markup).not.toContain('>General</span>');
     expect(markup).not.toContain('>Runtime</span>');
     expect(markup).not.toContain('>Roles</button>');
     expect(markup).not.toContain('>Benchmarking</button>');
@@ -74,7 +75,6 @@ describe('Settings modal', () => {
     );
     const buttons = nav.match(/<button[\s\S]*?<\/button>/g) ?? [];
     const tabs = [
-      ['general', 'lucide-settings', 'General'],
       ['identity', 'lucide-badge-check', 'Identity'],
       ['environment', 'lucide-server-cog', 'Environment'],
       ['appearance', 'lucide-palette', 'Appearance'],
@@ -270,6 +270,21 @@ describe('Settings modal', () => {
     expect(consumer).not.toContain('/api/admin/access-guide');
   });
 
+  it('gives consumers three preference panes and shows privileged panes as disabled', () => {
+    const consumer = render('environment', { state: 'consumer', addedAdminsReadable: true });
+    const button = (label: string) =>
+      (consumer.match(/<button[\s\S]*?<\/button>/g) ?? []).find((entry) => entry.includes(`>${label}</span>`)) ?? '';
+
+    expect(button('Environment')).not.toContain('disabled=""');
+    expect(button('Appearance')).not.toContain('disabled=""');
+    expect(button('Insights')).not.toContain('disabled=""');
+    expect(button('Identity')).toContain('disabled=""');
+    expect(button('Experimental')).toContain('disabled=""');
+    expect(consumer).not.toContain('>General</span>');
+    expect(consumer).not.toContain('>Starter questions</span>');
+    expect(consumer).not.toContain('>Egress controls</span>');
+  });
+
   it('keeps assignable service-principal controls out of Settings', () => {
     const identity = render('identity');
     const experimental = render('experimental');
@@ -286,7 +301,6 @@ describe('Settings modal', () => {
 
   it('locks the Genie MCP switch until settings load and the current role opens admin surfaces', () => {
     const genieSwitch = (markup: string) => markup.match(/<button[^>]*aria-label="Enable Genie MCP"[^>]*>/)?.[0] ?? '';
-    const consumer = render('experimental', { state: 'consumer', addedAdminsReadable: true });
     const loading = renderToStaticMarkup(
       <SettingsPage
         initialSection="experimental"
@@ -297,7 +311,6 @@ describe('Settings modal', () => {
     );
     const admin = render('experimental');
 
-    expect(genieSwitch(consumer)).toContain('disabled=""');
     expect(genieSwitch(loading)).toContain('disabled=""');
     expect(genieSwitch(admin)).not.toContain('disabled=""');
   });
@@ -381,7 +394,7 @@ describe('Settings modal', () => {
     expect(markup).toContain('everyone sees when they open an empty Ask conversation');
   });
 
-  it('renders Identity for null, undefined, refused, failed, missing-role and service-principal identities', () => {
+  it('falls back to Environment when an unverified role requests Identity', () => {
     const hostileIdentities: unknown[] = [
       null,
       undefined,
@@ -397,8 +410,8 @@ describe('Settings modal', () => {
     ];
     for (const identity of hostileIdentities) {
       const markup = render('identity', roleFrom(identityFromResponse(identity)));
-      expect(markup).toContain('<h3>Identity</h3>');
-      expect(markup).toContain('Databricks access groups and ADAPT roles');
+      expect(markup).toContain('<h3>Environment</h3>');
+      expect(markup).not.toContain('Databricks access groups and ADAPT roles');
       expect(markup).not.toContain('This view could not be displayed');
     }
   });
@@ -416,8 +429,8 @@ describe('Settings modal', () => {
    * The crash Sam kept seeing, reproduced where it actually happens.
    *
    * Every test above renders `SettingsPage` on its own with a role handed to it,
-   * which is not how the app mounts it. The layout wraps it in `AdminOnly` and
-   * draws it as a SIBLING of `<Outlet />`, so `useOutletContext` -- a context
+   * which is how the app must mount it. The layout draws it as a SIBLING of
+   * `<Outlet />`, so `useOutletContext` -- a context
    * whose default value is null -- answers null there. Reading `.role` off that
    * threw in the layout itself, above the per-pane boundary inside Settings, so
    * the route boundary replaced the whole application with "This view could not
@@ -434,9 +447,7 @@ describe('Settings modal', () => {
                 {/* The outlet the pages get... */}
                 <Outlet context={{ features: FEATURES, setFeature: () => {}, role }} />
                 {/* ...and the modal, which is not inside it. */}
-                <AdminOnly role={role ?? undefined}>
-                  <SettingsPage features={FEATURES} setFeature={() => {}} role={role} />
-                </AdminOnly>
+                <SettingsPage features={FEATURES} setFeature={() => {}} role={role} />
               </div>
             }
           >
@@ -447,8 +458,8 @@ describe('Settings modal', () => {
     );
   }
 
-  it('opens the gear from the layout, outside the outlet, without taking the app down', () => {
-    for (const state of ['admin', 'super_admin'] as const) {
+  it('opens the gear from the layout for consumers and administrators', () => {
+    for (const state of ['consumer', 'admin', 'super_admin'] as const) {
       const markup = renderAsLayoutDoes({ state, addedAdminsReadable: true });
       expect(markup).toContain('data-testid="settings-modal-overlay"');
       expect(markup).toContain('<h2 id="settings-title">Settings</h2>');
@@ -500,13 +511,12 @@ describe('Settings modal', () => {
     expect(layout).not.toContain("entry.to === '/settings'");
     expect(layout).toContain('aria-label="App settings"');
     expect(layout).toContain('setSettingsOpen(true)');
-    expect(layout).toContain('void refreshExperimental()');
+    expect(layout).toContain('if (showsAdminSurfaces(role.state)) void refreshExperimental()');
     expect(layout).toContain("const settingsDeepLink = location.pathname === '/settings'");
     const settingsRoute = app.slice(app.indexOf("path: '/settings'"), app.indexOf("path: '/connections'"));
-    expect(settingsRoute).toContain('<AdminRoute>');
+    expect(settingsRoute).not.toContain('<AdminRoute>');
     expect(settingsRoute).toContain('<HomePage />');
     expect(settingsRoute).not.toContain('<SettingsPage');
-    // The gate outside the outlet must be handed a role rather than reading one.
-    expect(layout).toContain('<AdminOnly role={role}>');
+    expect(layout).not.toContain('<AdminOnly role={role}>');
   });
 });

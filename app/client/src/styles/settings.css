@@ -1642,6 +1642,26 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
   gap: 2px;
 }
 
+.settings-pane-heading--with-action {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.settings-reset-preferences {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.settings-reset-status {
+  max-width: 240px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
 .settings-pane-heading h3 {
   font-size: 14px;
   font-weight: 700;

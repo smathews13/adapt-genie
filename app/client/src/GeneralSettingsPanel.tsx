@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import { Button } from './ui';
 
-export function GeneralSettingsPanel() {
+export function ResetPreferencesButton() {
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [message, setMessage] = useState('');
 
@@ -24,11 +24,7 @@ export function GeneralSettingsPanel() {
   };
 
   return (
-    <div className="settings-pane settings-general">
-      <div className="settings-pane-heading">
-        <h3>General</h3>
-        <p>Reset Appearance and Insights preferences together.</p>
-      </div>
+    <div className="settings-reset-preferences">
       <Button type="button" variant="outline" disabled={state === 'saving'} onClick={() => void reset()}>
         <AdaptBusyButtonContent
           busy={state === 'saving'}
@@ -37,7 +33,7 @@ export function GeneralSettingsPanel() {
         />
       </Button>
       {message ? (
-        <p className={`settings-status${state === 'failed' ? ' settings-error' : ''}`} role="status">
+        <p className={`settings-reset-status${state === 'failed' ? ' settings-error' : ''}`} role="status">
           {message}
         </p>
       ) : null}

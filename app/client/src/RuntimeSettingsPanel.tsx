@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   DEFAULT_RUNTIME_SETTINGS,
   DENSITY_IDS,
@@ -107,6 +107,7 @@ export function RuntimeSettingsPanel({
   onSaveState = () => {},
   onDirtyChange = () => {},
   initialSettings = DEFAULT_RUNTIME_SETTINGS,
+  headingAction,
 }: {
   section: 'runtime' | 'appearance';
   /** Reports Save's progress to the modal footer, which is the part on screen. */
@@ -114,6 +115,8 @@ export function RuntimeSettingsPanel({
   onDirtyChange?: (count: number) => void;
   /** Seeds server-rendered and focused test states; live settings replace it after load. */
   initialSettings?: RuntimeSettings;
+  /** Optional action aligned to the top-right of the Appearance pane. */
+  headingAction?: ReactNode;
 }) {
   const [settings, setSettings] = useState<RuntimeSettings>(initialSettings);
   const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'saved' | 'failed'>('loading');
@@ -223,8 +226,9 @@ export function RuntimeSettingsPanel({
     >
       {section === 'appearance' ? (
         <>
-          <div className="settings-pane-heading">
+          <div className="settings-pane-heading settings-pane-heading--with-action">
             <h3>Appearance</h3>
+            {headingAction}
           </div>
           <section className="runtime-section appearance-display-section">
             <div className="appearance-section-heading">

@@ -203,11 +203,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/settings',
-        element: (
-          <AdminRoute>
-            <HomePage />
-          </AdminRoute>
-        ),
+        element: <HomePage />,
         errorElement: <RouteError />,
       },
       {

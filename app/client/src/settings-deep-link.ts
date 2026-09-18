@@ -60,7 +60,7 @@ export function settingsDeepLink(search: string, hash: string): SettingsDeepLink
   }
 
   return {
-    section: settingsSection(params.get('section')) ?? 'identity',
+    section: settingsSection(params.get('section')) ?? 'environment',
     focusTarget: focusTarget || null,
     canonicalSearch: search,
   };

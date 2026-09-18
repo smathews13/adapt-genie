@@ -89,7 +89,8 @@ describe('staged Settings saves', () => {
     expect(dirtyCount).toBe(2);
     expect(saveStatus).toBe('failed');
     expect(unsavedChangesLabel(dirtyCount)).toBe('Unsaved changes');
-    expect(PAGE).toContain('disabled={section.id !== active && dirtyCount > 0}');
+    expect(PAGE).toContain('const navigationDisabled = section.id !== active && dirtyCount > 0');
+    expect(PAGE).toContain('disabled={accessDisabled || navigationDisabled}');
     expect(PAGE).toContain('Save or Cancel the current changes first');
     expect(PAGE).toContain('{dirtyLabel} <span className="ast-num">{dirtyCount}</span>');
     expect(PAGE).toContain('setDraftFeatures({ ...savedFeatures })');

@@ -68,11 +68,11 @@ describe('Experimental Egress controls availability', () => {
 
   it('hides disabled Egress and normalizes an attempted deep-link selection', () => {
     expect(sectionIds(NO_EXPERIMENTS)).not.toContain('egress');
-    expect(normalizeSettingsSection('egress', NO_EXPERIMENTS)).toBe('identity');
+    expect(normalizeSettingsSection('egress', NO_EXPERIMENTS)).toBe('environment');
 
     const markup = settings(NO_EXPERIMENTS, 'egress');
     expect(markup).not.toContain('class="settings-section-label">Egress controls</span>');
-    expect(markup).toContain('<h3>Identity</h3>');
+    expect(markup).toContain('<h3>Environment</h3>');
     expect(markup).not.toContain('id="settings-egress-form"');
   });
 

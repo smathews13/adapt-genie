@@ -56,9 +56,10 @@ describe('navigation follows the signed-in role', () => {
     expect(labels(render('failed'))).toEqual(['Ask']);
   });
 
-  it('keeps the settings gear administrative', () => {
-    expect(showsSettingsGear('consumer')).toBe(false);
+  it('shows the settings gear to every resolved signed-in role', () => {
+    expect(showsSettingsGear('consumer')).toBe(true);
     expect(showsSettingsGear('admin')).toBe(true);
+    expect(showsSettingsGear('failed')).toBe(false);
     expect(EVERY_TAB).not.toContain('Settings');
   });
 });
@@ -104,6 +105,7 @@ describe('nothing about permission has moved', () => {
       expect(route, `${path} is no longer registered in App.tsx`).not.toBeNull();
       expect(route![0], `${path} is no longer wrapped in AdminRoute`).toContain('<AdminRoute>');
     }
+    expect(ADMIN_PAGE_NAMES).not.toHaveProperty('/settings');
   });
 
   it('is client-side only, and names nothing the server reads', () => {

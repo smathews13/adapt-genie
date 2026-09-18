@@ -233,7 +233,6 @@ def declared_tables(settings: Settings) -> list[str]:
     ]
 
 
-
 # ---------------------------------------------------------------------------
 # Generating the declaration
 #
@@ -313,8 +312,7 @@ def scope_allows(settings: Settings, full_name: str) -> bool:
         return False
     catalog, schema, _ = parts
     return any(
-        scope == catalog or scope == f"{catalog}.{schema}"
-        for scope in discovery_scopes(settings)
+        scope == catalog or scope == f"{catalog}.{schema}" for scope in discovery_scopes(settings)
     )
 
 
@@ -477,9 +475,7 @@ def genie_curated_tables(workspace: Any, space_id: str) -> list[str]:
     return found
 
 
-def _manifest_from_genie(
-    settings: Settings, workspace: Any
-) -> tuple[tuple[str, ...], list[str]]:
+def _manifest_from_genie(settings: Settings, workspace: Any) -> tuple[tuple[str, ...], list[str]]:
     """`(manifest, notes)` for the tables the agent's Genie spaces curate.
 
     Union of the two spaces, in space order, with the same exclusions `schema`
@@ -617,6 +613,74 @@ def governance_notes(settings: Settings, manifest: Sequence[str]) -> list[str]:
     ]
 
 
+FRANCHISE_TAG_KEY = "franchise"
+TAG_KEYS: tuple[str, ...] = (FRANCHISE_TAG_KEY,)
+
+
+def _backticked(identifier: str) -> str:
+    return "`" + identifier.replace("`", "``") + "`"
+
+
+def resolve_table_tags(
+    settings: Settings, workspace: Any, *, warehouse_id: str = ""
+) -> tuple[tuple[str, ...], list[str]]:
+    """Selected tags for declared tables, read once while logging the model."""
+
+    declared = tuple(settings.readable_tables)
+    if not declared:
+        return (), []
+    warehouse = warehouse_id or settings.warehouse_id
+    if not warehouse:
+        return (), ["WARNING: no warehouse was available to read table tags; none were baked."]
+
+    catalogs = sorted({name.split(".")[0] for name in declared})
+    wanted = ", ".join(f"'{key}'" for key in TAG_KEYS)
+    statement = " UNION ALL ".join(
+        "SELECT catalog_name, schema_name, table_name, tag_name, tag_value "
+        f"FROM {_backticked(catalog)}.information_schema.table_tags "
+        f"WHERE lower(tag_name) IN ({wanted})"
+        for catalog in catalogs
+    )
+    try:
+        from databricks.sdk.service.sql import StatementState
+
+        response = workspace.statement_execution.execute_statement(
+            statement=statement,
+            warehouse_id=warehouse,
+            wait_timeout="50s",
+        )
+        state = response.status.state if response.status else None
+        if state != StatementState.SUCCEEDED:
+            raise RuntimeError(f"statement ended {state}")
+        result = response.result
+        rows = list(getattr(result, "data_array", None) or [])
+        statement_id = getattr(response, "statement_id", None)
+        next_chunk = getattr(result, "next_chunk_index", None)
+        while next_chunk is not None and statement_id:
+            chunk = workspace.statement_execution.get_statement_result_chunk_n(
+                statement_id, next_chunk
+            )
+            rows.extend(list(getattr(chunk, "data_array", None) or []))
+            next_chunk = getattr(chunk, "next_chunk_index", None)
+    except Exception as error:  # noqa: BLE001 - optional labels, reported at release
+        return (), [
+            f"WARNING: table tags could not be read ({error}). None were baked; "
+            "the declared manifest and its grants are unchanged."
+        ]
+
+    declared_by_key = {name.lower(): name for name in declared}
+    pairs: list[str] = []
+    for row in rows:
+        catalog, schema, table, key, value = (str(cell or "").strip() for cell in row[:5])
+        full_name = declared_by_key.get(f"{catalog}.{schema}.{table}".lower())
+        if full_name and key and value:
+            pairs.append(f"{full_name}={key.lower()}={value}")
+    tagged = len({pair.split("=", 1)[0] for pair in pairs})
+    return tuple(sorted(pairs)), [
+        f"Table tags: {tagged} of {len(declared)} declared table(s) tagged."
+    ]
+
+
 def resolve_declared_manifest(
     settings: Settings, workspace: Any
 ) -> tuple[tuple[str, ...], list[str]]:
@@ -675,9 +739,7 @@ def _nothing_visible_refusal(entry: str, covered: Sequence[str]) -> str:
     )
 
 
-def _manifest_from_schema(
-    settings: Settings, workspace: Any
-) -> tuple[tuple[str, ...], list[str]]:
+def _manifest_from_schema(settings: Settings, workspace: Any) -> tuple[tuple[str, ...], list[str]]:
     """`(manifest, notes)` for every table in each `catalog_allowlist` scope.
 
     EXCLUSIONS ARE APPLIED BEFORE THE CONTRACT IS UNIONED IN, and a contract
@@ -792,9 +854,7 @@ def _manifest_from_schema(
     # Conditional on the table existing: declaring one that is not there grants
     # SELECT on a name and makes nothing work.
     contract = [
-        name
-        for name in declared_tables(settings)
-        if name not in manifest and name in listed_tables
+        name for name in declared_tables(settings) if name not in manifest and name in listed_tables
     ]
     if contract:
         manifest.extend(contract)
@@ -807,7 +867,9 @@ def _manifest_from_schema(
     if absent:
         notes.append(
             f"WARNING: {len(absent)} data-contract table(s) do not exist in any "
-            "allowlisted scope and are NOT declared: " + ", ".join(absent) + ". "
+            "allowlisted scope and are NOT declared: "
+            + ", ".join(absent)
+            + ". "
             + _absent_contract_advice(absent, declared_tables(settings))
         )
     notes.extend(governance_notes(settings, manifest))
@@ -966,5 +1028,3 @@ def widening_refusal(model_name: str, previous_version: int, added: Sequence[str
         "Either way, see the whole picture first (every table, every exclusion and its "
         "reason) with:  cd agent && uv run --python 3.13 python manifest_dryrun.py"
     )
-
-

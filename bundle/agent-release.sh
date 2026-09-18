@@ -323,7 +323,7 @@ export PLAYER_INSIGHTS_ALLOW_UNATTRIBUTED_FIGURES="$ALLOW_UNATTRIBUTED_FIGURES"
 # Which leaves the rest of config.py's ENV_VARS. Three of them are read by
 # `Settings.from_env` and have no bundle variable, so a value left in the shell
 # would reach a release with nothing recording where it came from. None of the
-# three should come from a shell, so the release clears them:
+# four should come from a shell, so the release clears them:
 #
 #   PLAYER_INSIGHTS_TABLES              the data contract, owned by
 #                                       agent/preflight.py so the list that
@@ -334,6 +334,8 @@ export PLAYER_INSIGHTS_ALLOW_UNATTRIBUTED_FIGURES="$ALLOW_UNATTRIBUTED_FIGURES"
 #                                       overwrites it after from_env, so it is
 #                                       already inert. Cleared so nobody has to
 #                                       re-derive that to be sure.
+#   PLAYER_INSIGHTS_TABLE_TAGS          generated from the declared manifest
+#                                       and Unity Catalog at log time.
 #   PLAYER_INSIGHTS_*_GENIE_TITLE       resolved at log time from get_space.
 #                                       Cleared so a laptop cannot invent a
 #                                       title that disagrees with the space.
@@ -342,6 +344,7 @@ export PLAYER_INSIGHTS_ALLOW_UNATTRIBUTED_FIGURES="$ALLOW_UNATTRIBUTED_FIGURES"
 # the pre-deploy case.
 unset PLAYER_INSIGHTS_TABLES
 unset PLAYER_INSIGHTS_DECLARED_MANIFEST
+unset PLAYER_INSIGHTS_TABLE_TAGS
 unset PLAYER_INSIGHTS_DATA_GENIE_TITLE
 
 # --- Does this release agree with what somebody saved in the app? ------------

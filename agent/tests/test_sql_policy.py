@@ -38,6 +38,7 @@ def test_tools_re_exports_the_same_objects_rather_than_copies():
         "fully_qualified_tables",
         "is_read_only_sql",
         "restricted_output_columns",
+        "refuse_degenerate_joins",
         "refuse_restricted_columns",
         "inspect_generated_sql",
         "validate_sql",
@@ -75,14 +76,35 @@ def test_a_table_outside_the_declaration_is_a_manifest_rejection():
 
 
 def test_the_column_policy_names_itself_however_the_column_was_reached():
-    assert (
-        _code("SELECT crm_customer_ref FROM cat.sch.players") == failures.COLUMN_POLICY_VIOLATION
-    )
+    assert _code("SELECT crm_customer_ref FROM cat.sch.players") == failures.COLUMN_POLICY_VIOLATION
     assert _code("SELECT email FROM cat.sch.players") == failures.COLUMN_POLICY_VIOLATION
     assert (
         _code("SELECT count(*) FROM cat.sch.orders NATURAL JOIN cat.sch.players")
         == failures.COLUMN_POLICY_VIOLATION
     )
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM cat.sch.orders o JOIN cat.sch.players p ON o.id = o.id",
+        "SELECT count(*) FROM cat.sch.orders o JOIN cat.sch.players p ON 1 = 1",
+    ],
+)
+def test_a_provably_cartesian_join_is_refused_before_the_warehouse(sql):
+    assert _code(sql) == failures.SQL_CARTESIAN_JOIN
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM cat.sch.orders o JOIN cat.sch.players p ON o.id = p.id",
+        "SELECT count(*) FROM cat.sch.orders o JOIN cat.sch.players p ON o.id = id",
+        "SELECT count(*) FROM cat.sch.orders o JOIN cat.sch.players p USING (id)",
+    ],
+)
+def test_real_or_statically_ambiguous_join_keys_are_not_refused(sql):
+    assert sql_policy.validate_sql(sql, READABLE) == list(READABLE)
 
 
 def test_a_refusal_raised_without_a_code_still_constructs():

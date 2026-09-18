@@ -53,6 +53,7 @@ ENV_VARS = {
     "max_output_tokens": "PLAYER_INSIGHTS_MAX_OUTPUT_TOKENS",
     "tables": "PLAYER_INSIGHTS_TABLES",
     "declared_manifest": "PLAYER_INSIGHTS_DECLARED_MANIFEST",
+    "table_tags": "PLAYER_INSIGHTS_TABLE_TAGS",
     "manifest_source": "PLAYER_INSIGHTS_MANIFEST_SOURCE",
     "build_sha": BUILD_SHA_VAR,
 }
@@ -78,6 +79,7 @@ BAKED_KEYS = (
     "max_output_tokens",
     "tables",
     "declared_manifest",
+    "table_tags",
     # Baked because it is a property of the manifest that was generated, not a
     # knob on the running agent: a served entity must never claim `genie` while
     # holding a manifest that was enumerated, or the reverse.
@@ -328,6 +330,10 @@ class Settings:
     #: bakes no such key, and requiring it would fail its model load;
     #: `readable_tables` falls back to the data contract there.
     declared_manifest: tuple[str, ...] = ()
+    #: Selected Unity Catalog tags for declared tables, resolved once at model
+    #: log time as `catalog.schema.table=key=value` pairs. Empty is valid and
+    #: keeps older model versions compatible.
+    table_tags: tuple[str, ...] = ()
     #: How that manifest was generated. One of `preflight.MANIFEST_SOURCES`.
     #:
     #: ``schema`` enumerates every table in each `catalog_allowlist` scope and
@@ -392,8 +398,7 @@ class Settings:
         if self.declared_manifest:
             return self.declared_manifest
         return tuple(
-            table if table.count(".") == 2 else f"{self.namespace}.{table}"
-            for table in self.tables
+            table if table.count(".") == 2 else f"{self.namespace}.{table}" for table in self.tables
         )
 
     def as_model_config(self) -> dict[str, Any]:
@@ -490,6 +495,7 @@ class Settings:
             max_output_tokens=int(resolved["max_output_tokens"] or 2500),
             tables=_tuple(resolved["tables"] or DECLARED_TABLES),
             declared_manifest=_tuple(resolved["declared_manifest"] or ()),
+            table_tags=_tuple(resolved["table_tags"] or ()),
             manifest_source=manifest_source,
             build_sha=str(resolved["build_sha"] or ""),
             sources=tuple(sorted(origins.items())),

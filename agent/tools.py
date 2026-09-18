@@ -30,6 +30,7 @@ import runtime_settings
 import sdk_attribution
 from config import Settings, format_genie_space
 from evidence import EvidenceGateway, EvidenceRefused, Verdict
+from preflight import FRANCHISE_TAG_KEY
 
 # The SQL guard lives in `sql_policy` so the evidence gateway can be built on the
 # SAME objects rather than on a second policy that resembles them. Re-exported
@@ -45,6 +46,7 @@ from sql_policy import (  # noqa: F401 - re-exported for callers and tests
     is_read_only_sql,
     parse_sql,
     referenced_tables,
+    refuse_degenerate_joins,
     refuse_restricted_columns,
     restricted_output_columns,
     validate_sql,
@@ -56,6 +58,11 @@ from sql_policy import (  # noqa: F401 - re-exported for callers and tests
 #: wide rows is what "summarize the top spenders" needs and is what it still
 #: gets; see `RowBudget`.
 MAX_SQL_ROWS = 50
+
+#: A complete declared-table listing below this size is cheaper than making the
+#: model spend separate turns walking catalogs and schemas. The fallback remains
+#: for unusually broad manifests so discovery cannot crowd out the answer.
+MAX_DECLARED_LISTING_CHARS = 12_000
 
 
 @dataclass(frozen=True)
@@ -418,6 +425,12 @@ SQL_WAIT_FLOOR_SECONDS = 5
 #: is the warmup, not the query. Sized at the API ceiling because that is the
 #: longest a single synchronous statement may wait.
 DISCOVERY_WAIT_SECONDS = SQL_WAIT_CEILING_SECONDS
+
+#: Time one dependency may not consume because the model still has to turn its
+#: result into an answer. These clamp existing waits; they do not extend them.
+GENIE_BUDGET_RESERVE_SECONDS = 25
+SQL_BUDGET_RESERVE_SECONDS = 30
+SQL_RETRY_MIN_REMAINING_SECONDS = 40
 
 #: A statement cancelled for slowness is retried ONCE. The first attempt is
 #: usually what started the warehouse, so the second often lands on a warm one.
@@ -981,8 +994,14 @@ class PlayerInsightTools:
         """
 
         started = time.perf_counter()
-        answering_budget = GENIE_TIMEOUT_SECONDS
-        starting_budget = GENIE_WAREHOUSE_START_SECONDS
+        held_back = max(
+            GENIE_BUDGET_RESERVE_SECONDS,
+            runtime_settings.answer_reserve(),
+        )
+        turn_budget = max(0.0, runtime_settings.remaining_seconds() - held_back)
+        turn_deadline = started + turn_budget
+        answering_budget = min(GENIE_TIMEOUT_SECONDS, turn_budget)
+        starting_budget = min(GENIE_WAREHOUSE_START_SECONDS, turn_budget)
         wait = self.workspace.genie.start_conversation(space_id, question)
         status: Any = None
         poll = GENIE_FIRST_POLL_SECONDS
@@ -1012,9 +1031,9 @@ class PlayerInsightTools:
                     f"{getattr(message, 'error', None) or 'no detail was returned'}."
                 )
             if warming_since is not None:
-                deadline = started + starting_budget
+                deadline = min(started + starting_budget, turn_deadline)
             else:
-                deadline = started + warming + answering_budget
+                deadline = min(started + warming + answering_budget, turn_deadline)
             if now >= deadline:
                 waited = now - started
                 if warming_since is not None:
@@ -1517,6 +1536,22 @@ class PlayerInsightTools:
         wanted = min(wait_seconds, SQL_WAIT_CEILING_SECONDS)
         return f"{max(SQL_WAIT_FLOOR_SECONDS, wanted)}s"
 
+    def _statement_budget(self, wait_seconds: int) -> int:
+        available = max(
+            0.0,
+            runtime_settings.remaining_seconds()
+            - max(SQL_BUDGET_RESERVE_SECONDS, runtime_settings.answer_reserve()),
+        )
+        if available < SQL_WAIT_FLOOR_SECONDS:
+            raise TimeoutError(
+                "The turn has less than the SQL API's five-second minimum outside "
+                "the answer reserve, so no warehouse statement was started."
+            )
+        return max(
+            SQL_WAIT_FLOOR_SECONDS,
+            min(wait_seconds, int(available)),
+        )
+
     def _execute(
         self,
         sql: str,
@@ -1553,10 +1588,11 @@ class PlayerInsightTools:
             retried = False
             tool_name = span_name.rsplit(".", 1)[-1]
             while True:
+                seconds = self._statement_budget(wait_seconds)
                 response = self.workspace.statement_execution.execute_statement(
                     warehouse_id=self.settings.warehouse_id,
                     statement=sql,
-                    wait_timeout=self._wait_timeout(wait_seconds),
+                    wait_timeout=self._wait_timeout(seconds),
                     on_wait_timeout=ExecuteStatementRequestOnWaitTimeout.CANCEL,
                     query_tags=sdk_attribution.query_tags("ask", tool_name),
                 )
@@ -1573,6 +1609,7 @@ class PlayerInsightTools:
                     retry_when_slow
                     and not retried
                     and statement_state(response) in _SQL_TOO_SLOW_STATES
+                    and runtime_settings.remaining_seconds() >= SQL_RETRY_MIN_REMAINING_SECONDS
                 ):
                     retried = True
                     continue
@@ -1667,6 +1704,27 @@ class PlayerInsightTools:
     # Discovery
     # -----------------------------------------------------------------------
 
+    def _table_tags(self) -> dict[str, dict[str, str]]:
+        """Baked tag pairs keyed by fully-qualified table name."""
+
+        tags: dict[str, dict[str, str]] = {}
+        for pair in self.settings.table_tags:
+            table, _, rest = pair.partition("=")
+            key, separator, value = rest.partition("=")
+            if not separator:
+                key, value = FRANCHISE_TAG_KEY, key
+            table, key, value = table.strip(), key.strip().lower(), value.strip()
+            if table and key and value:
+                tags.setdefault(table, {})[key] = value
+        return tags
+
+    def _franchise_tags(self) -> dict[str, str]:
+        return {
+            table: values[FRANCHISE_TAG_KEY]
+            for table, values in self._table_tags().items()
+            if values.get(FRANCHISE_TAG_KEY)
+        }
+
     def list_data_assets(self, catalog: str = "", schema: str = "") -> ToolResult:
         """Drill down the DECLARED manifest: catalogs -> schemas -> tables.
 
@@ -1692,13 +1750,33 @@ class PlayerInsightTools:
         schema = schema.strip().strip("`")
 
         if not catalog:
+            if not declared:
+                return ToolResult(text="(no tables were declared with this model)")
+            franchise_tags = self._franchise_tags()
+            lines = "\n".join(
+                f"- {name}"
+                + (f"  [franchise: {franchise_tags[name]}]" if name in franchise_tags else "")
+                for name in sorted(declared)
+            )
+            if len(lines) <= MAX_DECLARED_LISTING_CHARS:
+                grants_note = f"\n{GRANTS_DECIDE_NOTE}" if self.user_authorized else ""
+                tags_note = (
+                    "\nThe franchise labels are Unity Catalog tags; an unlabelled table "
+                    "is untagged, not unrelated."
+                    if franchise_tags
+                    else ""
+                )
+                return ToolResult(
+                    text=(
+                        f"All {len(declared)} declared table(s), in full:\n{lines}\n\n"
+                        "A table that is not here is outside this model's declared scope. "
+                        "Call describe_table on a listed table for its columns."
+                        f"{tags_note}{grants_note}"
+                    )
+                )
             catalogs = sorted({name.split(".")[0] for name in declared})
             lines = [f"- {name}" for name in catalogs]
-            return ToolResult(
-                text="Declared catalogs:\n" + "\n".join(lines)
-                if lines
-                else "(no tables were declared with this model)"
-            )
+            return ToolResult(text="Declared catalogs:\n" + "\n".join(lines))
 
         in_catalog = [name for name in declared if name.split(".")[0] == catalog]
         if not in_catalog:

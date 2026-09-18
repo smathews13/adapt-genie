@@ -804,6 +804,47 @@ def test_a_run_that_never_repeated_itself_carries_no_abandonment_caveat():
     assert "abandoned rather than retried" not in " ".join(answer["caveats"])
 
 
+def test_late_tool_calls_are_refused_to_preserve_time_for_the_answer(monkeypatch):
+    monkeypatch.setattr(agent.runtime_settings, "remaining_seconds", lambda: 10.0)
+    entry = agent._BatchCall(
+        index=1,
+        call=Call("run_sql", {"sql": f"SELECT count(*) FROM {ACTIVITY}"}),
+        name="run_sql",
+        arguments={"sql": f"SELECT count(*) FROM {ACTIVITY}"},
+        arguments_key="late-call",
+    )
+    runtime = build(ScriptedLlm("Done."))
+    log = agent.RunLog()
+
+    refusal = runtime._admit_tool_call(entry, FakeTools(), log, {})
+
+    assert refusal.startswith("STOP:")
+    assert "Call submit_answer now" in refusal
+    assert entry.admitted is False
+    assert log.tool_calls == 0
+
+
+def test_reasoning_timeout_preserves_the_answer_window(monkeypatch):
+    monkeypatch.setattr(agent.runtime_settings, "remaining_seconds", lambda: 50.0)
+    llm = ScriptedLlm("Done.")
+
+    ask(build(llm))
+
+    assert llm.loop_calls[0]["timeout"] == 15.0
+    assert len(llm.loop_calls[0]["tools"]) == len(agent.ANALYSIS_TOOLS)
+
+
+def test_the_answer_reserve_offers_only_submission_and_uses_the_reserved_time(monkeypatch):
+    monkeypatch.setattr(agent.runtime_settings, "remaining_seconds", lambda: 40.0)
+    llm = ScriptedLlm("Done.")
+
+    ask(build(llm))
+
+    call = llm.loop_calls[0]
+    assert call["timeout"] == 40.0
+    assert [tool["function"]["name"] for tool in call["tools"]] == ["submit_answer"]
+
+
 def test_a_genie_refusal_takes_the_refusal_path_and_not_the_outage_path():
     """The Genie hole, closed at the far end: it has to READ as a refusal.
 
@@ -1666,7 +1707,7 @@ def test_predict_stream_reports_each_stage_as_it_completes_then_the_answer():
     events = list(
         runtime.predict_stream(
             app_request(
-                input=[{"role": "user", "content": "How many active players?"}],
+                input=[{"role": "user", "content": "Compare active players by label."}],
                 custom_inputs={"execute_plan": True},
             )
         )
@@ -1707,7 +1748,7 @@ def test_every_streamed_step_is_announced_before_it_is_reported():
         event.custom_outputs["stage"]
         for event in runtime.predict_stream(
             app_request(
-                input=[{"role": "user", "content": "How many active players?"}],
+                input=[{"role": "user", "content": "Compare active players by label."}],
                 custom_inputs={"execute_plan": True},
             )
         )
@@ -1782,7 +1823,7 @@ def test_a_step_keeps_one_name_from_announcement_to_completion():
     named: dict[tuple[str, str], str] = {}
     for event in runtime.predict_stream(
         app_request(
-            input=[{"role": "user", "content": "How many active players?"}],
+            input=[{"role": "user", "content": "Compare active players by label."}],
             custom_inputs={"execute_plan": True},
         )
     ):
@@ -2194,6 +2235,21 @@ def test_empty_attachment_text_does_not_create_an_attachment_stage():
 # ---------------------------------------------------------------------------
 # Charts
 # ---------------------------------------------------------------------------
+
+
+def test_scalar_answers_skip_the_plot_model_call_entirely():
+    llm = ScriptedLlm([Call("data_genie", {"question": "figures"})], "Done.")
+
+    answer = ask(build(llm), "How many Steam sales were recorded yesterday?").custom_outputs[
+        "answer"
+    ]
+
+    assert answer["charts"] == []
+    assert "plot" not in [stage["id"] for stage in answer["trace"]["stages"]]
+    assert not any(
+        [tool["function"]["name"] for tool in call.get("tools") or []] == ["new_plot"]
+        for call in llm.calls
+    )
 
 
 def test_the_plot_step_turns_a_new_plot_call_into_a_branded_chart():
@@ -2650,6 +2706,9 @@ def test_orchestrator_marks_the_system_prompt_and_last_tool_as_cacheable():
     content = call["messages"][0]["content"]
     assert isinstance(content, list)
     assert content[0]["cache_control"] == {"type": "ephemeral"}
+    assert "Today's date is " not in content[0]["text"]
+    assert "Today's date is " in content[1]["text"]
+    assert "cache_control" not in content[1]
     assert "cache_control" not in agent.ANALYSIS_TOOLS[-1]
     assert call["tools"][-1]["cache_control"] == {"type": "ephemeral"}
     assert call["tools"][-1]["function"]["name"] == agent.ANALYSIS_TOOLS[-1]["function"]["name"]
@@ -2746,6 +2805,17 @@ def test_salvage_uses_evidence_when_narrative_is_missing():
     )
     assert "58 units" in synthesis.narrative
     assert synthesis.takeaway
+
+
+def test_simple_inventory_requests_the_complete_declared_manifest():
+    llm = ScriptedLlm("The model should not be called.")
+    tools = FakeTools()
+
+    response = ask(build(llm, tools), "What data is available?")
+
+    assert response.custom_outputs["type"] == "answer"
+    assert tools.named("list_data_assets") == [{"catalog": "", "schema": ""}]
+    assert llm.calls == []
 
 
 def test_inventory_cleanup_keeps_answer_text_without_a_blank_separator():

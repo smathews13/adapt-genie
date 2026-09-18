@@ -37,6 +37,7 @@ from charts import (
     TWO_PANEL_RULE,
     ChartError,
     EmptyChartError,
+    chart_warranted,
     contrast_on_white,
     new_plot,
 )
@@ -44,6 +45,34 @@ from charts import (
 # The palette the app retired. Named here rather than in the module so that deleting a
 # constant from `charts.py` cannot quietly delete the test that says it is gone.
 RETIRED = ("#e4002b", "#b20022", "#fcaf17", "#111111", "#6c707b", "#e5e5e5")
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Chart sales by title.",
+        "Compare revenue across brands.",
+        "Show the weekly sales trend.",
+        "Break down sales by platform.",
+        "How did sales change after launch?",
+    ],
+)
+def test_visual_questions_warrant_a_chart(question):
+    assert chart_warranted(question)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How many Steam sales were recorded yesterday?",
+        "Describe the sales table.",
+        "What does net revenue mean?",
+        "Which titles were affected by the outage?",
+        "Was the decline caused by the system change?",
+    ],
+)
+def test_scalar_and_metadata_questions_skip_charting(question):
+    assert not chart_warranted(question)
 
 
 def _bar(**overrides):

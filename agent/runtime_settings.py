@@ -48,6 +48,13 @@ class RuntimeSettings:
 
 _current: ContextVar[RuntimeSettings | None] = ContextVar("runtime_settings", default=None)
 _turn_started: ContextVar[float] = ContextVar("turn_started", default=0.0)
+_turn_deadline: ContextVar[float] = ContextVar("turn_deadline", default=0.0)
+
+#: The app abandons serving invocations at 240 seconds. This internal clock
+#: leaves enough time to compose and return an answer without restoring the
+#: retired step or tool-count limits.
+MAX_RUN_SECONDS = 200.0
+ANSWER_RESERVE_SECONDS = 35.0
 
 
 def _integer(value: Any, default: int, low: int, high: int) -> int:
@@ -77,6 +84,7 @@ def activate(custom_inputs: dict[str, Any]) -> RuntimeSettings:
         value = RuntimeSettings()
         _current.set(value)
         _turn_started.set(started)
+        _turn_deadline.set(started + MAX_RUN_SECONDS)
         return value
     answer = raw.get("answer") if isinstance(raw.get("answer"), dict) else {}
     behavior = raw.get("behavior") if isinstance(raw.get("behavior"), dict) else {}
@@ -127,6 +135,7 @@ def activate(custom_inputs: dict[str, Any]) -> RuntimeSettings:
     )
     _current.set(value)
     _turn_started.set(started)
+    _turn_deadline.set(started + MAX_RUN_SECONDS)
     return value
 
 
@@ -138,6 +147,17 @@ def turn_started() -> float:
     """The one monotonic origin for this request's execution budget."""
 
     return _turn_started.get() or time.perf_counter()
+
+
+def remaining_seconds() -> float:
+    deadline = _turn_deadline.get()
+    if not deadline:
+        deadline = turn_started() + MAX_RUN_SECONDS
+    return max(0.0, deadline - time.perf_counter())
+
+
+def answer_reserve() -> float:
+    return min(ANSWER_RESERVE_SECONDS, MAX_RUN_SECONDS * 0.4)
 
 
 def today_line(timezone: str = "", *, now: datetime | None = None) -> str:

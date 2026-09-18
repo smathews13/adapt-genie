@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import runtime_settings
 from runtime_settings import RuntimeSettings, activate, current, prompt_fragment, today_line
 
 
@@ -8,6 +9,18 @@ def test_absent_settings_preserve_compiled_behavior():
     assert activate({}) == RuntimeSettings()
     assert not hasattr(current(), "loop")
     assert current().answer.max_charts == 2
+
+
+def test_turn_clock_preserves_an_answer_reserve_without_restoring_loop_limits(monkeypatch):
+    now = 100.0
+    monkeypatch.setattr(runtime_settings.time, "perf_counter", lambda: now)
+    activate({})
+
+    now = 280.0
+
+    assert runtime_settings.remaining_seconds() == 20.0
+    assert runtime_settings.answer_reserve() == 35.0
+    assert not hasattr(current(), "loop")
 
 
 def test_prompt_fragment_always_names_todays_date():

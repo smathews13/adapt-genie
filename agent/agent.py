@@ -46,6 +46,7 @@ from charts import (
     TWO_PANEL_RULE,
     ChartError,
     EmptyChartError,
+    chart_warranted,
     new_plot,
 )
 from config import Settings, baked_config, format_genie_space, open_ai_client
@@ -390,6 +391,9 @@ def _without_internal_answer_transcript(text: str) -> str:
 # stuck. This is not a run, step, or tool-call budget: the next reasoning turn
 # remains available after a timed-out data source is reported to the model.
 MODEL_CALL_TIMEOUT_SECONDS = 45.0
+#: Avoid spending a tiny final routing call immediately before the reserved
+#: answer call. At this margin the only useful next action is submission.
+FINAL_ANSWER_TRIGGER_MARGIN_SECONDS = 5.0
 
 #: Per-field ceiling on what a stage records. High enough to keep the SQL a
 #: reader opens the trace to check, capped rather than removed because `input`
@@ -863,6 +867,15 @@ def _cacheable(text: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
 
+def _cacheable_with_runtime(stable: str, runtime: str) -> list[dict[str, Any]]:
+    """Cache the invariant prompt prefix without binding it to request settings."""
+
+    blocks = _cacheable(stable)
+    if runtime:
+        blocks.append({"type": "text", "text": f"\n\n{runtime}"})
+    return blocks
+
+
 def _cacheable_tools(tools: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     """Copy tools and put one cache breakpoint after the final definition."""
 
@@ -906,6 +919,7 @@ MCP_ANALYSIS_TOOLS = [
     SUBMIT_ANSWER_TOOL,
 ]
 CACHED_MCP_ANALYSIS_TOOLS = _cacheable_tools(MCP_ANALYSIS_TOOLS)
+CACHED_SUBMIT_ANSWER_TOOLS = _cacheable_tools([SUBMIT_ANSWER_TOOL])
 
 ORCHESTRATOR_INSTRUCTIONS = """# Role
 You are the analysis orchestrator for Take-Two Steam sales, marketing analytics, and
@@ -1631,6 +1645,8 @@ def _is_simple_inventory_request(question: str) -> bool:
     candidate = question.strip()
     if candidate.startswith("Discovery intent:\n"):
         candidate = candidate.removeprefix("Discovery intent:\n").split("\n\n", 1)[0].strip()
+    if candidate.startswith("Analysis request:\n"):
+        candidate = candidate.removeprefix("Analysis request:\n").split("\n\n", 1)[0].strip()
     return bool(_INVENTORY_REQUEST.fullmatch(candidate))
 
 
@@ -2498,6 +2514,10 @@ class RunLog:
     def elapsed(self) -> float:
         return time.perf_counter() - self.started
 
+    @property
+    def remaining(self) -> float:
+        return runtime_settings.remaining_seconds()
+
     def used_genie_space(self, space_id: str, title: str = "") -> None:
         """Record that this run reached a Genie space.
 
@@ -3185,6 +3205,15 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             entry.refused_status = "partial"
             return skipped
 
+        if log.remaining <= runtime_settings.answer_reserve():
+            entry.refused_label = "Reserved the remaining turn for the answer"
+            entry.refused_status = "partial"
+            return (
+                "STOP: the request is nearing its serving deadline. Do not call another "
+                "data tool. Call submit_answer now using the evidence already returned, "
+                "and state any unsupported part as a caveat."
+            )
+
         log.calls += 1
         log.tool_calls += 1
         entry.admitted = True
@@ -3304,10 +3333,13 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                 "instructions refer to `data_genie`; direct `data_genie` is not available."
             )
         runtime_prompt = runtime_settings.prompt_fragment()
-        if runtime_prompt:
-            system = f"{system}\n\n{runtime_prompt}"
 
-        messages: list[dict[str, Any]] = [{"role": "system", "content": _cacheable(system)}]
+        messages: list[dict[str, Any]] = [
+            {
+                "role": "system",
+                "content": _cacheable_with_runtime(system, runtime_prompt),
+            }
+        ]
         # The notebook's finder gets exactly one self-contained user message. The
         # The loop receives one self-contained user message. Earlier turns are
         # inert JSON and attachment text is fenced as untrusted data.
@@ -3327,10 +3359,7 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             )
             log.calls += 1
             log.tool_calls += 1
-            result = tools.list_data_assets(
-                getattr(tools.settings, "catalog", ""),
-                getattr(tools.settings, "schema", ""),
-            )
+            result = tools.list_data_assets()
             log.record(result)
             log.evidence.append("list_data_assets returned:\n" + result.text)
             log.evidence_sources.append("list_data_assets")
@@ -3357,6 +3386,14 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             step += 1
             started = time.perf_counter()
             log.calls += 1
+            finishing = (
+                log.remaining
+                <= runtime_settings.answer_reserve() + FINAL_ANSWER_TRIGGER_MARGIN_SECONDS
+            )
+            offered_tools = CACHED_SUBMIT_ANSWER_TOOLS if finishing else analysis_tools
+            available_for_model = (
+                log.remaining if finishing else log.remaining - runtime_settings.answer_reserve()
+            )
             # Named for what the call is FOR rather than for what it turns out to
             # have decided. Which of "Chose the next step", "Prepared the
             # findings" or a failure this becomes is not knowable until the
@@ -3373,16 +3410,25 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             with mlflow.start_span(
                 name=f"orchestrator.llm.step-{step}", span_type="LLM"
             ) as llm_span:
-                llm_span.set_inputs({"step": step, "model": self.settings.llm_endpoint})
+                llm_span.set_inputs(
+                    {
+                        "step": step,
+                        "model": self.settings.llm_endpoint,
+                        "finishing": finishing,
+                    }
+                )
                 try:
                     response = client.chat.completions.create(
                         model=self.settings.llm_endpoint,
                         messages=messages,
                         temperature=0.1,
                         max_tokens=self.settings.max_output_tokens,
-                        tools=analysis_tools,
+                        tools=offered_tools,
                         tool_choice="auto",
-                        timeout=MODEL_CALL_TIMEOUT_SECONDS,
+                        timeout=max(
+                            1.0,
+                            min(MODEL_CALL_TIMEOUT_SECONDS, available_for_model),
+                        ),
                     )
                 except Exception as error:
                     # The endpoint that chooses the steps also writes the answer, so
@@ -3974,8 +4020,6 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
         )
         system = knowledge.add_packaged_knowledge(instructions, PACKAGED_KNOWLEDGE)
         runtime_prompt = runtime_settings.prompt_fragment()
-        if runtime_prompt:
-            system = f"{system}\n\n{runtime_prompt}"
         evidence_package = "\n".join(log.evidence) or "(no tool returned data)"
         user = f"""Question:
 {question}
@@ -4023,18 +4067,21 @@ Tables actually read this run:
                     "question": question,
                     "sources": log.sources,
                     "evidence_blocks": len(log.evidence),
-                    "prompt_chars": len(system) + len(user),
+                    "prompt_chars": len(system) + len(runtime_prompt) + len(user),
                 }
             )
             kwargs = {
                 "model": self.settings.llm_endpoint,
                 "messages": [
-                    {"role": "system", "content": _cacheable(system)},
+                    {
+                        "role": "system",
+                        "content": _cacheable_with_runtime(system, runtime_prompt),
+                    },
                     {"role": "user", "content": user},
                 ],
                 "temperature": 0.1,
                 "max_tokens": self.settings.max_output_tokens,
-                "timeout": MODEL_CALL_TIMEOUT_SECONDS,
+                "timeout": max(1.0, min(MODEL_CALL_TIMEOUT_SECONDS, log.remaining)),
             }
             structured = "accepted"
             try:
@@ -4181,7 +4228,7 @@ Statements run, for column names and grain:
                     max_tokens=self.settings.max_output_tokens,
                     tools=[NEW_PLOT_TOOL],
                     tool_choice="auto",
-                    timeout=MODEL_CALL_TIMEOUT_SECONDS,
+                    timeout=max(1.0, min(MODEL_CALL_TIMEOUT_SECONDS, log.remaining)),
                 )
                 calls = getattr(response.choices[0].message, "tool_calls", None) or []
             except Exception as error:
@@ -4966,6 +5013,8 @@ Tables available to this analysis, with their columns:
         plottable_evidence = log.plot_evidence()
         if (
             plottable_evidence
+            and chart_warranted(question)
+            and log.remaining >= 5.0
             and runtime_settings.current().answer.charts
             and runtime_settings.current().answer.max_charts > 0
         ):

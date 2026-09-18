@@ -30,6 +30,7 @@ from preflight import (
     newly_granted_tables,
     resolve_build_stamp,
     resolve_declared_manifest,
+    resolve_table_tags,
     widening_refusal,
 )
 from unattributed_figures import ALLOW_UNATTRIBUTED_FIGURES_ENV
@@ -81,6 +82,11 @@ mlflow.set_experiment(experiment)
 # short manifest produces an endpoint that advertises tables it cannot read.
 workspace = WorkspaceClient()
 manifest, manifest_notes = resolve_declared_manifest(settings, workspace)
+table_tags, table_tag_notes = resolve_table_tags(
+    dataclasses.replace(settings, declared_manifest=manifest),
+    workspace,
+)
+manifest_notes.extend(table_tag_notes)
 
 
 def _genie_title(space_id: str, role_label: str) -> str:
@@ -160,7 +166,12 @@ if no_longer_granted:
 # granted. The build stamp is resolved here because log time is the last moment
 # anything knows what this artifact was built from.
 build_sha = resolve_build_stamp()
-settings = dataclasses.replace(settings, declared_manifest=manifest, build_sha=build_sha)
+settings = dataclasses.replace(
+    settings,
+    declared_manifest=manifest,
+    table_tags=table_tags,
+    build_sha=build_sha,
+)
 if not build_sha:
     print(
         "WARNING: no build stamp could be resolved (no git repository and no "

@@ -24,6 +24,7 @@ from failures import (
     ASSET_NOT_IN_MANIFEST,
     ASSET_UNRESOLVED,
     COLUMN_POLICY_VIOLATION,
+    SQL_CARTESIAN_JOIN,
     SQL_NOT_READ_ONLY,
     SQL_UNPARSEABLE,
 )
@@ -591,6 +592,37 @@ def inspect_generated_sql(sql: str) -> list[str]:
         return []
 
 
+def refuse_degenerate_joins(tree: exp.Expression) -> None:
+    """Refuse an ON clause that cannot relate two sources."""
+
+    for join in tree.find_all(exp.Join):
+        condition = join.args.get("on")
+        if condition is None:
+            continue
+        columns = list(condition.find_all(exp.Column))
+        if any(not column.table for column in columns):
+            continue
+        aliases = {column.table.lower() for column in columns}
+        if len(aliases) > 1:
+            continue
+        why = (
+            f"every column in it names {sorted(aliases)[0]}"
+            if aliases
+            else "it names no column at all"
+        )
+        raise SqlRefused(
+            f"Refused before running: the join ON {condition.sql(dialect=SQL_DIALECT)} "
+            f"relates no two sources because {why}, so it is a cartesian product. "
+            "Give the join a key that names both sides.",
+            SQL_CARTESIAN_JOIN,
+            remedy=(
+                "compare a column from one source with a column from the other source; "
+                "for overlap counts, build one DISTINCT-id CTE per set and join those "
+                "CTEs on the id"
+            ),
+        )
+
+
 def validate_sql(sql: str, readable: Sequence[str]) -> list[str]:
     """Check one statement against the declared table set, and say what it reads.
 
@@ -625,6 +657,7 @@ def validate_sql(sql: str, readable: Sequence[str]) -> list[str]:
         )
 
     refuse_restricted_columns(tree)
+    refuse_degenerate_joins(tree)
     # Attributed with the declaration's own spelling, so one table cited two ways
     # in two answers is not read as two tables.
     return [declared[name.lower()] for name in tables]

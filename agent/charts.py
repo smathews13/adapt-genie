@@ -214,6 +214,40 @@ MAX_POINTS_PER_TRACE = 2_000
 #: number the model is asked for and the number the code enforces stay the same.
 MAX_CHARTS = 2
 
+#: Explicit visual requests plus analytical shapes where a chart materially
+#: improves comparison. Scalar counts and metadata answers stay prose-only.
+_CHART_REQUEST_RE = re.compile(
+    r"\b(?:chart|graph|plot|visuali\w*|diagram|histogram|scatter)\b",
+    re.IGNORECASE,
+)
+_CHART_ANALYSIS_RE = re.compile(
+    r"\b(?:trend|timeline|over\s+time|distribution|correlation|compare|comparison|"
+    r"versus|ranking|ranked)\b",
+    re.IGNORECASE,
+)
+_CHART_CHANGE_RE = re.compile(
+    r"\bhow\s+(?:did|has|have)\b.{0,100}\b(?:change|changed|grow|grown|"
+    r"increase|increased|decrease|decreased|decline|declined)\b",
+    re.IGNORECASE,
+)
+_CHART_GROUPING_RE = re.compile(
+    r"\b(?:sales|revenue|spend|players|users|count|rate|average|total|units|"
+    r"bookings|transactions|orders|activity|engagement|usage)\s+by\s+[\w`\"]+",
+    re.IGNORECASE,
+)
+
+
+def chart_warranted(question: str) -> bool:
+    """Whether the question asks for a visual or a genuinely visual comparison."""
+
+    return bool(
+        _CHART_REQUEST_RE.search(question or "")
+        or _CHART_ANALYSIS_RE.search(question or "")
+        or _CHART_CHANGE_RE.search(question or "")
+        or _CHART_GROUPING_RE.search(question or "")
+    )
+
+
 # `line` is not a Plotly trace type, but it is the single most common thing a model emits
 # for a line chart, so it is translated instead of rejected.
 _TRACE_ALIASES = {"line": "scatter", "scattergl": "scatter"}

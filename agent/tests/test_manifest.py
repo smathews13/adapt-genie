@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 import yaml
+from databricks.sdk.service.sql import StatementState
 from mlflow.models.resources import DatabricksTable
 
 import manifest_dryrun
@@ -35,6 +36,7 @@ from preflight import (
     newly_granted_tables,
     resolve_build_stamp,
     resolve_declared_manifest,
+    resolve_table_tags,
     widening_refusal,
 )
 from tools import (
@@ -79,6 +81,49 @@ def settings(**overrides) -> Settings:
     return Settings(**base)
 
 
+def test_table_tags_are_paged_filtered_to_the_manifest_and_baked_as_keyed_pairs():
+    first = SimpleNamespace(
+        status=SimpleNamespace(state=StatementState.SUCCEEDED),
+        statement_id="statement-1",
+        result=SimpleNamespace(
+            data_array=[
+                ["test_catalog", "test_schema", "sales", "Franchise", "GTA"],
+                ["other", "schema", "hidden", "franchise", "Other"],
+            ],
+            next_chunk_index=1,
+        ),
+    )
+    second = SimpleNamespace(
+        data_array=[["test_catalog", "test_schema", "players", "franchise", "NBA"]],
+        next_chunk_index=None,
+    )
+    statements: list[tuple[str, str, str]] = []
+    workspace = SimpleNamespace(
+        statement_execution=SimpleNamespace(
+            execute_statement=lambda statement, warehouse_id, wait_timeout: (
+                statements.append((statement, warehouse_id, wait_timeout)) or first
+            ),
+            get_statement_result_chunk_n=lambda statement_id, chunk_index: second,
+        )
+    )
+    configured = settings(
+        declared_manifest=(
+            "test_catalog.test_schema.sales",
+            "test_catalog.test_schema.players",
+        )
+    )
+
+    pairs, notes = resolve_table_tags(configured, workspace)
+
+    assert pairs == (
+        "test_catalog.test_schema.players=franchise=NBA",
+        "test_catalog.test_schema.sales=franchise=GTA",
+    )
+    assert notes == ["Table tags: 2 of 2 declared table(s) tagged."]
+    assert statements[0][1:] == ("wh-123", "50s")
+    assert "information_schema.table_tags" in statements[0][0]
+
+
 class FakeCatalog:
     """Unity Catalog as the identity logging the model sees it.
 
@@ -105,9 +150,7 @@ class FakeCatalog:
 
     def _list_schemas(self, catalog_name):
         names = sorted(
-            scope.split(".", 1)[1]
-            for scope in self._scopes
-            if scope.startswith(f"{catalog_name}.")
+            scope.split(".", 1)[1] for scope in self._scopes if scope.startswith(f"{catalog_name}.")
         )
         return [SimpleNamespace(name=name) for name in names]
 
@@ -124,9 +167,7 @@ class FakeCatalog:
     def _shape(self, name):
         if name in self._unscreenable:
             return None
-        return [
-            SimpleNamespace(name=column) for column in self._columns.get(name, ("id",))
-        ]
+        return [SimpleNamespace(name=column) for column in self._columns.get(name, ("id",))]
 
 
 #: A stand-in set of curated tables for the fixtures below. The production
@@ -177,9 +218,7 @@ class FakeGenie:
         if space_id in self._serialized:
             body = self._serialized[space_id]
         else:
-            tables = [
-                {"identifier": name} for name in self._spaces.get(space_id, [])
-            ]
+            tables = [{"identifier": name} for name in self._spaces.get(space_id, [])]
             body = json.dumps({"data_sources": {"tables": tables}})
         return SimpleNamespace(space_id=space_id, serialized_space=body)
 
@@ -254,15 +293,18 @@ def test_genie_mode_is_opt_in_because_defaulting_it_would_narrow_the_demo():
     allowlisted scopes. See the reasoning above MANIFEST_SOURCES.
     """
 
-    assert Settings(
-        llm_endpoint="e",
-        warehouse_id="w",
-        data_genie_space_id="d",
-        catalog="c",
-        schema="s",
-        catalog_allowlist=("c.s",),
-        max_output_tokens=1,
-    ).manifest_source == MANIFEST_FROM_SCHEMA
+    assert (
+        Settings(
+            llm_endpoint="e",
+            warehouse_id="w",
+            data_genie_space_id="d",
+            catalog="c",
+            schema="s",
+            catalog_allowlist=("c.s",),
+            max_output_tokens=1,
+        ).manifest_source
+        == MANIFEST_FROM_SCHEMA
+    )
 
     # A curated subset of a wider schema: schema mode declares the schema, genie
     # mode declares the subset. This is the shape of the demo, and the difference
@@ -409,9 +451,7 @@ def test_a_space_that_curates_nothing_stops_the_release():
     """
 
     with pytest.raises(ScopeError) as raised:
-        resolve_declared_manifest(
-            genie_settings(), FakeGenie({"space-data": []})
-        )
+        resolve_declared_manifest(genie_settings(), FakeGenie({"space-data": []}))
 
     message = str(raised.value)
     assert "data" in message and "space-data" in message
@@ -478,13 +518,9 @@ def test_a_curated_name_that_is_not_three_part_is_dropped_rather_than_guessed_at
     table nobody named. Dropping it costs a table the space could not identify.
     """
 
-    workspace = FakeGenie(
-        {"space-data": [*THEIRS, "just_a_table", "schema.table", "a.b.c.d"]}
-    )
+    workspace = FakeGenie({"space-data": [*THEIRS, "just_a_table", "schema.table", "a.b.c.d"]})
 
-    manifest, _ = resolve_declared_manifest(
-        genie_settings(), workspace
-    )
+    manifest, _ = resolve_declared_manifest(genie_settings(), workspace)
 
     assert manifest == THEIRS
 
@@ -497,9 +533,7 @@ def test_the_denylist_still_vetoes_a_curated_table():
     """
 
     manifest, notes = resolve_declared_manifest(
-        genie_settings(
-            catalog_denylist=("*.fact_transaction",)
-        ),
+        genie_settings(catalog_denylist=("*.fact_transaction",)),
         FakeGenie({"space-data": list(THEIRS)}),
     )
 
@@ -587,15 +621,14 @@ def test_the_manifest_source_is_baked_so_a_deployed_version_cannot_misreport_it(
 def test_a_bare_catalog_is_preserved_as_a_whole_catalog_scope():
     """data_catalogs allows a catalog or a narrower catalog.schema."""
 
-    assert discovery_scopes(settings(catalog_allowlist=("test_catalog",))) == [
-        "test_catalog"
-    ]
+    assert discovery_scopes(settings(catalog_allowlist=("test_catalog",))) == ["test_catalog"]
 
 
 def test_multiple_whole_catalogs_are_valid_data_scopes():
-    assert discovery_scopes(
-        settings(catalog_allowlist=("test_catalog", "partner_catalog"))
-    ) == ["test_catalog", "partner_catalog"]
+    assert discovery_scopes(settings(catalog_allowlist=("test_catalog", "partner_catalog"))) == [
+        "test_catalog",
+        "partner_catalog",
+    ]
 
 
 def test_an_explicit_schema_scope_is_taken_as_written():
@@ -791,9 +824,7 @@ def test_an_app_catalogs_unwritten_schemas_do_not_stop_a_release():
         }
     )
 
-    manifest, _ = resolve_declared_manifest(
-        settings(catalog_allowlist=("app_catalog",)), workspace
-    )
+    manifest, _ = resolve_declared_manifest(settings(catalog_allowlist=("app_catalog",)), workspace)
 
     assert manifest == ("app_catalog.adapt_data.gold_player_180d_summary",)
 
@@ -818,9 +849,7 @@ def test_a_catalog_whose_every_schema_is_empty_is_still_a_refusal():
 
 def test_a_catalog_that_exposes_no_schemas_at_all_names_that_as_the_finding():
     with pytest.raises(ScopeError) as raised:
-        resolve_declared_manifest(
-            settings(catalog_allowlist=("share_catalog",)), FakeCatalog({})
-        )
+        resolve_declared_manifest(settings(catalog_allowlist=("share_catalog",)), FakeCatalog({}))
 
     assert "no schemas at all" in str(raised.value)
 
@@ -1123,8 +1152,7 @@ def test_an_excluded_table_is_refused_by_the_guard_as_well_as_ungranted():
 
     with pytest.raises(ValueError, match="Not in the declared table set"):
         validate_sql(
-            "SELECT requester, request FROM "
-            "test_catalog.test_schema.player_insights_agent_payload",
+            "SELECT requester, request FROM test_catalog.test_schema.player_insights_agent_payload",
             served.readable_tables,
         )
 
@@ -1223,9 +1251,7 @@ def test_the_guard_accepts_exactly_the_tables_the_endpoint_was_granted():
     endpoint holds a grant on it.
     """
 
-    workspace = FakeCatalog(
-        {"test_catalog.test_schema": [*DECLARED_TABLES, "gold_extra_summary"]}
-    )
+    workspace = FakeCatalog({"test_catalog.test_schema": [*DECLARED_TABLES, "gold_extra_summary"]})
     manifest, _ = resolve_declared_manifest(settings(), workspace)
     served = dataclasses.replace(settings(), declared_manifest=manifest)
 
@@ -1244,9 +1270,7 @@ def test_the_guard_accepts_exactly_the_tables_the_endpoint_was_granted():
     # A table in the allowlisted scope but absent from the listing is absent from
     # the manifest, so it is refused here rather than at the warehouse.
     with pytest.raises(ValueError, match="Not in the declared table set"):
-        validate_sql(
-            "SELECT * FROM test_catalog.test_schema.not_listed", served.readable_tables
-        )
+        validate_sql("SELECT * FROM test_catalog.test_schema.not_listed", served.readable_tables)
 
 
 def test_log_model_declares_and_bakes_the_same_manifest():
@@ -1262,10 +1286,12 @@ def test_log_model_declares_and_bakes_the_same_manifest():
     source = (Path(__file__).resolve().parents[1] / "log_model.py").read_text()
 
     assert "manifest, manifest_notes = resolve_declared_manifest(" in source
+    assert "table_tags, table_tag_notes = resolve_table_tags(" in source
     assert "DatabricksTable(table_name=table) for table in manifest" in source
     # Not anchored on the closing paren: the same call carries other log-time
     # values (the build stamp), and this trip-wire is about the manifest.
-    assert "dataclasses.replace(settings, declared_manifest=manifest" in source
+    assert "declared_manifest=manifest" in source
+    assert "table_tags=table_tags" in source
     # Spread rather than passed whole, because the execution identity travels in
     # the same config without being a `Settings` field. The property this guards
     # is unchanged and is why it is anchored on the call rather than on the whole
@@ -1334,8 +1360,7 @@ class FakeRegistry:
         return SimpleNamespace(
             model_version_dependencies=SimpleNamespace(
                 dependencies=[
-                    SimpleNamespace(table=SimpleNamespace(table_full_name=name))
-                    for name in tables
+                    SimpleNamespace(table=SimpleNamespace(table_full_name=name)) for name in tables
                 ]
             )
         )
@@ -1502,6 +1527,7 @@ def test_the_release_script_writes_the_denylist_down_and_clears_what_it_cannot()
     cleared = {
         "tables",
         "declared_manifest",
+        "table_tags",
         "data_genie_space_title",
     }
     #: THE REPOSITORY ANSWERS IT BETTER THAN ANY CONFIGURATION COULD. Neither
@@ -1737,4 +1763,3 @@ def test_the_environment_supplies_the_stamp_where_there_is_no_repository():
 
 def test_no_git_and_no_variable_is_empty_rather_than_a_guess():
     assert resolve_build_stamp(env={}, git=fake_git(head=None)) == ""
-

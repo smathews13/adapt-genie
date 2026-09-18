@@ -14,3 +14,20 @@ export function orderedWatchlistTitles(
       left.localeCompare(right, undefined, { sensitivity: 'base' })
   );
 }
+
+export function partitionWatchlistTitles(
+  availableTitles: readonly string[],
+  selectedTitles: readonly string[],
+  inactiveQuery: string
+): { active: string[]; inactive: string[] } {
+  const selected = new Set(selectedTitles);
+  const active = availableTitles
+    .filter((title) => selected.has(title))
+    .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+  const inactive = orderedWatchlistTitles(
+    availableTitles.filter((title) => !selected.has(title)),
+    [],
+    inactiveQuery
+  );
+  return { active, inactive };
+}

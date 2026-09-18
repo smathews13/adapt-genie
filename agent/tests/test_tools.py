@@ -177,6 +177,35 @@ def test_listing_drills_from_catalogs_to_schemas_to_tables():
     assert OTHER_SCHEMA_TABLE not in tables, "a schema listing shows that schema only"
 
 
+def test_listing_returns_a_small_declared_manifest_in_one_in_memory_call():
+    listed = build().list_data_assets().text
+
+    assert "All 3 declared table(s), in full" in listed
+    assert all(table in listed for table in MANIFEST)
+
+
+def test_listing_includes_franchise_tags_baked_with_the_manifest():
+    tools = build(manifest=(PROFILES,))
+    tools.settings = dataclasses.replace(
+        tools.settings,
+        table_tags=(f"{PROFILES}=franchise=GTA",),
+    )
+
+    listed = tools.list_data_assets().text
+
+    assert f"{PROFILES}  [franchise: GTA]" in listed
+    assert "Unity Catalog tags" in listed
+
+
+def test_listing_falls_back_to_catalog_drill_down_when_the_manifest_is_too_wide(monkeypatch):
+    monkeypatch.setattr(tools_module, "MAX_DECLARED_LISTING_CHARS", 1)
+
+    listed = build().list_data_assets().text
+
+    assert listed.startswith("Declared catalogs:")
+    assert PROFILES not in listed
+
+
 def test_listing_never_touches_unity_catalog_or_the_warehouse():
     """The reason it reads the manifest: the live listing is not available to it.
 
@@ -506,6 +535,18 @@ def test_a_cancelled_tag_read_is_tried_once_more_and_the_second_attempt_can_succ
 
     assert len(warehouse.statements) == 2, "cancelled for slowness is worth one more try"
     assert PROFILES in text and "pii=true" in text
+
+
+def test_a_late_tag_read_does_not_start_when_only_the_answer_reserve_remains(monkeypatch):
+    monkeypatch.setattr(tools_module.runtime_settings, "remaining_seconds", lambda: 38.0)
+    tools, warehouse = tagged([], state="CANCELED")
+
+    result = tools.search_tagged_assets()
+
+    assert warehouse.statements == []
+    assert warehouse.wait_timeouts == []
+    assert failures.DEPENDENCY_UNAVAILABLE in result.text
+    assert "no warehouse statement was started" in result.text
 
 
 def test_a_rejected_tag_read_is_not_tried_a_second_time():
@@ -2019,6 +2060,16 @@ def test_a_slow_answer_is_still_a_hard_timeout_at_the_answer_deadline(monkeypatc
     assert clock.now - 1_000.0 <= tools_module.GENIE_TIMEOUT_SECONDS + 5.0
     # The plain reason first: this string is read in the trace, usually clipped.
     assert str(timeout.value).startswith("Its query was still running.")
+
+
+def test_a_late_genie_call_is_clamped_before_the_answer_reserve(monkeypatch):
+    monkeypatch.setattr(tools_module.runtime_settings, "remaining_seconds", lambda: 40.0)
+    clock, genie = on_the_clock(monkeypatch, 1.0, MessageStatus.EXECUTING_QUERY)
+
+    with pytest.raises(TimeoutError):
+        build(genie).data_genie("q")
+
+    assert clock.now - 1_000.0 <= 5.0
 
 
 def test_each_genie_dependency_wait_has_its_own_timeout():

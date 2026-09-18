@@ -8,6 +8,8 @@ becoming some other deployment's.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 import yaml
 from mlflow.models.model_config import _set_model_config
@@ -373,6 +375,17 @@ def test_an_artifact_logged_while_the_flag_existed_still_loads():
     assert served.catalog == CUSTOMER["PLAYER_INSIGHTS_CATALOG"]
 
 
+def test_baked_table_tags_round_trip_without_a_runtime_lookup():
+    logged = dataclasses.replace(
+        Settings.from_env(env=CUSTOMER, baked={}),
+        table_tags=("catalog.schema.sales=franchise=GTA",),
+    ).as_model_config()
+
+    served = Settings.from_env(env={}, baked=logged)
+
+    assert served.table_tags == ("catalog.schema.sales=franchise=GTA",)
+
+
 def test_the_environment_variable_no_longer_reaches_anything():
     """A stale export in an operator's shell must be inert, not honoured.
 
@@ -381,9 +394,7 @@ def test_the_environment_variable_no_longer_reaches_anything():
     now resolves to nothing at all rather than to a claim.
     """
 
-    served = Settings.from_env(
-        env={**CUSTOMER, "PLAYER_INSIGHTS_SYNTHETIC_DATA": "true"}, baked={}
-    )
+    served = Settings.from_env(env={**CUSTOMER, "PLAYER_INSIGHTS_SYNTHETIC_DATA": "true"}, baked={})
 
     assert not hasattr(served, "synthetic_data")
     assert "synthetic_data" not in served.as_model_config()

@@ -344,12 +344,44 @@
   font-size: var(--text-xs);
 }
 
+.watchlist-title-section {
+  display: grid;
+  gap: 8px;
+}
+
+.watchlist-title-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watchlist-title-section-heading h5,
+.watchlist-title-section-heading span {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.watchlist-title-section-heading h5 {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.watchlist-title-section-heading span {
+  color: var(--muted-foreground);
+}
+
 .watchlist-title-list {
   overflow-y: auto;
   max-height: min(460px, 52vh);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--background);
+}
+
+.watchlist-active-list {
+  overflow: visible;
+  max-height: none;
 }
 
 /*

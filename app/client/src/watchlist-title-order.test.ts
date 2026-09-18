@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { orderedWatchlistTitles } from './watchlist-title-order';
+import { orderedWatchlistTitles, partitionWatchlistTitles } from './watchlist-title-order';
 
 const TITLES = ['Borderlands 4', 'Grand Theft Auto V', 'NBA 2K26', 'Red Dead Redemption 2'];
 
@@ -22,5 +22,12 @@ describe('watchlist title ordering', () => {
     expect(before).toEqual(['NBA 2K26', 'Red Dead Redemption 2']);
     expect(afterAdding).toEqual(before);
     expect(afterRemoving).toEqual(before);
+  });
+
+  it('separates active titles from searchable inactive titles', () => {
+    expect(partitionWatchlistTitles(TITLES, ['NBA 2K26', 'Borderlands 4'], 'red')).toEqual({
+      active: ['Borderlands 4', 'NBA 2K26'],
+      inactive: ['Red Dead Redemption 2'],
+    });
   });
 });

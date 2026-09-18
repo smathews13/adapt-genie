@@ -154,12 +154,21 @@ SQL_UNPARSEABLE = "SQL_UNPARSEABLE"
 #: More than one statement, or a root that is not a SELECT.
 SQL_NOT_READ_ONLY = "SQL_NOT_READ_ONLY"
 
+#: A join predicate names only one side (or no columns), so it cannot relate
+#: sources and would force a cartesian plan.
+SQL_CARTESIAN_JOIN = "SQL_CARTESIAN_JOIN"
+
 #: Something was read that cannot be tied to a three-part table name: a
 #: table-valued function, a bare name, a half-qualified one. Attribution is the
 #: product here, so an unattributable read is not evidence.
 ASSET_UNRESOLVED = "ASSET_UNRESOLVED"
 
-EVIDENCE_REFUSAL_CODES = (SQL_UNPARSEABLE, SQL_NOT_READ_ONLY, ASSET_UNRESOLVED)
+EVIDENCE_REFUSAL_CODES = (
+    SQL_UNPARSEABLE,
+    SQL_NOT_READ_ONLY,
+    SQL_CARTESIAN_JOIN,
+    ASSET_UNRESOLVED,
+)
 
 #: Every code the agent may put on one piece of evidence or one run.
 #:
@@ -172,6 +181,7 @@ AGENT_CODES = TERMINAL_CODES + EVIDENCE_REFUSAL_CODES
 _TERMINAL_FOR = {
     SQL_UNPARSEABLE: NO_VALID_EVIDENCE,
     SQL_NOT_READ_ONLY: NO_VALID_EVIDENCE,
+    SQL_CARTESIAN_JOIN: NO_VALID_EVIDENCE,
     ASSET_UNRESOLVED: NO_VALID_EVIDENCE,
 }
 
@@ -242,6 +252,7 @@ NO_LATER_ROUTE_ATTEMPT = frozenset(
         GENIE_UNATTRIBUTABLE,
         SQL_UNPARSEABLE,
         SQL_NOT_READ_ONLY,
+        SQL_CARTESIAN_JOIN,
         ASSET_UNRESOLVED,
     }
 )

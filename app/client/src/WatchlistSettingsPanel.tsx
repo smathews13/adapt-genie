@@ -15,7 +15,7 @@ import {
 } from './watchlist-api';
 import { VisitInDatabricks } from './DataEntityLinks';
 import { AdaptLoader } from './AdaptLoadingAnimation';
-import { orderedWatchlistTitles } from './watchlist-title-order';
+import { partitionWatchlistTitles } from './watchlist-title-order';
 
 export const WATCHLIST_SETTINGS_FORM_ID = 'settings-watchlist-form';
 
@@ -70,8 +70,28 @@ export function WatchlistSettingsPanel({
           JSON.stringify(sections) !== JSON.stringify(saved.sections)
       )
     : 0;
-  const visibleTitles = orderedWatchlistTitles(availableTitles, selectedTitles, query);
+  const titleSections = partitionWatchlistTitles(availableTitles, selectedTitles, query);
   useEffect(() => onDirtyChange(changed), [changed, onDirtyChange]);
+
+  function titleRow(title: string, checked: boolean) {
+    const atLimit = !checked && selectedTitles.length >= WATCHLIST_MAX_TITLES;
+    return (
+      <div className="watchlist-title-row" key={title}>
+        <span>{title}</span>
+        <Switch
+          checked={checked}
+          disabled={state === 'saving' || atLimit}
+          aria-label={`${checked ? 'Remove' : 'Add'} ${title} ${checked ? 'from' : 'to'} the watchlist`}
+          onCheckedChange={(enabled) => {
+            setSelectedTitles((current) =>
+              enabled ? [...current, title] : current.filter((candidate) => candidate !== title)
+            );
+            onSaveState({ kind: 'idle' });
+          }}
+        />
+      </div>
+    );
+  }
 
   async function saveSettings() {
     if (!saved) {
@@ -161,40 +181,45 @@ export function WatchlistSettingsPanel({
             </span>
             <span>Up to {WATCHLIST_MAX_TITLES} titles</span>
           </div>
-          <label className="watchlist-search">
-            <Search aria-hidden="true" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') event.preventDefault();
-              }}
-              placeholder="Search games"
-              aria-label="Search games"
-            />
-          </label>
-          <div className="watchlist-title-list" role="group" aria-label="Titles shown on the Ask rail">
-            {visibleTitles.map((title) => {
-              const checked = selectedTitles.includes(title);
-              const atLimit = !checked && selectedTitles.length >= WATCHLIST_MAX_TITLES;
-              return (
-                <div className="watchlist-title-row" key={title}>
-                  <span>{title}</span>
-                  <Switch
-                    checked={checked}
-                    disabled={state === 'saving' || atLimit}
-                    aria-label={`${checked ? 'Remove' : 'Add'} ${title} ${checked ? 'from' : 'to'} the watchlist`}
-                    onCheckedChange={(enabled) => {
-                      setSelectedTitles((current) =>
-                        enabled ? [...current, title] : current.filter((candidate) => candidate !== title)
-                      );
-                      onSaveState({ kind: 'idle' });
-                    }}
-                  />
-                </div>
-              );
-            })}
-            {visibleTitles.length === 0 ? <p className="settings-status watchlist-empty">No matching games.</p> : null}
+          <div className="watchlist-title-section">
+            <div className="watchlist-title-section-heading">
+              <h5>Active titles</h5>
+              <span>{titleSections.active.length}</span>
+            </div>
+            <div
+              className="watchlist-title-list watchlist-active-list"
+              role="group"
+              aria-label="Active watchlist titles"
+            >
+              {titleSections.active.map((title) => titleRow(title, true))}
+              {titleSections.active.length === 0 ? (
+                <p className="settings-status watchlist-empty">No active titles.</p>
+              ) : null}
+            </div>
+          </div>
+          <div className="watchlist-title-section">
+            <div className="watchlist-title-section-heading">
+              <h5>Inactive titles</h5>
+              <span>{titleSections.inactive.length}</span>
+            </div>
+            <label className="watchlist-search">
+              <Search aria-hidden="true" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.preventDefault();
+                }}
+                placeholder="Search inactive titles"
+                aria-label="Search inactive titles"
+              />
+            </label>
+            <div className="watchlist-title-list" role="group" aria-label="Inactive watchlist titles">
+              {titleSections.inactive.map((title) => titleRow(title, false))}
+              {titleSections.inactive.length === 0 ? (
+                <p className="settings-status watchlist-empty">No matching inactive titles.</p>
+              ) : null}
+            </div>
           </div>
           <p className="settings-status">
             Refreshed from{' '}

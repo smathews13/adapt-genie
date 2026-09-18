@@ -773,6 +773,12 @@ fi
 step "Deploying version $MODEL_VERSION to $ENDPOINT"
 (cd "$BUNDLE_ROOT/agent" && uv run --python 3.13 python deploy_agent.py --model-version "$MODEL_VERSION")
 
+# The app invokes this endpoint with the signed-in human's forwarded token.
+# Its resource binding grants only the app service principal, so grant the two
+# configured app access groups explicitly and verify the resulting endpoint ACL.
+TARGET="$TARGET" PROFILE="$PROFILE" \
+  bash "$BUNDLE_ROOT/bundle/endpoint-user-access.sh" --apply
+
 step "Applying the ADAPT resource tag"
 (cd "$BUNDLE_ROOT/agent" \
   && uv run --python 3.13 python ../bundle/tag-resources.py \

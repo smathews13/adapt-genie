@@ -50,6 +50,8 @@ case "$1 $2" in
     "genie_data_space_id": {"value": "genie-space-id"},
     "manifest_source": {"value": ""},
     "app_name": {"value": "adapt-genie"},
+    "app_admin_group": {"value": "adapt-admins"},
+    "app_user_group": {"value": "adapt-users"},
     "allow_unattributed_figures": {"value": ""},
     "execution_identity": {"value": "user-authorization"}
   },
@@ -105,11 +107,20 @@ routes = [
     for entity, pct in zip(entities, traffic)
 ]
 print(json.dumps({
+    "id": "endpoint-id",
     "name": "adapt-orchestrator",
     "state": {"config_update": "NOT_UPDATING", "ready": "READY"},
     "config": {"served_entities": entities, "traffic_config": {"routes": routes}},
 }))
 PY
+    ;;
+  "permissions update")
+    echo '{}'
+    ;;
+  "permissions get")
+    cat <<'JSON'
+{"access_control_list":[{"group_name":"adapt-admins","all_permissions":[{"permission_level":"CAN_QUERY","inherited":false}]},{"group_name":"adapt-users","all_permissions":[{"permission_level":"CAN_QUERY","inherited":false}]}]}
+JSON
     ;;
   "serving-endpoints update-config")
     echo 1 >"$STATE_FILE"

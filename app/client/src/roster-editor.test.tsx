@@ -203,7 +203,7 @@ describe('workspace group defaults', () => {
       </table>
     );
     expect(markup).not.toContain('Existing Databricks workspace group');
-    expect(text(markup)).toContain('Add group');
+    expect(text(markup)).toContain('Add Workspace Access Group');
     expect(markup).not.toContain('Super admin');
   });
 });

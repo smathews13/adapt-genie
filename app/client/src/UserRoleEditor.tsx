@@ -518,7 +518,7 @@ export function GroupMappingAddRow({
         <td colSpan={3}>
           <Button type="button" variant="outline" onClick={() => void openPicker()}>
             <UserPlus className="roster-action-icon" aria-hidden="true" />
-            Add group
+            Add Workspace Access Group
           </Button>
         </td>
       </tr>

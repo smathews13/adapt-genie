@@ -466,6 +466,23 @@ describe('the filter row is built from the app, not from the platform', () => {
     expect(markup.match(/lucide-search monitoring-search-icon/g)).toHaveLength(1);
   });
 
+  it('uses the Teams name for app-specific Monitoring groups', () => {
+    const markup = render(
+      <FilterRow
+        filters={NO_FILTERS}
+        people={[]}
+        tables={[]}
+        appGroups={[{ id: 'team-1', name: 'Launch reviewers' }]}
+        onChange={() => {}}
+        onClearFilters={() => {}}
+      />
+    );
+
+    expect(text(markup)).toContain('All teams');
+    expect(markup).toContain('aria-label="Team: All teams"');
+    expect(markup).not.toContain('All app groups');
+  });
+
   /**
    * A set filter is a chip: the app's selection blue, the value in full, and an
    * ✕ to clear it. The value is not abbreviated, because a table name a reader

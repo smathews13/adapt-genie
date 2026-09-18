@@ -121,7 +121,7 @@ function AppGroupCard({
           className="app-group-name"
           value={nameDraft}
           disabled={busy}
-          aria-label={`Name of app group ${group.name}`}
+          aria-label={`Name of team ${group.name}`}
           onChange={(event) => setNameDraft(event.target.value)}
           onBlur={commitName}
           onKeyDown={(event) => {
@@ -139,8 +139,8 @@ function AppGroupCard({
           size="icon"
           className="settings-destructive"
           disabled={busy}
-          aria-label={`Delete app group ${group.name}`}
-          title="Delete app group"
+          aria-label={`Delete team ${group.name}`}
+          title="Delete team"
           onClick={() => onDelete(group.id)}
         >
           <Trash2 aria-hidden="true" />
@@ -255,7 +255,7 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
       setSettings(groupsResult.value.settings);
       setRevision(groupsResult.value.revision);
     } else {
-      setError(groupsResult.reason instanceof Error ? groupsResult.reason.message : 'App groups could not be read.');
+      setError(groupsResult.reason instanceof Error ? groupsResult.reason.message : 'Teams could not be read.');
     }
     if (rosterResult.status === 'fulfilled') {
       setRoster(
@@ -295,7 +295,7 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
         return true;
       } catch (cause) {
         const conflict = cause instanceof AppGroupsError && cause.kind === 'conflict';
-        setWriteError(cause instanceof Error ? cause.message : 'The app groups were not saved. Try again.');
+        setWriteError(cause instanceof Error ? cause.message : 'The teams were not saved. Try again.');
         // A conflict means somebody else wrote; reload so the editor rebases on
         // the current truth rather than repeatedly refusing.
         if (conflict) await load();
@@ -315,24 +315,22 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
     if (!name || busy) return;
     // Clear the input only once the save is confirmed. A 409/503 keeps the typed
     // name so the administrator can retry without retyping it.
-    void commit([...groups, { id: newGroupId(), name, members: [] }], `Created the “${name}” app group.`).then(
-      (saved) => {
-        if (saved) setNewName('');
-      }
-    );
+    void commit([...groups, { id: newGroupId(), name, members: [] }], `Created the “${name}” team.`).then((saved) => {
+      if (saved) setNewName('');
+    });
   };
 
   const renameGroup = (id: string, name: string) =>
     void commit(
       groups.map((group) => (group.id === id ? { ...group, name } : group)),
-      `Renamed the app group to “${name}”.`
+      `Renamed the team to “${name}”.`
     );
 
   const deleteGroup = (id: string) => {
     const removed = groups.find((group) => group.id === id);
     void commit(
       groups.filter((group) => group.id !== id),
-      removed ? `Deleted the “${removed.name}” app group.` : 'Deleted the app group.'
+      removed ? `Deleted the “${removed.name}” team.` : 'Deleted the team.'
     );
   };
 
@@ -358,14 +356,14 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
   return (
     <section className="settings-identity-section app-groups" aria-labelledby="app-groups-title">
       <h4 id="app-groups-title" className="settings-section-title">
-        App groups
+        Teams
       </h4>
       <p className="admin-list-note">
-        Group people so Monitoring can be filtered by who asked. A group is a label for review only — it grants no
-        access and changes no Databricks permission.
+        Organize people so Monitoring can be filtered by who asked. A team is app-specific and grants no access or
+        Databricks permission.
       </p>
 
-      {loading ? <AdaptLoader label="Reading app groups" className="admin-list-note" /> : null}
+      {loading ? <AdaptLoader label="Reading teams" className="admin-list-note" /> : null}
       {error ? (
         <p className="admin-list-note admin-list-error" role="alert">
           {error} Reload the page to try again.
@@ -391,7 +389,7 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
               ))}
             </div>
           ) : (
-            <p className="admin-list-note">No app groups yet.</p>
+            <p className="admin-list-note">No teams yet.</p>
           )}
 
           {canManage ? (
@@ -399,8 +397,8 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
               <Input
                 value={newName}
                 disabled={busy}
-                placeholder="New app group name"
-                aria-label="New app group name"
+                placeholder="New team name"
+                aria-label="New team name"
                 onChange={(event) => setNewName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && newName.trim()) {
@@ -419,7 +417,7 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
               >
                 <AdaptBusyButtonContent
                   busy={busy}
-                  label="Add group"
+                  label="Add team"
                   busyLabel="Saving"
                   icon={<UsersRound aria-hidden="true" />}
                 />
@@ -434,7 +432,7 @@ export function AppGroupEditor({ canManage = false }: { canManage?: boolean }) {
       </p>
       {!canManage && settings ? (
         <p className="admin-list-note">
-          <UserPlus aria-hidden="true" /> Only administrators can change app groups.
+          <UserPlus aria-hidden="true" /> Only administrators can change teams.
         </p>
       ) : null}
     </section>

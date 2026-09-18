@@ -141,6 +141,8 @@ describe('Settings modal', () => {
     const experimental = render('experimental');
     expect(identity).toContain('<h3>Identity</h3>');
     expect(identity).toContain('Databricks access groups and ADAPT roles');
+    expect(identity).toContain('>Teams<');
+    expect(identity).not.toContain('>App groups<');
     expect(identity).not.toMatch(/persona/i);
     expect(appearance).toContain('<h3>Appearance</h3>');
     expect(experimental).toContain('<h3>Experimental</h3>');

@@ -574,7 +574,7 @@ export function FilterRow({
         onChange={(table) => onChange({ ...filters, table })}
         options={[{ value: '', label: 'Any table' }, ...tables.map((table) => ({ value: table, label: table }))]}
       />
-      {/* App groups. Filters to the questions asked by the members of one group,
+      {/* Teams. Filters to the questions asked by the members of one team,
           resolved from the asker's email, so a group created today still catches
           what its people asked before it existed.
 
@@ -585,14 +585,14 @@ export function FilterRow({
           when it is no longer configured) so it stays selectable and clearable. */}
       {appGroups.length > 0 || filters.appGroup ? (
         <FilterChip
-          label="App group"
+          label="Team"
           value={filters.appGroup}
           onChange={(appGroup) => onChange({ ...filters, appGroup })}
           options={[
-            { value: '', label: 'All app groups' },
+            { value: '', label: 'All teams' },
             ...appGroups.map((group) => ({ value: group.id, label: group.name })),
             ...(filters.appGroup && !appGroups.some((group) => group.id === filters.appGroup)
-              ? [{ value: filters.appGroup, label: 'Removed group' }]
+              ? [{ value: filters.appGroup, label: 'Removed team' }]
               : []),
           ]}
         />

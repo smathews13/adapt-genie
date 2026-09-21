@@ -55,6 +55,8 @@ RETIRED = ("#e4002b", "#b20022", "#fcaf17", "#111111", "#6c707b", "#e5e5e5")
         "Show the weekly sales trend.",
         "Break down sales by platform.",
         "How did sales change after launch?",
+        "Can you break out all revenue and returns by franchise and by month since January?",
+        "Show revenue and returns by franchise.",
     ],
 )
 def test_visual_questions_warrant_a_chart(question):

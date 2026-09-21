@@ -15,11 +15,12 @@ import { Badge, Card, CardContent } from './ui';
 import { conversationHref } from './conversation-links';
 import { AnswerProse, EntityText } from './DataEntityLinks';
 import { AnswerEvidence } from './AnswerEvidence';
+import { AnswerFigureSummary } from './AnswerFigureSummary';
 import { SourcesModule } from './SourcesModule';
 import { mentionedIdentifiers } from './data-entities';
 import { answerHonesty, readerFacingNarrative, readerFacingTakeaway } from './reader-facing-answer';
 import { evidenceLinkedSourceNames } from './answer-table-origins';
-import type { Derivation } from './answer-shape';
+import type { Derivation, Figure } from './answer-shape';
 import type { Chart } from './AnswerCharts';
 import { AIAnalysisCaveat } from './AIAnalysisCaveat';
 import { normalizeReaderAnswer } from '../../shared/answer-content-policy';
@@ -27,6 +28,8 @@ import { normalizeReaderAnswer } from '../../shared/answer-content-policy';
 export function FinalAnswer({
   takeaway,
   narrative,
+  content = '',
+  figures = [],
   charts,
   sources,
   caveats,
@@ -38,6 +41,8 @@ export function FinalAnswer({
 }: {
   takeaway: string;
   narrative: string;
+  content?: string;
+  figures?: Figure[];
   charts?: Chart[];
   sources: { name: string; freshness: string }[];
   caveats: readonly string[];
@@ -47,12 +52,26 @@ export function FinalAnswer({
   conversationId?: string | null;
   runId?: string | null;
 }) {
-  const displayed = normalizeReaderAnswer({ takeaway, narrative, sources, caveats, sql });
-  const honesty = answerHonesty({ truncated, caveats: displayed.caveats ?? [], narrative: displayed.narrative });
-  const headline = readerFacingTakeaway(displayed.takeaway ?? '', displayed.narrative ?? '');
-  const story = readerFacingNarrative(displayed.takeaway ?? '', displayed.narrative ?? '');
+  const displayed = normalizeReaderAnswer({ takeaway, narrative, content, figures, sources, caveats, sql });
+  const answerContent = displayed.content ?? '';
+  const answerFigures = displayed.figures ?? [];
+  const honesty = answerHonesty({
+    truncated,
+    caveats: displayed.caveats ?? [],
+    narrative: displayed.narrative,
+    content: answerContent,
+    figures: answerFigures,
+  });
+  const headline = readerFacingTakeaway(displayed.takeaway ?? '', displayed.narrative ?? '', {
+    content: answerContent,
+    figures: answerFigures,
+  });
+  const story = readerFacingNarrative(displayed.takeaway ?? '', displayed.narrative ?? '', {
+    content: answerContent,
+    figures: answerFigures,
+  });
   const restCaveats = displayed.caveats ?? [];
-  const columns = mentionedIdentifiers([story]);
+  const columns = mentionedIdentifiers([story, answerContent]);
   return (
     <Card className="final-answer" data-tone={honesty.tone}>
       <CardContent>
@@ -73,16 +92,20 @@ export function FinalAnswer({
             <EntityText text={headline} sources={sources} />
           </h4>
         ) : null}
+        <AnswerFigureSummary figures={answerFigures} />
+        <AnswerEvidence narrative={story} content={answerContent} charts={charts} sources={sources} />
         {/* Prose only: the tables that came with it are evidence and are drawn
-            below under the same charts-or-rows rule the live card uses. */}
+            above under the same table-then-chart rule the live card uses. */}
         <AnswerProse text={story} sources={sources} columns={columns} blocks="prose" preserveProse />
-        <AnswerEvidence narrative={story} charts={charts} sources={sources} />
+        {answerContent ? (
+          <AnswerProse text={answerContent} sources={sources} columns={columns} blocks="prose" preserveProse />
+        ) : null}
         <SourcesModule
           sources={sources}
           caveats={restCaveats}
           derivation={derivation}
           sql={sql}
-          hideWorkspaceLinks={evidenceLinkedSourceNames(story, null, charts, sources)}
+          hideWorkspaceLinks={evidenceLinkedSourceNames(story, answerContent, charts, sources)}
         />
         {conversationId ? (
           <Link className="final-answer-open" to={conversationHref(conversationId, runId)}>

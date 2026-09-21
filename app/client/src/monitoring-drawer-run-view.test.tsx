@@ -255,8 +255,9 @@ describe("the modal draws one run view, the card's own", () => {
     expect(rendered).not.toContain('Keep in mind');
     expect(rendered).not.toContain('What to keep in mind');
     expect(markup).not.toContain('answer-stat');
-    expect(markup).not.toContain('Key figures');
-    expect(markup).not.toContain('Legacy KPI');
+    expect(markup).toContain('Key figures');
+    expect(markup).toContain('Legacy KPI');
+    expect(markup).toContain('retained in payload');
 
     const evidence = markup.indexOf('answer-evidence');
     const origin = markup.indexOf('answer-table-origin');

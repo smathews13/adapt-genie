@@ -31,8 +31,8 @@ describe('source freshness provenance', () => {
   });
 });
 
-describe('legacy figure compatibility', () => {
-  it('keeps figure comparison data without rendering the retired KPI rail', () => {
+describe('headline figure accessibility', () => {
+  it('renders comparison context in the compact summary without reviving the retired rail', () => {
     const comparison = '+12% against the previous 28-day retained-player baseline';
     const raw = {
       id: 'answer-1',
@@ -57,12 +57,12 @@ describe('legacy figure compatibility', () => {
     );
 
     expect(normalizeAnswer(raw).figures[0]?.comparison).toBe(comparison);
-    expect(markup).not.toContain(comparison);
+    expect(markup).toContain(comparison);
     expect(markup).not.toContain('answer-stat');
-    expect(markup).not.toContain('Key figures');
+    expect(markup).toContain('aria-label="Key figures"');
   });
 
-  it('removes figure-card-only CSS without removing shared focus styling', () => {
+  it('keeps the retired rail CSS removed without removing shared focus styling', () => {
     const css = readFileSync(new URL('./styles/answer-body.css', import.meta.url), 'utf8');
     expect(css).not.toContain('.answer-stat-context');
     expect(css).toMatch(/\.provenance-detail:focus-visible\s*\{[^}]*outline:\s*2px solid/s);

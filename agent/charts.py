@@ -230,11 +230,25 @@ _CHART_CHANGE_RE = re.compile(
     r"increase|increased|decrease|decreased|decline|declined)\b",
     re.IGNORECASE,
 )
-_CHART_GROUPING_RE = re.compile(
-    r"\b(?:sales|revenue|spend|players|users|count|rate|average|total|units|"
-    r"bookings|transactions|orders|activity|engagement|usage)\s+by\s+[\w`\"]+",
+_CHART_BREAKOUT_RE = re.compile(
+    r"\b(?:break\s*(?:out|down)|breakout|breakdown)\b.{0,160}\bby\b",
     re.IGNORECASE,
 )
+_GROUPABLE_METRIC = (
+    r"(?:sales|revenue|returns?|spend|players|users|count|rate|average|total|units|"
+    r"bookings|transactions|orders|activity|engagement|usage)"
+)
+_CHART_GROUPING_RE = re.compile(
+    rf"\b{_GROUPABLE_METRIC}(?:\s*(?:,|and|&)\s*{_GROUPABLE_METRIC})*\s+by\s+[\w`\"]+",
+    re.IGNORECASE,
+)
+
+
+def structured_breakout_requested(question: str) -> bool:
+    """Whether the reader explicitly asked for grouped rows, not just a prose finding."""
+
+    text = question or ""
+    return bool(_CHART_BREAKOUT_RE.search(text) or _CHART_GROUPING_RE.search(text))
 
 
 def chart_warranted(question: str) -> bool:
@@ -244,7 +258,7 @@ def chart_warranted(question: str) -> bool:
         _CHART_REQUEST_RE.search(question or "")
         or _CHART_ANALYSIS_RE.search(question or "")
         or _CHART_CHANGE_RE.search(question or "")
-        or _CHART_GROUPING_RE.search(question or "")
+        or structured_breakout_requested(question)
     )
 
 

@@ -23,6 +23,7 @@ const CARD = readFileSync(new URL('./AnswerCard.tsx', import.meta.url), 'utf8');
 const CAVEATS = readFileSync(new URL('./KeepInMind.tsx', import.meta.url), 'utf8');
 const PLAN = readFileSync(new URL('./PlanCard.tsx', import.meta.url), 'utf8');
 const CHARTS = readFileSync(new URL('./AnswerCharts.tsx', import.meta.url), 'utf8');
+const FIGURES = readFileSync(new URL('./AnswerFigureSummary.tsx', import.meta.url), 'utf8');
 const ANSWER_CSS = partial('answer.css');
 const ASK_CSS = partial('ask.css');
 const MONITORING_CSS = partial('monitoring.css');
@@ -171,15 +172,18 @@ describe('the provenance chip has three tones and none is the action colour', ()
   });
 });
 
-describe('the answer body never renders figure KPI tiles', () => {
-  it('leaves figures available to evidence logic without reserving a rail', () => {
+describe('the answer body gives headline figures a compact summary grid', () => {
+  it('renders tiles in the normal stacking flow without reviving a side rail', () => {
     expect(CARD).toContain('figures: readerAnswer.figures');
     expect(CARD).not.toContain('className="answer-stat-rail"');
     expect(CARD).not.toContain('className="answer-stat-value ast-num"');
     expect(BODY_CSS).not.toContain('.answer-stat');
     expect(BODY_CSS).not.toContain('.answer-main-row');
+    expect(FIGURES).toContain('className="answer-figure-grid"');
+    expect(FIGURES).toContain('className="answer-figure-value ast-num"');
+    expect(BODY_CSS).toContain('.answer-figure-grid {');
+    expect(BODY_CSS).toContain('repeat(auto-fit, minmax(min(150px, 100%), 1fr))');
     expect(CARD).not.toContain('Result breakdown');
-    expect(CARD).not.toContain('<i style={{ width:');
   });
 });
 
@@ -415,11 +419,8 @@ describe('the chart panel is a panel on this card, not a second page', () => {
     // Scoped past the head: the boundary's failure notice is a paragraph, and it
     // is the one piece of prose in this file that says something the reader
     // cannot see for themselves.
-    // It now points at where the figures went rather than reassuring the reader
-    // about the rest of the card. A panel that will not draw took the evidence with
-    // it, and the card unfolds the Markdown rows when this fires, so the sentence
-    // says where to look. "The rest of this answer is unaffected" was true and
-    // useless: the reader wanted the numbers, not the paragraph above them.
+    // The rows remain visible above the panel, so a rendering failure can stay
+    // local to the chart instead of taking the exact evidence with it.
     expect(prose).toContain('This chart could not be displayed.');
     // No instruction anywhere in the panel, under any wording.
     expect(prose).not.toMatch(/\b(hover|drag|zoom|click|scroll|pinch|tap)\b/i);

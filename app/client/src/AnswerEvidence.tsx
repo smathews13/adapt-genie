@@ -1,20 +1,10 @@
 /**
- * The evidence half of an answer: the charts, or the rows behind them.
+ * The evidence half of an answer: requested rows first, then their visual story.
  *
- * Charts and tables are the same measurements drawn twice, so showing both at
- * once made every answer read as though it were saying something twice. The rule
- * is charts XOR tables -- but folded, not dropped, because a chart that fails to
- * paint would otherwise take the only copy of the numbers with it.
- *
- * This lives outside AnswerCard because the Run Explorer shows the same stored
- * answer and has to obey the same rule. It did not: the Overview tab printed the
- * narrative whole, tables and all, while the run's charts were handed to the
- * Agent map tab -- so the one answer was drawn as rows on one tab and as pictures
- * on another, and the reader had no way to tell they were the same figures.
+ * A business breakout is useful in two different ways: the table is the exact
+ * answer and the chart makes its pattern consumable. Both stay visible, in the
+ * same order, on the live card and in Run Explorer.
  */
-import { useState } from 'react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui';
-import { ChevronDown } from 'lucide-react';
 import { AnswerCharts } from './AnswerCharts';
 import { renderableCharts } from './answer-chart-data';
 import { AnswerProse } from './DataEntityLinks';
@@ -35,13 +25,6 @@ export function AnswerEvidence({
   charts?: Answer['charts'];
   sources: readonly SourceRef[];
 }) {
-  /*
-   * The rows start folded, and stay open once opened. A reader who asked to see
-   * the numbers behind one chart is not asking to be shown a chart again, and a
-   * chart that failed to paint opens this itself -- a picture that is not there
-   * is a reason to show the numbers, not a reason to take the choice away.
-   */
-  const [showRows, setShowRows] = useState(false);
   const visibleCharts = renderableCharts(charts);
   const hasCharts = visibleCharts.length > 0;
   const hasTables = carriesTable(narrative, content);
@@ -68,20 +51,12 @@ export function AnswerEvidence({
     </>
   );
   return (
-    <section className="answer-evidence" aria-label={hasCharts ? 'Chart evidence' : 'Table evidence'}>
-      {hasCharts ? <AnswerCharts charts={visibleCharts} sources={sources} onFailure={() => setShowRows(true)} /> : null}
-      {hasCharts && hasTables ? (
-        <Collapsible open={showRows} onOpenChange={setShowRows}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="answer-evidence-rows">
-              {showRows ? 'Hide the rows' : 'Show the rows behind this'}
-              <ChevronDown className={`transition-transform ${showRows ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>{tables}</CollapsibleContent>
-        </Collapsible>
-      ) : null}
-      {!hasCharts && hasTables ? tables : null}
+    <section
+      className="answer-evidence"
+      aria-label={hasCharts && hasTables ? 'Table and chart evidence' : hasCharts ? 'Chart evidence' : 'Table evidence'}
+    >
+      {hasTables ? tables : null}
+      {hasCharts ? <AnswerCharts charts={visibleCharts} sources={sources} /> : null}
     </section>
   );
 }

@@ -85,7 +85,7 @@ describe('answer hierarchy', () => {
     expect(markup).not.toContain('Empty trend');
   });
 
-  it('keeps the supplied takeaway exact and renders ordered context bullets directly below it', () => {
+  it('keeps the supplied takeaway exact and renders context after the summary figures', () => {
     const supplied = '42 million unique users';
     const markup = card(
       answer({
@@ -113,6 +113,7 @@ describe('answer hierarchy', () => {
       'Read from main.game.daily_summary.',
     ]);
     expect(markup.indexOf('answer-takeaway')).toBeLessThan(markup.indexOf('<ul class="answer-list"'));
+    expect(markup.indexOf('answer-figure-summary')).toBeLessThan(markup.indexOf('<ul class="answer-list"'));
   });
 
   it('keeps legacy prose readable without heuristically turning it into claims', () => {
@@ -133,34 +134,28 @@ describe('answer evidence variants', () => {
     expect(markup).toContain('aria-label="Table evidence"');
   });
 
-  it('renders charts and folds the Markdown table away when a chart exists', () => {
+  it('renders exact rows before their chart when both exist', () => {
     const markup = card(
       answer({
         charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [{ x: ['Mon'], y: [10] }], layout: {} }],
       })
     );
     expect(markup).toContain('Daily sessions');
-    expect(markup).toContain('aria-label="Chart evidence"');
-    // Charts XOR tables still holds on screen: the rows are not drawn beside the
-    // panel they would duplicate.
-    expect(markup).not.toContain('<table');
+    expect(markup).toContain('aria-label="Table and chart evidence"');
+    expect(markup).toContain('<table');
+    expect(markup.indexOf('<table')).toBeLessThan(markup.indexOf('Opening sentence survives.'));
+    expect(markup.indexOf('<table')).toBeLessThan(markup.indexOf('Daily sessions'));
     expect(markup.match(/Opening sentence survives\./g)).toHaveLength(1);
   });
 
-  it('leaves the folded rows reachable rather than dropping them', () => {
-    /*
-     * The rule is about what the reader is SHOWN, not about what the answer may
-     * keep. A chart summarises -- the pair rule plots a full series beside a recent
-     * window -- so the rows behind it can hold dates and values no panel plots, and
-     * before this control there was nowhere to go for them. It also matters when a
-     * panel will not draw: see the boundary test below.
-     */
+  it('keeps the complete rows visible without an extra disclosure', () => {
     const markup = card(
       answer({
         charts: [{ id: 'chart-1', title: 'Daily sessions', kind: 'line', data: [{ x: ['Mon'], y: [10] }], layout: {} }],
       })
     );
-    expect(markup).toContain('Show the rows behind this');
+    expect(markup).toContain('<table');
+    expect(markup).not.toContain('Show the rows behind this');
   });
 
   it('offers no rows control when the tables are the evidence already', () => {
@@ -171,31 +166,22 @@ describe('answer evidence variants', () => {
     expect(markup).toContain('<table');
   });
 
-  it('sends a chart that will not draw to the rows instead of to a dead end', () => {
-    /*
-     * Read off the source rather than by throwing from Plotly: the boundary is a
-     * class component reached through `lazy`, and what has to be pinned is the wiring
-     * -- the panel telling the evidence section, and that section opening the fold.
-     * Rendered, this needs a failing dynamic import, which is a chunk fetch this
-     * suite has no way to fail honestly.
-     *
-     * The wiring sits in AnswerEvidence.tsx, which the Run Explorer shows too, so
-     * a chart that will not draw reaches its rows on both surfaces.
-     */
+  it('keeps rows independent of chart rendering failures', () => {
     const evidenceSource = readFileSync(new URL('./AnswerEvidence.tsx', import.meta.url), 'utf8');
-    const chartSource = readFileSync(new URL('./AnswerCharts.tsx', import.meta.url), 'utf8');
-    const plotlySource = readFileSync(new URL('./PlotlyFigure.tsx', import.meta.url), 'utf8');
-    expect(chartSource).toContain('this.props.onFailure?.()');
-    expect(chartSource).toContain('onRenderFailure={reportFailure}');
-    expect(plotlySource).toContain('.catch(reportFailure)');
-    expect(evidenceSource).toContain('onFailure={() => setShowRows(true)}');
+    expect(evidenceSource.indexOf('{hasTables ? tables : null}')).toBeLessThan(
+      evidenceSource.indexOf('{hasCharts ? <AnswerCharts')
+    );
+    expect(evidenceSource).not.toContain('setShowRows');
   });
 
-  it('keeps figures in the answer data without rendering KPI tiles', () => {
+  it('renders at most four headline figures as an executive summary', () => {
     const markup = card(answer());
     expect(answer().figures).toHaveLength(5);
-    expect(markup).not.toContain('answer-stat');
-    expect(markup).not.toContain('Key figures');
+    expect(markup).toContain('aria-label="Key figures"');
+    expect(markup).toContain('answer-figure-grid');
+    expect(markup).toContain('>Baseline<');
+    expect(markup).toContain('>+150%<');
+    expect(markup).toContain('>vs baseline<');
     expect(markup).not.toContain('Historical extra');
     expect(markup).not.toContain('Result breakdown');
   });

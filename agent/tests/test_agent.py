@@ -439,6 +439,70 @@ def test_submit_answer_repairs_header_only_output_without_another_turn():
     assert synthesis.narrative == "- **Summary:** No matching sales were found."
 
 
+def test_numeric_breakouts_require_rows_and_an_executive_figure():
+    question = "Break out revenue and returns by franchise and by month."
+    complete = {
+        "takeaway": "Net revenue reached $90 after $10 of returns.",
+        "narrative": "- **Trend:** Net revenue increased 12% over the window.",
+        "content": (
+            "| Month | Franchise | Gross revenue | Returns | Net revenue |\n"
+            "| --- | --- | ---: | ---: | ---: |\n"
+            "| 2026-08 | Alpha | $100 | $10 | $90 |"
+        ),
+        "figures": [
+            {
+                "label": "Net revenue",
+                "value": 90,
+                "display": "$90",
+                "comparison": "+12% over the window",
+            }
+        ],
+    }
+
+    synthesis = agent._submitted_synthesis(complete, question)
+    assert "| Month | Franchise |" in synthesis.content
+    assert synthesis.figures[0].display == "$90"
+
+    without_table = {**complete, "content": ""}
+    with pytest.raises(ValueError, match="Markdown table"):
+        agent._submitted_synthesis(without_table, question)
+
+    without_figures = {**complete, "figures": []}
+    with pytest.raises(ValueError, match="headline figure"):
+        agent._submitted_synthesis(without_figures, question)
+
+
+@pytest.mark.parametrize(
+    ("takeaway", "narrative"),
+    [
+        (
+            "No matching franchise revenue rows were found.",
+            "- **Scope:** The period from 2025-01-01 returned no rows.",
+        ),
+        (
+            "0 rows matched the requested franchise and month window.",
+            "- **Scope:** The query completed with 0 rows.",
+        ),
+        (
+            "The query returned 0 matching records.",
+            "- **Scope:** No grouped revenue records were available.",
+        ),
+    ],
+)
+def test_breakout_with_no_matching_data_does_not_manufacture_a_table(takeaway, narrative):
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": takeaway,
+            "narrative": narrative,
+            "caveats": ["No grouped rows were available."],
+        },
+        "Break out revenue and returns by franchise and by month.",
+    )
+
+    assert synthesis.content == ""
+    assert synthesis.figures == []
+
+
 def test_an_exact_successful_discovery_call_is_reused_within_the_run():
     llm = ScriptedLlm(
         [Call("list_data_assets", {})],
@@ -2760,9 +2824,12 @@ def test_a_short_answer_is_still_allowed_to_stay_short():
     assert "only the supported prose or bullets" in SYNTHESIS_INSTRUCTIONS
 
 
-def test_tabular_content_is_only_used_when_rows_answer_the_question():
+def test_requested_breakouts_require_tabular_content_at_the_requested_grain():
+    assert "content MUST contain a Markdown table at the requested grain" in SYNTHESIS_INSTRUCTIONS
+    assert "never replace the requested matrix with bullets" in SYNTHESIS_INSTRUCTIONS
     assert (
-        "Include a Markdown table only when returned rows directly answer" in SYNTHESIS_INSTRUCTIONS
+        "Otherwise include a Markdown table only when returned rows directly answer"
+        in SYNTHESIS_INSTRUCTIONS
     )
     assert "decision-useful columns and rows" in SYNTHESIS_INSTRUCTIONS
 

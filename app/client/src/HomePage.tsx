@@ -183,6 +183,7 @@ import type {
   PlanResponse,
 } from './app-types';
 import { QuestionAttributionBubble } from './QuestionAttributionBubble';
+import { ConversationExportMenu } from './ExportMenu';
 import { OrganizationUserBadge } from './OrganizationUserBadge';
 import { organizationForEmail, organizationOptionsForEmails } from '../../shared/organization-mapping';
 import { FeedbackWriteQueue } from './feedback-write-queue';
@@ -2268,6 +2269,15 @@ export function HomePage() {
             </div>
           )}
 
+          {!conversationLoading && messages.length > 0 ? (
+            <div className="conversation-export-toolbar">
+              <ConversationExportMenu
+                conversationId={conversationId}
+                title={conversations.find((conversation) => conversation.id === conversationId)?.title ?? ''}
+              />
+            </div>
+          ) : null}
+
           {!conversationLoading && (olderMessages.hasMore || olderMessagesLoading || olderMessagesError) ? (
             <div className="message-pagination" aria-live="polite">
               {olderMessages.hasMore ? (
@@ -2351,10 +2361,7 @@ export function HomePage() {
 
           {loading &&
           inFlightUserMessage.trim() &&
-          !(
-            messages.at(-1)?.role === 'user' &&
-            messages.at(-1)?.content.trim() === inFlightUserMessage.trim()
-          ) ? (
+          !(messages.at(-1)?.role === 'user' && messages.at(-1)?.content.trim() === inFlightUserMessage.trim()) ? (
             <div className="conversation-message conversation-message--in-flight-question">
               <QuestionAttributionBubble
                 question={inFlightUserMessage}
@@ -2367,9 +2374,7 @@ export function HomePage() {
 
           {(loading || conversationLoading) && (
             <Card className="answer-card">
-              <CardContent
-                className={conversationLoading ? 'pt-6 space-y-5' : 'ast-splash'}
-              >
+              <CardContent className={conversationLoading ? 'pt-6 space-y-5' : 'ast-splash'}>
                 {/* The working animation is for a run that is actually running.
                   Restoring a saved conversation from Lakebase is not the agent
                   working -- nothing is being asked and nothing is being read --

@@ -309,3 +309,10 @@ html:not([data-theme='dark']) .ask-hero h2 {
 .answer-takeaway {
   cursor: text;
 }
+
+/* Whole-conversation export menu, right-aligned above the transcript. */
+.conversation-export-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 auto 6px;
+}

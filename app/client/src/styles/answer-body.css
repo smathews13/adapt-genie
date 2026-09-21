@@ -604,6 +604,50 @@
   overflow: visible;
   align-content: start;
 }
+.answer-figure-summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.answer-figure-heading {
+  margin: 0;
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.answer-figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.answer-figure-tile {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  padding: 12px 14px;
+  background: var(--ast-surface-primary);
+}
+.answer-figure-label,
+.answer-figure-comparison {
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.answer-figure-value {
+  color: var(--ast-text);
+  font-size: var(--ast-fs-22);
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
 .answer-narrative {
   display: grid;
   gap: 6px;
@@ -617,32 +661,6 @@
   height: auto;
   overflow: visible;
   align-content: start;
-}
-/*
- * The control that unfolds the rows behind a charted answer.
- *
- * `justify-self: start` because the evidence section is a grid and a button in a
- * grid cell stretches: unpinned, a quiet disclosure became a full-width bar under
- * the panel, which reads as a primary action rather than as a footnote to one.
- *
- * Sized and coloured down to the caption scale on purpose. The charts are the
- * evidence; this offers the same numbers for a reader who wants the rows, and a
- * control that competed with the panel above it would be arguing the opposite.
- */
-.answer-evidence-rows {
-  justify-self: start;
-  height: auto;
-  padding: 2px 6px;
-  color: var(--ast-text-secondary);
-  font-size: var(--ast-fs-11);
-}
-/* The rows themselves, once open, take the section's own spacing rather than
-   sitting flush against the control that revealed them. */
-.answer-evidence [data-slot='collapsible-content'] > .answer-prose {
-  display: grid;
-  gap: 14px;
-  margin-top: 8px;
-  min-width: 0;
 }
 
 /*

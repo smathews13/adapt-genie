@@ -325,7 +325,8 @@ export function RunExplorer() {
         stages,
         caveats: runTrace.caveats,
         narrative: runTrace.narrative,
-        content: runTrace.takeaway,
+        content: runTrace.content,
+        figures: runTrace.figures,
       })
     : undefined;
   const isReference = runTrace?.mode === 'representative';
@@ -627,6 +628,8 @@ export function RunExplorer() {
                       <FinalAnswer
                         takeaway={runTrace.takeaway}
                         narrative={runTrace.narrative}
+                        content={runTrace.content}
+                        figures={runTrace.figures}
                         charts={runTrace.charts}
                         sources={runTrace.sources}
                         caveats={runTrace.caveats}

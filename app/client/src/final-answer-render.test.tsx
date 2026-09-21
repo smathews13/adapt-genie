@@ -143,6 +143,29 @@ describe('the Overview Final Answer module', () => {
     expect(html).not.toMatch(/platform \| total_distinct_players/);
   });
 
+  it('renders stored KPI figures and content rows before their interpretation', () => {
+    const content = [
+      '| Month | Franchise | Revenue | Returns |',
+      '| --- | --- | ---: | ---: |',
+      '| 2026-08 | GTA | $100 | $10 |',
+    ].join('\n');
+    const html = markup({
+      narrative:
+        '- **Trend:** Net revenue increased over the window.\n- **Scope:** All requested months and franchises are included.',
+      content,
+      figures: [{ label: 'Net revenue', value: 90, display: '$90', comparison: '+12% over the window' }],
+      caveats: [],
+      truncated: false,
+    });
+
+    expect(html).toContain('aria-label="Key figures"');
+    expect(html).toContain('Net revenue');
+    expect(html).toContain('+12% over the window');
+    expect(html).toContain('<table');
+    expect(html).toContain('All requested months and franchises are included.');
+    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('All requested months and franchises are included.'));
+  });
+
   it('lists each source as a bullet with one Open control, not a wrapping tangle', () => {
     const html = markup();
     expect(html).toContain('source-list');

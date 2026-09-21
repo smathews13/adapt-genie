@@ -6,18 +6,10 @@ import { carriesTable } from './answer-markdown';
 import type { Chart } from './AnswerCharts';
 
 /**
- * That one answer is not drawn as rows on one surface and as pictures on another.
+ * Both live and stored answers show exact rows before their visual reading.
  *
- * The live card folded its tables in behind its charts. The Run Explorer, showing
- * the same stored answer, printed the narrative whole -- tables included -- and
- * handed the run's charts to the Agent map tab. So the reader who opened a past
- * run saw the numbers as a table on Overview and the same numbers as a chart one
- * tab across, with nothing on either tab saying they were the same measurements.
- * That is the surface someone opens once they have started to doubt a figure,
- * which is the worst place to be shown two unreconciled copies of it.
- *
- * The rule lives in one component now, so it cannot hold on one surface and not
- * the other. These tests are the reason it may not be inlined again.
+ * The rule lives in one component so the table/chart order cannot drift between
+ * Ask and Run Explorer.
  */
 
 const SOURCES = [{ name: 'catalog.schema.games', freshness: 'fresh' }];
@@ -51,20 +43,20 @@ function markup(props: Parameters<typeof AnswerEvidence>[0]): string {
 }
 
 describe('the evidence half of an answer', () => {
-  it('draws the rows when there is no chart to draw instead', () => {
+  it('draws the rows when there is no chart to draw', () => {
     const html = markup({ narrative: WITH_TABLE, sources: SOURCES });
     expect(html).toContain('Table evidence');
     expect(html).toContain('<table');
-    // No fold: there is nothing the table is hiding behind, so a control that
-    // offered to reveal it would be offering what is already on screen.
     expect(html).not.toContain('Show the rows behind this');
   });
 
-  it('folds the rows in behind a chart rather than dropping them', () => {
+  it('shows exact rows before the chart for a structured answer', () => {
     const html = markup({ narrative: WITH_TABLE, charts: [CHART], sources: SOURCES });
-    expect(html).toContain('Chart evidence');
-    // Reachable, so nothing the agent measured is only ever in a picture.
-    expect(html).toContain('Show the rows behind this');
+    expect(html).toContain('Table and chart evidence');
+    expect(html).toContain('<table');
+    expect(html).toContain('Sessions by week');
+    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('Sessions by week'));
+    expect(html).not.toContain('Show the rows behind this');
   });
 
   it('shows the rows directly instead of rendering an empty chart shell', () => {
@@ -114,9 +106,7 @@ describe('both surfaces that show an answer', () => {
     expect(finalAnswer).toMatch(/text=\{story\}[\s\S]{0,80}blocks="prose"/);
   });
 
-  it('keeps the charts-or-rows rule out of the card, so it cannot drift', () => {
-    // The card held its own copy of this. Two copies is how the Explorer's went
-    // stale without anyone noticing.
+  it('keeps the evidence ordering rule out of the card, so it cannot drift', () => {
     expect(card).not.toContain('answer-evidence');
     expect(card).not.toContain('Show the rows behind this');
   });

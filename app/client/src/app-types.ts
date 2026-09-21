@@ -10,7 +10,7 @@
  */
 import type { Chart } from './AnswerCharts';
 import type { ExperimentalFeatures } from './experimental-features';
-import type { Derivation, NormalizedAnswer, StageStatus, TraceStage, TraceSummary } from './answer-shape';
+import type { Derivation, Figure, NormalizedAnswer, StageStatus, TraceStage, TraceSummary } from './answer-shape';
 import type { TokenInvocationUsage, TokenReconciliation } from '../../shared/llm-token-usage';
 import type { OrganizationMapping } from '../../shared/organization-contract';
 import type { SessionReport } from '../../shared/session-contract';
@@ -186,6 +186,8 @@ export interface RunTrace {
   stakeholder: string | null;
   takeaway: string;
   narrative: string;
+  content: string;
+  figures: Figure[];
   sql: string;
   /** Canonical Plotly specs returned by the answer, when this run produced charts. */
   charts?: Chart[];

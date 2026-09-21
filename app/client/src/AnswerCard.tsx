@@ -46,6 +46,7 @@ import {
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import { Check, ChevronDown, CircleAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { AnswerEvidence } from './AnswerEvidence';
+import { AnswerFigureSummary } from './AnswerFigureSummary';
 import { AstrolabeMark } from './AstrolabeMark';
 import { AnswerProse, EntityText } from './DataEntityLinks';
 import { mentionedIdentifiers } from './data-entities';
@@ -272,7 +273,50 @@ export function AnswerCard({
   const badge = answerBadge(readerAnswer);
   const usedAttachments = processTrace.stages.some((stage) => stage.id === 'attachment');
   const missingDocumentFootnotes = usedAttachments && readerAnswer.document_snippets.length === 0;
-  const exportLabel = question || headline || 'answer';
+  const answerExportActions = [
+    {
+      label: 'Copy Markdown',
+      run: async () => {
+        const { copyAnswerMarkdown } = await import('./export-actions');
+        await copyAnswerMarkdown(readerAnswer, question);
+      },
+    },
+    {
+      label: 'Download Markdown',
+      run: async () => {
+        const { downloadAnswerMarkdown } = await import('./export-actions');
+        await downloadAnswerMarkdown(readerAnswer, question);
+      },
+    },
+    {
+      label: 'Download HTML',
+      run: async () => {
+        const { downloadAnswerHtml } = await import('./export-actions');
+        await downloadAnswerHtml(readerAnswer, question, 'page');
+      },
+    },
+    {
+      label: 'Download HTML for slides',
+      run: async () => {
+        const { downloadAnswerHtml } = await import('./export-actions');
+        await downloadAnswerHtml(readerAnswer, question, 'presentation');
+      },
+    },
+    {
+      label: 'Download JSON',
+      run: async () => {
+        const { downloadAnswerJson } = await import('./export-actions');
+        downloadAnswerJson(readerAnswer, question);
+      },
+    },
+    {
+      label: 'Download PDF',
+      run: async () => {
+        const { downloadAnswerPdf } = await import('./export-actions');
+        await downloadAnswerPdf(readerAnswer, question);
+      },
+    },
+  ];
   return (
     <Card className="answer-card" id={id}>
       <CardHeader>
@@ -325,6 +369,16 @@ export function AnswerCard({
             </AlertDescription>
           </Alert>
         )}
+        <AnswerFigureSummary figures={readerAnswer.figures} />
+        {/* Exact requested rows come first; charts follow as the visual reading of
+            those rows. Business readers get the breakout they asked for, while an
+            executive can still scan the pattern without opening another control. */}
+        <AnswerEvidence
+          narrative={narrative}
+          content={content}
+          charts={readerAnswer.charts}
+          sources={readerAnswer.sources}
+        />
         <div className="answer-narrative">
           <AnswerProse
             text={narrative}
@@ -344,31 +398,6 @@ export function AnswerCard({
             />
           ) : null}
         </div>
-        {/* Charts XOR tables, which is the specification's rule and is about what
-            the reader is shown, not about what the answer is allowed to keep. One
-            representation of a set of numbers is evidence; the same numbers twice
-            is a reader checking a chart against a table instead of reading either.
-
-            So when this answer charted, the Markdown rows are FOLDED rather than
-            dropped. Two things made folding necessary instead of the plain `else`
-            this was:
-
-            1. A chart can fail to draw -- a chunk that 404s after a redeploy, a
-               spec Plotly refuses -- and the panel then said so into a card with
-               no figures anywhere in it. The evidence was gone and the answer
-               still read as answered. `chartsFailed` unfolds the rows.
-            2. A plot summarises. The two-panel rule pairs a full series with a
-               recent window, so the rows behind it can hold dates and values no
-               panel plots. A reader who wants those had nowhere to go.
-
-            Folded, so the card still reads as one piece of evidence. Reachable,
-            so nothing the agent measured is only in a picture. */}
-        <AnswerEvidence
-          narrative={narrative}
-          content={content}
-          charts={readerAnswer.charts}
-          sources={readerAnswer.sources}
-        />
         {afterEvidence}
         <SourcesModule
           sources={readerAnswer.sources}
@@ -554,32 +583,7 @@ export function AnswerCard({
                 {feedback.error}
               </span>
             )}
-            <ExportMenu
-              label="Export question and answer"
-              actions={[
-                {
-                  label: 'Copy Markdown',
-                  run: async () => {
-                    const { copyAnswerExport } = await import('./export-actions');
-                    await copyAnswerExport(question, readerAnswer);
-                  },
-                },
-                {
-                  label: 'Download Markdown',
-                  run: async () => {
-                    const { downloadAnswerMarkdown } = await import('./export-actions');
-                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
-                  },
-                },
-                {
-                  label: 'Download PDF',
-                  run: async () => {
-                    const { downloadAnswerPdf } = await import('./export-actions');
-                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
-                  },
-                },
-              ]}
-            />
+            <ExportMenu label="Export question and answer" actions={answerExportActions} />
           </div>
         ) : (
           <div className="feedback answer-export-only">
@@ -588,32 +592,7 @@ export function AnswerCard({
                 <Check /> Feedback saved
               </span>
             ) : null}
-            <ExportMenu
-              label="Export question and answer"
-              actions={[
-                {
-                  label: 'Copy Markdown',
-                  run: async () => {
-                    const { copyAnswerExport } = await import('./export-actions');
-                    await copyAnswerExport(question, readerAnswer);
-                  },
-                },
-                {
-                  label: 'Download Markdown',
-                  run: async () => {
-                    const { downloadAnswerMarkdown } = await import('./export-actions');
-                    downloadAnswerMarkdown(question, readerAnswer, exportLabel);
-                  },
-                },
-                {
-                  label: 'Download PDF',
-                  run: async () => {
-                    const { downloadAnswerPdf } = await import('./export-actions');
-                    await downloadAnswerPdf(question, readerAnswer, exportLabel);
-                  },
-                },
-              ]}
-            />
+            <ExportMenu label="Export question and answer" actions={answerExportActions} />
           </div>
         )}
       </CardContent>

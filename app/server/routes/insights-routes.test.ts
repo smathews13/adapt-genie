@@ -3072,6 +3072,34 @@ describe('GET /api/runs/:id/trace', () => {
     }
   });
 
+  it('carries stored breakout rows and headline figures into Run Explorer', async () => {
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    const base = servingResponses.liveAnswerResponse.custom_outputs.answer as Record<string, unknown>;
+    const content = [
+      '| Month | Franchise | Revenue | Returns |',
+      '| --- | --- | ---: | ---: |',
+      '| 2026-08 | GTA | $100 | $10 |',
+    ].join('\n');
+    const response = {
+      ...servingResponses.liveAnswerResponse,
+      custom_outputs: {
+        ...servingResponses.liveAnswerResponse.custom_outputs,
+        answer: { ...base, content },
+      },
+    };
+    const app = await startInsightsApp(() => Promise.resolve(response), memoryLakebase());
+
+    try {
+      const answered = await answeredRun(app, 'conv-trace-structured-answer');
+      const { body } = await app.runTrace(String(answered.id));
+
+      expect(body.content).toBe(content);
+      expect(body.figures).toEqual(base.figures);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('resolves both kinds of run by id, and only by id', () => {
     const message = RUN_TRACE_MESSAGE_QUERY.replace(/\s+/g, ' ');
     const benchmark = RUN_TRACE_BENCHMARK_QUERY.replace(/\s+/g, ' ');

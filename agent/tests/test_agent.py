@@ -472,6 +472,19 @@ def test_numeric_breakouts_require_rows_and_an_executive_figure():
         agent._submitted_synthesis(without_figures, question)
 
 
+def test_causal_grouped_metric_question_does_not_require_breakout_rows():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Regional mix explained 12% of the movement.",
+            "narrative": "- **Driver:** The change was concentrated in one region.",
+        },
+        "Why did revenue by region move?",
+    )
+
+    assert synthesis.content == ""
+    assert synthesis.figures == []
+
+
 @pytest.mark.parametrize(
     ("takeaway", "narrative"),
     [
@@ -2826,7 +2839,12 @@ def test_a_short_answer_is_still_allowed_to_stay_short():
 
 def test_requested_breakouts_require_tabular_content_at_the_requested_grain():
     assert "content MUST contain a Markdown table at the requested grain" in SYNTHESIS_INSTRUCTIONS
-    assert "never replace the requested matrix with bullets" in SYNTHESIS_INSTRUCTIONS
+    assert "never replace the requested matrix" in SYNTHESIS_INSTRUCTIONS
+    assert "with bullets" in SYNTHESIS_INSTRUCTIONS
+    assert (
+        'A causal "why" question that merely names a grouped metric is not such a request'
+        in SYNTHESIS_INSTRUCTIONS
+    )
     assert (
         "Otherwise include a Markdown table only when returned rows directly answer"
         in SYNTHESIS_INSTRUCTIONS

@@ -40,6 +40,7 @@ from charts import (
     chart_warranted,
     contrast_on_white,
     new_plot,
+    structured_breakout_requested,
 )
 
 # The palette the app retired. Named here rather than in the module so that deleting a
@@ -71,10 +72,26 @@ def test_visual_questions_warrant_a_chart(question):
         "What does net revenue mean?",
         "Which titles were affected by the outage?",
         "Was the decline caused by the system change?",
+        "Why did revenue by region move?",
     ],
 )
 def test_scalar_and_metadata_questions_skip_charting(question):
     assert not chart_warranted(question)
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("Break out revenue by region.", True),
+        ("Show revenue and returns by franchise.", True),
+        ("Please list sales by platform.", True),
+        ("Why did revenue by region move?", False),
+        ("Explain sales by platform after launch.", False),
+        ("Revenue by region", False),
+    ],
+)
+def test_only_explicit_grouping_requests_require_structured_breakout_rows(question, expected):
+    assert structured_breakout_requested(question) is expected
 
 
 def _bar(**overrides):

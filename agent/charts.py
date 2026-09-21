@@ -242,23 +242,36 @@ _CHART_GROUPING_RE = re.compile(
     rf"\b{_GROUPABLE_METRIC}(?:\s*(?:,|and|&)\s*{_GROUPABLE_METRIC})*\s+by\s+[\w`\"]+",
     re.IGNORECASE,
 )
+_STRUCTURED_GROUPING_PREFIX_RE = re.compile(
+    r"^\s*(?:(?:can|could|would)\s+you\s+|please\s+)?"
+    r"(?:show|list|give|provide|display|report|summari[sz]e)\b",
+    re.IGNORECASE,
+)
+_CAUSAL_QUESTION_RE = re.compile(
+    r"\b(?:why|explain|cause[ds]?|caused\s+by|drivers?|driven\s+by|reasons?)\b",
+    re.IGNORECASE,
+)
 
 
 def structured_breakout_requested(question: str) -> bool:
     """Whether the reader explicitly asked for grouped rows, not just a prose finding."""
 
     text = question or ""
-    return bool(_CHART_BREAKOUT_RE.search(text) or _CHART_GROUPING_RE.search(text))
+    return bool(
+        _CHART_BREAKOUT_RE.search(text)
+        or (_STRUCTURED_GROUPING_PREFIX_RE.search(text) and _CHART_GROUPING_RE.search(text))
+    )
 
 
 def chart_warranted(question: str) -> bool:
     """Whether the question asks for a visual or a genuinely visual comparison."""
 
+    text = question or ""
     return bool(
-        _CHART_REQUEST_RE.search(question or "")
-        or _CHART_ANALYSIS_RE.search(question or "")
-        or _CHART_CHANGE_RE.search(question or "")
-        or structured_breakout_requested(question)
+        _CHART_REQUEST_RE.search(text)
+        or _CHART_ANALYSIS_RE.search(text)
+        or _CHART_CHANGE_RE.search(text)
+        or (not _CAUSAL_QUESTION_RE.search(text) and _CHART_GROUPING_RE.search(text))
     )
 
 

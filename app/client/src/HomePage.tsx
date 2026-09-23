@@ -62,6 +62,10 @@ import {
   FileText,
   MessagesSquare,
   Paperclip,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   ShieldCheck,
   Trash2,
@@ -123,6 +127,7 @@ import {
 } from './live-ask';
 import { useAgentReadiness } from './agent-readiness';
 import { runStatusFor } from './run-status';
+import { paneStartsCollapsed, rememberPaneCollapsed } from './ask-pane-preferences';
 import { answerRunVerdict, completedWithGovernedRetries } from '../../shared/run-verdict';
 import { RunStatusPill } from './RunStatusPill';
 import {
@@ -501,6 +506,22 @@ export function HomePage() {
    * is hidden and its trigger is the rail.
    */
   const [railSheetOpen, setRailSheetOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(() => paneStartsCollapsed('rail'));
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(() => paneStartsCollapsed('inspector'));
+  const toggleRailCollapsed = useCallback(() => {
+    setRailCollapsed((collapsed) => {
+      const next = !collapsed;
+      rememberPaneCollapsed('rail', next);
+      return next;
+    });
+  }, []);
+  const toggleInspectorCollapsed = useCallback(() => {
+    setInspectorCollapsed((collapsed) => {
+      const next = !collapsed;
+      rememberPaneCollapsed('inspector', next);
+      return next;
+    });
+  }, []);
   const ownerPreferenceLoadedFor = useRef('');
   const [watchlist, setWatchlist] = useState<WatchlistTrendsResponse | null>(null);
   const [railSections, setRailSections] = useState<InsightRailSections>({ ...DEFAULT_INSIGHT_RAIL_SECTIONS });
@@ -1974,16 +1995,30 @@ export function HomePage() {
    */
   const renderRail = (scope: RailScope) => (
     <>
-      <Button
-        className="w-full justify-center"
-        onClick={() => {
-          setRailSheetOpen(false);
-          startNewConversation();
-          focusQuestionInput();
-        }}
-      >
-        <Plus /> New conversation
-      </Button>
+      <div className={scope === 'rail' ? 'rail-primary-actions' : undefined}>
+        <Button
+          className={scope === 'rail' ? 'rail-new-conversation justify-center' : 'w-full justify-center'}
+          onClick={() => {
+            setRailSheetOpen(false);
+            startNewConversation();
+            focusQuestionInput();
+          }}
+        >
+          <Plus /> New conversation
+        </Button>
+        {scope === 'rail' ? (
+          <button
+            type="button"
+            className="rail-collapse-toggle"
+            onClick={toggleRailCollapsed}
+            aria-expanded
+            aria-label="Hide conversation history"
+            title="Hide conversation history"
+          >
+            <PanelLeftClose aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
       <div className="conversation-rail-content">
         <p className="section-label">Conversations</p>
         {adminSharedRail && rail.owners.length > 0 ? (
@@ -2202,8 +2237,27 @@ export function HomePage() {
       className="ask-layout"
       data-transcript={transcriptEmpty ? 'empty' : 'active'}
       data-center-state={loading ? 'working' : conversationLoading ? 'restoring' : answer ? 'final' : 'idle'}
+      data-rail-collapsed={railCollapsed ? 'true' : 'false'}
+      data-inspector-collapsed={inspectorCollapsed ? 'true' : 'false'}
     >
-      <aside className="conversation-rail">{renderRail('rail')}</aside>
+      <aside className="conversation-rail" data-collapsed={railCollapsed ? 'true' : undefined}>
+        {railCollapsed ? (
+          <button
+            type="button"
+            className="rail-collapse-strip"
+            onClick={toggleRailCollapsed}
+            aria-expanded={false}
+            aria-label="Show conversation history"
+            title="Show conversation history"
+          >
+            <PanelLeftOpen aria-hidden="true" />
+            <span className="rail-collapse-strip-label">Conversations</span>
+            {rail.entries.length > 0 && <span className="rail-collapse-count">{rail.entries.length}</span>}
+          </button>
+        ) : (
+          renderRail('rail')
+        )}
+      </aside>
 
       {/* The sheet's trigger, drawn only below 800px, where the aside is not.
           responsive.css decides both, so the page cannot end up with two rails or
@@ -2621,138 +2675,168 @@ export function HomePage() {
       </div>
 
       {/* The insight rail is permanent business context for the governed space. */}
-      <aside className="trace-inspector insight-rail" aria-label="Insights">
-        <div className="insight-rail-head">
-          <div>
-            <p className="ast-eyebrow">Steam Sales &amp; Analytics</p>
-            <h3 className="insight-rail-title">{GENIE_SPACE_LABEL}</h3>
-          </div>
-        </div>
+      <aside
+        className="trace-inspector insight-rail"
+        aria-label="Insights"
+        data-collapsed={inspectorCollapsed ? 'true' : undefined}
+      >
+        {inspectorCollapsed ? (
+          <button
+            type="button"
+            className="inspector-collapse-strip"
+            onClick={toggleInspectorCollapsed}
+            aria-expanded={false}
+            aria-label="Show insights"
+            title="Show insights"
+          >
+            <PanelRightOpen aria-hidden="true" />
+            <span className="inspector-collapse-strip-label">Insights</span>
+          </button>
+        ) : (
+          <>
+            <div className="insight-rail-head">
+              <div>
+                <p className="ast-eyebrow">Steam Sales &amp; Analytics</p>
+                <h3 className="insight-rail-title">{GENIE_SPACE_LABEL}</h3>
+              </div>
+              <button
+                type="button"
+                className="inspector-collapse-toggle"
+                onClick={toggleInspectorCollapsed}
+                aria-expanded
+                aria-label="Hide insights"
+                title="Hide insights"
+              >
+                <PanelRightClose aria-hidden="true" />
+              </button>
+            </div>
 
-        {railSections.dataInScope ? (
-          <section className="insight-sec">
-            <p className="insight-sec-title">
-              <Database aria-hidden="true" /> Data in scope
-            </p>
-            {/* The real Unity Catalog tables this deployment tracks, off the same
+            {railSections.dataInScope ? (
+              <section className="insight-sec">
+                <p className="insight-sec-title">
+                  <Database aria-hidden="true" /> Data in scope
+                </p>
+                {/* The real Unity Catalog tables this deployment tracks, off the same
                 preflight report the status pill reads. The dot is the table's
                 reachability; a blocked or unchecked table says so in words too,
                 because a dot alone is a claim carried by colour. */}
-            {scopeLoading ? (
-              <AdaptLoader label="Checking the tables in scope" className="insight-note" />
-            ) : scopeTables.length > 0 ? (
-              scopeTables.map((table) => (
-                <div className="insight-table" key={table.name} title={table.name}>
-                  <span className={`insight-dot tone-${tableStatusTone(table.status)}`} aria-hidden="true" />
-                  <Suspense
-                    fallback={
-                      <span className="insight-table-link">
-                        <ExternalLink aria-hidden="true" />
-                        <code>{table.display.split('.').at(-1)}</code>
-                      </span>
-                    }
-                  >
-                    <VisitInDatabricks name={table.name} className="insight-table-link">
-                      <code>{table.display.split('.').at(-1)}</code>
-                    </VisitInDatabricks>
-                  </Suspense>
-                  {table.status !== 'ok' && (
-                    <span className="insight-rows">{table.status === 'failed' ? 'blocked' : 'not checked'}</span>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="insight-note">No tables reported in scope.</p>
-            )}
-            <Link className="insight-connections-link" to="/connections">
-              View all connections
-            </Link>
-          </section>
-        ) : null}
-
-        {railSections.watchlist ? (
-          <section className="insight-sec">
-            <div className="insight-sec-head">
-              <p className="insight-sec-title">Watchlist</p>
-              {watchlist && 'sourceTable' in watchlist && watchlist.sourceTable ? (
-                <Suspense fallback={null}>
-                  <VisitInDatabricks name={watchlist.sourceTable} className="insight-watch-source">
-                    Source table
-                  </VisitInDatabricks>
-                </Suspense>
-              ) : null}
-            </div>
-            {!watchlist ? <p className="insight-note">Reading sales trends…</p> : null}
-            {watchlist && watchlist.status !== 'ready' ? (
-              <p className="insight-note" role={watchlist.status === 'unavailable' ? 'alert' : undefined}>
-                {watchlist.detail}
-              </p>
-            ) : null}
-            {watchlist?.status === 'ready'
-              ? watchlist.trends.map((item) => {
-                  const display = watchlistTrendDisplay(item);
-                  return (
-                    <div className="insight-watch" key={item.title}>
-                      <span className="insight-watch-name">{item.title}</span>
-                      <span
-                        className={`insight-watch-val ast-num ${
-                          display.direction === 'up' ? 'up' : display.direction === 'down' ? 'dn' : ''
-                        }`}
-                        title={WATCHLIST_METRIC_DETAIL}
-                        aria-label={
-                          display.hasBaseline
-                            ? `${item.title}: ${display.text} ${WATCHLIST_METRIC_LABEL}`
-                            : `${item.title}: ${display.text} recent ${WATCHLIST_METRIC_LABEL}; prior-period baseline unavailable`
+                {scopeLoading ? (
+                  <AdaptLoader label="Checking the tables in scope" className="insight-note" />
+                ) : scopeTables.length > 0 ? (
+                  scopeTables.map((table) => (
+                    <div className="insight-table" key={table.name} title={table.name}>
+                      <span className={`insight-dot tone-${tableStatusTone(table.status)}`} aria-hidden="true" />
+                      <Suspense
+                        fallback={
+                          <span className="insight-table-link">
+                            <ExternalLink aria-hidden="true" />
+                            <code>{table.display.split('.').at(-1)}</code>
+                          </span>
                         }
                       >
-                        {!display.hasBaseline ? null : display.direction === 'up' ? (
-                          <TrendingUp aria-hidden="true" />
-                        ) : (
-                          <TrendingDown aria-hidden="true" />
-                        )}{' '}
-                        {display.text}
-                      </span>
+                        <VisitInDatabricks name={table.name} className="insight-table-link">
+                          <code>{table.display.split('.').at(-1)}</code>
+                        </VisitInDatabricks>
+                      </Suspense>
+                      {table.status !== 'ok' && (
+                        <span className="insight-rows">{table.status === 'failed' ? 'blocked' : 'not checked'}</span>
+                      )}
                     </div>
-                  );
-                })
-              : null}
-            {watchlist?.status === 'ready' ? (
-              <p className="insight-watch-meta">
-                {WATCHLIST_METRIC_DETAIL} · watched-title sales through{' '}
-                <span className="ast-num">{watchlist.asOfDate}</span>
-              </p>
+                  ))
+                ) : (
+                  <p className="insight-note">No tables reported in scope.</p>
+                )}
+                <Link className="insight-connections-link" to="/connections">
+                  View all connections
+                </Link>
+              </section>
             ) : null}
-          </section>
-        ) : null}
 
-        {railSections.answerConfidence ? (
-          <section className="insight-sec insight-confidence">
-            <p className="insight-sec-title">Answer confidence</p>
-            {/* Read off the preflight report's own checks and counts -- endpoint
+            {railSections.watchlist ? (
+              <section className="insight-sec">
+                <div className="insight-sec-head">
+                  <p className="insight-sec-title">Watchlist</p>
+                  {watchlist && 'sourceTable' in watchlist && watchlist.sourceTable ? (
+                    <Suspense fallback={null}>
+                      <VisitInDatabricks name={watchlist.sourceTable} className="insight-watch-source">
+                        Source table
+                      </VisitInDatabricks>
+                    </Suspense>
+                  ) : null}
+                </div>
+                {!watchlist ? <p className="insight-note">Reading sales trends…</p> : null}
+                {watchlist && watchlist.status !== 'ready' ? (
+                  <p className="insight-note" role={watchlist.status === 'unavailable' ? 'alert' : undefined}>
+                    {watchlist.detail}
+                  </p>
+                ) : null}
+                {watchlist?.status === 'ready'
+                  ? watchlist.trends.map((item) => {
+                      const display = watchlistTrendDisplay(item);
+                      return (
+                        <div className="insight-watch" key={item.title}>
+                          <span className="insight-watch-name">{item.title}</span>
+                          <span
+                            className={`insight-watch-val ast-num ${
+                              display.direction === 'up' ? 'up' : display.direction === 'down' ? 'dn' : ''
+                            }`}
+                            title={WATCHLIST_METRIC_DETAIL}
+                            aria-label={
+                              display.hasBaseline
+                                ? `${item.title}: ${display.text} ${WATCHLIST_METRIC_LABEL}`
+                                : `${item.title}: ${display.text} recent ${WATCHLIST_METRIC_LABEL}; prior-period baseline unavailable`
+                            }
+                          >
+                            {!display.hasBaseline ? null : display.direction === 'up' ? (
+                              <TrendingUp aria-hidden="true" />
+                            ) : (
+                              <TrendingDown aria-hidden="true" />
+                            )}{' '}
+                            {display.text}
+                          </span>
+                        </div>
+                      );
+                    })
+                  : null}
+                {watchlist?.status === 'ready' ? (
+                  <p className="insight-watch-meta">
+                    {WATCHLIST_METRIC_DETAIL} · watched-title sales through{' '}
+                    <span className="ast-num">{watchlist.asOfDate}</span>
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            {railSections.answerConfidence ? (
+              <section className="insight-sec insight-confidence">
+                <p className="insight-sec-title">Answer confidence</p>
+                {/* Read off the preflight report's own checks and counts -- endpoint
                 reachability, how many tracked tables are reachable, the freshest
                 content timestamp any of them reported, and who the checks ran as.
                 A signal the report did not carry is a line this does not draw. */}
-            {scopeLoading ? (
-              <AdaptLoader label="Checking data sources" className="insight-note" />
-            ) : scopeConfidence.length > 0 ? (
-              scopeConfidence.map((line) => (
-                <div className="insight-trust" key={line.text}>
-                  {line.tone === 'ok' ? (
-                    <ShieldCheck className="insight-trust-ok" aria-hidden="true" />
-                  ) : (
-                    <CircleAlert
-                      className={line.tone === 'neg' ? 'insight-trust-neg' : 'insight-trust-warn'}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span>{line.text}</span>
-                </div>
-              ))
-            ) : (
-              <p className="insight-note">Confidence unavailable — the preflight report could not be read.</p>
-            )}
-          </section>
-        ) : null}
+                {scopeLoading ? (
+                  <AdaptLoader label="Checking data sources" className="insight-note" />
+                ) : scopeConfidence.length > 0 ? (
+                  scopeConfidence.map((line) => (
+                    <div className="insight-trust" key={line.text}>
+                      {line.tone === 'ok' ? (
+                        <ShieldCheck className="insight-trust-ok" aria-hidden="true" />
+                      ) : (
+                        <CircleAlert
+                          className={line.tone === 'neg' ? 'insight-trust-neg' : 'insight-trust-warn'}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span>{line.text}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="insight-note">Confidence unavailable — the preflight report could not be read.</p>
+                )}
+              </section>
+            ) : null}
+          </>
+        )}
       </aside>
     </div>
   );

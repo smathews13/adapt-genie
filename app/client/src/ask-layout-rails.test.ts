@@ -40,11 +40,26 @@ describe('the two rails share one width and the card sits in the middle', () => 
     expect(HOME).toContain('className="trace-inspector insight-rail"');
   });
 
-  it('keeps Insights permanently visible with a deliberate inner border', () => {
+  it('uses PIA panel icons to collapse both rails without removing their boundaries', () => {
     expect(HOME).not.toContain('railHidden');
-    expect(HOME).not.toContain('Hide the insights panel');
+    expect(HOME).toContain('PanelLeftClose');
+    expect(HOME).toContain('PanelLeftOpen');
+    expect(HOME).toContain('PanelRightClose');
+    expect(HOME).toContain('PanelRightOpen');
+    expect(HOME).toContain('aria-label="Hide conversation history"');
+    expect(HOME).toContain('aria-label="Show conversation history"');
+    expect(HOME).toContain('aria-label="Hide insights"');
+    expect(HOME).toContain('aria-label="Show insights"');
+    expect(HOME).toContain("data-rail-collapsed={railCollapsed ? 'true' : 'false'}");
+    expect(HOME).toContain("data-inspector-collapsed={inspectorCollapsed ? 'true' : 'false'}");
     expect(INSIGHTS).not.toContain('.ask-layout.rail-hidden');
     expect(INSIGHTS).toMatch(/\.trace-inspector\.insight-rail\s*\{[^}]*border-left:\s*1px solid/);
+    expect(RAIL).toMatch(
+      /\.ask-layout\[data-rail-collapsed='true'\]\s*\{[^}]*--conversation-width:\s*var\(--ask-pane-collapsed-width\)/
+    );
+    expect(RAIL).toMatch(
+      /\.ask-layout\[data-inspector-collapsed='true'\]\s*\{[^}]*grid-template-columns:[^}]*var\(--ask-pane-collapsed-width\)/
+    );
   });
 
   it('centres the answer and working cards in the leftover track', () => {

@@ -91,7 +91,7 @@ describe('primary surface occlusion', () => {
     expect(monitoring).toContain('monitoring-list-pane ast-surface-primary');
 
     const home = source('HomePage.tsx');
-    expect(home).toContain('<aside className="conversation-rail">');
+    expect(home).toContain('className="conversation-rail"');
     expect(home).toContain('className={`conversation-row');
     expect(bodyFor(partial('rail.css'), '.conversation-rail')).toMatch(/background:\s*var\(--background\)/);
   });

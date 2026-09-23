@@ -48,6 +48,7 @@
   --trace-width: 320px;
   --conversation-expanded-width: 290px;
   --conversation-width: var(--conversation-expanded-width);
+  --ask-pane-collapsed-width: 44px;
   grid-template-columns: var(--conversation-width) minmax(0, 1fr) var(--trace-width);
   grid-template-rows: auto;
   min-height: calc(100vh - var(--app-header-h));
@@ -1226,4 +1227,115 @@ html:not([data-theme='dark']) .trace-inspector .run-status--dark.is-live {
   border-color: transparent;
   background: var(--ast-live-fill);
   color: var(--ast-white);
+}
+
+/*
+ * COLLAPSIBLE SIDE RAILS.
+ *
+ * The conversation and insight rails use PIA's 44px vertical-strip pattern.
+ * Responsive rules still decide when a rail is removed entirely.
+ */
+.ask-layout[data-rail-collapsed='true'] {
+  --conversation-width: var(--ask-pane-collapsed-width);
+}
+.ask-layout[data-inspector-collapsed='true'] {
+  grid-template-columns: var(--conversation-width) minmax(0, 1fr) var(--ask-pane-collapsed-width);
+}
+.conversation-rail[data-collapsed='true'],
+.trace-inspector[data-collapsed='true'] {
+  align-items: center;
+  gap: 8px;
+  padding-right: 4px;
+  padding-left: 4px;
+}
+.rail-collapse-strip,
+.inspector-collapse-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ast-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.rail-collapse-strip svg,
+.inspector-collapse-strip svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.rail-collapse-strip-label,
+.inspector-collapse-strip-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  letter-spacing: var(--ast-tracking-eyebrow);
+  text-transform: uppercase;
+}
+.rail-collapse-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--ast-surface-sunken);
+  color: var(--ast-text-secondary);
+  font-size: var(--ast-fs-11);
+  font-weight: 700;
+  text-align: center;
+}
+.rail-collapse-strip:hover,
+.rail-collapse-strip:focus-visible,
+.inspector-collapse-strip:hover,
+.inspector-collapse-strip:focus-visible {
+  background: var(--ast-control-hover);
+  color: var(--foreground);
+}
+.rail-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.rail-new-conversation {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rail-collapse-toggle,
+.inspector-collapse-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ast-radius-control);
+  background: transparent;
+  color: var(--ast-text-secondary);
+  cursor: pointer;
+}
+.rail-collapse-toggle svg,
+.inspector-collapse-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+.rail-collapse-toggle:hover,
+.rail-collapse-toggle:focus-visible,
+.inspector-collapse-toggle:hover,
+.inspector-collapse-toggle:focus-visible {
+  background: var(--ast-control-hover);
+  color: var(--foreground);
+}
+.rail-collapse-strip:focus-visible,
+.inspector-collapse-strip:focus-visible,
+.rail-collapse-toggle:focus-visible,
+.inspector-collapse-toggle:focus-visible {
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
 }

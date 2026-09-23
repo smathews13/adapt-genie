@@ -1654,7 +1654,7 @@
   color: var(--ast-text-secondary);
 }
 .trace-dag.map .dag-sql-copy:hover {
-  background: color-mix(in srgb, var(--ast-blue) 8%, transparent);
+  background: var(--ast-action-tint);
 }
 .trace-dag.map .dag-sql-copy > svg {
   width: 13px;

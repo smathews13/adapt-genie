@@ -407,7 +407,7 @@ describe('the panel that draws the notice', () => {
     expect(rule).toMatch(/border-radius: var\(--radius-md\)/);
     expect(rule).toMatch(/background: var\(--card\)/);
     // And the edge is still the red one, from the rule this one narrows.
-    expect(ALERTS).toMatch(/border-color: color-mix\(in oklab, var\(--db-red-600\) 40%/);
+    expect(ALERTS).toMatch(/border-color:\s*var\(--ast-negative-border\)/);
   });
 
   it('takes the live region from the notice rather than choosing one for itself', () => {

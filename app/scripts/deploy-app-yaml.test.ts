@@ -44,6 +44,26 @@ describe('ADAPT deploy app.yaml generation', () => {
     expect(generated).toContain('valueFrom: postgres');
     expect(generated).toContain('valueFrom: serving-endpoint');
     expect(generated).toContain('valueFrom: sql-warehouse');
+    expect(generated).not.toMatch(/valueFrom: slack-(?:app-token|bot-token|client-secret|signing-secret)/);
+  });
+
+  it('keeps Slack customer-neutral, disabled, and kill-switched in the Git artifact', () => {
+    const generated = renderDeployAppYaml(authored, DEPLOY_OVERRIDES);
+    expect(generated).toMatch(/name: SLACK_ADAPTER_ENABLED\n\s+value: 'false'/);
+    expect(generated).toMatch(/name: SLACK_ADAPTER_KILL_SWITCH\n\s+value: 'true'/);
+    expect(generated).toMatch(
+      /name: SLACK_ADAPTER_OAUTH_SCOPES\n\s+value: 'all-apis offline_access openid profile email'/
+    );
+    for (const name of [
+      'SLACK_ADAPTER_ALLOWED_TEAM_ID',
+      'SLACK_ADAPTER_TEST_REGISTRATION_ID',
+      'SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID',
+      'SLACK_ADAPTER_DATABRICKS_WORKSPACE',
+      'SLACK_ADAPTER_OAUTH_CLIENT_ID',
+    ]) {
+      expect(generated).toMatch(new RegExp(`name: ${name}\\n\\s+value: ''`));
+    }
+    expect(generated).not.toMatch(/xox[baprs]-|xapp-|dapi[A-Za-z0-9]/);
   });
 
   it('ships the exact Git-deploy OAuth fallback without retired search scopes', () => {

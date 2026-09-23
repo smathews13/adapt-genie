@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
+import { DEFAULT_RUNTIME_SETTINGS, parsePersistedRuntimeSettings } from '../../shared/runtime-settings-browser';
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
+import { cacheRuntimeAppearance, previewRuntimeAppearance } from './runtime-entity-styles';
 import { Button } from './ui';
 
 export function ResetPreferencesButton() {
@@ -12,8 +14,14 @@ export function ResetPreferencesButton() {
     setMessage('');
     try {
       const response = await fetch('/api/preferences/reset', { method: 'POST' });
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+        runtime?: { settings?: unknown };
+      };
       if (!response.ok) throw new Error(body.detail || `Settings reset answered ${response.status}.`);
+      const resetSettings = parsePersistedRuntimeSettings(body.runtime?.settings) ?? DEFAULT_RUNTIME_SETTINGS;
+      cacheRuntimeAppearance(resetSettings);
+      previewRuntimeAppearance(resetSettings);
       setState('saved');
       setMessage('Default settings restored. Reloading…');
       window.setTimeout(() => window.location.reload(), 250);

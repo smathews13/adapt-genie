@@ -112,7 +112,7 @@ describe('Settings modal', () => {
     );
     expect(SETTINGS_STYLES).toMatch(/\.settings-rail button:disabled \{[^}]*color:\s*var\(--muted-foreground\)/s);
     expect(SETTINGS_STYLES).toMatch(
-      /\.settings-rail button\.active \{[^}]*background:\s*var\(--card\)[^}]*color:\s*var\(--foreground\)/s
+      /\.settings-rail button\.active \{[^}]*background:\s*var\(--ast-surface-selected\)[^}]*color:\s*var\(--foreground\)/s
     );
     expect(SETTINGS_RESPONSIVE_STYLES).toMatch(
       /@media \(max-width:\s*800px\)[\s\S]*?\.settings-rail \{[^}]*display:\s*flex[^}]*overflow-x:\s*auto[\s\S]*?\.settings-rail button \{[^}]*flex:\s*none[^}]*white-space:\s*nowrap/

@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { FIGURE_CONFIG, layoutFigure, type ChartTheme, type FigureSpec } from './plotly-config';
 
 const LIGHT: ChartTheme = {
-  ink: '#161616',
-  muted: '#6f6f6f',
-  grid: '#ebebeb',
+  ink: '#0e1720',
+  muted: '#6b7a87',
+  grid: '#edf1f4',
   surface: '#ffffff',
-  accent: '#2272b4',
-  second: '#04867d',
-  third: '#4299e0',
-  fourth: '#445461',
+  accent: '#1a62a8',
+  second: '#0f6257',
+  third: '#8a5a00',
+  fourth: '#4c5c68',
   mono: "'DM Mono', monospace",
 };
 

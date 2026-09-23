@@ -72,11 +72,11 @@ describe('Run Explorer filter geometry', () => {
       rule(BASE, '.app-select-trigger:focus-visible'),
     ];
     expect(interactive[0]).toContain('border-color: var(--primary)');
-    expect(interactive[0]).toContain('background: color-mix(in srgb, var(--background) 94%, var(--primary))');
+    expect(interactive[0]).toContain('background: var(--ast-control-hover)');
     expect(BASE).toMatch(
-      /\.app-select-trigger\[data-state='open'\]:not\(:disabled\)\s*\{\s*background:\s*color-mix\(in srgb, var\(--background\) 88%, var\(--primary\)\)/
+      /\.app-select-trigger\[data-state='open'\]:not\(:disabled\)\s*\{\s*background:\s*var\(--ast-control-active\)/
     );
-    expect(interactive[1]).toContain('box-shadow: 0 0 0 2px');
+    expect(interactive[1]).toContain('outline: 2px solid var(--ast-action)');
     for (const state of interactive) expect(state).not.toMatch(/(?:padding|margin|width|height|font-weight):/);
 
     const disabled = rule(BASE, '.app-select-trigger:disabled,\n.app-select-trigger[data-disabled]');
@@ -99,10 +99,10 @@ describe('Run Explorer filter geometry', () => {
   });
 
   it('stacks both full-width filters with the tablet Run Explorer layout', () => {
-    const narrow = RESPONSIVE.slice(RESPONSIVE.indexOf('@media (max-width: 1180px)'));
+    const narrow = RESPONSIVE.slice(RESPONSIVE.indexOf('@media (max-width: 1240px)'));
     expect(narrow).toMatch(/\.run-list-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
     expect(narrow).toMatch(/\.run-filter-field,[\s\S]*?width:\s*100%/);
-    expect(RESPONSIVE).not.toMatch(/@media \(max-width: (?!1365|1180|800|480)\d+px\)/);
+    expect(RESPONSIVE).not.toMatch(/@media \(max-width: (?!1365|1240|800|480)\d+px\)/);
   });
 
   it('clearing one filter leaves the other filter and search in force', () => {

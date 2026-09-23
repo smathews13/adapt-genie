@@ -21,7 +21,17 @@ const SESSION_ID_BYTES = 32;
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 /** Executable compatibility header shared with deployed clients. */
 const MUTATION_HEADER = 'x-astrolabe-session-action';
-const EXEMPT_API_PATHS = new Set(['/api/app-session/bootstrap', '/api/app-session/end', '/api/health', '/api/storage']);
+const EXEMPT_API_PATHS = new Set([
+  '/api/app-session/bootstrap',
+  '/api/app-session/end',
+  '/api/health',
+  '/api/storage',
+  // Users arrive here from Slack and return from Databricks OAuth before the
+  // browser has bootstrapped ADAPT's idle-session cookie. Databricks Apps proxy
+  // identity and each route's one-time state checks still apply.
+  '/api/slack/link',
+  '/api/slack/oauth/callback',
+]);
 
 export interface IdleTimeoutConfig {
   enabled: boolean;

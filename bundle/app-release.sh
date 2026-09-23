@@ -342,6 +342,30 @@ fi
 ADMIN_EMAILS="${PLAYER_INSIGHTS_ADMIN_EMAILS:-$(bundle_var_or_empty admin_emails)}"
 ADAPT_ADMIN_GROUP="$(bundle_var app_admin_group)"
 ADAPT_USER_GROUP="$(bundle_var app_user_group)"
+# Optional Slack non-secret target configuration. Values remain empty and inert
+# unless the git-ignored target override supplies them. Secret values are never
+# read here; Databricks Apps resolves valueFrom bindings at runtime.
+SLACK_ADAPTER_ENVIRONMENT="$(bundle_var_or_empty slack_adapter_environment)"
+SLACK_ADAPTER_ENABLED="$(bundle_var_or_empty slack_adapter_enabled)"
+SLACK_ADAPTER_KILL_SWITCH="$(bundle_var_or_empty slack_adapter_kill_switch)"
+SLACK_ADAPTER_ALLOWED_TEAM_ID="$(bundle_var_or_empty slack_adapter_allowed_team_id)"
+SLACK_ADAPTER_TEST_REGISTRATION_ID="$(bundle_var_or_empty slack_adapter_test_registration_id)"
+SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID="$(bundle_var_or_empty slack_adapter_production_registration_id)"
+SLACK_ADAPTER_DATABRICKS_WORKSPACE="$(bundle_var_or_empty slack_adapter_databricks_workspace)"
+SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE="$(bundle_var_or_empty slack_adapter_oauth_expected_audience)"
+SLACK_ADAPTER_OAUTH_CLIENT_ID="$(bundle_var_or_empty slack_adapter_oauth_client_id)"
+SLACK_ADAPTER_OAUTH_SCOPES="$(bundle_var slack_adapter_oauth_scopes)"
+SLACK_ADAPTER_OAUTH_CALLBACK_URL="$(bundle_var_or_empty slack_adapter_oauth_callback_url)"
+SLACK_ADAPTER_PUBLIC_BASE_URL="$(bundle_var_or_empty slack_adapter_public_base_url)"
+SLACK_ADAPTER_TOKEN_BROKER_REF="$(bundle_var_or_empty slack_adapter_token_broker_ref)"
+SLACK_ADAPTER_GLOBAL_CONCURRENCY="$(bundle_var_or_empty slack_adapter_global_concurrency)"
+SLACK_ADAPTER_WORKSPACE_CONCURRENCY="$(bundle_var_or_empty slack_adapter_workspace_concurrency)"
+SLACK_ADAPTER_USER_CONCURRENCY="$(bundle_var_or_empty slack_adapter_user_concurrency)"
+SLACK_ADAPTER_CONVERSATION_CONCURRENCY="$(bundle_var_or_empty slack_adapter_conversation_concurrency)"
+SLACK_ADAPTER_GLOBAL_PER_MINUTE="$(bundle_var_or_empty slack_adapter_global_per_minute)"
+SLACK_ADAPTER_WORKSPACE_PER_MINUTE="$(bundle_var_or_empty slack_adapter_workspace_per_minute)"
+SLACK_ADAPTER_USER_PER_MINUTE="$(bundle_var_or_empty slack_adapter_user_per_minute)"
+SLACK_ADAPTER_CONVERSATION_PER_MINUTE="$(bundle_var_or_empty slack_adapter_conversation_per_minute)"
 if [[ -n "$ADMIN_EMAILS" ]]; then
   note "administrators       $ADMIN_EMAILS"
 else
@@ -414,6 +438,27 @@ step "Building the dependency-free deploy tree"
      ADAPT_USER_GROUP="$ADAPT_USER_GROUP" \
      ADAPT_ADMIN_GROUP_LABEL="$ADAPT_ADMIN_GROUP" \
      ADAPT_USER_GROUP_LABEL="$ADAPT_USER_GROUP" \
+     SLACK_ADAPTER_ENVIRONMENT="$SLACK_ADAPTER_ENVIRONMENT" \
+     SLACK_ADAPTER_ENABLED="$SLACK_ADAPTER_ENABLED" \
+     SLACK_ADAPTER_KILL_SWITCH="$SLACK_ADAPTER_KILL_SWITCH" \
+     SLACK_ADAPTER_ALLOWED_TEAM_ID="$SLACK_ADAPTER_ALLOWED_TEAM_ID" \
+     SLACK_ADAPTER_TEST_REGISTRATION_ID="$SLACK_ADAPTER_TEST_REGISTRATION_ID" \
+     SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID="$SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID" \
+     SLACK_ADAPTER_DATABRICKS_WORKSPACE="$SLACK_ADAPTER_DATABRICKS_WORKSPACE" \
+     SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE="$SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE" \
+     SLACK_ADAPTER_OAUTH_CLIENT_ID="$SLACK_ADAPTER_OAUTH_CLIENT_ID" \
+     SLACK_ADAPTER_OAUTH_SCOPES="$SLACK_ADAPTER_OAUTH_SCOPES" \
+     SLACK_ADAPTER_OAUTH_CALLBACK_URL="$SLACK_ADAPTER_OAUTH_CALLBACK_URL" \
+     SLACK_ADAPTER_PUBLIC_BASE_URL="$SLACK_ADAPTER_PUBLIC_BASE_URL" \
+     SLACK_ADAPTER_TOKEN_BROKER_REF="$SLACK_ADAPTER_TOKEN_BROKER_REF" \
+     SLACK_ADAPTER_GLOBAL_CONCURRENCY="$SLACK_ADAPTER_GLOBAL_CONCURRENCY" \
+     SLACK_ADAPTER_WORKSPACE_CONCURRENCY="$SLACK_ADAPTER_WORKSPACE_CONCURRENCY" \
+     SLACK_ADAPTER_USER_CONCURRENCY="$SLACK_ADAPTER_USER_CONCURRENCY" \
+     SLACK_ADAPTER_CONVERSATION_CONCURRENCY="$SLACK_ADAPTER_CONVERSATION_CONCURRENCY" \
+     SLACK_ADAPTER_GLOBAL_PER_MINUTE="$SLACK_ADAPTER_GLOBAL_PER_MINUTE" \
+     SLACK_ADAPTER_WORKSPACE_PER_MINUTE="$SLACK_ADAPTER_WORKSPACE_PER_MINUTE" \
+     SLACK_ADAPTER_USER_PER_MINUTE="$SLACK_ADAPTER_USER_PER_MINUTE" \
+     SLACK_ADAPTER_CONVERSATION_PER_MINUTE="$SLACK_ADAPTER_CONVERSATION_PER_MINUTE" \
      PLAYER_INSIGHTS_APP_SCHEMA="$LAKEBASE_APP_SCHEMA" \
      npm run build:deploy)
 

@@ -79,11 +79,152 @@ p {
 }
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 svg {
   flex: none;
+}
+
+/* Shared ADAPT controls. AppKit remains responsible for behavior and sizing
+   variants; this layer owns the stable visual recipe. */
+[data-slot='button'] {
+  border-radius: var(--ast-radius-control);
+  font-size: var(--ast-type-control);
+  font-weight: 600;
+  opacity: 1;
+}
+
+[data-slot='button'][data-variant='default'],
+[data-slot='button'][data-variant='primary'] {
+  border: 1px solid var(--ast-action);
+  background: var(--ast-action);
+  color: var(--ast-action-ink-on-fill);
+}
+
+[data-slot='button'][data-variant='default']:hover:not(:disabled),
+[data-slot='button'][data-variant='primary']:hover:not(:disabled) {
+  border-color: var(--ast-action-hover);
+  background: var(--ast-action-hover);
+  color: var(--ast-action-ink-on-fill);
+}
+
+[data-slot='button'][data-variant='outline'],
+[data-slot='button'][data-variant='secondary'] {
+  border: 1px solid var(--ast-border-input);
+  background: var(--ast-surface);
+  color: var(--ast-ink);
+}
+
+[data-slot='button'][data-variant='outline']:hover:not(:disabled),
+[data-slot='button'][data-variant='secondary']:hover:not(:disabled),
+[data-slot='button'][data-variant='ghost']:hover:not(:disabled) {
+  border-color: var(--ast-action-edge);
+  background: var(--ast-control-hover);
+  color: var(--ast-action-hover);
+}
+
+[data-slot='button'][data-variant='destructive'],
+[data-slot='button'][data-variant='danger'] {
+  border: 1px solid var(--ast-danger-fill);
+  background: var(--ast-danger-fill);
+  color: var(--ast-danger-ink);
+}
+
+[data-slot='button'][data-variant='destructive']:hover:not(:disabled),
+[data-slot='button'][data-variant='danger']:hover:not(:disabled) {
+  border-color: var(--ast-danger-hover);
+  background: var(--ast-danger-hover);
+  color: var(--ast-danger-ink);
+}
+
+[data-slot='button']:disabled,
+[data-slot='button'][data-disabled] {
+  border-color: var(--ast-hairline-strong);
+  background: var(--ast-neutral-fill);
+  color: var(--ast-ink-disabled);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+[data-slot='card'] {
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface);
+  box-shadow: var(--ast-shadow-flat);
+}
+
+[data-slot='input'],
+[data-slot='textarea'],
+input:not([type='checkbox'], [type='radio'], [type='file'], [type='hidden']),
+textarea,
+select {
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-surface);
+  color: var(--ast-ink);
+  font-size: var(--ast-type-control);
+  opacity: 1;
+}
+
+[data-slot='input']::placeholder,
+[data-slot='textarea']::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--ast-ink-tertiary);
+}
+
+[data-slot='input']:disabled,
+[data-slot='textarea']:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  border-color: var(--ast-hairline-strong);
+  background: var(--ast-neutral-fill);
+  color: var(--ast-ink-disabled);
+  opacity: 1;
+}
+
+/* Page tabs reserve their underline in every state. */
+[data-slot='tabs-list'] {
+  gap: 4px;
+  border-bottom: 1px solid var(--ast-hairline);
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-slot='tabs-trigger'] {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ast-ink-secondary);
+  font-size: var(--ast-type-control);
+}
+
+[data-slot='tabs-trigger']:hover {
+  border-bottom-color: var(--ast-action-edge);
+  color: var(--ast-ink);
+}
+
+[data-slot='tabs-trigger'][data-state='active'] {
+  border-bottom-color: var(--ast-action);
+  background: var(--ast-action);
+  color: var(--ast-action-ink-on-fill);
+}
+
+/* Switch behavior and geometry stay with AppKit and their local seats. */
+[data-slot='switch'] {
+  background: var(--ast-neutral-border);
+}
+
+[data-slot='switch'][data-state='checked'] {
+  background: var(--ast-action);
+}
+
+[data-slot='switch-thumb'] {
+  background: var(--ast-surface);
 }
 
 /* A neutral tool-call mark shared by Run Explorer, Answer and Monitoring.
@@ -208,16 +349,17 @@ svg {
 .app-select-trigger:hover:not(:disabled),
 .app-select-trigger[data-state='open']:not(:disabled) {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--background) 94%, var(--primary));
+  background: var(--ast-control-hover);
   color: var(--ast-text);
 }
 .app-select-trigger[data-state='open']:not(:disabled) {
-  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+  background: var(--ast-control-active);
 }
 .app-select-trigger:focus-visible {
   border-color: var(--primary);
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 36%, transparent);
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 .app-select-trigger:disabled,
 .app-select-trigger[data-disabled] {
@@ -383,7 +525,6 @@ svg {
   cursor: pointer;
 }
 .export-menu-item:is(:hover, :focus-visible) {
-  outline: none;
   background: var(--db-hover-tint);
 }
 .export-menu-item:disabled {
@@ -412,7 +553,6 @@ svg {
 }
 .app-menu-option:is(:hover, :focus-visible),
 .app-menu-option[data-highlighted] {
-  outline: none;
   background: var(--db-hover-tint);
   color: var(--ast-text);
 }
@@ -532,6 +672,7 @@ svg {
  * would use if it were pressed.
  */
 :focus-visible {
-  outline: 2px solid var(--ast-blue);
+  outline: 2px solid var(--ast-action);
   outline-offset: 2px;
+  box-shadow: none;
 }

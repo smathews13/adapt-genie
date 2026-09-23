@@ -381,7 +381,7 @@
  * chip inside a table or a row, and this is a statement above a heading.
  */
 .provenance-chip {
-  border-radius: 999px;
+  border-radius: var(--ast-radius-pill);
   padding: 2px 10px;
   font-size: var(--ast-fs-11);
   font-weight: 500;
@@ -420,10 +420,10 @@
  */
 .answer-card [data-slot='badge'].provenance-chip[data-tone='failed'],
 .provenance-chip[data-tone='failed'] {
-  background: color-mix(in oklab, var(--ast-navy) 72%, var(--ast-neg-text));
-  background-color: color-mix(in oklab, var(--ast-navy) 72%, var(--ast-neg-text));
-  border: 1px solid color-mix(in oklab, var(--ast-navy) 55%, var(--ast-neg-text));
-  color: var(--ast-ice);
+  background: var(--ast-negative-fill);
+  background-color: var(--ast-negative-fill);
+  border: 1px solid var(--ast-negative-border);
+  color: var(--ast-negative-text);
 }
 /* The plan's state: warning while it waits on a decision, positive once it has
    one. Both colours and the whole of the box come from `.ast-pill` and the
@@ -639,7 +639,7 @@
  */
 .answer-takeaway {
   padding-inline: 20px;
-  font-size: calc(var(--ast-fs-16) + 0.5px);
+  font-size: var(--ast-type-card);
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -664,7 +664,7 @@
      on their own rungs. */
   color: var(--ast-text-long);
   text-wrap: pretty;
-  font-size: var(--ast-fs-14);
+  font-size: var(--ast-type-body);
   line-height: 1.5;
 }
 .answer-prose > * {

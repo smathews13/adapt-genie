@@ -1,0 +1,12 @@
+{
+  "esiTicket": "REQUIRED",
+  "changeTicket": "REQUIRED",
+  "egressApproved": false,
+  "overlayReviewed": false,
+  "brokerImplementation": "REQUIRED",
+  "verifierStoreImplementation": "REQUIRED",
+  "linkWriterImplementation": "REQUIRED",
+  "protocolSecurityReview": "REQUIRED",
+  "securityOwner": "REQUIRED",
+  "incidentOwner": "REQUIRED"
+}

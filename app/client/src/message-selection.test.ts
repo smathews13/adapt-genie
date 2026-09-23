@@ -71,9 +71,9 @@ describe('selection is styled per surface, because each inverts its own fill', (
     // near-opaque gray and the pair had to turn over with it, or the selection
     // would have been near-white on near-white -- the original bug, restaged.
     expect(ruleFor('.question-attribution-message::selection')).toContain('var(--db-ink)');
-    expect(ruleFor('.question-attribution-message::selection')).toContain('#ffffff');
+    expect(ruleFor('.question-attribution-message::selection')).toContain('var(--ast-action-ink-on-fill)');
     expect(ruleFor('.answer-card::selection')).toContain('var(--db-ink)');
-    expect(ruleFor('.answer-card::selection')).toContain('#ffffff');
+    expect(ruleFor('.answer-card::selection')).toContain('var(--ast-action-ink-on-fill)');
   });
 });
 

@@ -85,7 +85,7 @@ describe('the shared question attribution bubble', () => {
     expect(host).toContain('margin-bottom: 22px');
     expect(host).not.toMatch(/\b(?:position|transform|top)\s*:/);
     expect(source('styles/responsive.css')).toMatch(
-      /@media \(max-width: 1180px\)[\s\S]*\.conversation-main\s*\{[^}]*--question-stagger:\s*0px/
+      /@media \(max-width: 1240px\)[\s\S]*\.conversation-main\s*\{[^}]*--question-stagger:\s*0px/
     );
   });
 

@@ -62,9 +62,84 @@
  * are live.
  */
 
-:root,
-:root:not(.light),
-.dark {
+:root {
+  color-scheme: light;
+
+  /* ---- Canonical light-mode vocabulary (implementation spec §3) ---- */
+  --ast-canvas: #f4f7f9;
+  --ast-surface: #ffffff;
+  --ast-surface-sunken: #f0f4f7;
+  --ast-surface-raised: #ffffff;
+  --ast-surface-selected: #edf3f9;
+  --ast-scrim: rgba(23, 34, 44, 0.45);
+
+  --ast-ink: #0e1720;
+  --ast-ink-secondary: #4c5c68;
+  --ast-ink-tertiary: #64737f;
+  --ast-ink-disabled: #9aa7b2;
+
+  --ast-action: #1a62a8;
+  --ast-action-hover: #14507f;
+  --ast-action-ink-on-fill: #ffffff;
+  --ast-action-tint: #e8f1fa;
+  --ast-action-edge: #bbd6f0;
+  --ast-focus-halo: rgba(26, 98, 168, 0.28);
+  --ast-control-hover: var(--ast-action-tint);
+  --ast-control-active: var(--ast-surface-selected);
+  --ast-focus-ring: 0 0 0 3px var(--ast-focus-halo);
+
+  --ast-positive-text: #0f6257;
+  --ast-positive-border: #a8d5cd;
+  --ast-positive-fill: #eaf6f3;
+  --ast-warning-text: #8a5a00;
+  --ast-warning-border: #e6ce9a;
+  --ast-warning-fill: #fdf6e8;
+  --ast-negative-text: #a21f35;
+  --ast-negative-border: #edbfc8;
+  --ast-negative-fill: #fcf1f3;
+  --ast-neutral-text: #4c5c68;
+  --ast-neutral-border: #dce3e9;
+  --ast-neutral-fill: #f2f5f8;
+  --ast-info-text: #1a5b8f;
+  --ast-info-border: #bbd6f0;
+  --ast-info-fill: #e8f1fa;
+  --ast-provenance-text: #7a5a11;
+  --ast-provenance-border: #e4d3a6;
+  --ast-provenance-fill: #fbf5e6;
+
+  --ast-danger-fill: #c2263f;
+  --ast-danger-hover: #a61e34;
+  --ast-danger-ink: #ffffff;
+
+  --ast-hairline: #e2e8ed;
+  --ast-hairline-strong: #cfd9e0;
+  --ast-border-input: #c9d3db;
+  --ast-border-dashed: #b8c6d1;
+
+  --ast-shadow-flat: none;
+  --ast-shadow-chrome: 0 1px 2px rgba(14, 23, 32, 0.06);
+  --ast-shadow-overlay: 0 16px 40px rgba(14, 23, 32, 0.18);
+
+  --ast-star: #c3d0da;
+  --ast-constellation-line: #dde5eb;
+
+  --ast-chart-1: #1a62a8;
+  --ast-chart-2: #0f6257;
+  --ast-chart-3: #8a5a00;
+  --ast-chart-track: #e7ecf0;
+  --ast-chart-grid: #edf1f4;
+
+  --ast-brand-teal: #3ec6b4;
+  --ast-loading-ground: var(--ast-canvas);
+  --ast-loading-ink: var(--ast-ink);
+  --ast-loading-peak: var(--ast-ink);
+  --ast-loading-status: var(--ast-ink-tertiary);
+
+  --brand-mark: url('../assets/logo/adapt-peak.svg');
+  --brand-mark-sm: url('../assets/logo/adapt-peak-sm.svg');
+  --brand-name: 'ADAPT';
+  --brand-qualifier: '';
+
   /*
    * ---- Core palette (§2) ----
    *
@@ -80,21 +155,24 @@
    */
   --ast-white: #ffffff;
   --ast-navy: #11171c; /* ink structure, dark bands, wordmark */
-  --ast-blue: #0d7168; /* action, identity, agent-at-work. Same value as --db-blue-600 */
-  --ast-live-fill: #0d7168; /* solid Live badge; stays dark when --ast-blue brightens on dark surfaces */
-  --ast-blue-on-dark: #58d9cc; /* blue's slightly brighter form on navy surfaces */
+  --ast-blue: var(--ast-action);
+  --ast-live-fill: var(--ast-action);
+  --ast-blue-on-dark: var(--ast-action);
   /*
    * A dark primary control is a raised piece of the night surface, not a slab of
    * the action hue. #1B3049 stays close enough to the sky to preserve that
    * hierarchy while giving --ast-ink-on-dark 12.35:1 contrast for its label.
    */
-  --ast-primary-control-fill: #123733;
+  --ast-primary-control-fill: var(--ast-action);
+  --ast-primary-control-hover: var(--ast-action-hover);
+  --ast-primary-control-active: var(--ast-action-hover);
   /*
    * The blue belongs on the control's one-pixel edge. #4A8CBF remains visibly
    * distinct from both the fill and the surrounding navy without spending the
    * brighter ice accent on the whole control.
    */
-  --ast-primary-control-border: #3ba99b;
+  --ast-primary-control-border: var(--ast-action);
+  --ast-danger-control-hover: var(--ast-danger-hover);
   /*
    * The Rendered | Raw pressed fill, and the numbered circles on a proposed
    * plan. `--ast-blue` remaps to ice on the night sky, which is correct for a
@@ -105,9 +183,9 @@
    * so they cannot drift.
    */
   --ast-seg-pressed: var(--ast-blue);
-  --ast-seg-pressed-ink: var(--ast-white);
-  --ast-ice: #f0f6fb; /* AI-context surface. Replaces oat --db-warm #F9F7F4 everywhere */
-  --ast-ice-accent: #86e2d7; /* active tab, links, bars on the night sky */
+  --ast-seg-pressed-ink: var(--ast-action-ink-on-fill);
+  --ast-ice: var(--ast-action-tint);
+  --ast-ice-accent: var(--ast-action);
   --ast-ink-on-dark: #f2f6fa;
   --ast-ghost-text: #e8f2fa;
   --ast-pos-on-dark: #a4e2da;
@@ -125,14 +203,13 @@
    * bands through reading paper, raised panels, floating menus, and chrome.
    * None relies on backdrop blur and none is fully opaque.
    */
-  --ast-surface-solid: #181e23;
-  --ast-surface-muted: color-mix(in srgb, var(--ast-white) 92%, transparent);
-  --ast-surface-primary: color-mix(in srgb, var(--ast-white) 95%, transparent);
-  --ast-surface-elevated: color-mix(in srgb, var(--ast-white) 97%, transparent);
-  --ast-surface-menu: color-mix(in srgb, var(--ast-white) 98.5%, transparent);
-  --ast-surface-chrome: color-mix(in srgb, var(--ast-white) 99%, transparent);
-  --ast-overlay-occlusion: color-mix(in srgb, var(--ast-scrim) 78%, transparent);
-  --ast-scrim: #090e14; /* Settings overlay on the night sky */
+  --ast-surface-solid: var(--ast-surface);
+  --ast-surface-muted: var(--ast-surface-sunken);
+  --ast-surface-primary: var(--ast-surface);
+  --ast-surface-elevated: var(--ast-surface-raised);
+  --ast-surface-menu: var(--ast-surface-raised);
+  --ast-surface-chrome: var(--ast-surface-raised);
+  --ast-overlay-occlusion: var(--ast-scrim);
   --ast-icon-tint: #b7d6ee; /* the light tint inside the recoloured product icons */
 
   /* One explicit layer ladder. Local component z-indices may order children,
@@ -170,8 +247,8 @@
    * It resolves to the same high-alpha semantic paper as --card. Nested bands
    * may use the quieter role because this parent already attenuates the sky.
    */
-  --ast-sky-fill: #16202e; /* the dark surfaces: Ask, the harness, the bands, the login canvas */
-  --ast-pane: var(--ast-surface-primary);
+  --ast-sky-fill: var(--ast-canvas);
+  --ast-pane: var(--ast-surface);
 
   /*
    * ---- The star field the sky carries ----
@@ -209,16 +286,14 @@
    * navy, which the app has never needed because it has never had a navy surface with
    * prose on it.
    */
-  --ast-text: #161616; /* body */
-  --ast-text-long: #3a3838; /* long-form copy */
-  --ast-text-secondary: #6f6f6f; /* secondary, placeholders, eyebrows */
+  --ast-text: var(--ast-ink);
+  --ast-text-long: var(--ast-ink-secondary);
+  --ast-text-secondary: var(--ast-ink-tertiary);
   --ast-caption: var(--ast-text-secondary); /* 11–12px explanatory copy */
   --ast-text-on-dark-secondary: #8a9aa3; /* secondary, on a navy surface */
 
   /* ---- Borders and fills (§2) ---- */
-  --ast-hairline: #ebebeb; /* cards, separators. The only thin border */
-  --ast-border-input: #cbcbcb; /* inputs and outline buttons */
-  --ast-fill-band: #f7f7f7; /* card header bands */
+  --ast-fill-band: var(--ast-surface-sunken);
 
   /*
    * ---- Status, five families ----
@@ -231,40 +306,31 @@
    * to any state", because a bordered pill at 4px radius is what this app's buttons
    * look like. --ast-pill--neutral-outline is the outlined alternative §2 offers.
    */
-  --ast-pos-text: #247a70;
-  --ast-pos-border: #adddd6;
-  --ast-pos-fill: #effaf8;
+  --ast-pos-text: var(--ast-positive-text);
+  --ast-pos-border: var(--ast-positive-border);
+  --ast-pos-fill: var(--ast-positive-fill);
 
-  --ast-neg-text: #a04a62;
-  --ast-neg-border: #e3c4cc;
-  --ast-neg-fill: #faf3f5;
+  --ast-neg-text: var(--ast-negative-text);
+  --ast-neg-border: var(--ast-negative-border);
+  --ast-neg-fill: var(--ast-negative-fill);
 
-  --ast-warn-text: #8a6a38;
-  --ast-warn-border: #e0d3b8;
-  --ast-warn-fill: #f9f6ef;
+  --ast-warn-text: var(--ast-warning-text);
+  --ast-warn-border: var(--ast-warning-border);
+  --ast-warn-fill: var(--ast-warning-fill);
   /* The rung the warning family uses at smaller or heavier type, and the fill behind a
      mono tag inside a warning context. 122, 94, 50 is #7A5E32, so the tag follows the
      deep rung if it ever moves. */
   --ast-warn-deep: #7a5e32;
   --ast-warn-mono-fill: rgba(122, 94, 50, 0.08);
 
-  --ast-neutral-text: #46596b;
-  --ast-neutral-fill: #f2f6f9;
-
-  /* Info also carries role badges and table chips. Same value as --db-blue-700, which
-     is the blue's hover rung; one hex, two jobs, and they do not collide because one is
-     a state and the other is a foreground on its own tint. */
-  --ast-info-text: #094f48;
-  --ast-info-fill: #ddeaf4;
-
   /*
    * Table references are provenance, not status. Chrome yellow gives linked
    * and known-unlinked table names a dedicated semantic family without
    * borrowing warning amber or the positive green used by answer findings.
    */
-  --ast-table-ref-text: #6f5312;
-  --ast-table-ref-fill: #f3e6bd;
-  --ast-table-ref-border: #b28a2e;
+  --ast-table-ref-text: var(--ast-provenance-text);
+  --ast-table-ref-fill: var(--ast-provenance-fill);
+  --ast-table-ref-border: var(--ast-provenance-border);
 
   /*
    * Entity marks use the same five palette roles as the rest of the answer.
@@ -281,17 +347,17 @@
    * panel's swatches were the only place the choice ever showed.
    */
   --ast-entity-catalog-fg: var(--entity-catalog-fg, var(--ast-white));
-  --ast-entity-catalog-bg: var(--entity-catalog-bg, var(--ast-info-text));
-  --ast-entity-schema-fg: var(--entity-schema-fg, var(--ast-navy));
+  --ast-entity-catalog-bg: var(--entity-catalog-bg, var(--ast-action));
+  --ast-entity-schema-fg: var(--entity-schema-fg, var(--ast-info-text));
   --ast-entity-schema-bg: var(--entity-schema-bg, var(--ast-info-fill));
   --ast-entity-table-fg: var(--entity-table-fg, var(--ast-table-ref-text));
   --ast-entity-table-bg: var(--entity-table-bg, var(--ast-table-ref-fill));
-  --ast-entity-column-fg: var(--entity-column-fg, var(--ast-text-long));
+  --ast-entity-column-fg: var(--entity-column-fg, var(--ast-ink-secondary));
   --ast-entity-column-bg: var(--entity-column-bg, var(--ast-neutral-fill));
   --ast-entity-quote-fg: var(--entity-quote-fg, var(--ast-neutral-text));
-  --ast-entity-quote-bg: var(--entity-quote-bg, var(--ast-fill-band));
+  --ast-entity-quote-bg: var(--entity-quote-bg, var(--ast-surface-sunken));
   --ast-entity-tag-fg: var(--entity-tag-fg, var(--ast-white));
-  --ast-entity-tag-bg: var(--entity-tag-bg, var(--ast-navy));
+  --ast-entity-tag-bg: var(--entity-tag-bg, var(--ast-ink));
 
   /*
    * Explorer timeline kind colours. These match the notebook span viz the
@@ -308,6 +374,24 @@
   --ast-trace-plot-bar: #c49ad4;
   --ast-trace-clarify-ink: #8a4b1a;
   --ast-trace-clarify-bar: #d9a06c;
+  --ast-trace-llm-fill: #d9f2e3;
+  --ast-trace-llm-border: #b5e0c8;
+  --ast-trace-sql-fill: #d7ebf8;
+  --ast-trace-sql-border: #b4d6ee;
+  --ast-trace-discovery-fill: #f3e6c8;
+  --ast-trace-discovery-border: #e2cfa0;
+  --ast-trace-plot-fill: #eadcf3;
+  --ast-trace-plot-border: #d4bce4;
+  --ast-trace-clarify-fill: #f7e4d4;
+  --ast-trace-clarify-border: #e8c9a8;
+  --ast-trace-neutral-bar: #9aa7b2;
+  --ast-trace-hatch: rgba(255, 255, 255, 0.85);
+
+  /* Theme-preview swatches are intentionally independent of the active theme. */
+  --ast-preview-dark-surface: #11171c;
+  --ast-preview-dark-border: #38434d;
+  --ast-preview-light-surface: #ffffff;
+  --ast-preview-light-border: #d6d9dc;
 
   /* ---- Type scale (§3) ---- */
   --ast-fs-11: 11px;
@@ -318,6 +402,14 @@
   --ast-fs-18: 18px;
   --ast-fs-22: 22px;
   --ast-fs-32: 32px;
+  --ast-type-hero: 40px;
+  --ast-type-page: 30px;
+  --ast-type-section: 22px;
+  --ast-type-card: 17px;
+  --ast-type-body: 15px;
+  --ast-type-control: 14px;
+  --ast-type-meta: 13px;
+  --ast-type-eyebrow: 11px;
 
   /*
    * Proportional prose, at every body rung.
@@ -338,8 +430,10 @@
   --ast-lh-body: 1.15;
 
   /* ---- Radii ---- */
-  --ast-radius-control: 4px; /* buttons, pills, inputs */
-  --ast-radius-card: 8px; /* cards, rows, bands */
+  --ast-radius-control: 8px;
+  --ast-radius-card: 10px;
+  --ast-radius-pill: 6px;
+  --ast-radius-overlay: 12px;
 
   /*
    * ---- Tracking and the separator ----
@@ -360,39 +454,138 @@
 }
 
 html[data-theme='dark'] {
+  color-scheme: dark;
+  --ast-canvas: #0b1014;
+  --ast-surface: #101820;
+  --ast-surface-sunken: rgba(255, 255, 255, 0.03);
+  --ast-surface-raised: #0b1014;
+  --ast-surface-selected: #16232b;
+  --ast-scrim: rgba(9, 14, 20, 0.84);
+
+  --ast-ink: #f2f6fa;
+  --ast-ink-secondary: rgba(232, 237, 242, 0.8);
+  --ast-ink-tertiary: rgba(232, 237, 242, 0.68);
+  --ast-ink-disabled: rgba(232, 237, 242, 0.42);
+
+  --ast-action: #8fc1e8;
+  --ast-action-hover: #a9d2f0;
+  --ast-action-ink-on-fill: #0e1720;
+  --ast-action-tint: rgba(143, 193, 232, 0.12);
+  --ast-action-edge: rgba(143, 193, 232, 0.35);
+  --ast-focus-halo: rgba(143, 193, 232, 0.3);
+  --ast-control-hover: var(--ast-action-tint);
+  --ast-control-active: var(--ast-surface-selected);
+  --ast-focus-ring: 0 0 0 3px var(--ast-focus-halo);
+
+  --brand-mark: url('../assets/logo/adapt-peak-dark.svg');
+  --brand-mark-sm: url('../assets/logo/adapt-peak-sm-dark.svg');
+
+  --ast-positive-text: var(--ast-pos-on-dark);
+  --ast-positive-border: rgba(154, 214, 206, 0.4);
+  --ast-positive-fill: rgba(154, 214, 206, 0.1);
+  --ast-warning-text: var(--db-amber);
+  --ast-warning-border: rgba(255, 171, 0, 0.4);
+  --ast-warning-fill: rgba(255, 171, 0, 0.12);
+  --ast-negative-text: var(--ast-neg-on-dark);
+  --ast-negative-border: rgba(232, 169, 184, 0.4);
+  --ast-negative-fill: rgba(232, 169, 184, 0.1);
+  --ast-neutral-text: rgba(232, 237, 242, 0.68);
+  --ast-neutral-border: rgba(255, 255, 255, 0.22);
+  --ast-neutral-fill: rgba(255, 255, 255, 0.12);
+  --ast-info-text: var(--ast-action);
+  --ast-info-border: rgba(143, 193, 232, 0.35);
+  --ast-info-fill: rgba(143, 193, 232, 0.16);
+  --ast-provenance-text: #d6b65c;
+  --ast-provenance-border: #9f7f2f;
+  --ast-provenance-fill: #332b1b;
+
+  --ast-danger-fill: #c2263f;
+  --ast-danger-hover: #a61e34;
+  --ast-danger-ink: #ffffff;
+
+  --ast-hairline: rgba(255, 255, 255, 0.12);
+  --ast-hairline-strong: rgba(255, 255, 255, 0.18);
+  --ast-border-input: rgba(255, 255, 255, 0.22);
+  --ast-border-dashed: rgba(255, 255, 255, 0.3);
+  --ast-shadow-flat: none;
+  --ast-shadow-chrome: none;
+  --ast-shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.5);
+
+  --ast-star: rgba(255, 255, 255, 0.55);
+  --ast-constellation-line: rgba(255, 255, 255, 0.12);
+  --ast-chart-1: #8fc1e8;
+  --ast-chart-2: #04867d;
+  --ast-chart-3: #6faedd;
+  --ast-chart-track: rgba(255, 255, 255, 0.12);
+  --ast-chart-grid: rgba(255, 255, 255, 0.12);
+  --ast-trace-llm-fill: rgba(126, 200, 160, 0.22);
+  --ast-trace-llm-ink: #b8ebcf;
+  --ast-trace-llm-border: rgba(126, 200, 160, 0.45);
+  --ast-trace-sql-fill: rgba(126, 182, 217, 0.22);
+  --ast-trace-sql-ink: #b5daf0;
+  --ast-trace-sql-border: rgba(126, 182, 217, 0.45);
+  --ast-trace-discovery-fill: rgba(212, 181, 106, 0.22);
+  --ast-trace-discovery-ink: #ebd9a8;
+  --ast-trace-discovery-border: rgba(212, 181, 106, 0.45);
+  --ast-trace-plot-fill: rgba(196, 154, 212, 0.22);
+  --ast-trace-plot-ink: #e0c4ef;
+  --ast-trace-plot-border: rgba(196, 154, 212, 0.45);
+  --ast-trace-clarify-fill: rgba(217, 160, 108, 0.22);
+  --ast-trace-clarify-ink: #f0d0b0;
+  --ast-trace-clarify-border: rgba(217, 160, 108, 0.45);
+  --ast-trace-neutral-bar: #9aa7b2;
+
+  --ast-loading-ground: #131722;
+  --ast-loading-ink: #ffffff;
+  --ast-loading-peak: #ffffff;
+  --ast-loading-status: #69798d;
+
+  /* Legacy surface ladder: preserve the current dark composites exactly. */
+  --ast-surface-solid: #181e23;
   --ast-surface-muted: color-mix(in srgb, var(--ast-surface-solid) 92%, transparent);
-  --ast-surface-primary: color-mix(in srgb, var(--ast-surface-solid) 95%, transparent);
-  --ast-surface-elevated: color-mix(in srgb, var(--ast-surface-solid) 97%, transparent);
-  --ast-surface-menu: color-mix(in srgb, var(--ast-surface-solid) 98.5%, transparent);
-  --ast-surface-chrome: color-mix(in srgb, var(--ast-navy) 99%, transparent);
+  --ast-surface-primary: var(--ast-surface);
+  --ast-surface-elevated: var(--ast-surface-raised);
+  --ast-surface-menu: var(--ast-surface-raised);
+  --ast-surface-chrome: var(--ast-surface-raised);
   --ast-overlay-occlusion: color-mix(in srgb, var(--ast-scrim) 84%, transparent);
   --ast-sky-fill: var(--ast-navy);
-  --ast-pane: var(--ast-surface-primary);
+  --ast-pane: var(--ast-surface);
   --ast-ice: rgba(255, 255, 255, 0.03);
-  --ast-text: var(--ast-ink-on-dark);
-  --ast-text-long: var(--ast-ink-on-dark);
-  --ast-text-secondary: rgba(232, 237, 242, 0.68);
-  --ast-caption: rgba(232, 237, 242, 0.8);
-  --ast-hairline: rgba(255, 255, 255, 0.12);
-  --ast-border-input: rgba(255, 255, 255, 0.22);
+  --ast-text: var(--ast-ink);
+  --ast-text-long: var(--ast-ink-secondary);
+  --ast-text-secondary: var(--ast-ink-tertiary);
+  --ast-caption: var(--ast-ink-secondary);
   --ast-fill-band: rgba(255, 255, 255, 0.03);
-  --ast-pos-text: var(--ast-pos-on-dark);
-  --ast-pos-border: rgba(154, 214, 206, 0.4);
-  --ast-pos-fill: rgba(154, 214, 206, 0.1);
-  --ast-neg-text: var(--ast-neg-on-dark);
-  --ast-neg-border: rgba(232, 169, 184, 0.4);
-  --ast-neg-fill: rgba(232, 169, 184, 0.1);
-  --ast-warn-text: var(--db-amber);
-  --ast-warn-border: rgba(255, 171, 0, 0.4);
-  --ast-warn-fill: rgba(255, 171, 0, 0.12);
-  --ast-neutral-text: rgba(232, 237, 242, 0.68);
-  --ast-neutral-fill: rgba(255, 255, 255, 0.12);
-  --ast-info-text: var(--ast-ice-accent);
-  --ast-info-fill: rgba(127, 220, 209, 0.16);
-  --ast-table-ref-text: #d6b65c;
-  --ast-table-ref-fill: #332b1b;
-  --ast-table-ref-border: #9f7f2f;
-  --ast-blue: var(--ast-ice-accent);
+  --ast-pos-text: var(--ast-positive-text);
+  --ast-pos-border: var(--ast-positive-border);
+  --ast-pos-fill: var(--ast-positive-fill);
+  --ast-neg-text: var(--ast-negative-text);
+  --ast-neg-border: var(--ast-negative-border);
+  --ast-neg-fill: var(--ast-negative-fill);
+  --ast-warn-text: var(--ast-warning-text);
+  --ast-warn-border: var(--ast-warning-border);
+  --ast-warn-fill: var(--ast-warning-fill);
+  --ast-table-ref-text: var(--ast-provenance-text);
+  --ast-table-ref-fill: var(--ast-provenance-fill);
+  --ast-table-ref-border: var(--ast-provenance-border);
+  --ast-blue: var(--ast-action);
+  --ast-blue-on-dark: var(--ast-action);
+  --ast-ice-accent: var(--ast-action);
+  --ast-primary-control-fill: #123733;
+  --ast-primary-control-border: #3ba99b;
+  --ast-primary-control-hover: #18443f;
+  --ast-primary-control-active: #1d504a;
+  --ast-danger-control-hover: #d04b62;
+  --ast-entity-dark-catalog-fg: #7fdcd1;
+  --ast-entity-dark-catalog-bg: #123733;
+  --ast-entity-dark-schema-bg: #183d39;
+  --ast-entity-dark-table-fg: #d6b65c;
+  --ast-entity-dark-table-bg: #332b1b;
+  --ast-entity-dark-column-fg: #d9f4f0;
+  --ast-entity-dark-column-bg: #15332f;
+  --ast-entity-dark-quote-fg: #9ad6ce;
+  --ast-entity-dark-quote-bg: #182523;
+  --ast-entity-dark-tag-bg: #243f3c;
   --ast-seg-pressed: var(--db-blue-700);
   --ast-seg-pressed-ink: var(--ast-ink-on-dark);
   --ast-entity-tag-on-navy: #243746;
@@ -408,7 +601,7 @@ html[data-theme='dark'] {
  * The reduced-transparency query still promotes these roles to a solid fallback.
  */
 html:not([data-theme='dark']) {
-  --ast-pane: var(--ast-surface-primary);
+  --ast-pane: var(--ast-surface);
   /*
    * THE SKY IS DARK MODE'S. At `:root` this token is navy and the spackle is
    * stars, because dark mode reads those declarations. A leftover
@@ -420,7 +613,7 @@ html:not([data-theme='dark']) {
    * star. Surfaces that already name a light fill keep it; everything that
    * forgot is no longer navy.
    */
-  --ast-sky-fill: var(--ast-ice);
+  --ast-sky-fill: var(--ast-canvas);
   --ast-sky-spackle: none;
 }
 
@@ -446,8 +639,8 @@ html:not([data-theme='dark']) {
   gap: 4px;
   padding: 1px 8px;
   border: 1px solid transparent;
-  border-radius: var(--ast-radius-control);
-  font-size: var(--ast-fs-11);
+  border-radius: var(--ast-radius-pill);
+  font-size: var(--ast-type-eyebrow);
   font-weight: 500;
 }
 
@@ -472,6 +665,7 @@ html:not([data-theme='dark']) {
 .ast-pill--neutral {
   color: var(--ast-neutral-text);
   background: var(--ast-neutral-fill);
+  border-color: var(--ast-neutral-border);
 }
 
 /* No fill, a real edge. For a chip that has to sit on a tinted surface, where a tint on
@@ -484,6 +678,13 @@ html:not([data-theme='dark']) {
 .ast-pill--info {
   color: var(--ast-info-text);
   background: var(--ast-info-fill);
+  border-color: var(--ast-info-border);
+}
+
+.ast-pill--provenance {
+  color: var(--ast-provenance-text);
+  background: var(--ast-provenance-fill);
+  border-color: var(--ast-provenance-border);
 }
 
 /*
@@ -501,7 +702,7 @@ html:not([data-theme='dark']) {
   border: 1px solid var(--ast-blue);
   border-radius: var(--ast-radius-control);
   color: var(--ast-white);
-  font: 500 var(--ast-fs-13) var(--font-sans);
+  font: 500 var(--ast-type-control) var(--font-sans);
 }
 
 .ast-btn-secondary {
@@ -511,7 +712,7 @@ html:not([data-theme='dark']) {
   border: 1px solid var(--ast-border-input);
   border-radius: var(--ast-radius-control);
   color: var(--ast-text);
-  font: 500 var(--ast-fs-13) var(--font-sans);
+  font: 500 var(--ast-type-control) var(--font-sans);
 }
 
 /*

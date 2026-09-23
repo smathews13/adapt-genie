@@ -4,5 +4,5 @@ html[data-theme='dark'] .time-range-segment[aria-checked='true'] {
 }
 
 html[data-theme='dark'] .time-range-segment:hover:not([aria-checked='true']) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
 }

@@ -3,15 +3,15 @@
  *
  * `class="light"` stays on <html> forever: AppKit's stylesheet flips every token
  * under `@media (prefers-color-scheme: dark) { :root:not(.light) }`, and that is
- * not this theme. `data-theme` is ours. Dark is the default so the first paint
- * is the night sky rather than a white flash while settings load.
+ * not this theme. `data-theme` is ours. Light is the product default; the inline
+ * bootstrap keeps that default unless the user explicitly saved dark mode.
  */
 
 export type ColorScheme = 'dark' | 'light';
 
-export const DEFAULT_COLOR_SCHEME: ColorScheme = 'dark';
-export const DARK_THEME_COLOR = '#11171c';
-export const LIGHT_THEME_COLOR = '#ffffff';
+export const DEFAULT_COLOR_SCHEME: ColorScheme = 'light';
+export const DARK_THEME_COLOR = '#0b1014';
+export const LIGHT_THEME_COLOR = '#f4f7f9';
 
 type ThemeRoot = {
   classList: Pick<DOMTokenList, 'add'>;
@@ -21,6 +21,14 @@ type ThemeRoot = {
 
 export function isColorScheme(value: unknown): value is ColorScheme {
   return value === 'dark' || value === 'light';
+}
+
+export function initialColorScheme(storedAppearance: unknown): ColorScheme {
+  if (storedAppearance && typeof storedAppearance === 'object' && !Array.isArray(storedAppearance)) {
+    const stored = (storedAppearance as { colorScheme?: unknown }).colorScheme;
+    return isColorScheme(stored) ? stored : DEFAULT_COLOR_SCHEME;
+  }
+  return DEFAULT_COLOR_SCHEME;
 }
 
 function liveDocument(): Document | null {

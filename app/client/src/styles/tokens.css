@@ -8,9 +8,7 @@
  * chart and sidebar tokens this file never redeclares. Matching `:root:not(.light)` here
  * as well keeps the core palette correct on the first paint, before that class is applied.
  */
-:root,
-:root:not(.light),
-.dark {
+:root {
   color-scheme: light;
   /*
    * The palette, as Databricks DuBois.
@@ -80,31 +78,31 @@
    */
 
   /* ---- DuBois primitives (source: @databricks/design-system dubois-colors.less) ---- */
-  --db-blue-500: #33b3a4;
-  --db-blue-600: #0d7168; /* action & identity */
-  --db-blue-700: #094f48; /* hover */
-  --db-blue-800: #05302c; /* press */
+  --db-blue-500: var(--ast-action);
+  --db-blue-600: var(--ast-action);
+  --db-blue-700: var(--ast-action-hover);
+  --db-blue-800: var(--ast-action-hover);
   --db-orange: #ff3621; /* the agent working / AI identity (Databricks brand orange) */
   --db-amber: #ffab00; /* evaluation — FILLED MASS OR THICK RULE ONLY (1.90:1 on white) */
-  --db-amber-deep: #93320b; /* evaluation as text or a 1px edge */
-  --db-amber-wash: #fff9eb;
-  --db-amber-line: #f8d4a5;
-  --db-red-600: #c82d4c; /* failure / destruction */
-  --db-red-700: #9e102c; /* hover rung */
-  --db-red-wash: #fff5f7;
-  --db-red-line: #fbd0d8;
-  --db-teal-600: #04867d; /* the second chart series, and nothing else */
-  --db-green-600: #277c43; /* reachable / saved */
-  --db-green-500: #3ba65e;
-  --db-green-wash: #f3fcf6;
-  --db-green-line: #b1ecc5;
-  --db-warn-600: #be501e; /* drift / degraded, as text (4.82:1 on white) */
-  --db-ink: #161616; /* textPrimary, 18.10:1 on white */
+  --db-amber-deep: var(--ast-warning-text);
+  --db-amber-wash: var(--ast-warning-fill);
+  --db-amber-line: var(--ast-warning-border);
+  --db-red-600: var(--ast-danger-fill);
+  --db-red-700: var(--ast-danger-hover);
+  --db-red-wash: var(--ast-negative-fill);
+  --db-red-line: var(--ast-negative-border);
+  --db-teal-600: var(--ast-chart-2);
+  --db-green-600: var(--ast-positive-text);
+  --db-green-500: var(--ast-positive-text);
+  --db-green-wash: var(--ast-positive-fill);
+  --db-green-line: var(--ast-positive-border);
+  --db-warn-600: var(--ast-warning-text);
+  --db-ink: var(--ast-ink);
   --db-ink-deep: #11171c; /* darkest fill: dark chips, scrims, drop shadows */
-  --db-body: #3a3838; /* long-form body copy, 11.65:1 on white */
-  --db-slate: #6f6f6f; /* textSecondary / placeholder / eyebrows, 5.02:1 */
-  --db-slate-icon: #525252; /* default icon stroke */
-  --db-grey-blue: #445461; /* chip text, because --db-slate is only 4.23:1 there */
+  --db-body: var(--ast-ink-secondary);
+  --db-slate: var(--ast-ink-tertiary);
+  --db-slate-icon: var(--ast-ink-secondary);
+  --db-grey-blue: var(--ast-neutral-text);
   /* The pale rung of the same family, for a neutral FILL: the governed-data
      figure in the working animation. 3.06:1 on white and 2.85:1 on --db-wash,
      measured rather than estimated — an earlier version of this line claimed 2.4:1,
@@ -113,7 +111,7 @@
      the 4.5:1 body copy needs, so it stays a fill and never becomes type. On the
      wash it is under 3:1, which is why nothing structural is drawn in it there. */
   --db-grey-blue-400: #8396a5;
-  --db-chip: #e8ecf0; /* neutral chip / segmented-active fill */
+  --db-chip: var(--ast-neutral-fill);
   /* The agent map's connector glyphs, from agent-map.md. Lighter than
      --db-slate-icon because an arrow between two cards is punctuation rather than
      an icon: at the icon rung a row of them read as a row of marks competing with
@@ -128,7 +126,7 @@
      edge does not need the row's weight of fill behind it, and at the row's
      weight the open card read as a second, heavier selection than the row that
      had selected the run. */
-  --db-blue-faint: #fbfdfe;
+  --db-blue-faint: var(--ast-action-tint);
   /* The blue counterpart of --db-chip: a SOLID pale tint for a small filled mass
      that has to hold coloured text on it. Not --db-selected-tint, which is the
      same blue at 6% and is a wash laid over whatever is behind it -- fine for a
@@ -136,15 +134,15 @@
      because its effective colour changes with its background. #0E538B measures
      6.52:1 on this and clears AA; the admin role badge is the one thing that
      uses it. */
-  --db-blue-tint: #ddeaf4;
-  --db-wash: #f7f7f7; /* backgroundSecondary: hover, selected, panel heads */
-  --db-warm: #f9f7f4; /* warm hero / AI-context surface (use sparingly) */
-  --db-line: #ebebeb; /* hairline — the ONLY thin border */
-  --db-line-strong: #cbcbcb; /* control borders (inputs, outline buttons) */
+  --db-blue-tint: var(--ast-action-tint);
+  --db-wash: var(--ast-surface-sunken);
+  --db-warm: var(--ast-surface-sunken);
+  --db-line: var(--ast-hairline);
+  --db-line-strong: var(--ast-border-input);
   --db-code-bg: rgba(82, 82, 82, 0.08);
   --db-skeleton: rgba(162, 162, 162, 0.16);
   --db-row-hover: rgba(82, 82, 82, 0.04);
-  --db-selected-tint: rgba(13, 113, 104, 0.06);
+  --db-selected-tint: var(--ast-surface-selected);
   /* The same blue at the weight an outline or ghost control takes under the
      pointer. It was written out as `rgba(34, 114, 180, 0.08)` at four call sites
      -- the gate's three doors, the rail's filter chips, the rail's delete
@@ -152,7 +150,7 @@
      thing on screen that would not have followed --db-blue-600 if the blue ever
      moved. 34, 114, 180 is #2272B4 is --db-blue-600, and the arithmetic is
      recorded here rather than in four places that cannot see each other. */
-  --db-hover-tint: rgba(13, 113, 104, 0.08);
+  --db-hover-tint: var(--ast-action-tint);
   /* The third weight of the same blue, for the moment a control is held down.
      The app had hover and selected and no press, so a ghost control could only
      ever report being pointed at -- press and release both painted the hover
@@ -160,7 +158,7 @@
      Heavier than hover for the same reason hover is heavier than selected: being
      pressed is more present than being pointed at. Same three channels, so all
      three weights follow --db-blue-600 if the blue ever moves. */
-  --db-press-tint: rgba(13, 113, 104, 0.16);
+  --db-press-tint: var(--ast-action-edge);
   /* The evaluation family's own tint, for a mono tag inside the amber wash: the
      table and column names an answer's caveats name, and the leading scope tag
      on a caveat about one table. 147, 50, 11 is #93320B is --db-amber-deep, so
@@ -260,7 +258,7 @@
    * component's (see LOCKUP_SIZES in AstrolabeMark.tsx) because a 22px mark
    * beside a 17px wordmark is neither of the two lockups the design has.
    */
-  --app-header-content-h: 52px;
+  --app-header-content-h: 56px;
   --app-header-safe-top: env(safe-area-inset-top, 0px);
   --app-header-h: calc(var(--app-header-content-h) + var(--app-header-safe-top));
   /*
@@ -279,7 +277,7 @@
      the header's contents from inside this padding, so `.brand-lockup` ends
      where the conversation rail ends. Typed as a bare 20px in both rules it
      would be one number in two places. */
-  --app-header-pad-x: 20px;
+  --app-header-pad-x: 16px;
 
   /* The three columns of the ask surface. The composer is `position: fixed` and
      insets itself off these two, so they are declared here rather than on
@@ -295,8 +293,8 @@
      token in a shared file, so the number lives here once and the rail, the
      fixed composer and the header all read it. The 1180px band in
      responsive.css still narrows it to 220px for the rail alone. */
-  --conversation-width: 340px;
-  --trace-width: 340px;
+  --conversation-width: 290px;
+  --trace-width: 320px;
 
   /*
    * How far the ask surface's middle column holds its contents off the two rails
@@ -354,14 +352,12 @@
   --conversation-measure: 1360px;
 
   /* ---- appkit-ui / shadcn semantic mapping ---- */
-  --background: #ffffff;
-  --foreground: var(--db-ink);
-  /* Reading surfaces retain five percent glass so exposed background remains
-     branded while geometry behind a card is reduced to a faint trace. */
-  --card: var(--ast-surface-primary);
-  --card-foreground: var(--db-ink);
-  --popover: var(--ast-surface-menu);
-  --popover-foreground: var(--db-ink);
+  --background: var(--ast-canvas);
+  --foreground: var(--ast-ink);
+  --card: var(--ast-surface);
+  --card-foreground: var(--ast-ink);
+  --popover: var(--ast-surface-raised);
+  --popover-foreground: var(--ast-ink);
   /*
    * --primary is the app's action colour and it is now blue rather than the same
    * black as the type. One line here repaints every affordance that already
@@ -374,17 +370,17 @@
    * reader's own question look like a button. It states its own near-opaque
    * light fill in ask.css now.
    */
-  --primary: var(--db-blue-600);
-  --primary-foreground: #ffffff;
-  --secondary: var(--db-chip);
-  --secondary-foreground: var(--db-ink-deep);
-  --muted: var(--db-wash);
-  --muted-foreground: var(--db-slate);
-  --accent: var(--db-wash);
-  --accent-foreground: var(--db-ink);
-  --border: var(--db-line);
-  --input: var(--db-line-strong);
-  --ring: var(--db-blue-600);
+  --primary: var(--ast-action);
+  --primary-foreground: var(--ast-action-ink-on-fill);
+  --secondary: var(--ast-neutral-fill);
+  --secondary-foreground: var(--ast-ink);
+  --muted: var(--ast-surface-sunken);
+  --muted-foreground: var(--ast-ink-tertiary);
+  --accent: var(--ast-surface-sunken);
+  --accent-foreground: var(--ast-ink);
+  --border: var(--ast-hairline);
+  --input: var(--ast-border-input);
+  --ring: var(--ast-action);
   /*
    * Four series and an emphasis, rather than the two weights of black this used
    * to be. --chart-1 is the primary series and is the same blue as every other
@@ -403,9 +399,11 @@
    * view is gone and the figure has a column of its own, so the rule holds
    * everywhere without an exception to keep.
    */
-  --chart-1: var(--db-blue-600);
-  --chart-2: var(--db-teal-600);
-  --chart-3: var(--db-blue-500);
+  --chart-1: var(--ast-chart-1);
+  --chart-2: var(--ast-chart-2);
+  --chart-3: var(--ast-chart-3);
+  --chart-track: var(--ast-chart-track);
+  --chart-grid: var(--ast-chart-grid);
   --chart-4: var(--db-grey-blue);
   --chart-emphasis: var(--db-orange);
   /*
@@ -415,13 +413,13 @@
    * would blur the line between amber-the-evaluation and amber-the-warning,
    * which is the confusion the old palette was rebuilt to remove.
    */
-  --warning: var(--db-warn-600);
-  --warning-foreground: #ffffff;
-  --success: var(--db-green-600);
-  --success-foreground: #ffffff;
+  --warning: var(--ast-warning-text);
+  --warning-foreground: var(--ast-action-ink-on-fill);
+  --success: var(--ast-positive-text);
+  --success-foreground: var(--ast-action-ink-on-fill);
   /* The app's one red. Nothing else routes through this family. */
-  --destructive: var(--db-red-600);
-  --destructive-foreground: #ffffff;
+  --destructive: var(--ast-danger-fill);
+  --destructive-foreground: var(--ast-danger-ink);
 
   /*
    * ---- Type and shape ----
@@ -440,17 +438,17 @@
    */
   --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius-sm: 4px; /* buttons, inputs, badges, alerts, code panels */
-  --radius-md: 8px; /* cards, rows, panels — there is no third radius */
-  --text-base: 13px; /* app body */
-  --text-sm: 12px; /* dense body, captions */
-  --text-xs: 11px; /* eyebrows (700, +0.06em, uppercase), pill labels */
-  --text-h-page: 22px; /* page h2, 700, -0.01em */
-  --text-h-card: 18px; /* takeaway titles, 700, -0.01em, lh 1.35 */
-  --text-h-section: 16px; /* card/section titles, 700 */
-  --text-h-sub: 14px; /* sub-block titles, 700 */
-  --text-kpi: 22px; /* metric tile values, 700, tabular-nums */
-  --text-hero: 32px; /* Ask hero h2, 700, -0.015em */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --text-base: 15px;
+  --text-sm: 13px;
+  --text-xs: 11px;
+  --text-h-page: 30px;
+  --text-h-card: 17px;
+  --text-h-section: 22px;
+  --text-h-sub: 14px;
+  --text-kpi: 22px;
+  --text-hero: 40px;
 }
 
 /*
@@ -473,11 +471,11 @@ html[data-theme='dark'] {
   --db-code-bg: rgba(255, 255, 255, 0.08);
   --db-skeleton: rgba(255, 255, 255, 0.12);
   --db-row-hover: rgba(255, 255, 255, 0.07);
-  --db-selected-tint: rgba(127, 220, 209, 0.12);
+  --db-selected-tint: var(--ast-action-tint);
   --db-hover-tint: rgba(255, 255, 255, 0.05);
   --db-press-tint: rgba(255, 255, 255, 0.07);
-  --db-blue-faint: rgba(127, 220, 209, 0.08);
-  --db-blue-tint: rgba(13, 113, 104, 0.28);
+  --db-blue-faint: var(--ast-action-tint);
+  --db-blue-tint: var(--ast-action-edge);
   --db-red-wash: rgba(232, 169, 184, 0.1);
   --db-red-line: rgba(232, 169, 184, 0.4);
   --db-green-wash: rgba(154, 214, 206, 0.1);
@@ -500,7 +498,7 @@ html[data-theme='dark'] {
    */
   --popover: var(--ast-surface-menu);
   --popover-foreground: var(--ast-ink-on-dark);
-  --primary: var(--ast-ice-accent);
+  --primary: var(--ast-action);
   --primary-foreground: var(--ast-navy);
   --secondary: rgba(255, 255, 255, 0.12);
   --secondary-foreground: var(--ast-ink-on-dark);
@@ -510,9 +508,12 @@ html[data-theme='dark'] {
   --accent-foreground: var(--ast-ink-on-dark);
   --border: rgba(255, 255, 255, 0.12);
   --input: rgba(255, 255, 255, 0.22);
-  --ring: var(--ast-ice-accent);
-  --chart-1: var(--ast-ice-accent);
-  --chart-3: var(--ast-blue-on-dark);
+  --ring: var(--ast-action);
+  --chart-1: var(--ast-chart-1);
+  --chart-2: var(--ast-chart-2);
+  --chart-3: var(--ast-chart-3);
+  --chart-track: var(--ast-chart-track);
+  --chart-grid: var(--ast-chart-grid);
   /*
    * The grey-blue's form on a navy surface, and the reason it is moved at all: the
    * light value is #445461, which measures 2.31:1 against this theme's --background.

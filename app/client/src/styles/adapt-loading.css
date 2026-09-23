@@ -1,13 +1,13 @@
 .startup-surface {
-  --accent: #3ec6b4;
-  background: #131722;
+  --accent: var(--ast-brand-teal);
+  background: var(--ast-loading-ground);
 }
 
 .adapt-loading {
-  --accent: #3ec6b4;
+  --accent: var(--ast-brand-teal);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--ast-loading-ink);
   font-family: 'DM Sans', sans-serif;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .adapt-loading-peak {
-  stroke: #fff;
+  stroke: var(--ast-loading-peak);
   stroke-width: 13;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
@@ -69,7 +69,7 @@
 .adapt-loading-status {
   min-width: 210px;
   margin-top: 22px;
-  color: #69798d;
+  color: var(--ast-loading-status);
   font-size: 20px;
   font-weight: 500;
   line-height: 1.2;
@@ -92,7 +92,7 @@
 .adapt-loading--ask .adapt-loading-status {
   min-width: 0;
   margin-top: 12px;
-  color: inherit;
+  color: var(--ast-loading-status);
   font-size: var(--text-base);
 }
 

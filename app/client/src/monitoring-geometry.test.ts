@@ -240,17 +240,13 @@ describe('the panel head and identity controls cannot be clipped', () => {
     expect(rule('.monitoring-question-text')).toMatch(/-webkit-line-clamp:\s*2/);
   });
 
-  it('uses opaque token-mixed row states without changing row geometry', () => {
+  it('uses opaque canonical row states without changing row geometry', () => {
     const hover = rule('.monitoring-row:hover,\n.monitoring-row:focus-visible');
     const selected = rule('.monitoring-row-selected');
 
-    expect(hover).toMatch(
-      /background:\s*color-mix\(in srgb,\s*var\(--ast-surface-primary\)\s*96%,\s*var\(--ast-blue\)\)/
-    );
+    expect(hover).toMatch(/background:\s*var\(--ast-surface-sunken\)/);
     expect(hover).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--ast-hairline\)/);
-    expect(selected).toMatch(
-      /background:\s*color-mix\(in srgb,\s*var\(--ast-surface-primary\)\s*91%,\s*var\(--ast-blue\)\)/
-    );
+    expect(selected).toMatch(/background:\s*var\(--ast-surface-selected\)/);
     expect(selected).toMatch(/inset 3px 0 0 var\(--ast-blue\)/);
     for (const state of [hover, selected]) {
       expect(state).not.toMatch(/padding|margin|border-width|transform/);
@@ -267,9 +263,7 @@ describe('the panel head and identity controls cannot be clipped', () => {
     expect(link).toMatch(/opacity:\s*1/);
     expect(active).toMatch(/border-color:\s*var\(--ast-blue\)/);
     expect(active).toMatch(/color:\s*var\(--ast-info-text\)/);
-    expect(active).toMatch(
-      /background:\s*color-mix\(in srgb,\s*var\(--ast-surface-primary\)\s*78%,\s*var\(--ast-blue\)\)/
-    );
+    expect(active).toMatch(/background:\s*var\(--ast-action-tint\)/);
     expect(
       rule(
         '.monitoring-row .user-drilldown-link:focus-visible .identity-chip,\n.monitoring-question-card .user-drilldown-link:focus-visible .identity-chip'
@@ -405,10 +399,9 @@ describe('the figures line up and the palette is the palette', () => {
 
   it('keeps zero outcome values visible without making them dominant', () => {
     const zero = rule('.monitoring-outcome-value-zero');
-    const opacity = Number.parseFloat(zero.match(/opacity:\s*([\d.]+)/)?.[1] ?? 'NaN');
 
-    expect(opacity).toBeGreaterThan(0.5);
-    expect(opacity).toBeLessThan(1);
+    expect(zero).toMatch(/color:\s*var\(--ast-ink-tertiary\)/);
+    expect(zero).not.toMatch(/opacity:/);
     expect(zero).not.toMatch(/display:\s*none|visibility:\s*hidden|color:\s*transparent/);
   });
 

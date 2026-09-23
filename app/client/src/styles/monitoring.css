@@ -62,7 +62,8 @@
 }
 .monitoring-tile {
   border: 1px solid var(--ast-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface);
   padding: 12px 14px;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -85,7 +86,7 @@
 }
 .monitoring-tile-action:hover {
   border-color: var(--ast-blue);
-  background: color-mix(in srgb, var(--ast-surface-primary) 94%, var(--ast-blue));
+  background: var(--ast-action-tint);
 }
 .monitoring-tile-action:focus-visible {
   outline: 2px solid var(--ast-blue);
@@ -173,10 +174,9 @@
   font-weight: 700;
   line-height: 1.2;
 }
-/* Keep an empty bucket legible without giving it the same visual weight as a
-   bucket that needs attention. Opacity preserves the outcome's semantic hue. */
+/* An empty bucket is a neutral fact, not a weakly painted status. */
 .monitoring-outcome-value-zero {
-  opacity: 0.68;
+  color: var(--ast-ink-tertiary);
 }
 /* The four figures remain separate and must never be merged. The palette's own
    neutral and negative, which is what monitoring-ops.md
@@ -434,7 +434,8 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
  */
 .monitoring-list-pane {
   border: 1px solid var(--ast-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface);
   padding: 0 14px;
   min-width: 0;
 }
@@ -447,11 +448,16 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   font-size: var(--ast-fs-12);
 }
 .monitoring-table th {
+  position: sticky;
+  top: var(--app-header-h);
+  z-index: 2;
   text-align: left;
   padding: 6px 12px 6px 0;
   font-weight: 700;
   color: var(--ast-text-secondary);
   border-bottom: 1px solid var(--ast-hairline);
+  background: var(--ast-surface-sunken);
+  box-shadow: var(--ast-shadow-chrome);
   white-space: nowrap;
 }
 .monitoring-table th + th {
@@ -467,7 +473,7 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
 }
 .monitoring-row:hover,
 .monitoring-row:focus-visible {
-  background: color-mix(in srgb, var(--ast-surface-primary) 96%, var(--ast-blue));
+  background: var(--ast-surface-sunken);
   box-shadow: inset 0 0 0 1px var(--ast-hairline);
 }
 .monitoring-row:focus-visible {
@@ -485,13 +491,13 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   border-bottom: 0;
 }
 .monitoring-row-selected {
-  background: color-mix(in srgb, var(--ast-surface-primary) 91%, var(--ast-blue));
+  background: var(--ast-surface-selected);
   /* The 3px edge, so the selected row is identifiable without the tint alone. */
   box-shadow: inset 3px 0 0 var(--ast-blue);
 }
 .monitoring-row-selected:hover,
 .monitoring-row-selected:focus-visible {
-  background: color-mix(in srgb, var(--ast-surface-primary) 91%, var(--ast-blue));
+  background: var(--ast-surface-selected);
   box-shadow:
     inset 3px 0 0 var(--ast-blue),
     inset 0 0 0 1px var(--ast-hairline);
@@ -604,7 +610,7 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
 .monitoring-question-card .user-drilldown-link:hover .identity-chip,
 .monitoring-question-card .user-drilldown-link:focus-visible .identity-chip {
   border-color: var(--ast-blue);
-  background: color-mix(in srgb, var(--ast-surface-primary) 78%, var(--ast-blue));
+  background: var(--ast-action-tint);
   color: var(--ast-info-text);
 }
 .monitoring-row .user-drilldown-link:hover .identity-chip svg,
@@ -655,12 +661,12 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
 }
 .monitoring-question-card:hover,
 .monitoring-question-card:focus-visible {
-  background: color-mix(in srgb, var(--ast-surface-primary) 96%, var(--ast-blue));
+  background: var(--ast-surface-sunken);
 }
 .monitoring-question-card.monitoring-row-selected,
 .monitoring-question-card.monitoring-row-selected:hover,
 .monitoring-question-card.monitoring-row-selected:focus-visible {
-  background: color-mix(in srgb, var(--ast-surface-primary) 91%, var(--ast-blue));
+  background: var(--ast-surface-selected);
 }
 .monitoring-question-card:focus-visible {
   outline: 2px solid var(--ast-blue);
@@ -775,7 +781,7 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   display: grid;
   place-items: center;
   padding: 16px 24px 24px;
-  background: color-mix(in oklab, var(--db-ink-deep) 50%, transparent);
+  background: var(--ast-scrim);
 }
 .monitoring-question-modal {
   width: min(var(--conversation-measure), calc(100vw - 48px));
@@ -784,13 +790,13 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   overflow-y: auto;
   background: var(--card);
   border: 1px solid var(--ast-hairline);
-  border-radius: 8px;
+  border-radius: var(--ast-radius-overlay);
   padding: 20px 24px 32px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 14px;
-  box-shadow: 0 16px 48px rgba(17, 23, 28, 0.35);
+  box-shadow: var(--ast-shadow-overlay);
 }
 /*
  * Every direct child keeps its content height. The token line used to be a
@@ -830,7 +836,7 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   display: grid;
   place-items: center;
   padding: 20px 24px;
-  background: color-mix(in oklab, var(--db-ink-deep) 50%, transparent);
+  background: var(--ast-scrim);
 }
 
 .user-profile-modal,
@@ -839,11 +845,11 @@ html[data-theme='dark'] .monitoring-page .monitoring-search input {
   max-height: min(calc(100dvh - 40px), 920px);
   background: var(--card);
   border: 1px solid var(--ast-hairline);
-  border-radius: 8px;
+  border-radius: var(--ast-radius-overlay);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(17, 23, 28, 0.35);
+  box-shadow: var(--ast-shadow-overlay);
 }
 .user-profile-modal-header,
 .monitoring-users-header {
@@ -1913,8 +1919,8 @@ a.monitoring-context-badge {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--background);
-  box-shadow: 0 1px 0 var(--ast-hairline);
+  background: var(--ast-surface-sunken);
+  box-shadow: var(--ast-shadow-chrome);
   color: var(--ast-text-secondary);
   font-size: var(--text-xs);
   font-weight: 700;
@@ -1929,7 +1935,7 @@ a.monitoring-context-badge {
   cursor: pointer;
 }
 .monitoring-feedback-row:hover {
-  background: var(--db-hover-tint);
+  background: var(--ast-surface-sunken);
 }
 .monitoring-feedback-row:focus-visible {
   position: relative;

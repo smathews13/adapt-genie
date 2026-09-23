@@ -6,7 +6,7 @@
   min-height: 100dvh;
   place-items: center;
   background: var(--ast-sky-fill);
-  color: var(--ast-white);
+  color: var(--ast-ink);
 }
 
 /*
@@ -97,9 +97,7 @@
   min-height: 100dvh;
   padding: 24px;
   place-items: center;
-  background:
-    radial-gradient(circle at 50% 20%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 42%),
-    var(--background);
+  background: var(--ast-canvas);
   color: var(--foreground);
 }
 
@@ -111,7 +109,7 @@
   border: 1px solid var(--ast-hairline);
   border-radius: var(--radius-md);
   background: var(--ast-surface-elevated);
-  box-shadow: 0 18px 48px color-mix(in oklab, var(--db-ink-deep) 16%, transparent);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 .app-session-card h1,

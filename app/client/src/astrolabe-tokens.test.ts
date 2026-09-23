@@ -30,35 +30,35 @@ const TOKENS = partial('astrolabe-tokens.css');
 /** Comments stripped: this file discusses #FF3621 and #F9F7F4 by name, at length. */
 const SOURCE = TOKENS.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
-/** The delivered tokens.css, value for value and name for name. */
+/** Compatibility names must resolve through the canonical light vocabulary. */
 const PALETTE: Record<string, string> = {
   '--ast-white': '#ffffff',
   '--ast-navy': '#11171c',
-  '--ast-blue': '#0d7168',
-  '--ast-blue-on-dark': '#58d9cc',
-  '--ast-ice': '#f0f6fb',
+  '--ast-blue': 'var(--ast-action)',
+  '--ast-blue-on-dark': 'var(--ast-action)',
+  '--ast-ice': 'var(--ast-action-tint)',
   '--ast-icon-tint': '#b7d6ee',
-  '--ast-text': '#161616',
-  '--ast-text-long': '#3a3838',
-  '--ast-text-secondary': '#6f6f6f',
+  '--ast-text': 'var(--ast-ink)',
+  '--ast-text-long': 'var(--ast-ink-secondary)',
+  '--ast-text-secondary': 'var(--ast-ink-tertiary)',
   '--ast-text-on-dark-secondary': '#8a9aa3',
-  '--ast-hairline': '#ebebeb',
-  '--ast-border-input': '#cbcbcb',
-  '--ast-fill-band': '#f7f7f7',
-  '--ast-pos-text': '#247a70',
-  '--ast-pos-border': '#adddd6',
-  '--ast-pos-fill': '#effaf8',
-  '--ast-neg-text': '#a04a62',
-  '--ast-neg-border': '#e3c4cc',
-  '--ast-neg-fill': '#faf3f5',
-  '--ast-warn-text': '#8a6a38',
-  '--ast-warn-border': '#e0d3b8',
-  '--ast-warn-fill': '#f9f6ef',
+  '--ast-hairline': '#e2e8ed',
+  '--ast-border-input': '#c9d3db',
+  '--ast-fill-band': 'var(--ast-surface-sunken)',
+  '--ast-pos-text': 'var(--ast-positive-text)',
+  '--ast-pos-border': 'var(--ast-positive-border)',
+  '--ast-pos-fill': 'var(--ast-positive-fill)',
+  '--ast-neg-text': 'var(--ast-negative-text)',
+  '--ast-neg-border': 'var(--ast-negative-border)',
+  '--ast-neg-fill': 'var(--ast-negative-fill)',
+  '--ast-warn-text': 'var(--ast-warning-text)',
+  '--ast-warn-border': 'var(--ast-warning-border)',
+  '--ast-warn-fill': 'var(--ast-warning-fill)',
   '--ast-warn-deep': '#7a5e32',
-  '--ast-neutral-text': '#46596b',
-  '--ast-neutral-fill': '#f2f6f9',
-  '--ast-info-text': '#094f48',
-  '--ast-info-fill': '#ddeaf4',
+  '--ast-neutral-text': '#4c5c68',
+  '--ast-neutral-fill': '#f2f5f8',
+  '--ast-info-text': '#1a5b8f',
+  '--ast-info-fill': '#e8f1fa',
 };
 
 function declared(name: string) {
@@ -74,21 +74,13 @@ describe('the ADAPT palette matches the delivered token specification', () => {
     });
   }
 
-  it('keeps the names the design source uses, not the ones derived from the spec text', () => {
-    // Five were derived by hand before the real tokens.css arrived, and every one of
-    // them is a name four surface lanes would otherwise write from memory. Named here
-    // so the wrong one fails loudly rather than resolving to nothing at a call site.
-    for (const derived of [
-      '--ast-blue-light',
-      '--ast-text-on-navy',
-      '--ast-control-border',
-      '--ast-positive',
-      '--ast-negative',
-      '--ast-warning',
-      '--ast-neutral:',
-      '--ast-info:',
+  it('keeps the old short status names as aliases rather than a second palette', () => {
+    for (const [legacy, canonical] of [
+      ['--ast-pos-text', '--ast-positive-text'],
+      ['--ast-neg-text', '--ast-negative-text'],
+      ['--ast-warn-text', '--ast-warning-text'],
     ]) {
-      expect(SOURCE, `${derived} was the derived name and is not the delivered one`).not.toContain(derived);
+      expect(declared(legacy)).toBe(`var(${canonical})`);
     }
   });
 
@@ -124,7 +116,7 @@ describe('the ADAPT palette matches the delivered token specification', () => {
     expect(declared('--ast-lh-body')).toBe('1.15');
   });
 
-  it('agrees with the scale tokens.css already declares, step for step', () => {
+  it('agrees with the semantic scale tokens.css declares', () => {
     // THE DUPLICATION IS DELIBERATE AND THIS IS WHAT MAKES IT SAFE. The delivered file
     // restates the eight sizes and the two radii under --ast-* names, and this app has
     // already declared all ten under --text-* and --radius-*. Aliasing would have left
@@ -134,14 +126,14 @@ describe('the ADAPT palette matches the delivered token specification', () => {
     // names existing.
     const app = partial('tokens.css');
     for (const [ast, existing] of [
-      ['--ast-fs-11', '--text-xs'],
-      ['--ast-fs-12', '--text-sm'],
-      ['--ast-fs-13', '--text-base'],
-      ['--ast-fs-14', '--text-h-sub'],
-      ['--ast-fs-16', '--text-h-section'],
-      ['--ast-fs-18', '--text-h-card'],
-      ['--ast-fs-22', '--text-h-page'],
-      ['--ast-fs-32', '--text-hero'],
+      ['--ast-type-eyebrow', '--text-xs'],
+      ['--ast-type-meta', '--text-sm'],
+      ['--ast-type-body', '--text-base'],
+      ['--ast-type-control', '--text-h-sub'],
+      ['--ast-type-section', '--text-h-section'],
+      ['--ast-type-card', '--text-h-card'],
+      ['--ast-type-page', '--text-h-page'],
+      ['--ast-type-hero', '--text-hero'],
       ['--ast-radius-control', '--radius-sm'],
       ['--ast-radius-card', '--radius-md'],
     ]) {
@@ -185,19 +177,27 @@ describe('the ADAPT palette matches the delivered token specification', () => {
 describe('the pill recipe is one recipe, and it is never colour alone', () => {
   const RECIPE = SOURCE.match(/\.ast-pill\s*\{([^}]*)\}/)?.[1] ?? '';
 
-  it('is 1px bordered, 4px radius, 11px at 500', () => {
+  it('is 1px bordered, 6px radius, 11px at 500', () => {
     expect(RECIPE).toMatch(/border:\s*1px solid transparent/);
-    expect(RECIPE).toMatch(/border-radius:\s*var\(--ast-radius-control\)/);
-    expect(RECIPE).toMatch(/font-size:\s*var\(--ast-fs-11\)/);
+    expect(RECIPE).toMatch(/border-radius:\s*var\(--ast-radius-pill\)/);
+    expect(RECIPE).toMatch(/font-size:\s*var\(--ast-type-eyebrow\)/);
     expect(RECIPE).toMatch(/font-weight:\s*500/);
     expect(RECIPE).toMatch(/padding:\s*1px 8px/);
   });
 
-  it('has five families and one outlined alternative, and no sixth meaning', () => {
+  it('has six semantic families and one outlined alternative', () => {
     // A family that is not one of the five meanings is a colour spent on the
     // sixty-first thing on a screen.
     const families = [...SOURCE.matchAll(/\.ast-pill--([a-z-]+)\s*\{/g)].map((match) => match[1]);
-    expect([...new Set(families)].sort()).toEqual(['info', 'neg', 'neutral', 'neutral-outline', 'pos', 'warn']);
+    expect([...new Set(families)].sort()).toEqual([
+      'info',
+      'neg',
+      'neutral',
+      'neutral-outline',
+      'pos',
+      'provenance',
+      'warn',
+    ]);
   });
 
   it('gives positive, negative and warning a visible edge as well as a tint', () => {
@@ -209,18 +209,11 @@ describe('the pill recipe is one recipe, and it is never colour alone', () => {
     }
   });
 
-  it('leaves neutral and info on the transparent edge rather than drawing one', () => {
-    // The delivered file declares fill and text for these two and no border token at
-    // all. That agrees with the design reference, where every #F2F6F9 and #DDEAF4 chip
-    // is fill and text only, and with role-badges.md: "no border ... Do not add a
-    // border to any state", because a bordered pill at this radius is what this app's
-    // buttons look like. The box stays 1px either way, so a chip does not resize when
-    // its family changes.
-    for (const family of ['neutral', 'info']) {
+  it('gives every semantic status a tint and its canonical edge', () => {
+    for (const family of ['neutral', 'info', 'provenance']) {
       const body = SOURCE.match(new RegExp(`\\.ast-pill--${family}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
-      expect(body, `${family} draws no edge`).not.toMatch(/border/);
+      expect(body, `${family} draws its edge`).toMatch(/border-color:\s*var\(--ast-[a-z-]+-border\)/);
     }
-    expect(SOURCE).not.toMatch(/--ast-(neutral|info)-border/);
   });
 
   it('offers the outlined neutral §2 gives as the alternative form', () => {

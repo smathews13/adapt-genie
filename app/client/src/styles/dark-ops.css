@@ -8,15 +8,15 @@ html[data-theme='dark'] .ops-absence {
 }
 
 html[data-theme='dark'] .ops-lat-bar-track {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--ast-chart-track);
 }
 
 html[data-theme='dark'] .ops-lat-bar-fill {
-  background: rgba(143, 193, 232, 0.75);
+  background: var(--ast-chart-1);
 }
 
 html[data-theme='dark'] .ops-lat-chip-get {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ast-neutral-fill);
   color: var(--ast-ink-on-dark);
 }
 

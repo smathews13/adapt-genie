@@ -136,7 +136,7 @@
  * say a step was in progress everywhere.
  */
 .ast-links {
-  stroke: var(--ast-blue-on-dark);
+  stroke: var(--ast-constellation-line);
   stroke-width: 1.2;
   fill: none;
 }
@@ -187,7 +187,7 @@
  * and the sparkles are where it chose to.
  */
 .ast-star-decision {
-  fill: var(--ast-white);
+  fill: var(--ast-star);
   opacity: 0.85;
 }
 
@@ -198,7 +198,7 @@
 /* The step in progress, at full weight. It is the one star a reader is looking
    for, and the pulse it carries is only legible from a solid glyph. */
 .ast-star-current {
-  fill: var(--ast-white);
+  fill: var(--ast-star);
 }
 
 /* The ring that breathes around it. A stroke rather than a fill so the star inside
@@ -218,17 +218,17 @@
  * reason `brand-icons.ts` exists.
  */
 .ast-star-plain {
-  fill: var(--ast-text-on-dark-secondary);
+  fill: var(--ast-star);
 }
 
 .ast-star-tool-halo {
-  fill: color-mix(in srgb, var(--ast-blue-on-dark) 14%, transparent);
-  stroke: color-mix(in srgb, var(--ast-blue-on-dark) 40%, transparent);
+  fill: var(--ast-action-tint);
+  stroke: var(--ast-action-edge);
   stroke-width: 1;
 }
 
 .ast-sky-dust {
-  fill: var(--ast-white);
+  fill: var(--ast-star);
   opacity: 0.3;
 }
 
@@ -240,7 +240,7 @@
  * component, so this cannot cover the artwork.
  */
 .ast-star-selected {
-  fill: color-mix(in srgb, var(--ast-blue-on-dark) 14%, transparent);
+  fill: var(--ast-action-tint);
   stroke: var(--ast-blue-on-dark);
   stroke-width: 1.5;
 }
@@ -337,7 +337,7 @@
   place-items: center;
   width: 20px;
   height: 20px;
-  border: 1px solid color-mix(in srgb, var(--ast-white) 72%, transparent);
+  border: 1px solid var(--ast-border-input);
   border-radius: 50%;
 }
 

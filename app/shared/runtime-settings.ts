@@ -18,6 +18,7 @@ import {
 export {
   DEFAULT_ENTITY_STYLES,
   DEFAULT_RUNTIME_SETTINGS,
+  DARK_ENTITY_STYLES,
   DENSITY_IDS,
   FONT_FAMILY_IDS,
   FONT_FAMILY_STACKS,
@@ -32,6 +33,7 @@ export {
   RUNTIME_SETTINGS_KEYS,
   TABLE_STYLE_IDS,
   THEME_FONT_COLORS,
+  entityStylesForScheme,
   fontColorsForScheme,
   isHexColor,
   runtimeAppearanceCssVariables,
@@ -103,8 +105,8 @@ export const RuntimeSettingsObjectSchema = z.strictObject({
     timezone: z.string().trim().max(80),
     injectCurrentDate: z.boolean(),
   }),
-  colorScheme: z.enum(['dark', 'light']).default('dark'),
-  entityStyles: RuntimeEntityStylesObjectSchema.default(DEFAULT_ENTITY_STYLES).transform(upgradePaperEntityStyles),
+  colorScheme: z.enum(['dark', 'light']).default('light'),
+  entityStyles: RuntimeEntityStylesObjectSchema.default(DEFAULT_ENTITY_STYLES),
   fontBodyColor: HexColorSchema.optional(),
   fontMutedColor: HexColorSchema.optional(),
   fontFamily: z.enum(FONT_FAMILY_IDS).default('dm-sans'),
@@ -117,6 +119,7 @@ export const RuntimeSettingsObjectSchema = z.strictObject({
 
 export const RuntimeSettingsSchema = RuntimeSettingsObjectSchema.transform(({ loop: _retired, ...settings }) => ({
   ...settings,
+  entityStyles: upgradePaperEntityStyles(settings.entityStyles, settings.colorScheme),
   fontBodyColor: settings.fontBodyColor ?? THEME_FONT_COLORS[settings.colorScheme].body,
   fontMutedColor: settings.fontMutedColor ?? THEME_FONT_COLORS[settings.colorScheme].muted,
 }));

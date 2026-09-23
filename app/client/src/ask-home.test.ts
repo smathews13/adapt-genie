@@ -74,9 +74,9 @@ describe('the app shell measures what every sticky offset thinks it measures', (
     // the brand column is the rail's width less this inset, so the two are one
     // number.
     const tokens = partial('tokens.css');
-    expect(tokens).toMatch(/--app-header-content-h:\s*52px/);
+    expect(tokens).toMatch(/--app-header-content-h:\s*56px/);
     expect(tokens).toMatch(/--app-header-h:\s*calc\(var\(--app-header-content-h\) \+ var\(--app-header-safe-top\)\)/);
-    expect(tokens).toMatch(/--app-header-pad-x:\s*20px/);
+    expect(tokens).toMatch(/--app-header-pad-x:\s*16px/);
     const header = body('.app-header');
     expect(header).toMatch(/height:\s*var\(--app-header-h\)/);
     expect(header).toMatch(/padding:\s*var\(--app-header-safe-top\) var\(--app-header-pad-x\) 0/);
@@ -125,12 +125,12 @@ describe('the ask home is the geometry the mockup gives it', () => {
     // inside .ask-layout, so it read the token while the rail read the override and
     // the two disagreed by 44px. The inspector's width is still nobody else's, so
     // it stays here.
-    expect(partial('tokens.css')).toMatch(/--conversation-width:\s*340px/);
-    expect(body('.ask-layout')).toMatch(/--trace-width:\s*340px/);
-    expect(atWidth(1365)).toMatch(/--trace-width:\s*264px/);
+    expect(partial('tokens.css')).toMatch(/--conversation-width:\s*290px/);
+    expect(body('.ask-layout')).toMatch(/--trace-width:\s*320px/);
+    expect(atWidth(1365)).not.toMatch(/--trace-width:/);
   });
 
-  it('changes column width at a width somebody chose, not continuously', () => {
+  it('keeps the left rail fixed until the responsive layout takes over', () => {
     // The token was a clamp -- `clamp(220px, 15vw, 264px)` -- so the columns slid
     // with the window and reached the design's widths only past 1760px. That is a
     // third breakpoint system, invisible, disagreeing with the two this document was
@@ -140,7 +140,8 @@ describe('the ask home is the geometry the mockup gives it', () => {
     // is where the declaration lives; against .ask-layout it would pass by there
     // being no declaration there at all, which is a test that cannot fail.
     expect(partial('tokens.css')).not.toMatch(/--conversation-width:\s*clamp/);
-    expect(atWidth(1180)).toMatch(/--conversation-expanded-width:\s*220px/);
+    expect(atWidth(1240)).not.toMatch(/--conversation-expanded-width:/);
+    expect(atWidth(1240)).toMatch(/grid-template-columns:\s*var\(--conversation-width\) 1fr/);
   });
 
   it('holds the transcript off the rails by a token rather than by a retyped clamp', () => {
@@ -371,7 +372,7 @@ describe('the ask home is the geometry the mockup gives it', () => {
     expect(composer).toMatch(/padding:\s*0/);
     expect(composer).toMatch(/overflow:\s*hidden/);
     expect(body('.composer textarea')).toMatch(/border:\s*0/);
-    expect(body('.composer:focus-within')).toMatch(/outline:\s*2px solid var\(--db-blue-600\)/);
+    expect(body('.composer:focus-within')).toMatch(/outline:\s*2px solid var\(--ast-action\)/);
   });
 
   it('uses the entire harness rail as one navy panel', () => {
@@ -402,8 +403,8 @@ describe('the ask home is the geometry the mockup gives it', () => {
     // it went with every other grey band on the sky. The rule stays; the fill does
     // not.
     const strip = body('.composer-actions');
-    expect(strip).toMatch(/border-top:\s*1px solid var\(--db-line\)/);
-    expect(strip).toMatch(/background:\s*transparent/);
+    expect(strip).toMatch(/border-top:\s*1px solid var\(--ast-hairline\)/);
+    expect(strip).toMatch(/background:\s*var\(--ast-surface-sunken\)/);
     expect(strip).toMatch(/padding:\s*8px 8px 8px 16px/);
   });
 });
@@ -472,7 +473,7 @@ describe('the run says which of four things it is doing', () => {
     // one mass and the next person to read it has to decide which one is the edge.
     expect(body('.run-status.is-live')).toMatch(/border-color:\s*transparent/);
     expect(body('.run-status.is-live')).toMatch(/background:\s*var\(--ast-live-fill\)/);
-    expect(withoutComments(STYLESHEET)).toMatch(/--ast-live-fill:\s*#0d7168/);
+    expect(withoutComments(STYLESHEET)).toMatch(/--ast-live-fill:\s*var\(--ast-action\)/);
     expect(withoutComments(STYLESHEET).match(/--ast-live-fill\s*:/g)).toHaveLength(1);
     expect(body('.run-status.is-live')).not.toMatch(/--db-orange/);
   });
@@ -800,8 +801,8 @@ describe('below 800px the conversation rail is somewhere else, not gone', () => 
   });
 });
 
-describe('below 1180px the finished run is still reachable', () => {
-  const NARROW = atWidth(1180);
+describe('below 1240px the finished run is still reachable', () => {
+  const NARROW = atWidth(1240);
 
   it('swaps the inspector for the strip in one query', () => {
     expect(NARROW).toMatch(/\.trace-inspector\s*\{\s*display:\s*none/);
@@ -839,7 +840,7 @@ describe('below 1180px the finished run is still reachable', () => {
 });
 
 describe('there is one set of breakpoints, and this is it', () => {
-  it('reshapes at 480, 800, 1180 and 1366 and at no other width', () => {
+  it('reshapes at 480, 800, 1240 and 1366 and at no other width', () => {
     // Two systems were live: Tailwind's md/xl on utilities in Layout.tsx and these
     // hand-written queries. The chip left the header 32px before the rail left the
     // page, and the nav collapsed 100px after it. A fifth width appearing here is
@@ -847,7 +848,7 @@ describe('there is one set of breakpoints, and this is it', () => {
     const widths = [...withoutComments(RESPONSIVE).matchAll(/@media \(max-width: (\d+)px\)/g)].map((match) =>
       Number(match[1])
     );
-    expect([...new Set(widths)].sort((a, b) => a - b)).toEqual([480, 800, 1180, 1365]);
+    expect([...new Set(widths)].sort((a, b) => a - b)).toEqual([480, 800, 1240, 1365]);
   });
 
   it('states them largest first, so a narrower rule always overrides the wider one', () => {

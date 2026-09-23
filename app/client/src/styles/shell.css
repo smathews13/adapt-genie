@@ -73,13 +73,13 @@
   width: 100%;
   height: var(--app-header-h);
   padding: var(--app-header-safe-top) var(--app-header-pad-x) 0;
-  border-bottom-color: var(--ast-hairline);
+  border-bottom: 1px solid var(--ast-hairline);
   /* Full-bound occlusion, including the safe-area strip and every gap between
      controls. Content scrolls underneath this plane but cannot show through it. */
   background-color: var(--ast-surface-chrome);
   background-image: none;
   backdrop-filter: none;
-  box-shadow: 0 1px 0 var(--ast-hairline);
+  box-shadow: var(--ast-shadow-chrome);
 }
 .app-header::before {
   position: absolute;
@@ -138,8 +138,8 @@
   /* Reserved on the inactive state too, so becoming active cannot lift the label
      by two pixels. */
   border-bottom: 2px solid transparent;
-  color: var(--db-slate);
-  font-size: 13px;
+  color: var(--ast-ink-secondary);
+  font-size: var(--ast-type-control);
   text-decoration: none;
   transition:
     color 0.15s ease,
@@ -377,7 +377,7 @@
   /* The one place the header is allowed a shadow: this is a layer over the page
      rather than a surface on it, so the hairline alone would leave it reading as
      part of whatever it covers. Same idiom as the gate's card. */
-  box-shadow: 0 6px 16px color-mix(in oklab, var(--db-ink-deep) 14%, transparent);
+  box-shadow: var(--ast-shadow-overlay);
   color: var(--db-body);
   font-size: 11px;
   line-height: 1.5;
@@ -418,11 +418,11 @@
   gap: 6px;
   flex: none;
   max-width: 180px;
-  border: 1px solid var(--db-line-strong);
+  border: 1px solid var(--ast-border-input);
   padding: 0 10px;
-  border-radius: var(--radius-sm);
-  background: var(--background);
-  color: var(--db-ink-deep);
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-surface);
+  color: var(--ast-ink);
   min-height: 30px;
   min-width: 0;
 }
@@ -435,7 +435,7 @@
   white-space: nowrap;
 }
 .identity-chip-label {
-  color: var(--db-slate);
+  color: var(--ast-ink-tertiary);
 }
 .identity-chip-name {
   font-weight: 500;
@@ -600,7 +600,7 @@
   padding: 3px 10px;
   border: 0;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--ast-type-meta);
   font-weight: 500;
   /* Sentence case, never uppercase and never one letter: "A" and "C" are
      indistinguishable from the initials this same header draws a few pixels

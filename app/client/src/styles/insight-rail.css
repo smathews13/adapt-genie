@@ -19,7 +19,7 @@
 /* ─────────── INSIGHT RAIL ─────────── */
 .trace-inspector.insight-rail {
   border-left: 1px solid var(--ast-border-input);
-  box-shadow: -8px 0 20px color-mix(in srgb, var(--background) 78%, transparent);
+  box-shadow: var(--ast-shadow-flat);
 }
 
 .insight-rail-head {
@@ -238,7 +238,8 @@
   color: var(--ast-text);
 }
 .insight-save-btn:disabled {
-  opacity: 0.5;
+  color: var(--ast-ink-disabled);
+  opacity: 1;
   cursor: default;
 }
 .insight-save-btn svg {
@@ -275,7 +276,8 @@
   color: var(--ast-text);
 }
 .insight-saved:disabled {
-  opacity: 0.55;
+  color: var(--ast-ink-disabled);
+  opacity: 1;
   cursor: default;
 }
 .insight-saved-del {

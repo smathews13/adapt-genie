@@ -59,18 +59,8 @@
   .app-nav-tab {
     padding: 0 8px;
   }
-  /* The harness hands back the 76px it is given on a wide window. The rail is
-     340px there because the column is read rather than glanced at; below this
-     bound the middle column is the one with nothing to spare, and a transcript
-     squeezed to keep a side column roomy is the wrong way round. The band the
-     header already declares tight is the band this is tight in too. */
-  .ask-layout {
-    --trace-width: 264px;
-    --conversation-expanded-width: 264px;
-    --conversation-width: var(--conversation-expanded-width);
-  }
 }
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   /* The nav moves into the sheet, and the hamburger that opens it appears. One
      switch, both halves, so the header can never have both or neither. */
   .app-nav {
@@ -84,7 +74,6 @@
     gap: 6px;
   }
   .ask-layout {
-    --conversation-expanded-width: 220px;
     --conversation-width: var(--conversation-expanded-width);
     grid-template-columns: var(--conversation-width) 1fr;
   }
@@ -399,8 +388,8 @@
    width -- the nav went at 1180px -- but a rule that only happens to be unread is
    a rule that is wrong the day something reads it. */
 @media (max-width: 480px) {
-  .app-header {
-    --app-header-pad-x: 12px;
+  .adapt-peak-lockup-mark {
+    background-image: var(--brand-mark-sm);
   }
   .app-header .ast-wordmark {
     display: none;

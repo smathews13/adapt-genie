@@ -6,16 +6,18 @@ const TOKENS = readFileSync(new URL('./styles/astrolabe-tokens.css', import.meta
 const DARK = readFileSync(new URL('./styles/dark-mode.css', import.meta.url), 'utf8');
 
 describe('ADAPT theme contracts', () => {
-  it('starts dark without allowing the operating system to override AppKit', () => {
+  it('starts in light mode unless the user explicitly saved dark mode', () => {
     expect(INDEX).toContain('class="light"');
-    expect(INDEX).toContain('data-theme="dark"');
-    expect(INDEX).toContain('<meta name="theme-color" content="#11171c"');
+    expect(INDEX).not.toMatch(/<html[^>]*data-theme=/);
+    expect(INDEX).toContain('<meta name="theme-color" content="#f4f7f9"');
+    expect(INDEX).toContain("saved?.colorScheme === 'dark' ? 'dark' : 'light'");
+    expect(INDEX).not.toContain('prefers-color-scheme');
   });
 
-  it('maps dark actions and information to the teal family', () => {
-    expect(TOKENS).toMatch(/--ast-blue-on-dark:\s*#58d9cc/);
-    expect(TOKENS).toMatch(/--ast-ice-accent:\s*#86e2d7/);
-    expect(TOKENS).toMatch(/--ast-info-text:\s*var\(--ast-ice-accent\)/);
+  it('maps dark actions and information to the existing blue family', () => {
+    expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-action:\s*#8fc1e8/);
+    expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-blue-on-dark:\s*var\(--ast-action\)/);
+    expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-info-text:\s*var\(--ast-action\)/);
   });
 
   it('keeps dark overrides under the explicit theme attribute', () => {

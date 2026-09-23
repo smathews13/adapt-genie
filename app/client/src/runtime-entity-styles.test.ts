@@ -42,7 +42,7 @@ describe('saved Appearance colors', () => {
     adoptRuntimeEntityStyles({ ...DEFAULT_RUNTIME_SETTINGS, colorScheme: 'light' }, root.style);
     expect(root.getAttribute('data-theme')).toBe('light');
     expect(root.classList.contains('light')).toBe(true);
-    adoptRuntimeEntityStyles(DEFAULT_RUNTIME_SETTINGS, root.style);
+    adoptRuntimeEntityStyles({ ...DEFAULT_RUNTIME_SETTINGS, colorScheme: 'dark' }, root.style);
     expect(root.getAttribute('data-theme')).toBe('dark');
     vi.unstubAllGlobals();
   });

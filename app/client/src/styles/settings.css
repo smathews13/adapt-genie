@@ -938,7 +938,7 @@
   border-color: var(--border);
   border-radius: var(--radius-md);
   background: var(--roster-panel-surface);
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--db-ink-deep) 10%, transparent);
+  box-shadow: none;
   overflow-x: hidden;
   scrollbar-width: none;
 }
@@ -1362,8 +1362,8 @@
 }
 
 .settings-page [data-slot='button'].settings-destructive:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--db-red-700) 82%, white);
-  background: color-mix(in srgb, var(--db-red-700) 82%, white);
+  border-color: var(--ast-danger-hover);
+  background: var(--ast-danger-hover);
   color: var(--destructive-foreground);
 }
 
@@ -1374,8 +1374,8 @@ html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive
 }
 
 html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
-  background: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+  border-color: var(--ast-danger-control-hover);
+  background: var(--ast-danger-control-hover);
   color: var(--destructive-foreground);
 }
 
@@ -1424,7 +1424,7 @@ html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive
   display: grid;
   place-items: center;
   padding: 16px;
-  background: color-mix(in oklab, var(--db-ink-deep) 50%, transparent);
+  background: var(--ast-scrim);
 }
 
 .settings-page.settings-modal {
@@ -1437,9 +1437,10 @@ html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive
   margin: 0;
   padding: 0;
   overflow: hidden;
-  border-radius: 8px;
-  background: var(--card);
-  box-shadow: 0 16px 48px rgba(17, 23, 28, 0.35);
+  border: 1px solid var(--ast-hairline);
+  border-radius: 14px;
+  background: var(--ast-surface);
+  box-shadow: var(--ast-shadow-overlay);
   color: var(--foreground);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -1453,7 +1454,7 @@ html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive
   display: grid;
   place-items: center;
   padding: 16px;
-  background: color-mix(in oklab, var(--db-ink-deep) 60%, transparent);
+  background: var(--ast-scrim);
 }
 
 .settings-discard {
@@ -1462,9 +1463,9 @@ html[data-theme='dark'] .settings-page [data-slot='button'].settings-destructive
   gap: 12px;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  box-shadow: 0 16px 48px rgba(17, 23, 28, 0.35);
+  border-radius: 14px;
+  background: var(--ast-surface-raised);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 .settings-discard h3,
@@ -1509,6 +1510,7 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--ast-surface-raised);
 }
 
 .settings-modal-header h2,
@@ -1553,14 +1555,14 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
 .settings-modal-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 230px minmax(0, 1fr);
   overflow: hidden;
 }
 
 .settings-rail {
   padding: 12px 8px;
   border-right: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--ast-surface-sunken);
 }
 
 .settings-rail button {
@@ -1616,8 +1618,8 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
 }
 
 .settings-rail button.active {
-  border-color: var(--border);
-  background: var(--card);
+  border-color: var(--ast-action-edge);
+  background: var(--ast-surface-selected);
   color: var(--foreground);
   font-weight: 500;
 }
@@ -1841,7 +1843,7 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
   justify-content: space-between;
   gap: 16px;
   border-top: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--ast-surface-raised);
 }
 
 .settings-dirty-indicator {
@@ -1940,19 +1942,19 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
 
 .runtime-loop-label--agent {
   border-color: var(--ast-primary-control-border);
-  background: color-mix(in srgb, var(--ast-primary-control-border) 14%, var(--card));
+  background: var(--ast-action-tint);
   color: var(--ast-primary-control-border);
 }
 
 .runtime-loop-label--tool {
-  border-color: var(--db-teal-600);
-  background: color-mix(in srgb, var(--db-teal-600) 14%, var(--card));
-  color: var(--db-teal-600);
+  border-color: var(--ast-positive-border);
+  background: var(--ast-positive-fill);
+  color: var(--ast-positive-text);
 }
 
 .runtime-loop-label--budget {
   border-color: var(--ast-blue);
-  background: color-mix(in srgb, var(--ast-blue) 14%, var(--card));
+  background: var(--ast-info-fill);
   color: var(--ast-blue);
 }
 
@@ -1973,7 +1975,7 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
 }
 
 .runtime-loop-diagram__budget-frame {
-  fill: color-mix(in srgb, var(--ast-blue) 3%, transparent);
+  fill: var(--ast-action-tint);
   stroke: var(--ast-blue);
   stroke-width: 1;
   stroke-dasharray: 3 3;
@@ -2267,15 +2269,15 @@ html[data-theme='dark'] .settings-overlay .settings-page.settings-modal {
 }
 
 .appearance-display-preview[data-color-scheme='dark'] {
-  --appearance-preview-background: #11171c;
+  --appearance-preview-background: var(--ast-preview-dark-surface);
   --appearance-preview-scheme: dark;
-  border-color: #38434d;
+  border-color: var(--ast-preview-dark-border);
 }
 
 .appearance-display-preview[data-color-scheme='light'] {
-  --appearance-preview-background: #ffffff;
+  --appearance-preview-background: var(--ast-preview-light-surface);
   --appearance-preview-scheme: light;
-  border-color: #d6d9dc;
+  border-color: var(--ast-preview-light-border);
 }
 
 .appearance-display-preview-kicker,

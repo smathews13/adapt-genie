@@ -3,9 +3,9 @@
   width: calc(100% - 16px);
   margin: 28px auto 0;
   max-width: min(640px, var(--conversation-measure));
-  background: var(--ast-pane);
-  border: 1px solid var(--db-line-strong);
-  border-radius: var(--radius-md);
+  background: var(--ast-surface);
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
   padding: 0;
   overflow: hidden;
 }
@@ -42,8 +42,8 @@
    */
   max-width: min(640px, var(--conversation-measure));
   margin-inline: auto;
-  border: 1px solid var(--db-line-strong);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--ast-border-input);
+  border-radius: var(--ast-radius-card);
 }
 
 /* Typing a question is the app's main action, so the composer wears the action
@@ -51,8 +51,8 @@
    textarea, so the whole thing reads as one surface, and it is the same 2px solid
    blue at 2px offset that every other focusable thing draws. */
 .composer:focus-within {
-  border-color: var(--db-blue-600);
-  outline: 2px solid var(--db-blue-600);
+  border-color: var(--ast-action);
+  outline: 2px solid var(--ast-action);
   outline-offset: 2px;
 }
 /* The empty-state card floats in the flow with room on every side, so it takes
@@ -70,8 +70,9 @@
   box-shadow: none;
   min-height: 54px;
   padding: 14px 16px;
-  background: transparent;
+  background: var(--ast-surface);
   color: var(--foreground);
+  font-size: var(--ast-type-body);
 }
 /* The container already draws the focus ring; a second one inside it is noise. */
 .composer textarea:focus-visible {
@@ -263,12 +264,12 @@
   align-items: center;
   gap: 12px;
   padding: 8px 8px 8px 16px;
-  border-top: 1px solid var(--db-line);
+  border-top: 1px solid var(--ast-hairline);
   /* The rule above is the separation. The wash was a grey band across the bottom of
      the composer, which on the sky is the one thing this pass removed everywhere
      else -- and it is the band a reader sees most, because it is on screen before
      they have asked anything. */
-  background: transparent;
+  background: var(--ast-surface-sunken);
 }
 /* The caveat line takes the slack, which is what puts the submit button hard right
    however many ghost controls are to its left.
@@ -288,6 +289,10 @@
 /* 32px, the design's control height, on both the ghost controls and the submit. */
 .composer-actions [data-slot='button'] {
   height: 32px;
+}
+.composer-actions [data-slot='button'][type='submit'] {
+  height: 40px;
+  min-width: 112px;
 }
 /*
  * The attach control's four states, none of which it had.
@@ -332,7 +337,7 @@
  * through the composer should not have to find a 2px line to know where they are.
  */
 .composer-attach:focus-visible {
-  outline: 2px solid var(--db-blue-600);
+  outline: 2px solid var(--ast-action);
   outline-offset: 2px;
   background: var(--db-hover-tint);
 }

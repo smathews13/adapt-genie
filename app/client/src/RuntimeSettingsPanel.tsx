@@ -6,6 +6,7 @@ import {
   FONT_SIZE_IDS,
   FONT_SIZE_SCALE,
   TABLE_STYLE_IDS,
+  entityStylesForScheme,
   fontColorsForScheme,
   isHexColor,
   type FontFamilyId,
@@ -248,6 +249,7 @@ export function RuntimeSettingsPanel({
                     setSettings((current) => ({
                       ...current,
                       colorScheme,
+                      ...entityStylesForScheme(current, colorScheme),
                       ...fontColorsForScheme(current, colorScheme),
                     }));
                   }}
@@ -423,7 +425,7 @@ export function RuntimeSettingsPanel({
                           type="color"
                           className="appearance-color-picker"
                           aria-label={`${aria} picker`}
-                          value={isHexColor(hex) ? hex : '#000000'}
+                          value={isHexColor(hex) ? hex : DEFAULT_RUNTIME_SETTINGS[key]}
                           onChange={(event) =>
                             setSettings((current) => ({
                               ...current,
@@ -502,7 +504,7 @@ export function RuntimeSettingsPanel({
                             type="color"
                             className="appearance-color-picker"
                             aria-label={`${kind} ${property} picker`}
-                            value={isHexColor(hex) ? hex : '#000000'}
+                            value={isHexColor(hex) ? hex : DEFAULT_RUNTIME_SETTINGS.entityStyles[kind][property]}
                             onChange={(event) => update(event.target.value)}
                           />
                         </span>

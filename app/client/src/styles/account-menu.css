@@ -11,9 +11,9 @@
   max-width: 250px;
   padding: 0 10px;
   border: 1px solid var(--ast-border-input);
-  border-radius: var(--radius-sm);
-  background: var(--background);
-  color: var(--foreground);
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-surface);
+  color: var(--ast-ink);
   font: inherit;
   white-space: nowrap;
   cursor: pointer;
@@ -27,28 +27,31 @@
 .account-menu-trigger.identity-chip:hover,
 .account-menu-trigger.identity-chip:focus-visible {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--ast-surface-chrome) 92%, var(--primary));
+  background: var(--ast-control-hover);
   color: var(--primary);
 }
 
 .account-menu-trigger.identity-chip:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 42%, transparent);
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* The open account and selected conversation are both the reader's current
    context, so they use the same ADAPT primary colour. */
 .account-menu-trigger.identity-chip[aria-expanded='true'] {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--background) 88%, var(--primary));
-  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--ast-control-active);
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
+  box-shadow: none;
   color: var(--primary);
 }
 
 .account-menu-trigger.identity-chip[aria-expanded='true']:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--primary),
-    0 0 0 2px color-mix(in srgb, var(--primary) 42%, transparent);
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .account-menu-trigger.identity-chip:is(:hover, :focus-visible, [aria-expanded='true']) > .roster-organization-mark {
@@ -89,11 +92,11 @@
   width: 100%;
   padding: 6px;
   border: 1px solid var(--ast-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--ast-radius-overlay);
   background: var(--ast-surface-menu);
-  box-shadow: 0 12px 32px color-mix(in oklab, var(--db-ink-deep) 16%, transparent);
+  box-shadow: var(--ast-shadow-overlay);
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--ast-type-meta);
 }
 
 .account-menu-portal {
@@ -199,16 +202,15 @@
 .account-menu-group > button:hover,
 .account-menu-group > a:hover,
 .account-feedback-menu > a:hover {
-  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  background: var(--ast-control-hover);
   color: var(--primary);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 58%, transparent);
-  outline: none;
+  box-shadow: none;
 }
 
 .account-menu-group > button:focus-visible,
 .account-menu-group > a:focus-visible,
 .account-feedback-menu > a:focus-visible {
-  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  background: var(--ast-control-hover);
   color: var(--primary);
   outline: 2px solid var(--primary);
   outline-offset: -2px;
@@ -233,14 +235,13 @@
 }
 
 .account-feedback-trigger:hover {
-  background: color-mix(in srgb, var(--background) 92%, var(--primary));
+  background: var(--ast-control-hover);
   color: var(--primary);
-  outline: none;
 }
 
 .account-feedback-trigger[aria-expanded='true'] {
-  background: color-mix(in srgb, var(--background) 88%, var(--primary));
-  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--ast-control-active);
+  box-shadow: none;
   color: var(--primary);
 }
 
@@ -256,9 +257,9 @@
   gap: 2px;
   padding: 7px;
   border: 1px solid var(--ast-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--ast-radius-overlay);
   background: var(--ast-surface-menu);
-  box-shadow: 0 12px 32px color-mix(in oklab, var(--db-ink-deep) 22%, transparent);
+  box-shadow: var(--ast-shadow-overlay);
   color: var(--foreground);
   backdrop-filter: none;
 }
@@ -327,15 +328,16 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: color-mix(in oklab, var(--db-ink-deep) 50%, transparent);
+  background: var(--ast-scrim);
 }
 
 .account-composer {
   width: min(420px, 100%);
   overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--card);
-  box-shadow: 0 16px 48px color-mix(in oklab, var(--db-ink-deep) 35%, transparent);
+  border: 1px solid var(--ast-hairline);
+  border-radius: var(--ast-radius-overlay);
+  background: var(--ast-surface-raised);
+  box-shadow: var(--ast-shadow-overlay);
   color: var(--foreground);
 }
 
@@ -482,7 +484,7 @@
 
 .account-composer-send:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 1;
 }
 
 .account-composer-send svg {

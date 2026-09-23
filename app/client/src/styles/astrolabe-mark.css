@@ -54,6 +54,17 @@
   margin: 0;
 }
 
+.adapt-peak-lockup-mark {
+  display: block;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 21px;
+  background-image: var(--brand-mark);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 19px 21px;
+}
+
 /*
  * The name, and it is lowercase because it is the name (§1). No
  * `text-transform`: the string is already lowercase in the component, so a

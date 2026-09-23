@@ -1,0 +1,6 @@
+{
+  "environment": "development",
+  "token_type": "app-level",
+  "scopes": ["connections:write"],
+  "value": "REQUIRED: create outside Git after approval"
+}

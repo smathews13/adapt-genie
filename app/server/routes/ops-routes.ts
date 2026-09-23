@@ -314,7 +314,7 @@ export function configuredResourceName(value: unknown, keys: readonly string[]):
  */
 export async function costIdentifiersFor(
   appkit: InsightsAppKit,
-  _req: Request,
+  _context: unknown,
   extras: {
     workspaceId: string;
     warehouse: string;

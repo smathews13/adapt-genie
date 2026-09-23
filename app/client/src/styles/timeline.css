@@ -502,39 +502,39 @@
   border: 1px solid transparent;
 }
 .trace-timeline--explorer .trace-chip-llm {
-  background: #d9f2e3;
+  background: var(--ast-trace-llm-fill);
   color: var(--ast-trace-llm-ink);
-  border-color: #b5e0c8;
+  border-color: var(--ast-trace-llm-border);
 }
 .trace-timeline--explorer .trace-chip-sql {
-  background: #d7ebf8;
+  background: var(--ast-trace-sql-fill);
   color: var(--ast-trace-sql-ink);
-  border-color: #b4d6ee;
+  border-color: var(--ast-trace-sql-border);
 }
 .trace-timeline--explorer .trace-chip-discovery {
-  background: #f3e6c8;
+  background: var(--ast-trace-discovery-fill);
   color: var(--ast-trace-discovery-ink);
-  border-color: #e2cfa0;
+  border-color: var(--ast-trace-discovery-border);
 }
 .trace-timeline--explorer .trace-chip-plot {
-  background: #eadcf3;
+  background: var(--ast-trace-plot-fill);
   color: var(--ast-trace-plot-ink);
-  border-color: #d4bce4;
+  border-color: var(--ast-trace-plot-border);
 }
 .trace-timeline--explorer .trace-chip-clarify {
-  background: #f7e4d4;
+  background: var(--ast-trace-clarify-fill);
   color: var(--ast-trace-clarify-ink);
-  border-color: #e8c9a8;
+  border-color: var(--ast-trace-clarify-border);
 }
 .trace-timeline--explorer .trace-chip-agent {
-  background: #e8ecf0;
-  color: #445461;
-  border-color: #cfd6dc;
+  background: var(--ast-neutral-fill);
+  color: var(--ast-neutral-text);
+  border-color: var(--ast-neutral-border);
 }
 .trace-timeline--explorer .trace-chip-run {
-  background: #e8ecf0;
-  color: #445461;
-  border: 1px solid #c5ced6;
+  background: var(--ast-neutral-fill);
+  color: var(--ast-neutral-text);
+  border: 1px solid var(--ast-neutral-border);
   padding: 1px 7px;
 }
 .trace-timeline--explorer .trace-bar {
@@ -556,7 +556,7 @@
   background: var(--ast-trace-clarify-bar);
 }
 .trace-timeline--explorer .trace-bar-agent {
-  background: #9aa7b2;
+  background: var(--ast-trace-neutral-bar);
 }
 /* Explorer: kind totals as a compact badge row above the table, not a
    full-width kind/duration listing. Ask keeps the larger `.trace-kpis` tiles. */
@@ -608,8 +608,8 @@
 .trace-bar.failed {
   background-image: repeating-linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.85) 0,
-    rgba(255, 255, 255, 0.85) 2px,
+    var(--ast-trace-hatch) 0,
+    var(--ast-trace-hatch) 2px,
     transparent 2px,
     transparent 5px
   );

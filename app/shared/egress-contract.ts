@@ -52,6 +52,7 @@
  * event already recorded under it, so add rather than rename.
  */
 export type EgressChannel =
+  | 'slack-message'
   | 'chart-image'
   | 'generated-sql'
   | 'result-figures'
@@ -135,6 +136,18 @@ export interface EgressPath {
  * infrastructure.
  */
 export const EGRESS_PATHS: readonly EgressPath[] = [
+  {
+    channel: 'slack-message',
+    label: 'Slack direct-message delivery',
+    shape: 'prose',
+    enforcement: 'enforced',
+    allowedByDefault: false,
+    // Socket events have a hashed Slack user, not a signed-in app email. The
+    // delivery ledger records sent/refused state without inventing an actor for
+    // the egress event table.
+    reported: false,
+    where: 'Slack progress, final answers, and identity link-outs',
+  },
   {
     channel: 'chart-image',
     label: 'Chart image download',

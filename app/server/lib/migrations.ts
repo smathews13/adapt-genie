@@ -31,6 +31,17 @@ import {
 import { LAKEBASE_BINDING_PLAN_DDL, LAKEBASE_BINDING_PLAN_TABLE } from './lakebase-binding-plan';
 import { GROUP_ROLE_MAPPINGS_DDL, GROUP_ROLE_MAPPINGS_TABLE } from './group-role-mappings';
 import { APP_GROUPS_DDL, APP_GROUPS_TABLE } from './app-groups-store';
+import {
+  SLACK_CONVERSATION_BINDINGS_TABLE,
+  SLACK_DELIVERIES_TABLE,
+  SLACK_EVENT_DEDUP_TABLE,
+  SLACK_INSTALLATIONS_TABLE,
+  SLACK_SETTINGS_DDL,
+  SLACK_SETTINGS_TABLE,
+  SLACK_RENDER_DELIVERY_MIGRATION_DDL,
+  SLACK_STATE_DDL,
+  SLACK_USER_LINKS_TABLE,
+} from '../slack/schema';
 /**
  * The numbered schema versions, and the rules for adding one.
  *
@@ -1090,6 +1101,33 @@ ON CONFLICT (id) DO UPDATE SET
     name: 'app groups',
     statements: [APP_GROUPS_DDL],
     down: [`DROP TABLE IF EXISTS ${APP_GROUPS_TABLE}`],
+  },
+  {
+    version: 48,
+    name: 'slack state adapter',
+    statements: SLACK_STATE_DDL,
+    down: [
+      `DROP TABLE IF EXISTS ${SLACK_DELIVERIES_TABLE}`,
+      `DROP INDEX IF EXISTS ${APP_SCHEMA}.slack_event_dedup_expires_idx`,
+      `DROP TABLE IF EXISTS ${SLACK_EVENT_DEDUP_TABLE}`,
+      `DROP TABLE IF EXISTS ${SLACK_CONVERSATION_BINDINGS_TABLE}`,
+      `DROP TABLE IF EXISTS ${SLACK_USER_LINKS_TABLE}`,
+      `DROP TABLE IF EXISTS ${SLACK_INSTALLATIONS_TABLE}`,
+    ],
+  },
+  {
+    version: 49,
+    name: 'slack operational settings',
+    statements: [SLACK_SETTINGS_DDL],
+    down: [`DROP TABLE IF EXISTS ${SLACK_SETTINGS_TABLE}`],
+  },
+  {
+    version: 50,
+    name: 'slack render delivery state',
+    statements: SLACK_RENDER_DELIVERY_MIGRATION_DDL,
+    // Pre-run link-out rows legitimately have no run id. Restoring NOT NULL
+    // would either fail or require deleting delivery history.
+    down: null,
   },
 ];
 

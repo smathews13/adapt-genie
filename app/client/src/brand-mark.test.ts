@@ -260,7 +260,7 @@ describe('the brand column is the conversation rail, so Ask sits on its corner',
   it('declares that width exactly once, in the file both of them read', () => {
     const declarations = [...withoutComments(TOKENS).matchAll(/--conversation-width:\s*([^;]+);/g)];
     expect(declarations).toHaveLength(1);
-    expect(declarations[0][1].trim()).toEqual('340px');
+    expect(declarations[0][1].trim()).toEqual('290px');
     expect(withoutComments(RAIL)).not.toMatch(/--conversation-width:\s*\d/);
   });
 
@@ -306,14 +306,14 @@ describe('the header measures what --app-header-h says it measures', () => {
     return Number(found![1]);
   }
 
-  it('is §1’s 52px, stated once rather than derived from what is inside it', () => {
+  it('is the ADAPT 56px chrome, stated once rather than derived from its contents', () => {
     // The token used to be `--logo-mark-size + 22px`, describing a stack of a
     // brand rule, two paddings, a mark and a hairline -- so it was a claim about
     // the header's contents that somebody had to keep true by hand. It has been
     // caught lying once already, reading 52px while the header stood at 58 with
     // six pixels of the transcript underneath it. A stated height cannot drift
     // from itself.
-    expect(px(TOKENS, '--app-header-content-h')).toEqual(52);
+    expect(px(TOKENS, '--app-header-content-h')).toEqual(56);
     expect(TOKENS).toMatch(/--app-header-h:\s*calc\(var\(--app-header-content-h\) \+ var\(--app-header-safe-top\)\)/);
     expect(body('.app-header', SHELL)).toMatch(/height:\s*var\(--app-header-h\)/);
     expect(LAYOUT).toMatch(/<header className="app-header ast-top-chrome border-b/);

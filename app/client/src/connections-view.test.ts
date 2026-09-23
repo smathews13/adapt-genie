@@ -51,7 +51,7 @@ describe('the declared-tables search and filters', () => {
   ];
 
   it('lists each catalog, and only the schemas inside the chosen one', () => {
-    expect(declaredTableFilterOptions(tables).catalogs).toEqual(['sample_catalog', 'other_catalog']);
+    expect(declaredTableFilterOptions(tables).catalogs).toEqual(['other_catalog', 'sample_catalog']);
     expect(declaredTableFilterOptions(tables).schemas).toEqual(['other_schema', 'player_insights_demo']);
     expect(declaredTableFilterOptions(tables, 'sample_catalog').schemas).toEqual(['player_insights_demo']);
   });

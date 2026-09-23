@@ -294,7 +294,7 @@ function ownedTable(columnsByTable: Record<string, string[]>) {
         if (/information_schema\.columns/i.test(text)) {
           const table = typeof params?.[1] === 'string' ? params[1] : '';
           const present = columnsByTable[table] ?? [];
-          return Promise.resolve({ rows: present.map((column_name) => ({ column_name })) });
+          return Promise.resolve({ rows: present.map((column_name) => ({ column_name, is_nullable: 'YES' })) });
         }
         return Promise.resolve({ rows: [] as Record<string, unknown>[] });
       },
@@ -306,10 +306,11 @@ function ownedTable(columnsByTable: Record<string, string[]>) {
 const ALTERED_COLUMNS: Record<string, string[]> = MIGRATIONS.reduce<Record<string, string[]>>(
   (accumulated, migration) => {
     for (const statement of migration.statements) {
-      const target = /^ALTER\s+TABLE\s+\w+\.(\w+)/i.exec(statement.trim())?.[1];
+      const target = /^ALTER\s+TABLE\s+(?:IF EXISTS\s+)?\w+\.(\w+)/i.exec(statement.trim())?.[1];
       if (!target) continue;
       const added = [...statement.matchAll(/ADD COLUMN IF NOT EXISTS\s+(\w+)/gi)].map((match) => match[1]);
-      accumulated[target] = [...(accumulated[target] ?? []), ...added];
+      const madeNullable = [...statement.matchAll(/ALTER COLUMN\s+(\w+)\s+DROP NOT NULL/gi)].map((match) => match[1]);
+      accumulated[target] = [...(accumulated[target] ?? []), ...added, ...madeNullable];
     }
     return accumulated;
   },

@@ -19,11 +19,8 @@
  * and prettier formats them out. The test normalises whitespace and compares the
  * declarations, which is the comparison that means anything.
  *
- * The two colour literals in ast-dot-run and ast-dot-run-sm are verbatim for the
- * same reason. Both are palette values -- #2272B4 is --db-blue-600 and
- * --ast-blue, #6FAEDD is --ast-blue-light -- checked rather than assumed, so
- * neither is a colour written past the token block even though it is written as a
- * hex.
+ * The moving dots use the shared action tokens so both themes resolve them
+ * without carrying a second palette inside the keyframes.
  *
  * NOTHING IN THIS APP USES ANY OF THEM YET. The loaders that will are per-surface
  * work on files other people are editing. What lands here is the vocabulary and
@@ -63,16 +60,16 @@
   0% {
     transform: translateX(0);
     opacity: 0;
-    background: #2272b4;
+    background: var(--ast-action);
   }
   6% {
     opacity: 1;
   }
   46% {
-    background: #2272b4;
+    background: var(--ast-action);
   }
   54% {
-    background: #6faedd;
+    background: var(--ast-action-hover);
   }
   94% {
     opacity: 1;
@@ -80,7 +77,7 @@
   100% {
     transform: translateX(203px);
     opacity: 0;
-    background: #6faedd;
+    background: var(--ast-action-hover);
   }
 }
 
@@ -88,16 +85,16 @@
   0% {
     transform: translateX(0);
     opacity: 0;
-    background: #2272b4;
+    background: var(--ast-action);
   }
   6% {
     opacity: 1;
   }
   46% {
-    background: #2272b4;
+    background: var(--ast-action);
   }
   54% {
-    background: #6faedd;
+    background: var(--ast-action-hover);
   }
   94% {
     opacity: 1;
@@ -105,7 +102,7 @@
   100% {
     transform: translateX(110px);
     opacity: 0;
-    background: #6faedd;
+    background: var(--ast-action-hover);
   }
 }
 

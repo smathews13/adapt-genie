@@ -27,7 +27,7 @@ describe('ADAPT loading states', () => {
     const markup = renderToStaticMarkup(createElement(AdaptLoadingAnimation, { variant: 'ask' }));
     expect(markup).toContain('adapt-loading-ring');
     expect(markup).toContain('adapt-loading-bar');
-    expect(CSS).toMatch(/\.adapt-loading\s*\{[^}]*--accent:\s*#3ec6b4/s);
+    expect(CSS).toMatch(/\.adapt-loading\s*\{[^}]*--accent:\s*var\(--ast-brand-teal\)/s);
     expect(SOURCE).not.toMatch(/WorkingConstellation|AgentConstellation/);
   });
 

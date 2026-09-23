@@ -400,7 +400,7 @@ describe('all five states reach the screen, and none of them is blank prose', ()
     expect(base, 'shell.css still has a .role-badge base rule').not.toEqual('');
     expect(base).toMatch(/border-radius:\s*999px/);
     expect(base).toMatch(/padding:\s*3px 10px/);
-    expect(base).toMatch(/font-size:\s*12px/);
+    expect(base).toMatch(/font-size:\s*var\(--ast-type-meta\)/);
     expect(base).toMatch(/font-weight:\s*500/);
     // `border: 0` rather than an omission. An omitted border is a border the next
     // edit adds without noticing it is the one thing that breaks the shape.

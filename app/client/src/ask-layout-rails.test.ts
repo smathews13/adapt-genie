@@ -32,9 +32,10 @@ describe('idle Ask keeps ADAPT business context instead of an agent map', () => 
 
 describe('the two rails share one width and the card sits in the middle', () => {
   it('keeps stable conversation and insight rail widths', () => {
-    expect(TOKENS).toMatch(/--conversation-width:\s*340px/);
-    expect(TOKENS).toMatch(/--trace-width:\s*340px/);
-    expect(RAIL).toMatch(/--conversation-expanded-width:\s*340px/);
+    expect(TOKENS).toMatch(/--conversation-width:\s*290px/);
+    expect(TOKENS).toMatch(/--trace-width:\s*320px/);
+    expect(RAIL).toMatch(/--trace-width:\s*320px/);
+    expect(RAIL).toMatch(/--conversation-expanded-width:\s*290px/);
     expect(RAIL).toMatch(/--conversation-width:\s*var\(--conversation-expanded-width\)/);
     expect(HOME).toContain('className="trace-inspector insight-rail"');
   });

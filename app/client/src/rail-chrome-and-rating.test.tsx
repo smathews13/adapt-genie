@@ -127,7 +127,7 @@ describe('the release badge and the two controls beside it', () => {
 
   it('answers the pointer with the shared ADAPT primary treatment', () => {
     expect(ACCOUNT).toMatch(
-      /\.account-menu-trigger\.identity-chip:hover,[\s\S]*background:\s*color-mix\(in srgb,\s*var\(--ast-surface-chrome\) 92%,\s*var\(--primary\)\)/
+      /\.account-menu-trigger\.identity-chip:hover,[\s\S]*background:\s*var\(--ast-control-hover\)/
     );
     expect(SHELL).toMatch(
       /\.deployment-time-chip:hover,\s*\.deployment-time-chip:focus-visible \{\s*background: var\(--muted\)/
@@ -216,7 +216,7 @@ describe('the unified question attribution bubble', () => {
   });
 
   it('stacks the right insight rail at the shared narrow breakpoint', () => {
-    const band = atRule(partial('responsive.css'), '@media (max-width: 1180px)');
+    const band = atRule(partial('responsive.css'), '@media (max-width: 1240px)');
 
     expect(band).toContain('.trace-inspector');
     expect(band).toMatch(/\.ask-layout\s*\{[^}]*grid-template-columns:/);
@@ -244,11 +244,12 @@ describe('the settings pane uses elevated semantic glass', () => {
     expect(frost).not.toMatch(/rgba\(255,\s*255,\s*255,\s*0\.03\)/);
   });
 
-  it('stays glass rather than becoming a slab', () => {
-    expect(ASTROLABE).toMatch(
-      /--ast-surface-elevated:\s*color-mix\(in srgb,\s*var\(--ast-white\) 97%,\s*transparent\)/
-    );
-    expect(ASTROLABE).toMatch(/--ast-surface-menu:\s*color-mix\(in srgb,\s*var\(--ast-white\) 98\.5%,\s*transparent\)/);
+  it('is opaque in both themes so no constellation shows through content', () => {
+    expect(ASTROLABE).toMatch(/--ast-surface-elevated:\s*var\(--ast-surface-raised\)/);
+    expect(ASTROLABE).toMatch(/--ast-surface-menu:\s*var\(--ast-surface-raised\)/);
+    const dark = rule(ASTROLABE, "html[data-theme='dark']");
+    expect(dark).toMatch(/--ast-surface-elevated:\s*var\(--ast-surface-raised\)/);
+    expect(dark).toMatch(/--ast-surface-menu:\s*var\(--ast-surface-raised\)/);
   });
 
   it('gives none of that glass to a reader who asked for less transparency', () => {

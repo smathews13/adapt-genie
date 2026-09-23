@@ -444,7 +444,7 @@ describe('the registry the controls are read against', () => {
    * the code that honours it. If a path is claimed here with no route and no
    * component reading the switch, this is the test that should have stopped it.
    *
-   * Where each of the two is enforced, because they are not equally strong:
+   * Where each enforced path is enforced, because they are not equally strong:
    *
    *   workspace-link  ON THE SERVER. `monitoring-routes` and `insights-routes`
    *                   send null instead of the URL, so there is nothing in the
@@ -453,10 +453,13 @@ describe('the registry the controls are read against', () => {
    *                   Plotly's `toImage` button. The reader already has the
    *                   figure, so this removes the affordance and not the
    *                   possibility -- covered by `egress-chart-gate.test.ts`.
+   *   slack-message   ON THE SERVER. `SlackDeliveryService` reads the policy
+   *                   before every Web API call and records a blocked delivery
+   *                   when the policy is denied or unavailable.
    */
   it('claims only the paths something actually honours', () => {
     const enforced = EGRESS_PATHS.filter((path) => path.enforcement === 'enforced');
-    expect(enforced.map((path) => path.channel).sort()).toEqual(['chart-image', 'workspace-link']);
+    expect(enforced.map((path) => path.channel).sort()).toEqual(['chart-image', 'slack-message', 'workspace-link']);
   });
 
   /**

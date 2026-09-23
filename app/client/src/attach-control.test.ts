@@ -131,8 +131,8 @@ describe('the four states the control is painted in', () => {
     // explicit hover tint stays anyway, because a control's hover state should not
     // depend on the fill of whatever it happens to be sitting on, which is the
     // mistake that produced the original report.
-    expect(TOKENS).toMatch(/--accent:\s*var\(--db-wash\)/);
-    expect(body('.composer-actions')).toMatch(/background:\s*transparent/);
+    expect(TOKENS).toMatch(/--accent:\s*var\(--ast-surface-sunken\)/);
+    expect(body('.composer-actions')).toMatch(/background:\s*var\(--ast-surface-sunken\)/);
     expect(body('.composer-attach:hover')).toMatch(/background:\s*var\(--db-hover-tint\)/);
   });
 
@@ -163,7 +163,7 @@ describe('the four states the control is painted in', () => {
     // here, at the same 2px solid blue and 2px offset base.css asks for
     // everywhere.
     const rule = body('.composer-attach:focus-visible');
-    expect(rule).toMatch(/outline:\s*2px solid var\(--db-blue-600\)/);
+    expect(rule).toMatch(/outline:\s*2px solid var\(--ast-action\)/);
     expect(rule).toMatch(/outline-offset:\s*2px/);
   });
 

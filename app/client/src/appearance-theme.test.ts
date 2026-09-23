@@ -27,7 +27,7 @@ describe('Appearance theme switch', () => {
 
     expect(colorScheme).toBe('light');
     expect(root.getAttribute('data-theme')).toBe('light');
-    expect(themeColor.setAttribute).toHaveBeenCalledWith('content', '#ffffff');
+    expect(themeColor.setAttribute).toHaveBeenCalledWith('content', '#f4f7f9');
     expect({ ...DEFAULT_RUNTIME_SETTINGS, colorScheme }.colorScheme).toBe('light');
   });
 

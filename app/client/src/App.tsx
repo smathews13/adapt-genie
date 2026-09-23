@@ -251,8 +251,8 @@ const router = createBrowserRouter([
 
 export default function App() {
   // Adopt the saved Appearance settings at the shell, not only after an answer
-  // mounts an entity link. This preserves the dark first paint while allowing a
-  // saved Light choice to take over on every route.
+  // mounts an entity link. The inline bootstrap owns the flash-free first paint;
+  // Lakebase then remains canonical on every route.
   useRuntimeEntityStyles();
 
   // After the first paint, while the opening concepts and login gate occupy the

@@ -13,53 +13,53 @@ html[data-theme='dark'] .eval-steps {
 html[data-theme='dark'] .bench-surface {
   background: var(--ast-surface-primary);
   backdrop-filter: none;
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--ast-border-input);
 }
 html[data-theme='dark'] .bench-failure-drawer {
   background: var(--ast-surface-primary);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--ast-border-input);
 }
 html[data-theme='dark'] .bench-stage-node {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ast-surface-sunken);
   color: var(--ast-ice-accent);
 }
 html[data-theme='dark'] .bench-btn-primary {
-  background: rgba(34, 114, 180, 0.28);
-  border-color: rgba(143, 193, 232, 0.55);
+  background: var(--ast-action-tint);
+  border-color: var(--ast-action-edge);
   color: var(--ast-ghost-text);
 }
 html[data-theme='dark'] .bench-btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--ast-surface-sunken);
+  border-color: var(--ast-border-dashed);
   color: var(--ast-ink-on-dark);
 }
 html[data-theme='dark'] .bench-type-tag {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
   color: var(--ast-text-secondary);
 }
 html[data-theme='dark'] .bench-approver {
   background: var(--ast-surface-primary);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--ast-border-input);
   color: var(--ast-ink-on-dark);
 }
 html[data-theme='dark'] .bench-target-seg {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--ast-border-input);
 }
 html[data-theme='dark'] .bench-target-seg button.is-pressed {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ast-surface-selected);
 }
 html[data-theme='dark'] .bench-delta-pos {
-  color: #9ad6ce;
+  color: var(--ast-positive-text);
 }
 html[data-theme='dark'] .bench-delta-neg {
-  color: #e8a9b8;
+  color: var(--ast-negative-text);
 }
 html[data-theme='dark'] .bench-failure-list li.is-active {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ast-surface-selected);
 }
 html[data-theme='dark'] .bench-failure-list li:hover,
 html[data-theme='dark'] .bench-sheet tbody tr:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ast-surface-sunken);
 }
 
 @media (prefers-reduced-transparency: reduce) {

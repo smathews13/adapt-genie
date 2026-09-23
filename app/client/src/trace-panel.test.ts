@@ -301,7 +301,7 @@ describe('the bars carry the outcome, and nothing else', () => {
       /\.trace-bar\.partial,\s*\.trace-bar\.running,\s*\.trace-bar\.failed \{([^}]*)\}/
     )?.[1];
     expect(hatched).toMatch(/repeating-linear-gradient\(\s*135deg/);
-    expect(hatched).toMatch(/rgba\(255, 255, 255, 0\.85\)/);
+    expect(hatched).toMatch(/var\(--ast-trace-hatch\)/);
     expect(STYLESHEET).toMatch(/\.trace-bar\.failed \{[^}]*background-color: var\(--db-red-600\)/);
   });
 

@@ -723,6 +723,8 @@ export type AdminAction =
   /** An admin created, renamed, deleted, or changed the membership of the app groups. */
   | 'app-groups-updated'
   | 'ask-starters-updated'
+  /** An admin changed the fail-closed Slack adapter controls. */
+  | 'slack-settings-updated'
   /** An admin changed which unfinished surfaces this deployment offers. */
   | 'experimental-settings-updated'
   /** An admin saved nominal Cost budgets for the app total and resource tiles. */

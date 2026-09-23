@@ -477,6 +477,33 @@ async function main() {
   const watchlistTable = (process.env.PLAYER_INSIGHTS_WATCHLIST_TABLE ?? '').trim();
   const dataGenieId = (process.env.PLAYER_INSIGHTS_DATA_GENIE_ID ?? '').trim();
   const llmEndpoint = (process.env.PLAYER_INSIGHTS_LLM_ENDPOINT ?? '').trim();
+  const slackEnvironmentNames = [
+    'SLACK_ADAPTER_ENVIRONMENT',
+    'SLACK_ADAPTER_ENABLED',
+    'SLACK_ADAPTER_KILL_SWITCH',
+    'SLACK_ADAPTER_ALLOWED_TEAM_ID',
+    'SLACK_ADAPTER_TEST_REGISTRATION_ID',
+    'SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID',
+    'SLACK_ADAPTER_DATABRICKS_WORKSPACE',
+    'SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE',
+    'SLACK_ADAPTER_OAUTH_CLIENT_ID',
+    'SLACK_ADAPTER_OAUTH_SCOPES',
+    'SLACK_ADAPTER_OAUTH_CALLBACK_URL',
+    'SLACK_ADAPTER_PUBLIC_BASE_URL',
+    'SLACK_ADAPTER_TOKEN_BROKER_REF',
+    'SLACK_ADAPTER_GLOBAL_CONCURRENCY',
+    'SLACK_ADAPTER_WORKSPACE_CONCURRENCY',
+    'SLACK_ADAPTER_USER_CONCURRENCY',
+    'SLACK_ADAPTER_CONVERSATION_CONCURRENCY',
+    'SLACK_ADAPTER_GLOBAL_PER_MINUTE',
+    'SLACK_ADAPTER_WORKSPACE_PER_MINUTE',
+    'SLACK_ADAPTER_USER_PER_MINUTE',
+    'SLACK_ADAPTER_CONVERSATION_PER_MINUTE',
+  ];
+  const slackEnvironment = slackEnvironmentNames.flatMap((name) => {
+    const value = (process.env[name] ?? '').trim();
+    return value ? [{ name, value: `'${value.replaceAll("'", "''")}'` }] : [];
+  });
 
   const experimentId = (process.env.PLAYER_INSIGHTS_EXPERIMENT_ID ?? '').trim();
   if (!experimentId) {
@@ -520,6 +547,7 @@ async function main() {
       ...(watchlistTable ? [{ name: 'PLAYER_INSIGHTS_WATCHLIST_TABLE', value: `'${watchlistTable}'` }] : []),
       ...(dataGenieId ? [{ name: 'PLAYER_INSIGHTS_DATA_GENIE_ID', value: `'${dataGenieId}'` }] : []),
       ...(llmEndpoint ? [{ name: 'PLAYER_INSIGHTS_LLM_ENDPOINT', value: `'${llmEndpoint}'` }] : []),
+      ...slackEnvironment,
       // Whether the rail is shared is per-deployment, so app.yaml authors the
       // safe default and the release states the target's answer. Absent here
       // leaves the authored 'false' standing, which is the correct degradation:

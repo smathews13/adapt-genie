@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ENTITY_STYLES,
   DEFAULT_RUNTIME_SETTINGS,
+  DARK_ENTITY_STYLES,
   FONT_FAMILY_STACKS,
   LEGACY_NIGHT_ENTITY_STYLES,
   PAPER_ENTITY_STYLES,
   RuntimeSettingsSchema,
   THEME_FONT_COLORS,
+  entityStylesForScheme,
   fontColorsForScheme,
   parseRuntimeSettings,
   runtimeAppearanceCssVariables,
   runtimeEntityCssVariables,
   upgradePaperEntityStyles,
 } from './runtime-settings';
-
-const PAPER_FILLS = ['#ddeaf4', '#e8e8e8', '#f4f4f4', '#f7f7f7'] as const;
 
 describe('runtime settings contract', () => {
   it('keeps the current agent behavior as its defaults', () => {
@@ -24,39 +24,32 @@ describe('runtime settings contract', () => {
     expect(DEFAULT_RUNTIME_SETTINGS.answer.maxCharts).toBe(1);
   });
 
-  it('ships night-sky entity chips, not paper fills', () => {
+  it('ships canonical paper entity chips', () => {
     expect(DEFAULT_RUNTIME_SETTINGS.entityStyles).toEqual(DEFAULT_ENTITY_STYLES);
     expect(DEFAULT_ENTITY_STYLES).toEqual({
-      catalog: { foreground: '#7fdcd1', background: '#123733' },
-      schema: { foreground: '#f2f6fa', background: '#183d39' },
-      table: { foreground: '#d6b65c', background: '#332b1b' },
-      column: { foreground: '#d9f4f0', background: '#15332f' },
-      quote: { foreground: '#9ad6ce', background: '#182523' },
-      tag: { foreground: '#f2f6fa', background: '#243f3c' },
+      catalog: { foreground: '#ffffff', background: '#1a62a8' },
+      schema: { foreground: '#1a5b8f', background: '#e8f1fa' },
+      table: { foreground: '#7a5a11', background: '#fbf5e6' },
+      column: { foreground: '#4c5c68', background: '#f2f5f8' },
+      quote: { foreground: '#4c5c68', background: '#f0f4f7' },
+      tag: { foreground: '#ffffff', background: '#0e1720' },
     });
 
-    const backgrounds = Object.values(DEFAULT_ENTITY_STYLES).map((style) => style.background.toLowerCase());
-    const foregrounds = Object.values(DEFAULT_ENTITY_STYLES).map((style) => style.foreground.toLowerCase());
-    for (const fill of PAPER_FILLS) {
-      expect(backgrounds, `${fill} is a paper highlight`).not.toContain(fill);
-    }
-    expect(new Set(backgrounds).size, 'kinds share a highlight').toBe(backgrounds.length);
-    expect(foregrounds.every((hex) => !['#16324f', '#3a3838', '#46596b'].includes(hex))).toBe(true);
-
     expect(runtimeEntityCssVariables(DEFAULT_RUNTIME_SETTINGS)).toMatchObject({
-      '--entity-catalog-fg': '#7fdcd1',
-      '--entity-catalog-bg': '#123733',
-      '--entity-schema-bg': '#183d39',
-      '--entity-table-bg': '#332b1b',
-      '--entity-column-bg': '#15332f',
-      '--entity-quote-bg': '#182523',
-      '--entity-tag-bg': '#243f3c',
+      '--entity-catalog-fg': '#ffffff',
+      '--entity-catalog-bg': '#1a62a8',
+      '--entity-schema-bg': '#e8f1fa',
+      '--entity-table-bg': '#fbf5e6',
+      '--entity-column-bg': '#f2f5f8',
+      '--entity-quote-bg': '#f0f4f7',
+      '--entity-tag-bg': '#0e1720',
     });
   });
 
-  it('upgrades inherited paper and blue defaults while leaving chosen colors alone', () => {
+  it('upgrades inherited defaults for the active theme while leaving chosen colors alone', () => {
     expect(upgradePaperEntityStyles(PAPER_ENTITY_STYLES)).toEqual(DEFAULT_ENTITY_STYLES);
     expect(upgradePaperEntityStyles(LEGACY_NIGHT_ENTITY_STYLES)).toEqual(DEFAULT_ENTITY_STYLES);
+    expect(upgradePaperEntityStyles(PAPER_ENTITY_STYLES, 'dark')).toEqual(DARK_ENTITY_STYLES);
     expect(
       upgradePaperEntityStyles({
         ...DEFAULT_ENTITY_STYLES,
@@ -88,17 +81,17 @@ describe('runtime settings contract', () => {
     ).toEqual(customTable);
   });
 
-  it('defaults missing colorScheme to dark so older rows stay parseable', () => {
+  it('defaults a missing legacy colorScheme to light', () => {
     const { colorScheme: _ignored, ...withoutTheme } = DEFAULT_RUNTIME_SETTINGS;
-    expect(RuntimeSettingsSchema.parse(withoutTheme).colorScheme).toBe('dark');
-    expect(DEFAULT_RUNTIME_SETTINGS.colorScheme).toBe('dark');
+    expect(RuntimeSettingsSchema.parse(withoutTheme).colorScheme).toBe('light');
+    expect(DEFAULT_RUNTIME_SETTINGS.colorScheme).toBe('light');
   });
 
   it('fills type settings from the row theme when an older store omitted them', () => {
     const { fontBodyColor: _b, fontMutedColor: _m, fontFamily: _f, fontSize: _s, ...legacy } = DEFAULT_RUNTIME_SETTINGS;
     expect(RuntimeSettingsSchema.parse(legacy)).toMatchObject({
-      fontBodyColor: THEME_FONT_COLORS.dark.body,
-      fontMutedColor: THEME_FONT_COLORS.dark.muted,
+      fontBodyColor: THEME_FONT_COLORS.light.body,
+      fontMutedColor: THEME_FONT_COLORS.light.muted,
       fontFamily: 'dm-sans',
       fontSize: 'm',
     });
@@ -157,13 +150,25 @@ describe('runtime settings contract', () => {
   });
 
   it('follows the new theme when type colours were still the previous default', () => {
-    expect(fontColorsForScheme(DEFAULT_RUNTIME_SETTINGS, 'light')).toEqual({
-      fontBodyColor: THEME_FONT_COLORS.light.body,
-      fontMutedColor: THEME_FONT_COLORS.light.muted,
+    expect(fontColorsForScheme(DEFAULT_RUNTIME_SETTINGS, 'dark')).toEqual({
+      fontBodyColor: THEME_FONT_COLORS.dark.body,
+      fontMutedColor: THEME_FONT_COLORS.dark.muted,
     });
     expect(
-      fontColorsForScheme({ ...DEFAULT_RUNTIME_SETTINGS, fontBodyColor: '#ffeecc', fontMutedColor: '#8899aa' }, 'light')
+      fontColorsForScheme({ ...DEFAULT_RUNTIME_SETTINGS, fontBodyColor: '#ffeecc', fontMutedColor: '#8899aa' }, 'dark')
     ).toEqual({ fontBodyColor: '#ffeecc', fontMutedColor: '#8899aa' });
+  });
+
+  it('switches inherited entity colors with the theme and preserves explicit overrides', () => {
+    expect(entityStylesForScheme(DEFAULT_RUNTIME_SETTINGS, 'dark').entityStyles).toEqual(DARK_ENTITY_STYLES);
+    const custom = {
+      ...DEFAULT_RUNTIME_SETTINGS,
+      entityStyles: {
+        ...DEFAULT_RUNTIME_SETTINGS.entityStyles,
+        table: { foreground: '#112233', background: '#445566' },
+      },
+    };
+    expect(entityStylesForScheme(custom, 'dark').entityStyles.table).toEqual(custom.entityStyles.table);
   });
 
   it('refuses unsafe or ineffective values', () => {

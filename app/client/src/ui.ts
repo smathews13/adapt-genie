@@ -14,7 +14,7 @@
 
 import { createElement } from 'react';
 import type { ComponentProps } from 'react';
-import { Input as AppKitInput, Textarea as AppKitTextarea } from '@databricks/appkit-ui/react';
+import { Button as AppKitButton, Input as AppKitInput, Textarea as AppKitTextarea } from '@databricks/appkit-ui/react';
 import { withPasswordManagerOptOut } from './password-manager-optout';
 import type { PasswordManagerOptOutProps } from './password-manager-optout';
 
@@ -23,7 +23,6 @@ export {
   AlertDescription,
   AlertTitle,
   Badge,
-  Button,
   Card,
   CardContent,
   CardDescription,
@@ -70,6 +69,20 @@ export type { PasswordManagerOptOutProps } from './password-manager-optout';
 /** Text input field for single-line user input. Ignored by password managers. */
 export function Input(props: ComponentProps<'input'> & PasswordManagerOptOutProps) {
   return createElement(AppKitInput, withPasswordManagerOptOut(props));
+}
+
+/** Button with one stable ADAPT variant hook for the shared CSS recipes. */
+type ButtonProps = ComponentProps<typeof AppKitButton> & {
+  'data-variant'?: string;
+};
+
+export function Button({ variant = 'default', ...props }: ButtonProps) {
+  const buttonProps = {
+    ...props,
+    variant,
+    'data-variant': props['data-variant'] ?? variant,
+  } as ComponentProps<typeof AppKitButton>;
+  return createElement(AppKitButton, buttonProps);
 }
 
 /** Multi-line text input field. Ignored by password managers. */

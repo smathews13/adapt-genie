@@ -222,6 +222,64 @@ variables:
       Lakebase is authoritative for roles after the one-time empty-roster
       bootstrap, so stale or absent role config in app.yaml is harmless.
 
+  # Optional Slack security pilot. Every authored value is inert and
+  # customer-neutral. Put non-secret values in the git-ignored target override;
+  # put secret values only in the referenced Databricks secret scope.
+  slack_adapter_environment:
+    description: Slack registration environment (`test` or `production`). Empty disables readiness.
+    default: ""
+  slack_adapter_enabled:
+    description: Only the exact string `true` enables the Slack adapter.
+    default: "false"
+  slack_adapter_kill_switch:
+    description: Emergency stop. Only the exact string `false` removes it.
+    default: "true"
+  slack_adapter_allowed_team_id:
+    description: Exact Slack team ID allowed for this target.
+    default: ""
+  slack_adapter_test_registration_id:
+    description: Development/test Slack registration ID; must differ from production.
+    default: ""
+  slack_adapter_production_registration_id:
+    description: T2 production Slack registration ID; must differ from test.
+    default: ""
+  slack_adapter_databricks_workspace:
+    description: Exact https Databricks workspace allowed for delegated execution.
+    default: ""
+  slack_adapter_oauth_expected_audience:
+    description: Required audience for brokered Databricks OAuth credentials.
+    default: ""
+  slack_adapter_oauth_client_id:
+    description: Databricks custom OAuth client ID.
+    default: ""
+  slack_adapter_oauth_scopes:
+    description: Exact Databricks custom OAuth user flow scopes; not Slack scopes.
+    default: all-apis offline_access openid profile email
+  slack_adapter_oauth_callback_url:
+    description: Exact registered OAuth callback URL.
+    default: ""
+  slack_adapter_public_base_url:
+    description: Public HTTPS base URL used for opaque Slack link-outs.
+    default: ""
+  slack_adapter_token_broker_ref:
+    description: Opaque approved token-broker registration reference.
+    default: ""
+  slack_adapter_global_concurrency:
+    default: ""
+  slack_adapter_workspace_concurrency:
+    default: ""
+  slack_adapter_user_concurrency:
+    default: ""
+  slack_adapter_conversation_concurrency:
+    default: ""
+  slack_adapter_global_per_minute:
+    default: ""
+  slack_adapter_workspace_per_minute:
+    default: ""
+  slack_adapter_user_per_minute:
+    default: ""
+  slack_adapter_conversation_per_minute:
+    default: ""
   # Lakebase
   #
   # This bundle ATTACHES to a Lakebase instance that already exists. It does not

@@ -1,0 +1,29 @@
+{
+  "_metadata": {
+    "major_version": 1,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "ADAPT Security Pilot Development",
+    "description": "Development registration for the DM-only ADAPT security pilot"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "ADAPT Development",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["chat:write", "im:history"]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": ["message.im"]
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": true
+  }
+}

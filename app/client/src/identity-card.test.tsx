@@ -235,13 +235,13 @@ describe('IdentityCard', () => {
       /\.identity-overview \{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
     );
     expect(RESPONSIVE_CSS).toMatch(
-      /@media \(max-width:\s*1180px\)[\s\S]*?\.identity-overview \{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s
+      /@media \(max-width:\s*1240px\)[\s\S]*?\.identity-overview \{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s
     );
     expect(RESPONSIVE_CSS).toMatch(
       /@media \(max-width:\s*800px\)[\s\S]*?\.identity-overview \{[^}]*minmax\(0,\s*1fr\)/s
     );
     expect(CONNECTIONS_CSS).not.toMatch(/\.identity-section \{[^}]*(?:height|max-height):/s);
-    expect(CONNECTIONS_CSS).toMatch(/\.identity-section \{[^}]*background:\s*var\(--background\)/s);
+    expect(CONNECTIONS_CSS).toMatch(/\.identity-section \{[^}]*background:\s*var\(--ast-surface\)/s);
     expect(CONNECTIONS_CSS).toMatch(/\.identity-attached-resources \{[^}]*flex-wrap:\s*wrap/s);
     expect(CONNECTIONS_CSS).toMatch(
       /\.identity-fact\[data-wrap='true'\] \.identity-fact-value \{[^}]*overflow:\s*visible/s

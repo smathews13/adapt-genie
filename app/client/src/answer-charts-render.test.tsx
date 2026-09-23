@@ -110,7 +110,7 @@ describe('the panel is a tinted surface, not the card recipe', () => {
     // and near-white on the night sky, so 5% of it is a faint ink wash in one and
     // the spec's 5% white in the other -- and it stays translucent in both, which
     // is what keeps the card's own sheet from showing as a seam around the panel.
-    expect(rule).toContain('background: color-mix(in srgb, var(--foreground) 5%, transparent)');
+    expect(rule).toContain('background: var(--ast-surface-sunken)');
     expect(rule).toContain('border-radius: var(--ast-radius-card)');
   });
 

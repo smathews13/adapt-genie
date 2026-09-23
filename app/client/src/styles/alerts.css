@@ -10,7 +10,7 @@
   /* Stated as a mix rather than as the red line colour: #FBD0D8 is lighter than
      the neutral hairline it replaces, so using it would have made this alert's
      edge fainter than an ordinary one while claiming to be louder. */
-  border-color: color-mix(in oklab, var(--db-red-600) 40%, transparent);
+  border-color: var(--ast-negative-border);
   background: var(--db-red-wash);
 }
 

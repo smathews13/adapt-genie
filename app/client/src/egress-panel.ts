@@ -67,6 +67,7 @@ export const ENFORCEMENT_PILL: Readonly<Record<EgressEnforcement, Pill>> = {
  * prints nothing rather than a hedge.
  */
 export const ENFORCEMENT_SITE: Readonly<Partial<Record<string, string>>> = {
+  'slack-message': 'Checked by the server before the Slack Web API',
   'workspace-link': 'Withheld by the server',
   'chart-image': 'Control removed in the browser',
 };
@@ -101,6 +102,9 @@ export function controlStatusPill(
  * affordance or a response field; the remaining switches only store policy.
  */
 export function enforcementBoundary(path: EgressPath): string {
+  if (path.channel === 'slack-message') {
+    return 'When off or unavailable, the server marks Slack progress, final-answer, and link-out delivery blocked before calling the Slack Web API. No message is posted.';
+  }
   if (path.channel === 'workspace-link') {
     return 'When off, run and monitoring API handlers replace workspace and MLflow URLs with null before JSON is sent. The links do not reach the browser; model calls, tools and answer content are unchanged.';
   }
@@ -137,7 +141,7 @@ export const EGRESS_JUDGE_COPY =
   'No PII or egress judge runs on prompts, tool calls, model output or responses. Enforcement is limited to the listed browser and API boundaries.';
 
 export const EGRESS_OBSERVATION_COPY =
-  'Generated SQL, identifier and grant-statement copies report metadata after the action. Chart downloads and workspace links are not observed by this ledger.';
+  'Generated SQL, identifier and grant-statement copies report metadata after the action. Slack delivery state is kept in its dedicated delivery ledger; chart downloads and workspace links are not observed by this ledger.';
 
 export const EGRESS_OUTCOME_LABEL = {
   left: 'Reported',

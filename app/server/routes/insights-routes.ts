@@ -49,7 +49,7 @@ import { DEPLOYMENT_SETTINGS_DDL, resolveExperimentId, resolveJudgeEndpoint } fr
 import { RUN_LEDGER_DDL } from '../lib/run-ledger-schema';
 import { workspaceLinksAllowed } from '../lib/egress-store';
 import { ADMIN_ROLES_DDL } from '../lib/admin-roles-schema';
-import { readRuntimeSettings } from '../lib/runtime-settings-store';
+import { readRuntimeSettings, readRuntimeSettingsDocument } from '../lib/runtime-settings-store';
 import { readBenchmarkSettings } from '../lib/benchmark-settings-store';
 import { readGenieMcpEnabled } from '../lib/experimental-settings-store';
 import { issueGenieMcpCapability, type GenieMcpCapability } from '../lib/genie-mcp-capability';
@@ -136,7 +136,7 @@ import {
   TruncatedStreamError,
   type StageSink,
 } from '../lib/serving-stream';
-import { cancelAllExecutingRuns, cancelOwnedRun } from '../lib/run-ledger';
+import { cancelAllExecutingRuns, cancelOwnedRun, readRun } from '../lib/run-ledger';
 import {
   abortInProcessRuns,
   isRunDeadlineExceededError,
@@ -147,6 +147,12 @@ import {
   watchDurableCancellation,
 } from '../lib/run-cancellation';
 import { createAskResponder } from '../lib/ask-responder';
+import {
+  GovernedRunService,
+  type GovernedExecutionOverrides,
+  type GovernedExecutorRequest,
+} from '../lib/governed-run-service';
+import { setupV1Routes, V1_EXPECTED_AUDIENCE_ENV, type BearerIdentityVerifier } from './v1-routes';
 import { allowAdaptUserApiScopes } from '../lib/app-user-api-scopes';
 import { isOptionalUserApiScope } from '../../shared/optional-user-api-scopes';
 import { readControlPlaneIdentityMetadata, type ControlPlaneReader } from '../lib/control-plane-identity';
@@ -3479,8 +3485,12 @@ export function setupInsightsRoutes(
     readBudgetStatus?: typeof readAppBudgetStatus;
     /** Production reads only token-bearing MLflow span metadata; tests inject fixtures. */
     traceTokenEvidenceReader?: TraceTokenEvidenceReader;
+    /** Test seam for v1 bearer proof; production verifies against Databricks. */
+    v1BearerVerifier?: BearerIdentityVerifier;
+    /** Deployment probe proving strict channel admission dependencies are ready. */
+    v1StrictAdmissionReady?: () => Promise<boolean>;
   } = {}
-): Promise<{ storeReady: Promise<void> }> {
+): Promise<{ storeReady: Promise<void>; governedRuns: GovernedRunService }> {
   // BEFORE `prepareStore`, not after, and that ordering is load-bearing rather
   // than tidy. `prepareStore` asks the store whether this deployment recorded a
   // different rail scope (see `settleSharedConversationRail`), and the scope in
@@ -3492,6 +3502,7 @@ export function setupInsightsRoutes(
   const storeReady = prepareStore(appkit);
   const idleConfig = options.appSessionConfig ?? resolveIdleTimeout();
   const readGroupRole = groupRoleLookupForStore(appkit.lakebase, options.identityControlPlaneReader);
+  let exposedGovernedRuns: GovernedRunService | null = null;
 
   // Reads are what the pages depend on, and a `CREATE TABLE IF NOT EXISTS` that
   // succeeds says nothing about whether the store still answers minutes later.
@@ -3513,6 +3524,19 @@ export function setupInsightsRoutes(
   }
 
   appkit.server.extend((app) => {
+    const governedRuns = new GovernedRunService(appkit, executeGovernedAsk);
+    exposedGovernedRuns = governedRuns;
+    governedRuns.startPlanExpirySweep();
+    // Registered before browser session middleware. These routes perform their
+    // own bearer proof and no other API route inherits this exception.
+    setupV1Routes(app, {
+      service: governedRuns,
+      bearerVerifier: options.v1BearerVerifier,
+      expectedWorkspace: process.env.DATABRICKS_HOST,
+      expectedAudience: process.env[V1_EXPECTED_AUDIENCE_ENV],
+      servingReady: () => Promise.resolve(Boolean(process.env.DATABRICKS_SERVING_ENDPOINT_NAME)),
+      strictAdmissionReady: options.v1StrictAdmissionReady,
+    });
     // Before any route is registered, so every handler below (and every handler
     // the settings and setup modules register after them), answers 500 when it
     // throws instead of rejecting into an unhandled promise and exiting Node.
@@ -4591,27 +4615,36 @@ export function setupInsightsRoutes(
       });
     });
 
-    app.post('/api/insights/ask', async (req, res) => {
+    async function executeGovernedAsk(
+      req: GovernedExecutorRequest,
+      res: Response | undefined,
+      overrides: GovernedExecutionOverrides = {}
+    ): Promise<void> {
+      const browserRequest: Request | null = 'source' in req && req.source === 'channel' ? null : (req as Request);
+      if (!browserRequest && (!overrides.reply || !overrides.body || !overrides.identity)) {
+        throw new Error('Channel execution requires explicit body, identity, and reply overrides.');
+      }
       // Every response below goes through this rather than through `res`, so the
       // handler reads the same whether the caller wanted the answer in one JSON
       // body or wanted the run narrated first. See ask-responder.ts. `res`
       // itself is still used for the degradation headers, which are set before
       // any stream opens.
-      const reply = createAskResponder(req, res);
-      const parsed = AskBody.safeParse(req.body);
+      const reply = overrides.reply ?? createAskResponder(browserRequest!, res as Response);
+      const parsed = AskBody.safeParse(overrides.body ?? browserRequest?.body);
       if (!parsed.success) {
         reply.status(400).json({ error: 'A conversation and question are required.' });
         return;
       }
       const { conversationId, prompt, approvedPlanId, executePlan } = parsed.data;
-      const email = userEmail(req);
+      const email = overrides.identity?.email ?? userEmail(browserRequest!);
       invalidateUserSpendCache();
 
       // BEFORE ANY WRITE. A request that will not be executed must not leave a
       // conversation row, a user turn, or an `updated_at` behind it: the rail
       // would then list a question that was never asked, and the next turn in
       // that conversation would carry it as context.
-      const identity = decideIdentity(req, { signedInAs: email, required: isDeployed() });
+      const identity =
+        overrides.identity ?? decideIdentity(browserRequest!, { signedInAs: email, required: isDeployed() });
       if (!identity.ok) {
         console.error(describeRefusal(identity));
         reply.status(unavailableHttpStatus(identity.code)).json(
@@ -4647,7 +4680,7 @@ export function setupInsightsRoutes(
        * out again in `admitRun`, so one condition answered from two places that
        * could drift from each other and from the code they were reporting.
        */
-      const idempotencyKey = (req.header('idempotency-key') ?? '').trim();
+      const idempotencyKey = (overrides.idempotencyKey ?? browserRequest?.header('idempotency-key') ?? '').trim();
       if (idempotencyKey !== '' && !isUsableIdempotencyKey(idempotencyKey)) {
         reply.status(unavailableHttpStatus('IDEMPOTENCY_KEY_MALFORMED')).json(
           unavailableResult({
@@ -4661,13 +4694,32 @@ export function setupInsightsRoutes(
         );
         return;
       }
+      const strictAdmission = overrides.strictAdmission === true;
+      const refuseStrictAdmission = (code: FailureCode, detail: string): void => {
+        reply.status(unavailableHttpStatus(code)).json(
+          unavailableResult({
+            code,
+            requestId: identity.correlationId,
+            runId: null,
+            persistence: 'not_stored',
+            executionIdentity: refusedIdentityClaim(),
+            detail,
+          })
+        );
+      };
 
       const userMessageId = crypto.randomUUID();
 
       // Budget admission and ownership are independent read-only checks. Run
       // them together so an Ask does not pay two serial Lakebase/billing waits
       // before the stream can open.
-      const budgetPromise = (options.readBudgetStatus ?? readAppBudgetStatus)(appkit, req).catch((error) => {
+      let budgetReadError: unknown;
+      const budgetContext = overrides.budgetContext ?? {
+        source: 'browser' as const,
+        correlationId: identity.correlationId,
+      };
+      const budgetPromise = (options.readBudgetStatus ?? readAppBudgetStatus)(appkit, budgetContext).catch((error) => {
+        budgetReadError = error;
         // Billing and approval-state uncertainty fail open. The status endpoint
         // reports the same uncertainty visibly; a query failure is never read as
         // evidence that the threshold was reached.
@@ -4687,6 +4739,24 @@ export function setupInsightsRoutes(
         [conversationId]
       );
       const [budgetStatus, ownership] = await Promise.all([budgetPromise, ownershipPromise]);
+      if (strictAdmission && budgetReadError) {
+        refuseStrictAdmission(
+          'DEPENDENCY_UNAVAILABLE',
+          `Budget admission status could not be read: ${(budgetReadError as Error).message}`
+        );
+        return;
+      }
+      if (strictAdmission && budgetStatus?.level === 'unavailable/partial') {
+        refuseStrictAdmission(
+          'DEPENDENCY_UNAVAILABLE',
+          budgetStatus.detail || 'Budget admission status is unavailable.'
+        );
+        return;
+      }
+      if (strictAdmission && !ownership.available) {
+        refuseStrictAdmission('PERSISTENCE_UNAVAILABLE', 'Conversation ownership could not be verified.');
+        return;
+      }
       if (budgetStatus && budgetGuardBlocks(budgetStatus)) {
         reply.status(unavailableHttpStatus('BUDGET_APPROVAL_REQUIRED')).json(
           unavailableResult({
@@ -4744,12 +4814,42 @@ export function setupInsightsRoutes(
            title = CASE WHEN conversations.title = $4 THEN EXCLUDED.title ELSE conversations.title END`,
         [conversationId, email, conversationTitle(prompt), PLACEHOLDER_CONVERSATION_TITLE]
       );
+      if (strictAdmission && !conversationWrite.available) {
+        refuseStrictAdmission('PERSISTENCE_UNAVAILABLE', 'The conversation could not be stored.');
+        return;
+      }
       const conversationAddressable = conversationExisted || conversationWrite.available;
-      await safeQuery(
-        appkit,
-        `INSERT INTO ${APP_SCHEMA}.messages (id, conversation_id, role, content) VALUES ($1,$2,$3,$4)`,
-        [userMessageId, conversationId, 'user', approvedPlanId ? PLAN_APPROVAL_MESSAGE : prompt]
-      );
+      const userMessageSql = `INSERT INTO ${APP_SCHEMA}.messages (id, conversation_id, role, content) VALUES ($1,$2,$3,$4)`;
+      const userMessageParams = [
+        userMessageId,
+        conversationId,
+        'user',
+        approvedPlanId ? PLAN_APPROVAL_MESSAGE : prompt,
+      ];
+      if (strictAdmission) {
+        const userMessageWrite = await readStored(
+          appkit,
+          'POST /api/insights/ask (user message)',
+          userMessageSql,
+          userMessageParams
+        );
+        if (!userMessageWrite.available) {
+          if (!conversationExisted) {
+            await appkit.lakebase
+              .query(
+                `DELETE FROM ${APP_SCHEMA}.conversations WHERE id = $1 AND user_email = $2
+                   AND NOT EXISTS (SELECT 1 FROM ${APP_SCHEMA}.messages WHERE conversation_id = $1)
+                   AND NOT EXISTS (SELECT 1 FROM ${APP_SCHEMA}.attachments WHERE conversation_id = $1)`,
+                [conversationId, email]
+              )
+              .catch(() => undefined);
+          }
+          refuseStrictAdmission('PERSISTENCE_UNAVAILABLE', 'The user turn could not be stored.');
+          return;
+        }
+      } else {
+        await safeQuery(appkit, userMessageSql, userMessageParams);
+      }
 
       // Neither read depends on the other. Keeping them serial made every ask pay
       // both Lakebase latencies before admission even though they are two views of
@@ -4779,6 +4879,26 @@ export function setupInsightsRoutes(
         ...(attachmentRead.available ? [] : ['uploaded documents']),
       ];
       if (missingContext.length > 0) {
+        if (strictAdmission) {
+          await appkit.lakebase
+            .query(`DELETE FROM ${APP_SCHEMA}.messages WHERE id = $1`, [userMessageId])
+            .catch(() => undefined);
+          if (!conversationExisted) {
+            await appkit.lakebase
+              .query(
+                `DELETE FROM ${APP_SCHEMA}.conversations WHERE id = $1 AND user_email = $2
+                   AND NOT EXISTS (SELECT 1 FROM ${APP_SCHEMA}.messages WHERE conversation_id = $1)
+                   AND NOT EXISTS (SELECT 1 FROM ${APP_SCHEMA}.attachments WHERE conversation_id = $1)`,
+                [conversationId, email]
+              )
+              .catch(() => undefined);
+          }
+          refuseStrictAdmission(
+            'PERSISTENCE_UNAVAILABLE',
+            `Required ${missingContext.join(' and ')} could not be read.`
+          );
+          return;
+        }
         // Lakebase persistence is not the product's execution dependency. A
         // Git-deployed app whose SP cannot use the old authored schema can still
         // invoke the governed agent safely as a stateless turn: no unread history
@@ -4812,7 +4932,7 @@ export function setupInsightsRoutes(
       const servingTimeoutMs = appkit.servingTimeoutMs ?? SERVING_INVOKE_TIMEOUT_MS;
       const runDeadlineAt = new Date(Date.now() + servingTimeoutMs);
       const admission = await admitRun(appkit, {
-        mode: resolveRunLedgerMode(process.env[RUN_LEDGER_MODE_ENV]),
+        mode: overrides.runLedgerMode ?? resolveRunLedgerMode(process.env[RUN_LEDGER_MODE_ENV]),
         // The same id the agent is handed as `runId` below, so the ledger row,
         // the trace and the answer all name one run rather than three.
         runId: identity.requestId,
@@ -4845,6 +4965,11 @@ export function setupInsightsRoutes(
         executor: executorName(),
       });
       if (admission.kind === 'refuse') {
+        if (admission.code === 'STREAM_INTERRUPTED' && admission.runId) {
+          const original = await readRun(appkit, admission.runId, email);
+          await overrides.onAdmitted?.(original.ok ? original.value : null, admission.runId);
+          return;
+        }
         // Unreachable in shadow except for an unusable Idempotency-Key, which
         // is refused in every mode because it is about the CALLER's belief: a
         // client that thinks it is protected against duplicate execution and is
@@ -4883,6 +5008,7 @@ export function setupInsightsRoutes(
         return;
       }
       if (admission.kind === 'replay') {
+        await overrides.onAdmitted?.(admission.run, identity.requestId);
         const replay = await readReplay(appkit, admission.run);
         if (replay.kind === 'answer') {
           reply.json(replayBody(replay.body, admission.run));
@@ -4910,6 +5036,7 @@ export function setupInsightsRoutes(
         );
         return;
       }
+      await overrides.onAdmitted?.(admission.run, identity.requestId);
 
       const cancellationController = new AbortController();
       const unregisterCancellation = admission.run
@@ -4937,6 +5064,10 @@ export function setupInsightsRoutes(
                          AND completed_at IS NULL)`
           : 'TRUE';
       const outputFenceParams = hasOutputFence ? [admission.run?.runId, admission.fencingToken] : [];
+      const writeExecutionRecord = async (label: string, sql: string, params: unknown[]) =>
+        strictAdmission
+          ? readStored(appkit, label, sql, params)
+          : safeQuery(appkit, sql, params).then(({ rows }) => ({ available: true as const, rows }));
       const replyIfCancelled = (): boolean => {
         if (
           !cancellationController.signal.aborted ||
@@ -5056,7 +5187,9 @@ export function setupInsightsRoutes(
           }
           const endpointAudience = process.env.DATABRICKS_SERVING_ENDPOINT_NAME ?? '';
           const [resolvedRuntime, evalGuidance, genieAuthorization] = await Promise.all([
-            readRuntimeSettings(appkit),
+            strictAdmission
+              ? readRuntimeSettingsDocument(appkit, { maxAgeMs: 0 }).then((document) => document.settings)
+              : readRuntimeSettings(appkit),
             resolveAskGuidance(appkit),
             resolveGenieAuthorization(appkit, email, {
               requestId: identity.correlationId,
@@ -5170,6 +5303,23 @@ export function setupInsightsRoutes(
           // separately and must not inherit a timer intended for the transport.
           clearTimeout(deadlineTimer);
           ranAsSignedInUser = Boolean(identity.token);
+          if (strictAdmission && stageRecorder && !(await stageRecorder.settled())) {
+            await settleRun(appkit, admission, {
+              to: 'PERSISTENCE_FAILED',
+              code: 'PERSISTENCE_UNAVAILABLE',
+            });
+            reply.status(unavailableHttpStatus('PERSISTENCE_UNAVAILABLE')).json(
+              unavailableResult({
+                code: 'PERSISTENCE_UNAVAILABLE',
+                requestId: identity.correlationId,
+                runId: admission.run?.runId ?? null,
+                persistence: 'not_stored',
+                executionIdentity: executionIdentityClaim(identity),
+                detail: 'One or more required run events could not be stored.',
+              })
+            );
+            return;
+          }
           /**
            * Before all four shapes, because a refusal is none of them and looks
            * like one of them.
@@ -5252,8 +5402,8 @@ export function setupInsightsRoutes(
               // approval did not run.
               ...(reissued ? { supersededApprovalId: approvedPlanId } : {}),
             };
-            await safeQuery(
-              appkit,
+            const planWrite = await writeExecutionRecord(
+              'POST /api/insights/ask (plan)',
               `INSERT INTO ${APP_SCHEMA}.messages
              (id, conversation_id, role, content, response_json,
               app_principal, serving_principal, serving_principal_observed_at, access_mode,
@@ -5271,6 +5421,14 @@ export function setupInsightsRoutes(
                 ...outputFenceParams,
               ]
             );
+            if (strictAdmission && (!planWrite.available || planWrite.rows.length === 0)) {
+              await settleRun(appkit, admission, {
+                to: 'PERSISTENCE_FAILED',
+                code: 'PERSISTENCE_UNAVAILABLE',
+              });
+              refuseStrictAdmission('PERSISTENCE_UNAVAILABLE', 'The required plan record could not be stored.');
+              return;
+            }
             throwIfRunCancelled(cancellationController.signal, admission.run?.runId);
             // Parked, not finished. The run is waiting on a person now, and the
             // lease is released with it so the approval that follows is the same
@@ -5294,8 +5452,8 @@ export function setupInsightsRoutes(
               mode: 'live' as const,
               clarification: honestClarification,
             };
-            await safeQuery(
-              appkit,
+            const clarificationWrite = await writeExecutionRecord(
+              'POST /api/insights/ask (clarification)',
               `INSERT INTO ${APP_SCHEMA}.messages
              (id, conversation_id, role, content, response_json, trace_id,
               app_principal, serving_principal, serving_principal_observed_at, access_mode,
@@ -5314,6 +5472,17 @@ export function setupInsightsRoutes(
                 ...outputFenceParams,
               ]
             );
+            if (strictAdmission && (!clarificationWrite.available || clarificationWrite.rows.length === 0)) {
+              await settleRun(appkit, admission, {
+                to: 'PERSISTENCE_FAILED',
+                code: 'PERSISTENCE_UNAVAILABLE',
+              });
+              refuseStrictAdmission(
+                'PERSISTENCE_UNAVAILABLE',
+                'The required clarification record could not be stored.'
+              );
+              return;
+            }
             throwIfRunCancelled(cancellationController.signal, admission.run?.runId);
             await settleRun(appkit, admission, {
               to: 'CLARIFICATION_REQUIRED',
@@ -5686,6 +5855,19 @@ export function setupInsightsRoutes(
         // successful run as nonterminal when the process exits or the write
         // fails, leaving Run Explorer and attempt accounting inconsistent.
         await settleRun(appkit, admission, settlement);
+        if (strictAdmission && !runStored) {
+          reply.status(unavailableHttpStatus('PERSISTENCE_UNAVAILABLE')).json(
+            unavailableResult({
+              code: 'PERSISTENCE_UNAVAILABLE',
+              requestId: identity.correlationId,
+              runId: admission.run?.runId ?? null,
+              persistence: 'not_stored',
+              executionIdentity: executionIdentityClaim(identity),
+              detail: 'The governed answer completed but its required durable record could not be stored.',
+            })
+          );
+          return;
+        }
         reply.json({
           type: 'answer',
           ...disclosed,
@@ -5698,7 +5880,9 @@ export function setupInsightsRoutes(
         cancellationWatch?.stop();
         unregisterCancellation();
       }
-    });
+    }
+
+    app.post('/api/insights/ask', async (req, res) => governedRuns.executeBrowser(req, res));
 
     app.get('/api/runs', async (req, res) => {
       const email = userEmail(req);
@@ -6228,5 +6412,6 @@ export function setupInsightsRoutes(
 
   // Handed back rather than awaited. See the note on this function: awaiting it
   // here would be the cold-start block this arrangement exists to remove.
-  return Promise.resolve({ storeReady });
+  if (!exposedGovernedRuns) throw new Error('The governed run service was not registered.');
+  return Promise.resolve({ storeReady, governedRuns: exposedGovernedRuns });
 }

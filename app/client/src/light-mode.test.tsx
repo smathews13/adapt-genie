@@ -259,8 +259,8 @@ describe('the light answer sits on an opaque card', () => {
      * makes every one of them solid -- and a surface added to that set later is
      * solid in light mode without anybody remembering this file.
      */
-    expect(rule(TOKENS, `html${NOT_DARK}`)).toMatch(/--ast-pane:\s*var\(--ast-surface-primary\)/);
-    expect(rule(TOKENS, ':root')).toMatch(/--ast-pane:\s*var\(--ast-surface-primary\)/);
+    expect(rule(TOKENS, `html${NOT_DARK}`)).toMatch(/--ast-pane:\s*var\(--ast-surface\)/);
+    expect(rule(TOKENS, ':root')).toMatch(/--ast-pane:\s*var\(--ast-surface\)/);
     /* The card keeps reading the token -- answer.css is not ours to edit, and the
        point of doing this in a token is that it does not need to be. */
     expect(rule(ANSWER, '.answer-card')).toMatch(/background:\s*var\(--ast-pane\)/);
@@ -269,7 +269,7 @@ describe('the light answer sits on an opaque card', () => {
   });
 
   it('keeps the dark answer on the static semantic surface', () => {
-    expect(rule(TOKENS, "html[data-theme='dark']")).toMatch(/--ast-pane:\s*var\(--ast-surface-primary\)/);
+    expect(rule(TOKENS, "html[data-theme='dark']")).toMatch(/--ast-pane:\s*var\(--ast-surface\)/);
   });
 });
 

@@ -186,7 +186,11 @@ export function AstrolabeLockup({
   const { mark, wordmark } = LOCKUP_SIZES[seat];
   return (
     <Tag id={id} className={`ast-lockup ast-lockup--${seat} ${className ?? ''}`.trim()}>
-      <AstrolabeMark size={mark} ink={ink} />
+      {seat === 'bar' ? (
+        <span className="adapt-peak-lockup-mark" aria-hidden="true" />
+      ) : (
+        <AstrolabeMark size={mark} ink={ink} />
+      )}
       <span className="ast-wordmark" style={{ fontSize: `${wordmark}px` }}>
         {WORDMARK}
       </span>

@@ -85,7 +85,6 @@ resources:
             scope: ${var.genie_mcp_secret_scope}
             key: ${var.genie_mcp_secret_key}
             permission: READ
-
       lifecycle:
         # Destroying the app also removes its service principal and grants.
         prevent_destroy: true

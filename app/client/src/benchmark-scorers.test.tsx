@@ -189,11 +189,8 @@ describe('the unpublished state', () => {
     expect(html).not.toContain('0%');
   });
 
-  it('is not the state the app is actually in, now that a run has been published', () => {
-    // The counterpart to the above: the committed scorecard has to parse and be
-    // recognised, or the pane silently falls back to the honest-but-wrong
-    // "nothing has been published" copy and the numbers vanish.
-    expect(evalScorecard().published).toBe(true);
+  it('keeps the public mirror free of customer evaluation results', () => {
+    expect(evalScorecard().published).toBe(false);
   });
 
   it('gives the governance reason rather than a bare unavailability', () => {

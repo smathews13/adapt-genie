@@ -251,13 +251,13 @@ describe('account menu', () => {
     expect(MENU_SOURCE).toContain('aria-controls={menuId}');
     expect(MENU_SOURCE).toContain('onOpenChange={setOpen}');
     expect(ACCOUNT_CSS).toMatch(
-      /\.account-menu-trigger\.identity-chip:hover,\s*\.account-menu-trigger\.identity-chip:focus-visible\s*\{[^}]*border-color:\s*var\(--primary\)[^}]*background:\s*color-mix\(in srgb,\s*var\(--ast-surface-chrome\) 92%,\s*var\(--primary\)\)[^}]*color:\s*var\(--primary\)/s
+      /\.account-menu-trigger\.identity-chip:hover,\s*\.account-menu-trigger\.identity-chip:focus-visible\s*\{[^}]*border-color:\s*var\(--primary\)[^}]*background:\s*var\(--ast-control-hover\)[^}]*color:\s*var\(--primary\)/s
     );
     expect(ACCOUNT_CSS).toMatch(
-      /\.account-menu-trigger\.identity-chip:focus-visible\s*\{[^}]*outline:\s*none[^}]*box-shadow:\s*0 0 0 2px/
+      /\.account-menu-trigger\.identity-chip:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-action\)[^}]*outline-offset:\s*2px/
     );
     expect(ACCOUNT_CSS).toMatch(
-      /\.account-menu-trigger\.identity-chip\[aria-expanded='true'\]\s*\{[^}]*border-color:\s*var\(--primary\)[^}]*background:\s*color-mix\(in srgb,\s*var\(--background\) 88%,\s*var\(--primary\)\)[^}]*box-shadow:\s*inset 0 0 0 1px var\(--primary\)/
+      /\.account-menu-trigger\.identity-chip\[aria-expanded='true'\]\s*\{[^}]*border-color:\s*var\(--primary\)[^}]*background:\s*var\(--ast-control-active\)[^}]*outline:\s*2px solid var\(--ast-action\)/
     );
     expect(RAIL_CSS).toMatch(/\.conversation-row\.active\s*\{[^}]*border-color:\s*var\(--primary\)/s);
   });
@@ -267,10 +267,10 @@ describe('account menu', () => {
       /\.account-feedback-menu\s*\{[^}]*z-index:\s*var\(--ast-layer-menu\)[^}]*background:\s*var\(--ast-surface-menu\)[^}]*backdrop-filter:\s*none/s
     );
     expect(ACCOUNT_CSS).toMatch(
-      /\.account-menu-group > button:hover,[\s\S]*background:\s*color-mix\(in srgb,\s*var\(--background\) 92%,\s*var\(--primary\)\)[^}]*color:\s*var\(--primary\)/
+      /\.account-menu-group > button:hover,[\s\S]*background:\s*var\(--ast-control-hover\)[^}]*color:\s*var\(--primary\)/
     );
     expect(ACCOUNT_CSS).toMatch(
-      /\.account-feedback-trigger\[aria-expanded='true'\]\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--background\) 88%,\s*var\(--primary\)\)[^}]*color:\s*var\(--primary\)/
+      /\.account-feedback-trigger\[aria-expanded='true'\]\s*\{[^}]*background:\s*var\(--ast-control-active\)[^}]*color:\s*var\(--primary\)/
     );
   });
 

@@ -79,7 +79,7 @@ export interface ChartTheme {
   second: string;
   /** The third series. */
   third: string;
-  /** The fourth series, past which `agent/charts.py` separates by dash rather than hue. */
+  /** Compatibility paint for stored four-series figures; new figures stop at three hues. */
   fourth: string;
   /** The face every numeral on an axis is set in. */
   mono: string;
@@ -89,7 +89,7 @@ export interface ChartTheme {
 const THEME_TOKENS: Record<keyof ChartTheme, string> = {
   ink: '--foreground',
   muted: '--muted-foreground',
-  grid: '--border',
+  grid: '--chart-grid',
   surface: '--background',
   accent: '--chart-1',
   second: '--chart-2',
@@ -107,19 +107,27 @@ const THEME_TOKENS: Record<keyof ChartTheme, string> = {
  * document looks exactly as it did before this file existed.
  */
 const FALLBACK_THEME: ChartTheme = {
-  ink: '#161616',
-  muted: '#6f6f6f',
-  grid: '#ebebeb',
+  ink: '#0e1720',
+  muted: '#6b7a87',
+  grid: '#edf1f4',
   surface: '#ffffff',
-  accent: '#2272b4',
-  second: '#04867d',
-  third: '#4299e0',
-  fourth: '#445461',
+  accent: '#1a62a8',
+  second: '#0f6257',
+  third: '#8a5a00',
+  fourth: '#4c5c68',
   mono: "'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
 };
 
-/** The palette `agent/charts.py` assigns, in slot order: `--chart-1`, `-2`, `-3`, `-4`. */
-const AGENT_SERIES = ['#2272b4', '#04867d', '#4299e0', '#445461'];
+/** Stored specs may carry either the retired palette or the canonical three-series palette. */
+const AGENT_SERIES = new Map([
+  ['#2272b4', 0],
+  ['#04867d', 1],
+  ['#4299e0', 2],
+  ['#445461', 3],
+  ['#1a62a8', 0],
+  ['#0f6257', 1],
+  ['#8a5a00', 2],
+]);
 
 /** `INK` in `agent/charts.py`: the outline it draws around a pale fill, and label text. */
 const AGENT_INK = '#161616';
@@ -231,8 +239,8 @@ function withAlpha(colour: unknown, alpha: number): string | null {
 
 /** The theme's colour for an agent palette slot, or null for anything the model chose. */
 function themedSeries(colour: unknown, theme: ChartTheme): string | null {
-  const slot = AGENT_SERIES.indexOf(text(colour));
-  if (slot < 0) return null;
+  const slot = AGENT_SERIES.get(text(colour));
+  if (slot === undefined) return null;
   return [theme.accent, theme.second, theme.third, theme.fourth][slot];
 }
 

@@ -374,7 +374,7 @@
   border: 1px solid var(--db-line-strong);
   border-radius: var(--radius-sm);
   background: var(--background);
-  box-shadow: 0 6px 16px color-mix(in oklab, var(--db-ink-deep) 14%, transparent);
+  box-shadow: var(--ast-shadow-chrome);
   color: var(--db-body);
   font-size: var(--text-sm);
   font-weight: 400;
@@ -415,7 +415,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--popover);
+  background: var(--ast-surface);
 }
 .connection-row + .connection-row {
   border-top: 1px solid var(--border);
@@ -475,7 +475,7 @@
 }
 .connection-row-summary:hover,
 .connection-block-summary:hover {
-  background: var(--db-row-hover);
+  background: var(--ast-surface-sunken);
 }
 /* The open row's head takes the panel-head wash, so an expanded case file reads
    as one object with a header rather than as a row that has grown. */
@@ -523,6 +523,7 @@
   margin-left: 8px;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
+  font-family: var(--font-mono);
 }
 .connection-row-state {
   flex: none;
@@ -622,7 +623,7 @@
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--background);
+  background: var(--ast-surface);
 }
 .lakebase-binding-head,
 .lakebase-binding-plan-head,
@@ -803,6 +804,7 @@
 .connection-tile {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--ast-surface);
   padding: 10px 12px;
 }
 .connection-tile-label {
@@ -850,7 +852,7 @@
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--background);
+  background: var(--ast-surface);
 }
 .declared-table-list .connections-entity-name {
   min-width: 0;
@@ -933,6 +935,7 @@
 .connection-block {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background: var(--ast-surface);
   /* Visible, so Catalog / Schema menus overlay the table instead of growing
      this card and shoving the page. The summary still clips its own wash. */
   overflow: visible;
@@ -1154,6 +1157,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  background: var(--ast-scrim);
 }
 .uc-explorer-modal {
   width: min(920px, calc(100vw - 48px));
@@ -1162,7 +1166,7 @@
   border: 1px solid var(--ast-hairline);
   border-radius: var(--radius-md);
   background: var(--ast-surface-elevated);
-  box-shadow: 0 16px 48px rgba(17, 23, 28, 0.35);
+  box-shadow: var(--ast-shadow-overlay);
 }
 .uc-explorer-frame {
   display: flex;
@@ -1208,13 +1212,13 @@
   min-height: 36px;
   border: 1px solid var(--input);
   border-radius: var(--radius-sm);
-  background: var(--background);
+  background: var(--ast-surface);
   color: var(--foreground);
   padding: 0 12px 0 34px;
   font: inherit;
 }
 .uc-explorer-search input:hover {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--input));
+  border-color: var(--ast-action);
 }
 .uc-explorer-search input:focus-visible {
   outline: 2px solid var(--primary);
@@ -1353,7 +1357,7 @@
 }
 .uc-explorer-row:hover {
   border-color: var(--ast-hairline);
-  background: var(--db-row-hover);
+  background: var(--ast-surface-sunken);
 }
 .uc-explorer-node[data-connected='true'] > .uc-explorer-row {
   color: var(--muted-foreground);
@@ -1418,7 +1422,7 @@
 .uc-explorer-choice:hover:not(:disabled),
 .uc-explorer-choice:focus-visible {
   border-color: var(--primary);
-  background: var(--db-hover-tint);
+  background: var(--ast-action-tint);
 }
 .uc-explorer-choice:focus-visible,
 .uc-explorer-expand:focus-visible {
@@ -1623,7 +1627,7 @@
   border-bottom: 0;
 }
 .connections-table tbody tr:hover {
-  background: var(--db-row-hover);
+  background: var(--ast-surface-sunken);
 }
 .connections-table-name {
   font-family: var(--font-mono);
@@ -1702,7 +1706,7 @@
    that selecting a row cannot move the text in it, and it outranks the accent
    wash the shared helper puts on the row. */
 .connections-table tr[data-highlighted='true'] {
-  background: var(--db-selected-tint);
+  background: var(--ast-surface-selected);
   box-shadow: inset 3px 0 0 var(--ast-blue);
 }
 /* Names the arrival in the Detail cell, so the blue wash on the row above is not
@@ -1874,7 +1878,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--background);
+  background: var(--ast-surface);
 }
 .identity-section h4 {
   margin: 0 0 6px;
@@ -2444,7 +2448,7 @@
   text-transform: uppercase;
 }
 .declared-connection-row {
-  background: var(--popover);
+  background: var(--ast-surface);
 }
 .declared-connection-row:focus {
   outline: 2px solid var(--ast-blue);
@@ -2466,6 +2470,7 @@
   overflow: hidden;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
+  font-family: var(--font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2540,7 +2545,7 @@
   gap: 12px;
   padding: 16px;
   border-top: 1px solid var(--border);
-  background: var(--popover);
+  background: var(--ast-surface);
 }
 
 .notebook-path-editor {
@@ -2624,7 +2629,7 @@
   position: sticky;
   bottom: 0;
   padding-block: 10px;
-  background: var(--popover);
+  background: var(--ast-surface);
   border-top: 1px solid var(--border);
 }
 .plane-picker-discovery,
@@ -2702,7 +2707,7 @@
   padding: 10px 12px;
   border: 1px solid var(--ast-hairline, var(--border));
   border-radius: var(--radius-md);
-  background: var(--ast-surface-elevated);
+  background: var(--ast-surface);
 }
 .asset-picker-head {
   display: flex;
@@ -2775,10 +2780,10 @@
 }
 .asset-picker-row:hover,
 .asset-picker-row:focus-within {
-  background: var(--db-row-hover);
+  background: var(--ast-surface-sunken);
 }
 .asset-picker-row[data-selected='true'] {
-  background: var(--db-selected-tint);
+  background: var(--ast-surface-selected);
   box-shadow:
     inset 3px 0 0 var(--ast-blue),
     inset 0 0 0 1px var(--border);
@@ -2884,6 +2889,7 @@
   min-width: 0;
   overflow: hidden;
   font-size: var(--text-xs);
+  font-family: var(--font-mono);
   color: var(--muted-foreground);
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -140,7 +140,8 @@ describe('the row is the run card, not a third style', () => {
     expect(body('.conversation-row:hover')).toMatch(/border-color:\s*var\(--primary\)/);
     expect(body('.conversation-row.active')).toMatch(/border-color:\s*var\(--primary\)/);
     expect(row).toMatch(/background:\s*var\(--card\)/);
-    expect(body('.conversation-row.active')).toMatch(/background:\s*var\(--card\)/);
+    expect(body('.conversation-row.active')).toMatch(/background:\s*var\(--ast-surface-selected\)/);
+    expect(body('.conversation-row.active')).toMatch(/box-shadow:\s*inset 3px 0 0 var\(--ast-action\)/);
     expect(body('.conversation-row.active')).not.toMatch(/transparent|rgba|selected-tint|ast-navy/);
     // The 3px marker is gone from every state, including the delete confirmation,
     // and its absence is what gave the title back three of its pixels.
@@ -187,8 +188,8 @@ describe('the row is the run card, not a third style', () => {
     expect(RAIL_STATUS).toContain('ast-pill conversation-status');
     expect(RAIL_STATUS).toContain('summary.tone');
     const recipe = body('.ast-pill', partial('astrolabe-tokens.css'));
-    expect(recipe).toMatch(/border-radius:\s*var\(--ast-radius-control\)/);
-    expect(recipe).toMatch(/font-size:\s*var\(--ast-fs-11\)/);
+    expect(recipe).toMatch(/border-radius:\s*var\(--ast-radius-pill\)/);
+    expect(recipe).toMatch(/font-size:\s*var\(--ast-type-eyebrow\)/);
     // And the retired recipe is gone rather than left defined and unseated. A rule
     // nothing draws is the next reader's example of how this rail does a pill.
     expect(withoutComments(RAIL_CSS)).not.toMatch(/\.conversation-pill/);
@@ -212,7 +213,7 @@ describe('the row is the run card, not a third style', () => {
     expect(railStatusTone('complete')).toBe('ast-pill--pos');
     // The selected row stays an opaque light card over the navy rail. Its status
     // stays outlined so the border, rather than a second fill, carries selection.
-    expect(body('.conversation-row.active')).toMatch(/background:\s*var\(--card\)/);
+    expect(body('.conversation-row.active')).toMatch(/background:\s*var\(--ast-surface-selected\)/);
     expect(railStatusTone('marinating')).toBe('ast-pill--neutral-outline');
     const outline = body('.ast-pill--neutral-outline', partial('astrolabe-tokens.css'));
     expect(outline).not.toMatch(/background/);

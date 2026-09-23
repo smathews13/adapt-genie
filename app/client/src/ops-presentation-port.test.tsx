@@ -71,9 +71,9 @@ describe('ADAPT Ops presentation port', () => {
     ]);
   });
 
-  it('keeps ADAPT latency bars teal while adding aligned cost-card footers', () => {
+  it('keeps ADAPT latency bars on the primary chart series while adding aligned cost-card footers', () => {
     const css = readFileSync(new URL('./styles/ops.css', import.meta.url), 'utf8');
-    expect(css).toMatch(/\.ops-lat-bar-fill\s*\{[^}]*background:\s*var\(--db-blue-600\)/);
+    expect(css).toMatch(/\.ops-lat-bar-fill\s*\{[^}]*background:\s*var\(--ast-chart-1\)/);
     expect(css).toMatch(/\.ops-cost-card-footer\s*\{[^}]*margin-top:\s*auto/);
   });
 });

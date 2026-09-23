@@ -93,10 +93,10 @@ describe('Ask and Run use page-specific desktop pane geometry', () => {
       /@media \(max-width: 800px\)[\s\S]*?\.ask-layout\[data-transcript='active'\][^{]*\.answer-card\s*\{[^}]*min-height:\s*280px/
     );
     expect(RESPONSIVE_RUNS).toMatch(
-      /@media \(max-width: 1180px\)[\s\S]*?\.run-list\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/
+      /@media \(max-width: 1240px\)[\s\S]*?\.run-list\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/
     );
     expect(RESPONSIVE_RUNS).toMatch(
-      /@media \(max-width: 1180px\)[\s\S]*?\.run-detail\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/
+      /@media \(max-width: 1240px\)[\s\S]*?\.run-detail\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/
     );
   });
 });

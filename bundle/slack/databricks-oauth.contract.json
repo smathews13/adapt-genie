@@ -1,0 +1,14 @@
+{
+  "platform": "databricks-custom-oauth",
+  "grant": "authorization-code-pkce-s256",
+  "authorization_scopes": [
+    "all-apis",
+    "offline_access",
+    "openid",
+    "profile",
+    "email"
+  ],
+  "callback_parameters": ["state", "code"],
+  "nonce_verification": "required-in-broker-exchanged-token-proof",
+  "credential_storage": "broker-only"
+}

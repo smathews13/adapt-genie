@@ -39,6 +39,12 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_EXPERIMENT_ID: 'target-experiment-id',
       PLAYER_INSIGHTS_BUILD_SHA: 'new-build',
       PLAYER_INSIGHTS_ADMIN_EMAILS: 'admin@example.test',
+      SLACK_ADAPTER_ENABLED: 'true',
+      SLACK_ADAPTER_ALLOWED_TEAM_ID: 'T012ABC',
+      SLACK_ADAPTER_APP_TOKEN: 'xapp-never-snapshot',
+      SLACK_ADAPTER_BOT_TOKEN: 'xoxb-never-snapshot',
+      SLACK_ADAPTER_CLIENT_SECRET: 'never-snapshot',
+      SLACK_ADAPTER_SIGNING_SECRET: 'never-snapshot',
     };
 
     expect(await recordReleaseEnvironment(store, env)).toBe(true);
@@ -55,6 +61,14 @@ describe('release runtime configuration persistence', () => {
     expect(recorded).not.toHaveProperty('PLAYER_INSIGHTS_TARGET');
     expect(recorded).not.toHaveProperty('PLAYER_INSIGHTS_BUILD_SHA');
     expect(recorded).not.toHaveProperty('PLAYER_INSIGHTS_ADMIN_EMAILS');
+    expect(recorded).toMatchObject({
+      SLACK_ADAPTER_ENABLED: 'true',
+      SLACK_ADAPTER_ALLOWED_TEAM_ID: 'T012ABC',
+    });
+    expect(recorded).not.toHaveProperty('SLACK_ADAPTER_APP_TOKEN');
+    expect(recorded).not.toHaveProperty('SLACK_ADAPTER_BOT_TOKEN');
+    expect(recorded).not.toHaveProperty('SLACK_ADAPTER_CLIENT_SECRET');
+    expect(recorded).not.toHaveProperty('SLACK_ADAPTER_SIGNING_SECRET');
   });
 
   it('hydrates a target-neutral Git manifest before Connections derives scope', async () => {
@@ -251,7 +265,7 @@ describe('release runtime configuration persistence', () => {
     const store: DecisionStore = {
       query: vi.fn((text: string, params: unknown[] = []) => {
         if (text.startsWith('SELECT value')) return Promise.resolve({ rows: [] });
-        persisted = String(params[1] ?? '');
+        persisted = typeof params[1] === 'string' ? params[1] : '';
         return Promise.resolve({ rows: [] });
       }),
     };
@@ -271,9 +285,7 @@ describe('release runtime configuration persistence', () => {
       PLAYER_INSIGHTS_APP_SCHEMA: 'adapt_customer',
     };
 
-    await expect(
-      restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))
-    ).resolves.toBeGreaterThan(0);
+    await expect(restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))).resolves.toBeGreaterThan(0);
     expect(env.ADAPT_ADMIN_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Admins');
     expect(env.ADAPT_USER_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Users');
     expect(JSON.parse(persisted)).toMatchObject({

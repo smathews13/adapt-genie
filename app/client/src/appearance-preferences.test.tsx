@@ -13,6 +13,8 @@ describe('ADAPT appearance preferences', () => {
   it('offers theme, motion, density, and answer table style without a background-graphics toggle', () => {
     const markup = renderToStaticMarkup(<RuntimeSettingsPanel section="appearance" />);
     expect(markup).toContain('aria-label="Dark mode"');
+    const darkSwitch = markup.slice(markup.lastIndexOf('<button', markup.indexOf('aria-label="Dark mode"')));
+    expect(darkSwitch.slice(0, darkSwitch.indexOf('>'))).toContain('aria-checked="false"');
     expect(markup).toContain('aria-label="Animations"');
     expect(markup).toContain('Density');
     expect(markup).toContain('Tables');

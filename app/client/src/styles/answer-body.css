@@ -16,7 +16,7 @@
   border: 1px solid var(--ast-hairline);
   border-radius: var(--ast-radius-card);
   box-shadow: none;
-  background: transparent;
+  background: var(--ast-surface);
   padding-block: 16px;
   gap: 10px;
 }
@@ -124,8 +124,8 @@
   width: 100%;
   max-width: 100%;
   padding: 14px;
-  border-radius: 6px;
-  background: var(--ast-ice);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface-sunken);
   box-sizing: border-box;
 }
 .answer-support-head {
@@ -239,8 +239,8 @@
  */
 .keep-in-mind {
   border: 0;
-  border-radius: 6px;
-  background: var(--ast-ice);
+  border-radius: var(--ast-radius-card);
+  background: var(--ast-surface-sunken);
   padding: 14px;
   width: 100%;
   max-width: 100%;
@@ -355,6 +355,7 @@
 .run-process {
   border: 1px solid var(--ast-border-input);
   border-radius: var(--ast-radius-card);
+  background: var(--ast-surface);
   overflow: hidden;
   position: static;
   margin: 0;
@@ -474,7 +475,7 @@
 .code-panel {
   border: 1px solid var(--ast-hairline);
   border-radius: var(--ast-radius-card);
-  background: transparent;
+  background: var(--ast-surface);
   color: var(--ast-text);
   overflow: hidden;
 }

@@ -62,7 +62,7 @@
   margin: 0;
   padding: 12px;
   border-radius: var(--ast-radius-card);
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  background: var(--ast-surface-sunken);
   /* The plot inside sets its own height and Plotly measures the box it is handed, so
      the panel must not be allowed to be wider than the track it was given. */
   min-width: 0;

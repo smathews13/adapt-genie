@@ -51,18 +51,24 @@ export const RUNTIME_ANSWER_KEYS = [
 export const RUNTIME_BEHAVIOR_KEYS = ['clarification', 'timezone', 'injectCurrentDate'] as const;
 export const RUNTIME_ENTITY_STYLE_KEYS = ['foreground', 'background'] as const;
 
-/**
- * Paper-era chips. A stored pair that still equals these was never chosen —
- * it rode along when someone saved loop or answer settings — so read upgrades
- * that pair to the night-sky default. A pair that differs is a choice and stays.
- */
-export const PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
+/** Paper defaults from before the light-mode implementation contract. */
+const LEGACY_PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
   catalog: { foreground: '#ffffff', background: '#0e538b' },
   schema: { foreground: '#16324f', background: '#ddeaf4' },
   table: { foreground: '#3a3838', background: '#e8e8e8' },
   column: { foreground: '#3a3838', background: '#f4f4f4' },
   quote: { foreground: '#46596b', background: '#f7f7f7' },
   tag: { foreground: '#ffffff', background: '#243746' },
+};
+
+/** Canonical light defaults, aligned to the status and provenance families. */
+export const PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
+  catalog: { foreground: '#ffffff', background: '#1a62a8' },
+  schema: { foreground: '#1a5b8f', background: '#e8f1fa' },
+  table: { foreground: '#7a5a11', background: '#fbf5e6' },
+  column: { foreground: '#4c5c68', background: '#f2f5f8' },
+  quote: { foreground: '#4c5c68', background: '#f0f4f7' },
+  tag: { foreground: '#ffffff', background: '#0e1720' },
 };
 
 /** Previous blue/slate defaults; upgraded so existing ADAPT deployments adopt the new palette. */
@@ -92,7 +98,7 @@ export const YELLOW_TABLE_ENTITY_STYLE: RuntimeEntityStyle = {
  * tokens, so the Settings colour fields, the CSS fallbacks, and an empty store
  * all paint the same quiet pills.
  */
-export const DEFAULT_ENTITY_STYLES: RuntimeEntityStyles = {
+export const DARK_ENTITY_STYLES: RuntimeEntityStyles = {
   catalog: { foreground: '#7fdcd1', background: '#123733' },
   schema: { foreground: '#f2f6fa', background: '#183d39' },
   table: { foreground: '#d6b65c', background: '#332b1b' },
@@ -100,6 +106,8 @@ export const DEFAULT_ENTITY_STYLES: RuntimeEntityStyles = {
   quote: { foreground: '#9ad6ce', background: '#182523' },
   tag: { foreground: '#f2f6fa', background: '#243f3c' },
 };
+
+export const DEFAULT_ENTITY_STYLES: RuntimeEntityStyles = PAPER_ENTITY_STYLES;
 
 function sameHexStyle(left: RuntimeEntityStyle, right: RuntimeEntityStyle): boolean {
   return (
@@ -128,7 +136,7 @@ export type TableStyleId = (typeof TABLE_STYLE_IDS)[number];
 
 export const THEME_FONT_COLORS: Record<'dark' | 'light', { body: string; muted: string }> = {
   dark: { body: '#ffffff', muted: '#c5ccd4' },
-  light: { body: '#161616', muted: '#6f6f6f' },
+  light: { body: '#0e1720', muted: '#6b7a87' },
 };
 
 export const FONT_FAMILY_STACKS: Record<FontFamilyId, string> = {
@@ -197,22 +205,48 @@ export type RuntimeSettings = {
   tableStyle: TableStyleId;
 };
 
-/** Replace inherited default pairs; leave any pair someone actually set. */
-export function upgradePaperEntityStyles(styles: RuntimeEntityStyles): RuntimeEntityStyles {
+function inheritedEntityDefault(kind: RuntimeEntityKind, style: RuntimeEntityStyle): boolean {
+  return (
+    sameHexStyle(style, PAPER_ENTITY_STYLES[kind]) ||
+    sameHexStyle(style, LEGACY_PAPER_ENTITY_STYLES[kind]) ||
+    sameHexStyle(style, LEGACY_NIGHT_ENTITY_STYLES[kind]) ||
+    sameHexStyle(style, DARK_ENTITY_STYLES[kind]) ||
+    (kind === 'table' &&
+      (sameHexStyle(style, TEAL_TABLE_ENTITY_STYLE) || sameHexStyle(style, YELLOW_TABLE_ENTITY_STYLE)))
+  );
+}
+
+/** Replace inherited defaults for a theme; leave every explicit pair untouched. */
+export function upgradePaperEntityStyles(
+  styles: RuntimeEntityStyles,
+  scheme: 'dark' | 'light' = 'light'
+): RuntimeEntityStyles {
+  const defaults = scheme === 'dark' ? DARK_ENTITY_STYLES : PAPER_ENTITY_STYLES;
   return Object.fromEntries(
     RUNTIME_ENTITY_KINDS.map((kind) => [
       kind,
-      sameHexStyle(styles[kind], PAPER_ENTITY_STYLES[kind]) ||
-      sameHexStyle(styles[kind], LEGACY_NIGHT_ENTITY_STYLES[kind]) ||
-      (kind === 'table' &&
-        (sameHexStyle(styles[kind], TEAL_TABLE_ENTITY_STYLE) || sameHexStyle(styles[kind], YELLOW_TABLE_ENTITY_STYLE)))
-        ? DEFAULT_ENTITY_STYLES[kind]
-        : styles[kind],
+      inheritedEntityDefault(kind, styles[kind]) ? defaults[kind] : styles[kind],
     ])
   ) as RuntimeEntityStyles;
 }
 
-/** Current behavior. An empty store therefore changes no existing deployment. */
+export function entityStylesForScheme(
+  settings: Pick<RuntimeSettings, 'colorScheme' | 'entityStyles'>,
+  nextScheme: 'dark' | 'light'
+): Pick<RuntimeSettings, 'entityStyles'> {
+  const from = settings.colorScheme === 'dark' ? DARK_ENTITY_STYLES : PAPER_ENTITY_STYLES;
+  const to = nextScheme === 'dark' ? DARK_ENTITY_STYLES : PAPER_ENTITY_STYLES;
+  return {
+    entityStyles: Object.fromEntries(
+      RUNTIME_ENTITY_KINDS.map((kind) => [
+        kind,
+        sameHexStyle(settings.entityStyles[kind], from[kind]) ? to[kind] : settings.entityStyles[kind],
+      ])
+    ) as RuntimeEntityStyles,
+  };
+}
+
+/** Product defaults. Missing legacy fields deliberately migrate to light. */
 export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
   answer: {
     takeaway: true,
@@ -235,10 +269,10 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
     timezone: '',
     injectCurrentDate: false,
   },
-  colorScheme: 'dark',
+  colorScheme: 'light',
   entityStyles: DEFAULT_ENTITY_STYLES,
-  fontBodyColor: THEME_FONT_COLORS.dark.body,
-  fontMutedColor: THEME_FONT_COLORS.dark.muted,
+  fontBodyColor: THEME_FONT_COLORS.light.body,
+  fontMutedColor: THEME_FONT_COLORS.light.muted,
   fontFamily: 'dm-sans',
   fontSize: 'm',
   backgroundGraphics: true,
@@ -300,9 +334,7 @@ function parseEntityStyles(value: unknown): RuntimeEntityStyles | null {
     return [kind, { foreground: style.foreground, background: style.background }] as const;
   });
   if (entries.some((entry) => entry === null)) return null;
-  return upgradePaperEntityStyles(
-    Object.fromEntries(entries as [RuntimeEntityKind, RuntimeEntityStyle][]) as RuntimeEntityStyles
-  );
+  return Object.fromEntries(entries as [RuntimeEntityKind, RuntimeEntityStyle][]) as RuntimeEntityStyles;
 }
 
 /**
@@ -368,8 +400,10 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
   ] as const);
   const clarification = oneOf(behavior.clarification, ['strict', 'balanced', 'proceed-with-caveat'] as const);
   const timezone = trimmedString(behavior.timezone, 80);
-  const colorScheme = oneOf(root.colorScheme === undefined ? 'dark' : root.colorScheme, ['dark', 'light'] as const);
-  const entityStyles = parseEntityStyles(root.entityStyles);
+  const colorScheme = oneOf(root.colorScheme === undefined ? 'light' : root.colorScheme, ['dark', 'light'] as const);
+  const parsedEntityStyles = parseEntityStyles(root.entityStyles);
+  const entityStyles =
+    parsedEntityStyles && colorScheme ? upgradePaperEntityStyles(parsedEntityStyles, colorScheme) : parsedEntityStyles;
   const fontFamily = oneOf(root.fontFamily === undefined ? 'dm-sans' : root.fontFamily, FONT_FAMILY_IDS);
   const fontSize = oneOf(root.fontSize === undefined ? 'm' : root.fontSize, FONT_SIZE_IDS);
   const density = oneOf(root.density === undefined ? 'comfortable' : root.density, DENSITY_IDS);

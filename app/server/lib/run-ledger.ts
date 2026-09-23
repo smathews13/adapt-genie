@@ -155,6 +155,9 @@ export interface LedgerRun {
   leaseOwner: string | null;
   leaseExpiresAt: string | null;
   attempts: number;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string | null;
 }
 
 /**
@@ -223,6 +226,9 @@ function toRun(record: Record<string, unknown>): LedgerRun {
     leaseOwner: text(record.lease_owner),
     leaseExpiresAt: text(record.lease_expires_at),
     attempts: Number(record.attempts ?? 0),
+    createdAt: text(record.created_at) ?? new Date(0).toISOString(),
+    updatedAt: text(record.updated_at) ?? new Date(0).toISOString(),
+    completedAt: text(record.completed_at),
   };
 }
 
@@ -660,4 +666,69 @@ export async function readRun(
   if (!read.available) return unavailable(read);
   const found = row(read);
   return { ok: true, value: found ? toRun(found) : null };
+}
+
+/**
+ * Lazily close a plan-only channel run after its original execution deadline.
+ *
+ * v1 cannot approve plans. It exposes a link to the browser instead, and the
+ * first owner-scoped status read after the deadline atomically prevents that
+ * durable row from remaining parked in AWAITING_APPROVAL forever.
+ */
+export async function expireAwaitingApproval(
+  store: LakebaseReader,
+  runId: string,
+  userEmail: string
+): Promise<LedgerResult<LedgerRun | null>> {
+  const expired = await ledgerQuery(
+    store,
+    'run ledger expire awaiting approval',
+    `UPDATE ${APP_SCHEMA}.runs
+        SET state = 'DEADLINE_EXCEEDED',
+            terminal_code = 'RUN_DEADLINE_EXCEEDED',
+            fencing_token = fencing_token + 1,
+            lease_owner = NULL,
+            lease_expires_at = NULL,
+            completed_at = NOW(),
+            updated_at = NOW()
+      WHERE run_id = $1
+        AND user_email = $2
+        AND state = 'AWAITING_APPROVAL'
+        AND deadline_at <= NOW()
+     RETURNING ${RUN_COLUMNS}`,
+    [runId, userEmail]
+  );
+  if (!expired.available) return unavailable(expired);
+  const found = row(expired);
+  return { ok: true, value: found ? toRun(found) : null };
+}
+
+/** Settle every expired parked run carrying a channel-specific durable marker. */
+export async function expireMarkedAwaitingApprovals(
+  store: LakebaseReader,
+  markerEventType: string
+): Promise<LedgerResult<number>> {
+  const expired = await ledgerQuery(
+    store,
+    'run ledger sweep marked awaiting approvals',
+    `UPDATE ${APP_SCHEMA}.runs r
+        SET state = 'DEADLINE_EXCEEDED',
+            terminal_code = 'RUN_DEADLINE_EXCEEDED',
+            fencing_token = fencing_token + 1,
+            lease_owner = NULL,
+            lease_expires_at = NULL,
+            completed_at = NOW(),
+            updated_at = NOW()
+      WHERE r.state = 'AWAITING_APPROVAL'
+        AND r.deadline_at <= NOW()
+        AND EXISTS (
+          SELECT 1
+            FROM ${APP_SCHEMA}.run_events e
+           WHERE e.run_id = r.run_id AND e.event_type = $1
+        )
+     RETURNING r.run_id`,
+    [markerEventType]
+  );
+  if (!expired.available) return unavailable(expired);
+  return { ok: true, value: expired.rows.length };
 }

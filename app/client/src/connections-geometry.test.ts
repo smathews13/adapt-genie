@@ -189,7 +189,7 @@ describe('the parts a reader has to be able to use', () => {
 
   it('marks the row an entity link landed on with the app’s selected-row treatment', () => {
     const highlighted = rule(".connections-table tr[data-highlighted='true']");
-    expect(highlighted).toMatch(/background:\s*var\(--db-selected-tint\)/);
+    expect(highlighted).toMatch(/background:\s*var\(--ast-surface-selected\)/);
     // Inset, so arriving at a row cannot shift the text inside it sideways.
     expect(highlighted).toMatch(/box-shadow:\s*inset 3px 0 0 var\(--ast-blue\)/);
   });
@@ -209,7 +209,7 @@ describe('the parts a reader has to be able to use', () => {
     expect(rule('.connections-table th')).not.toMatch(/padding-block:\s*8px/);
     expect(CSS).toMatch(/\.connections-table th,\s*\n\s*\.connections-table td[\s\S]*?padding:\s*10px 16px/);
     expect(rule('.connections-table tbody tr')).toMatch(/border-bottom:\s*1px solid var\(--border\)/);
-    expect(rule('.connections-table tbody tr:hover')).toMatch(/background:\s*var\(--db-row-hover\)/);
+    expect(rule('.connections-table tbody tr:hover')).toMatch(/background:\s*var\(--ast-surface-sunken\)/);
     // The repeated catalog and schema are context; the table is the scanning
     // anchor and is the only segment that should carry the full weight.
     expect(rule('.connections-table-name')).toMatch(/font-weight:\s*400/);
@@ -257,12 +257,12 @@ describe('the parts a reader has to be able to use', () => {
 
   it('gives the UC toolbar proactive filter states and a narrow no-clipping fallback', () => {
     expect(BASE).toMatch(
-      /\.app-select-trigger:hover:not\(:disabled\),[\s\S]*?background:\s*color-mix\(in srgb, var\(--background\) 94%, var\(--primary\)\)/
+      /\.app-select-trigger:hover:not\(:disabled\),[\s\S]*?background:\s*var\(--ast-control-hover\)/
     );
     expect(BASE).toMatch(
-      /\.app-select-trigger\[data-state='open'\]:not\(:disabled\)\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--background\) 88%, var\(--primary\)\)/
+      /\.app-select-trigger\[data-state='open'\]:not\(:disabled\)\s*\{[^}]*background:\s*var\(--ast-control-active\)/
     );
-    expect(BASE).toMatch(/\.app-select-trigger:focus-visible\s*\{[^}]*box-shadow:\s*0 0 0 2px/);
+    expect(BASE).toMatch(/\.app-select-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-action\)/);
     expect(BASE).toMatch(/\.app-menu-option\[data-highlighted\]\s*\{[^}]*background:\s*var\(--db-hover-tint\)/);
     expect(BASE).toMatch(/\.app-menu-option\[data-state='checked'\]\s*\{[^}]*background:\s*var\(--db-selected-tint\)/);
     expect(RESPONSIVE).toMatch(
@@ -345,9 +345,9 @@ describe('the parts a reader has to be able to use', () => {
 
 describe('the add-resource surface over the constellation', () => {
   it('uses stronger semantic surfaces for standard rows, the form and picker', () => {
-    expect(rule('.connection-rows')).toMatch(/background:\s*var\(--popover\)/);
-    expect(rule('.plane-form')).toMatch(/background:\s*var\(--popover\)/);
-    expect(rule('.asset-picker')).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
+    expect(rule('.connection-rows')).toMatch(/background:\s*var\(--ast-surface\)/);
+    expect(rule('.plane-form')).toMatch(/background:\s*var\(--ast-surface\)/);
+    expect(rule('.asset-picker')).toMatch(/background:\s*var\(--ast-surface\)/);
     for (const selector of ['.connection-rows', '.plane-form', '.asset-picker']) {
       expect(rule(selector), selector).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(/i);
     }
@@ -355,7 +355,7 @@ describe('the add-resource surface over the constellation', () => {
 
   it('keeps selected, hover and keyboard focus rows readable without moving them', () => {
     const selected = rule(".asset-picker-row[data-selected='true']");
-    expect(selected).toMatch(/background:\s*var\(--db-selected-tint\)/);
+    expect(selected).toMatch(/background:\s*var\(--ast-surface-selected\)/);
     expect(selected).toMatch(/box-shadow:\s*inset 3px 0 0 var\(--ast-blue\)/);
     expect(CSS).toMatch(/\.asset-picker-row:hover,\s*\n\.asset-picker-row:focus-within\s*\{/);
     expect(rule('.asset-picker-row-names')).toMatch(/display:\s*grid/);

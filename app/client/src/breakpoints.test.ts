@@ -21,7 +21,7 @@ import { partial, partialNames } from './styles/stylesheet';
  * shape as the leftover this file exists to prevent.
  */
 
-const DECLARED = [1365, 1180, 800, 480];
+const DECLARED = [1365, 1240, 800, 480];
 const ROUTE_EXCEPTIONS = new Map<string, number[]>([
   // Dense configured/measured pairs and settings dialogs need one local
   // single-column handoff before the app-wide 480px phone band.
@@ -73,7 +73,7 @@ describe('the app has one set of breakpoints', () => {
       /@media \(max-width: 800px\)[\s\S]*\.arch-loop-tiles\s*\{[^}]*grid-template-columns:\s*repeat\(2/
     );
     expect(architecture).toMatch(
-      /@media \(max-width: 1180px\)[\s\S]*\.arch-rails\s*\{[^}]*grid-template-columns:\s*1fr/
+      /@media \(max-width: 1240px\)[\s\S]*\.arch-rails\s*\{[^}]*grid-template-columns:\s*1fr/
     );
     for (const name of ['connections.css', 'architecture.css']) {
       expect(widthQueries(partial(name))).not.toContain(640);

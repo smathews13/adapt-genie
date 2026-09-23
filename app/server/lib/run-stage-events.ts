@@ -266,8 +266,8 @@ export async function readStageEvents(store: LakebaseReader, runId: string): Pro
 export interface StageRecorder {
   /** Files one step. Returns immediately: the run must never wait on its own narration. */
   record(stage: Record<string, unknown>): void;
-  /** Resolves once every filed step has settled. For tests, and for nothing on the request path. */
-  settled(): Promise<void>;
+  /** Resolves once every filed step has settled, false if any durable append failed. */
+  settled(): Promise<boolean>;
 }
 
 /**
@@ -296,6 +296,7 @@ export function createStageRecorder(
   // once rather than once per step.
   const reporter = { reported: false };
   let seq = 0;
+  let allStored = true;
   let tail: Promise<void> = Promise.resolve();
   return {
     record(stage) {
@@ -305,10 +306,15 @@ export function createStageRecorder(
       tail = tail
         .then(async () => {
           if (options.signal?.aborted) return;
-          await recordStageEvent(store, { runId, seq: at, stage, fencingToken: options.fencingToken }, reporter);
+          const stored = await recordStageEvent(
+            store,
+            { runId, seq: at, stage, fencingToken: options.fencingToken },
+            reporter
+          );
+          allStored = allStored && stored;
         })
         .then(() => undefined);
     },
-    settled: () => tail,
+    settled: () => tail.then(() => allStored),
   };
 }

@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { applyColorScheme, DARK_THEME_COLOR, LIGHT_THEME_COLOR } from './color-scheme';
+import {
+  applyColorScheme,
+  DARK_THEME_COLOR,
+  DEFAULT_COLOR_SCHEME,
+  initialColorScheme,
+  LIGHT_THEME_COLOR,
+} from './color-scheme';
 
 function fakeRoot() {
   const attrs = new Map<string, string>();
@@ -35,10 +41,28 @@ describe('color scheme', () => {
     expect(meta.getAttribute('content')).toBe(LIGHT_THEME_COLOR);
   });
 
-  it('boots dark before React or settings fetch', () => {
+  it('boots light before React while the inline script prevents a preference flash', () => {
     const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-    expect(html).toMatch(/<html[^>]*class="light"[^>]*data-theme="dark"/);
-    expect(html).toMatch(/<meta name="theme-color" content="#11171c"\s*\/>/i);
+    const tokens = readFileSync(new URL('./styles/astrolabe-tokens.css', import.meta.url), 'utf8');
+    expect(DEFAULT_COLOR_SCHEME).toBe('light');
+    expect(html).toMatch(/<html[^>]*class="light"[^>]*data-brand="adapt"/);
+    expect(html).not.toMatch(/<html[^>]*data-theme=/);
+    expect(html).toMatch(/<meta name="theme-color" content="#f4f7f9"\s*\/>/i);
+    expect(html.indexOf('root.dataset.theme = scheme')).toBeLessThan(html.indexOf('<style>'));
+    expect(html).toContain("scheme === 'dark' ? '#0b1014' : '#f4f7f9'");
+    expect(tokens).toMatch(/:root\s*\{[^}]*color-scheme:\s*light/s);
+    expect(tokens).toMatch(/html\[data-theme='dark'\]\s*\{[^}]*color-scheme:\s*dark/s);
+  });
+
+  it('uses the ADAPT light default when there is no stored preference', () => {
+    expect(initialColorScheme(null)).toBe('light');
+    expect(initialColorScheme(undefined)).toBe('light');
+  });
+
+  it('gives stored preferences precedence and treats a missing legacy scheme as light', () => {
+    expect(initialColorScheme({ colorScheme: 'light' })).toBe('light');
+    expect(initialColorScheme({ colorScheme: 'dark' })).toBe('dark');
+    expect(initialColorScheme({ density: 'compact' })).toBe('light');
   });
 
   it('does not require a document to exist', () => {

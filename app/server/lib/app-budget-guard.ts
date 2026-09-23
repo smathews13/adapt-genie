@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import type { Request } from 'express';
 
 import { appCostSummary } from '../../shared/app-cost-summary';
 import {
@@ -19,6 +18,7 @@ import { foundationCostTile, readFoundationBillingRows } from './ops-foundation-
 import { buildGenieAccountingStatement, classifyGenieAccounting, readGenieAccountingRows } from './genie-accounting';
 import { mintAppScopeToken } from './ops-scope-check';
 import type { InsightsAppKit } from '../routes/insights-routes';
+import type { GovernedBudgetContext } from './governed-run-service';
 
 export const APP_BUDGET_MEASUREMENT_TTL_MS = 60_000;
 
@@ -78,7 +78,7 @@ function unavailable(
 
 async function queryMeasurement(
   appkit: InsightsAppKit,
-  req: Request,
+  context: GovernedBudgetContext,
   period: AppBudgetPeriod,
   now: number
 ): Promise<AppBudgetMeasurement | null> {
@@ -103,7 +103,7 @@ async function queryMeasurement(
   if (!workspace || !warehouse || !token) return null;
   const range = { from: period.monthStart, to: period.measurementThrough };
   const workspaceId = await resolveWorkspaceId({ host: workspace, token }).catch(() => '');
-  const resolved = await costIdentifiersFor(appkit, req, { workspaceId, warehouse });
+  const resolved = await costIdentifiersFor(appkit, context, { workspaceId, warehouse });
   const [runRows, genieActivity] = await Promise.all([
     appkit.lakebase.query(QUESTION_COST_RUNS_QUERY, [range.from, range.to]),
     genieAppActivityAttribution(appkit, resolved.ids, range),
@@ -196,7 +196,7 @@ async function queryMeasurement(
 
 async function currentMeasurement(
   appkit: InsightsAppKit,
-  req: Request,
+  context: GovernedBudgetContext,
   period: AppBudgetPeriod,
   now: number,
   reader: typeof queryMeasurement
@@ -206,7 +206,7 @@ async function currentMeasurement(
     if ('value' in measurementCache) return measurementCache.value;
     return measurementCache.pending;
   }
-  const pending = reader(appkit, req, period, now);
+  const pending = reader(appkit, context, period, now);
   measurementCache = { key, at: now, pending };
   const value = await pending;
   if (value) measurementCache = { key, at: now, value };
@@ -221,7 +221,7 @@ export interface AppBudgetGuardOptions {
 
 export async function readAppBudgetStatus(
   appkit: InsightsAppKit,
-  req: Request,
+  context: GovernedBudgetContext,
   options: AppBudgetGuardOptions = {}
 ): Promise<AppBudgetStatus> {
   const now = options.now ?? Date.now();
@@ -257,7 +257,7 @@ export async function readAppBudgetStatus(
 
   let measurement: AppBudgetMeasurement | null;
   try {
-    measurement = await currentMeasurement(appkit, req, period, now, options.measure ?? queryMeasurement);
+    measurement = await currentMeasurement(appkit, context, period, now, options.measure ?? queryMeasurement);
   } catch (error) {
     return unavailable(period, readAt, {
       code: 'APP_BUDGET_MEASUREMENT_FAILED',

@@ -167,6 +167,9 @@ async function start(store = memoryStore(), config: IdleTimeoutConfig = enabled)
   app.get('/api/data', (_req, res) => res.json({ secret: 'protected' }));
   app.post('/api/mutate', (_req, res) => res.status(204).send());
   app.get('/api/storage', (_req, res) => res.json({ status: 'health-only' }));
+  app.get('/api/slack/link', (_req, res) => res.status(204).send());
+  app.get('/api/slack/oauth/callback', (_req, res) => res.status(204).send());
+  app.get('/api/slack/link/status', (_req, res) => res.json({ status: 'protected' }));
   const server: Server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   const port = (server.address() as AddressInfo).port;
@@ -509,15 +512,30 @@ describe('request boundaries and cleanup', () => {
     expect(cleanup?.sql).toContain('LIMIT $1');
   });
 
-  it('protects every API except bootstrap, end, health, and storage diagnostics', () => {
+  it('exempts only OAuth entry/callback while protecting Slack status, revoke, and admin operations', () => {
     expect(shouldProtectWithAppSession('/api/conversations')).toBe(true);
     expect(shouldProtectWithAppSession('/api/admin/model-releases')).toBe(true);
     expect(shouldProtectWithAppSession('/api/app-session/activity')).toBe(true);
+    expect(shouldProtectWithAppSession('/api/slack/link')).toBe(false);
+    expect(shouldProtectWithAppSession('/api/slack/oauth/callback')).toBe(false);
+    expect(shouldProtectWithAppSession('/api/slack/link/status')).toBe(true);
+    expect(shouldProtectWithAppSession('/api/slack/link/revoke')).toBe(true);
+    expect(shouldProtectWithAppSession('/api/admin/slack/uninstall')).toBe(true);
     expect(shouldProtectWithAppSession('/api/app-session/bootstrap')).toBe(false);
     expect(shouldProtectWithAppSession('/api/app-session/end')).toBe(false);
     expect(shouldProtectWithAppSession('/api/storage')).toBe(false);
     expect(shouldProtectWithAppSession('/health')).toBe(false);
     expect(shouldProtectWithAppSession('/.auth/sign_out')).toBe(false);
+  });
+
+  it('allows OAuth arrival without an app cookie but still requires one for Slack status', async () => {
+    const running = await start();
+    open.push(running.close);
+    expect((await running.call('/api/slack/link')).status).toBe(204);
+    expect((await running.call('/api/slack/oauth/callback')).status).toBe(204);
+    const protectedStatus = await running.call('/api/slack/link/status');
+    expect(protectedStatus.status).toBe(401);
+    expect(await protectedStatus.json()).toMatchObject({ error: APP_SESSION_REQUIRED_CODE });
   });
 
   it('keeps disabled mode explicit and does not touch Lakebase', async () => {

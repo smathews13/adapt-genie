@@ -191,7 +191,7 @@ describe('runtime and appearance modal sections', () => {
   it('pairs Body text and Secondary hex fields with a native colour picker', () => {
     expect(source).toContain('type="color"');
     expect(source).toContain('appearance-color-picker');
-    expect(source).toContain("isHexColor(hex) ? hex : '#000000'");
+    expect(source).toContain('isHexColor(hex) ? hex : DEFAULT_RUNTIME_SETTINGS[key]');
     expect(source).toContain('`${aria} picker`');
     expect(styles).toContain('.appearance-color-picker');
     expect(styles).toContain("input:not([type='color'])");
@@ -201,7 +201,7 @@ describe('runtime and appearance modal sections', () => {
     const entityColors = source.slice(source.indexOf('aria-label="Answer entity colors"'));
     expect(entityColors).toContain('type="color"');
     expect(entityColors).toContain('aria-label={`${kind} ${property} picker`}');
-    expect(entityColors).toContain("isHexColor(hex) ? hex : '#000000'");
+    expect(entityColors).toContain('isHexColor(hex) ? hex : DEFAULT_RUNTIME_SETTINGS.entityStyles[kind][property]');
     expect(entityColors).not.toContain('appearance-color-swatch" aria-hidden="true"');
   });
 

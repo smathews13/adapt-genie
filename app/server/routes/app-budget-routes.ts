@@ -14,6 +14,13 @@ function sameRevision(status: AppBudgetStatus, expected: string): boolean {
   return Boolean(status.budgetFingerprint) && status.budgetFingerprint === expected;
 }
 
+function browserBudgetContext(req: { get?: (name: string) => string | undefined }, fallback: string) {
+  return {
+    source: 'browser' as const,
+    correlationId: req.get?.('x-request-id') ?? fallback,
+  };
+}
+
 export function setupAppBudgetRoutes(
   appkit: InsightsAppKit,
   deps: { readStatus?: typeof readAppBudgetStatus } = {}
@@ -22,7 +29,7 @@ export function setupAppBudgetRoutes(
   appkit.server.extend((app) => {
     app.get('/api/budget-status', async (req, res) => {
       try {
-        res.json(await readStatus(appkit, req));
+        res.json(await readStatus(appkit, browserBudgetContext(req, 'browser-budget-status')));
       } catch (error) {
         res.status(503).json({
           error: 'app_budget_status_unavailable',
@@ -38,7 +45,7 @@ export function setupAppBudgetRoutes(
         return;
       }
       const actor = userEmail(req);
-      const status = await readStatus(appkit, req);
+      const status = await readStatus(appkit, browserBudgetContext(req, 'browser-budget-approval'));
       if (!sameRevision(status, parsed.data.budgetFingerprint)) {
         res.status(409).json({
           error: 'budget_revision_changed',
@@ -119,7 +126,7 @@ export function setupAppBudgetRoutes(
         return;
       }
       const actor = userEmail(req);
-      const status = await readStatus(appkit, req);
+      const status = await readStatus(appkit, browserBudgetContext(req, 'browser-budget-revocation'));
       if (!sameRevision(status, parsed.data.budgetFingerprint)) {
         res.status(409).json({
           error: 'budget_revision_changed',

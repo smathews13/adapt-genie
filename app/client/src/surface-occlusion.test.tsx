@@ -35,44 +35,31 @@ describe('primary surface occlusion', () => {
   const tokens = partial('tokens.css');
   const contract = partial('surface-contract.css');
 
-  it('defines an ordered translucent glass hierarchy with AA text contrast', () => {
-    const muted = tokenMix(astrolabe, '--ast-surface-muted');
-    const primary = tokenMix(astrolabe, '--ast-surface-primary');
-    const elevated = tokenMix(astrolabe, '--ast-surface-elevated');
-    const menu = tokenMix(astrolabe, '--ast-surface-menu');
-    const chrome = tokenMix(astrolabe, '--ast-surface-chrome');
-    expect(muted).toBe(92);
-    expect(primary).toBe(95);
-    expect(elevated).toBe(97);
-    expect(menu).toBe(98.5);
-    expect(chrome).toBe(99);
-    expect(muted).toBeLessThan(primary);
-    expect(primary).toBeLessThan(elevated);
-    expect(elevated).toBeLessThan(menu);
-    expect(menu).toBeLessThan(chrome);
-    expect(chrome).toBeLessThan(100);
-    expect(astrolabe).toContain('--ast-pane: var(--ast-surface-primary)');
+  it('uses opaque reading roles in both themes', () => {
+    const lightAstrolabe = bodyFor(astrolabe, ':root');
+    expect(lightAstrolabe).toMatch(/--ast-surface-muted:\s*var\(--ast-surface-sunken\)/);
+    expect(lightAstrolabe).toMatch(/--ast-surface-primary:\s*var\(--ast-surface\)/);
+    expect(lightAstrolabe).toMatch(/--ast-surface-elevated:\s*var\(--ast-surface-raised\)/);
+    expect(lightAstrolabe).toMatch(/--ast-surface-menu:\s*var\(--ast-surface-raised\)/);
+    expect(lightAstrolabe).toMatch(/--ast-surface-chrome:\s*var\(--ast-surface-raised\)/);
+    expect(lightAstrolabe).toMatch(/--ast-pane:\s*var\(--ast-surface\)/);
 
     const darkAstrolabe = bodyFor(astrolabe, "html[data-theme='dark']");
-    for (const [name, amount] of [
-      ['--ast-surface-muted', 92],
-      ['--ast-surface-primary', 95],
-      ['--ast-surface-elevated', 97],
-      ['--ast-surface-menu', 98.5],
-      ['--ast-surface-chrome', 99],
-    ] as const) {
-      expect(tokenMix(darkAstrolabe, name), name).toBe(amount);
-    }
-    expect(darkAstrolabe).toMatch(/--ast-pane:\s*var\(--ast-surface-primary\)/);
+    expect(tokenMix(darkAstrolabe, '--ast-surface-muted')).toBe(92);
+    expect(darkAstrolabe).toMatch(/--ast-surface-primary:\s*var\(--ast-surface\)/);
+    expect(darkAstrolabe).toMatch(/--ast-surface-elevated:\s*var\(--ast-surface-raised\)/);
+    expect(darkAstrolabe).toMatch(/--ast-surface-menu:\s*var\(--ast-surface-raised\)/);
+    expect(darkAstrolabe).toMatch(/--ast-surface-chrome:\s*var\(--ast-surface-raised\)/);
+    expect(darkAstrolabe).toMatch(/--ast-pane:\s*var\(--ast-surface\)/);
 
     const darkTokens = bodyFor(tokens, "html[data-theme='dark']");
     expect(darkTokens).toMatch(/--card:\s*var\(--ast-surface-primary\)/);
     expect(darkTokens).toMatch(/--popover:\s*var\(--ast-surface-menu\)/);
-    expect(bodyFor(tokens, ':root')).toMatch(/--card:\s*var\(--ast-surface-primary\)/);
-    expect(bodyFor(tokens, ':root')).toMatch(/--popover:\s*var\(--ast-surface-menu\)/);
+    expect(bodyFor(tokens, ':root')).toMatch(/--card:\s*var\(--ast-surface\)/);
+    expect(bodyFor(tokens, ':root')).toMatch(/--popover:\s*var\(--ast-surface-raised\)/);
 
     expect(contrast('#f2f6fa', '#181e23')).toBeGreaterThanOrEqual(4.5);
-    expect(contrast('#161616', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(contrast('#0e1720', '#ffffff')).toBeGreaterThanOrEqual(4.5);
 
     for (const [selector, role] of [
       ['.ast-surface-primary', '--ast-surface-primary'],
@@ -143,7 +130,7 @@ describe('primary surface occlusion', () => {
     );
 
     const connections = partial('connections.css');
-    expect(bodyFor(connections, '.asset-picker')).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
+    expect(bodyFor(connections, '.asset-picker')).toMatch(/background:\s*var\(--ast-surface\)/);
 
     const settings = partial('settings.css');
     expect(bodyFor(settings, '.sp-resource-menu')).toMatch(/background:\s*var\(--popover\)/);
@@ -194,18 +181,16 @@ describe('primary surface occlusion', () => {
       expect(bodyFor(css, selector), selector).toMatch(/outline:\s*none/);
     }
 
-    expect(partial('base.css')).toMatch(/\n:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-blue\)/);
+    expect(partial('base.css')).toMatch(/\n:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-action\)/);
     expect(partial('dark-mode.css')).toMatch(
-      /html\[data-theme='dark'\] :focus-visible\s*\{[^}]*outline:\s*1px solid var\(--ast-ice-accent\)/
+      /html\[data-theme='dark'\] :focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ast-action\)/
     );
     expect(bodyFor(firstOpen, '.fo-continue')).toMatch(/background:\s*var\(--ast-blue\)/);
     const loginChrome = bodyFor(contract, '.ast-login-panel');
     expect(loginChrome).toMatch(/background:\s*var\(--ast-surface-elevated\)/);
     expect(loginChrome).toMatch(/border:\s*1px solid var\(--ast-border-input\)/);
     expect(loginChrome).toMatch(/outline:\s*none/);
-    expect(loginChrome).toMatch(
-      /box-shadow:\s*0 18px 48px color-mix\(in oklab, var\(--db-ink-deep\) 16%, transparent\)/
-    );
+    expect(loginChrome).toMatch(/box-shadow:\s*var\(--ast-shadow-overlay\)/);
     expect(loginChrome).not.toMatch(/--(?:ast|db)-blue|--primary/);
     for (const selector of [
       '.ast-login-panel:focus',
@@ -281,8 +266,9 @@ describe('static background and chrome layers', () => {
     expect(occlusion).toMatch(/background:\s*var\(--ast-surface-chrome\)/);
     expect(occlusion).toMatch(/pointer-events:\s*none/);
     expect(bodyFor(base, 'html')).toMatch(/scroll-padding-top:\s*var\(--app-header-h\)/);
-    const chromeTransmission = (1 - tokenMix(astrolabe, '--ast-surface-chrome') / 100) ** 2;
-    expect(chromeTransmission).toBeLessThanOrEqual(0.00011);
+    expect(bodyFor(astrolabe, "html[data-theme='dark']")).toMatch(
+      /--ast-surface-chrome:\s*var\(--ast-surface-raised\)/
+    );
   });
 
   it('keeps Ask on a single static fill regardless of animation preferences', () => {

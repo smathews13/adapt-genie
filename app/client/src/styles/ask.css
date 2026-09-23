@@ -158,7 +158,7 @@
    it. The tracking comes back two rungs with it -- -0.035em was tight enough at
    42px to close the gaps between words. */
 .ask-hero h2 {
-  font-size: var(--text-hero);
+  font-size: var(--ast-type-hero);
   line-height: 1.2;
   letter-spacing: -0.015em;
   margin: 0 auto;
@@ -200,27 +200,29 @@ html:not([data-theme='dark']) .ask-hero h2 {
   padding: 14px 15px;
   border: 1px solid var(--ast-hairline);
   border-radius: var(--ast-radius-card);
-  background: var(--ast-ice);
+  background: var(--ast-surface);
+  box-shadow: var(--ast-shadow-flat);
   cursor: pointer;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+    color 0.15s ease;
 }
 .ask-starter:hover:not(:disabled),
 .ask-starter:focus-visible {
   border-color: var(--ast-blue);
-  background: color-mix(in srgb, var(--ast-ice) 88%, var(--ast-blue));
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--ast-blue) 16%, transparent);
-  transform: translateY(-1px);
+  background: var(--ast-control-hover);
+  box-shadow: var(--ast-shadow-flat);
 }
 .ask-starter:focus-visible {
   outline: 2px solid var(--ast-blue);
   outline-offset: 2px;
 }
 .ask-starter:disabled {
-  opacity: 0.55;
+  border-color: var(--ast-hairline);
+  background: var(--ast-neutral-fill);
+  color: var(--ast-ink-disabled);
+  opacity: 1;
   cursor: default;
 }
 .ask-starter-kicker {
@@ -231,7 +233,7 @@ html:not([data-theme='dark']) .ask-hero h2 {
   color: var(--ast-blue);
 }
 .ask-starter-question {
-  font-size: var(--ast-fs-13, 13px);
+  font-size: var(--ast-type-body);
   font-weight: 600;
   line-height: 1.4;
   color: var(--ast-text);
@@ -287,14 +289,14 @@ html:not([data-theme='dark']) .ask-hero h2 {
 .question-attribution-message::selection,
 .question-attribution-message ::selection {
   background: var(--db-ink);
-  color: #ffffff;
+  color: var(--ast-action-ink-on-fill);
 }
 .answer-card::selection,
 .answer-card ::selection,
 .plan-card::selection,
 .plan-card ::selection {
   background: var(--db-ink);
-  color: #ffffff;
+  color: var(--ast-action-ink-on-fill);
 }
 /* Prose in an answer is as selectable as a question is, and the I-beam is the
    only thing that says so before the drag starts. Scoped to the text elements

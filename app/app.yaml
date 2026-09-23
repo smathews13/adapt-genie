@@ -17,6 +17,54 @@ env:
   # never be logged, returned, or copied into Model Serving configuration.
   - name: ADAPT_GENIE_MCP_SIGNING_PRIVATE_KEY
     valueFrom: genie-mcp-signing-key
+  # Optional Slack security pilot. The public/Git artifact is inert:
+  # disabled, kill-switched, and empty of customer/workspace identifiers.
+  - name: SLACK_ADAPTER_ENVIRONMENT
+    value: ''
+  - name: SLACK_ADAPTER_ENABLED
+    value: 'false'
+  - name: SLACK_ADAPTER_KILL_SWITCH
+    value: 'true'
+  - name: SLACK_ADAPTER_ALLOWED_TEAM_ID
+    value: ''
+  - name: SLACK_ADAPTER_TEST_REGISTRATION_ID
+    value: ''
+  - name: SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID
+    value: ''
+  - name: SLACK_ADAPTER_DATABRICKS_WORKSPACE
+    value: ''
+  - name: SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE
+    value: ''
+  - name: SLACK_ADAPTER_OAUTH_CLIENT_ID
+    value: ''
+  # Exact Databricks custom OAuth user flow scopes. Slack bot/app scopes are
+  # declared separately under bundle/slack and must never be mixed into this set.
+  - name: SLACK_ADAPTER_OAUTH_SCOPES
+    value: 'all-apis offline_access openid profile email'
+  - name: SLACK_ADAPTER_OAUTH_CALLBACK_URL
+    value: ''
+  - name: SLACK_ADAPTER_PUBLIC_BASE_URL
+    value: ''
+  - name: SLACK_ADAPTER_TOKEN_BROKER_REF
+    value: ''
+  - name: SLACK_ADAPTER_GLOBAL_CONCURRENCY
+    value: ''
+  - name: SLACK_ADAPTER_WORKSPACE_CONCURRENCY
+    value: ''
+  - name: SLACK_ADAPTER_USER_CONCURRENCY
+    value: ''
+  - name: SLACK_ADAPTER_CONVERSATION_CONCURRENCY
+    value: ''
+  - name: SLACK_ADAPTER_GLOBAL_PER_MINUTE
+    value: ''
+  - name: SLACK_ADAPTER_WORKSPACE_PER_MINUTE
+    value: ''
+  - name: SLACK_ADAPTER_USER_PER_MINUTE
+    value: ''
+  - name: SLACK_ADAPTER_CONVERSATION_PER_MINUTE
+    value: ''
+  # Secret variables and valueFrom bindings are deliberately absent. Enabling
+  # Slack requires the reviewed private-deployment overlay in bundle/slack/.
   # Foundation model the orchestrator calls. Empty in public source;
   # bundle/app-release.sh fills the target value. Git deploys fall back to
   # databricks-claude-sonnet-4-6 in Connections so the row is not blank.

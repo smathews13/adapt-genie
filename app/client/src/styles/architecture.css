@@ -429,10 +429,10 @@
 .arch-node.arch-node-selected {
   outline: 3px solid var(--arch-active-bound);
   outline-offset: 3px;
-  background: color-mix(in srgb, var(--arch-active-bound) 28%, transparent);
+  background: var(--ast-surface-selected);
 }
 html[data-theme='dark'] .arch-node.arch-node-selected {
-  background: color-mix(in srgb, var(--arch-active-bound) 28%, transparent);
+  background: var(--ast-surface-selected);
 }
 .arch-node-main {
   display: grid;

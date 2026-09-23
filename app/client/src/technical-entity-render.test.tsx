@@ -76,8 +76,10 @@ describe('table entities in answer and trace prose', () => {
     expect(markup).toContain('data-entity-part="catalog"');
     expect(markup).toContain('data-entity-part="schema"');
     expect(markup.match(/data-entity-part="table"/g)).toHaveLength(2);
-    expect(tokens).toContain('--ast-table-ref-text: #6f5312');
-    expect(tokens).toContain('--ast-table-ref-fill: #f3e6bd');
+    expect(tokens).toContain('--ast-provenance-text: #7a5a11');
+    expect(tokens).toContain('--ast-provenance-fill: #fbf5e6');
+    expect(tokens).toContain('--ast-table-ref-text: var(--ast-provenance-text)');
+    expect(tokens).toContain('--ast-table-ref-fill: var(--ast-provenance-fill)');
     expect(answerCss).toMatch(/\.entity-table\s*\{[^}]*color: var\(--ast-entity-table-fg\)/s);
     expect(answerCss).toMatch(/\.entity-column\s*\{[^}]*color: var\(--ast-entity-column-fg\)/s);
   });

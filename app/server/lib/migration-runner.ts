@@ -170,8 +170,9 @@ export interface RunnerOptions {
 
 /* ── Reading the schema, to tell a no-op refusal from a real one ───────────── */
 
-const ALTER_TARGET = /^ALTER TABLE\s+(\w+)\.(\w+)/i;
+const ALTER_TARGET = /^ALTER TABLE\s+(?:IF EXISTS\s+)?(\w+)\.(\w+)/i;
 const ADDED_COLUMN = /ADD COLUMN IF NOT EXISTS\s+(\w+)/gi;
+const DROPPED_NOT_NULL_COLUMN = /ALTER COLUMN\s+(\w+)\s+DROP NOT NULL/gi;
 const CREATE_TABLE_TARGET = /^CREATE TABLE IF NOT EXISTS\s+(\w+)\.(\w+)/i;
 const CREATE_INDEX_TARGET = /^CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF NOT EXISTS\s+(\w+)\s+ON\s+(\w+)\./i;
 
@@ -261,15 +262,24 @@ export async function statementAlreadySatisfied(client: LakebaseReader, statemen
   const altered = ALTER_TARGET.exec(trimmed);
   if (altered) {
     const wanted = [...statement.matchAll(ADDED_COLUMN)].map((match) => match[1].toLowerCase());
-    if (wanted.length === 0) return false;
-    const present = await schemaNames(
-      client,
-      `SELECT column_name FROM information_schema.columns
-       WHERE table_schema = $1 AND table_name = $2`,
-      [altered[1], altered[2]],
-      'column_name'
-    );
-    return present !== null && wanted.every((column) => present.has(column));
+    const nullable = [...statement.matchAll(DROPPED_NOT_NULL_COLUMN)].map((match) => match[1].toLowerCase());
+    if (wanted.length === 0 && nullable.length === 0) return false;
+    try {
+      const result = await client.lakebase.query(
+        `SELECT column_name, is_nullable FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = $2`,
+        [altered[1], altered[2]]
+      );
+      const columns = new Map(
+        result.rows.flatMap((row) => {
+          const name = identifierText(row.column_name)?.toLowerCase();
+          return name ? [[name, identifierText(row.is_nullable)?.toUpperCase() ?? '']] : [];
+        })
+      );
+      return wanted.every((column) => columns.has(column)) && nullable.every((column) => columns.get(column) === 'YES');
+    } catch {
+      return false;
+    }
   }
 
   const created = CREATE_TABLE_TARGET.exec(trimmed);

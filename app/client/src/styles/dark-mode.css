@@ -108,8 +108,8 @@ html[data-theme='dark'] .identity-chip {
  * ink -- the same register Complete / Partial / Asked-by already wear.
  */
 html[data-theme='dark'] .answer-card [data-slot='badge'].provenance-chip[data-tone='live'] {
-  background: rgba(255, 255, 255, 0.07);
-  background-color: rgba(255, 255, 255, 0.07);
+  background: var(--db-row-hover);
+  background-color: var(--db-row-hover);
   color: var(--ast-ink-on-dark);
   border-color: var(--ast-border-input);
 }
@@ -135,19 +135,19 @@ html[data-theme='dark'] .header-settings {
 }
 
 html[data-theme='dark'] .header-settings:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
   color: var(--ast-white);
 }
 
 html[data-theme='dark'] .header-settings:active:not(:disabled) {
-  background: rgba(127, 220, 209, 0.28);
+  background: var(--ast-control-active);
   color: var(--ast-white);
   transition-duration: 0ms;
 }
 
 html[data-theme='dark'] .header-settings:focus-visible {
-  outline: 1px solid var(--ast-ice-accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
 }
 
 html[data-theme='dark'] .access-gate-actions button:not(.refresh-button) {
@@ -177,7 +177,7 @@ html[data-theme='dark'] .access-gate-actions button:not(.refresh-button) {
  */
 html[data-theme='dark'] .role-badge[data-role-state='super_admin'] {
   background: var(--card);
-  border: 1px solid var(--ast-border-input);
+  border: 0;
   color: var(--foreground);
 }
 
@@ -297,7 +297,7 @@ html[data-theme='dark'] .page-shell:not(.run-explorer):not(.connections-page) [d
 html[data-theme='dark'] [data-slot='alert'],
 html[data-theme='dark'] .role-lost-notice,
 html[data-theme='dark'] .storage-banner [data-slot='alert'] {
-  background: color-mix(in srgb, var(--ast-surface-primary) 80%, var(--ast-neg-text));
+  background: var(--ast-negative-fill);
   backdrop-filter: none;
 }
 
@@ -383,7 +383,7 @@ html[data-theme='dark'] .trace-dag.map .dag-block,
 html[data-theme='dark'] .trace-dag.map .dag-md-code,
 html[data-theme='dark'] .trace-dag.map .dag-asked,
 html[data-theme='dark'] .trace-dag.map .dag-inline-code {
-  background: color-mix(in srgb, var(--ast-scrim) 45%, transparent);
+  background: var(--ast-surface-sunken);
 }
 
 /*
@@ -419,18 +419,18 @@ html[data-theme='dark'] .account-menu {
   background: var(--background);
   backdrop-filter: none;
   border-color: var(--ast-border-input);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 html[data-theme='dark'] [data-slot='sheet-content'] {
   background: var(--ast-surface-elevated);
   backdrop-filter: none;
   border-color: var(--ast-border-input);
-  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 html[data-theme='dark'] .trace-empty-mark {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ast-action-tint);
   color: var(--ast-white);
 }
 
@@ -514,7 +514,7 @@ html[data-theme='dark'] .ast-btn-primary:hover:not(:disabled),
 html[data-theme='dark'] [data-slot='button'].bg-primary:hover:not(:disabled),
 html[data-theme='dark'] [data-slot='button'][data-variant='default']:hover:not(:disabled),
 html[data-theme='dark'] [data-slot='button'][data-variant='primary']:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ast-primary-control-fill) 82%, var(--ast-primary-control-border));
+  background: var(--ast-primary-control-hover);
   border-color: var(--ast-ice-accent);
 }
 
@@ -522,7 +522,7 @@ html[data-theme='dark'] .ast-btn-primary:active:not(:disabled),
 html[data-theme='dark'] [data-slot='button'].bg-primary:active:not(:disabled),
 html[data-theme='dark'] [data-slot='button'][data-variant='default']:active:not(:disabled),
 html[data-theme='dark'] [data-slot='button'][data-variant='primary']:active:not(:disabled) {
-  background: color-mix(in srgb, var(--ast-primary-control-fill) 68%, var(--ast-primary-control-border));
+  background: var(--ast-primary-control-active);
   border-color: var(--ast-ice-accent);
   transition-duration: 0ms;
 }
@@ -539,18 +539,18 @@ html[data-theme='dark'] .composer-attach {
 }
 
 html[data-theme='dark'] .composer-attach:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
   color: var(--ast-white);
 }
 
 html[data-theme='dark'] .composer-attach:active:not(:disabled) {
-  background: rgba(127, 220, 209, 0.28);
+  background: var(--ast-control-active);
   color: var(--ast-white);
   transition-duration: 0ms;
 }
 
 html[data-theme='dark'] .answer-card:has(.live-progress) {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 html[data-theme='dark'] .trace-bar {
@@ -558,13 +558,14 @@ html[data-theme='dark'] .trace-bar {
 }
 
 html[data-theme='dark'] :focus-visible {
-  outline: 1px solid var(--ast-ice-accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
 }
 
 html[data-theme='dark'] :is(input, textarea, select, .app-select-trigger):focus-visible {
-  border-color: var(--ast-ice-accent);
-  outline: none;
+  border-color: var(--ast-action);
+  outline: 2px solid var(--ast-action);
+  outline-offset: 2px;
 }
 
 /*
@@ -599,7 +600,7 @@ html[data-theme='dark'] .plan-card ::selection {
  * The search field's clear mark went the other way and hovered to navy on navy.
  */
 html[data-theme='dark'] .asset-picker-row:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
   color: var(--foreground);
 }
 
@@ -625,18 +626,18 @@ html[data-theme='dark'] .asset-picker-row:hover {
  * slate that already sat. Custom `--entity-*` values still win.
  */
 html[data-theme='dark'] {
-  --ast-entity-catalog-fg: var(--entity-catalog-fg, #7fdcd1);
-  --ast-entity-catalog-bg: var(--entity-catalog-bg, #123733);
+  --ast-entity-catalog-fg: var(--entity-catalog-fg, var(--ast-entity-dark-catalog-fg));
+  --ast-entity-catalog-bg: var(--entity-catalog-bg, var(--ast-entity-dark-catalog-bg));
   --ast-entity-schema-fg: var(--entity-schema-fg, var(--ast-ink-on-dark));
-  --ast-entity-schema-bg: var(--entity-schema-bg, #183d39);
-  --ast-entity-table-fg: var(--entity-table-fg, #d6b65c);
-  --ast-entity-table-bg: var(--entity-table-bg, #332b1b);
-  --ast-entity-column-fg: var(--entity-column-fg, #d9f4f0);
-  --ast-entity-column-bg: var(--entity-column-bg, #15332f);
-  --ast-entity-quote-fg: var(--entity-quote-fg, #9ad6ce);
-  --ast-entity-quote-bg: var(--entity-quote-bg, #182523);
+  --ast-entity-schema-bg: var(--entity-schema-bg, var(--ast-entity-dark-schema-bg));
+  --ast-entity-table-fg: var(--entity-table-fg, var(--ast-entity-dark-table-fg));
+  --ast-entity-table-bg: var(--entity-table-bg, var(--ast-entity-dark-table-bg));
+  --ast-entity-column-fg: var(--entity-column-fg, var(--ast-entity-dark-column-fg));
+  --ast-entity-column-bg: var(--entity-column-bg, var(--ast-entity-dark-column-bg));
+  --ast-entity-quote-fg: var(--entity-quote-fg, var(--ast-entity-dark-quote-fg));
+  --ast-entity-quote-bg: var(--entity-quote-bg, var(--ast-entity-dark-quote-bg));
   --ast-entity-tag-fg: var(--entity-tag-fg, var(--ast-ink-on-dark));
-  --ast-entity-tag-bg: var(--entity-tag-bg, #243f3c);
+  --ast-entity-tag-bg: var(--entity-tag-bg, var(--ast-entity-dark-tag-bg));
 }
 
 /*
@@ -648,7 +649,7 @@ html[data-theme='dark'] {
  * chain, so a colour set in Settings > Appearance still wins.
  */
 html[data-theme='dark'] .answer-code {
-  background: rgba(127, 220, 209, 0.1);
+  background: var(--ast-action-tint);
   color: var(--ast-ice-accent);
 }
 
@@ -664,7 +665,7 @@ html[data-theme='dark'] .answer-code {
  * which is a daylight recipe painted straight onto the night sky.
  */
 html[data-theme='dark'] .source-name-pill[data-tone='neutral'] .source-name-short {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--db-row-hover);
 }
 
 /*
@@ -697,13 +698,13 @@ html[data-theme='dark'] .trace-inspector .trace-explore:active:not(:disabled) {
  */
 html[data-theme='dark'] .app-select-trigger:hover:not(:disabled),
 html[data-theme='dark'] .app-select-trigger[data-state='open']:not(:disabled) {
-  background: color-mix(in srgb, var(--background) 88%, var(--primary));
+  background: var(--ast-control-active);
 }
 html[data-theme='dark'] .app-menu-option:hover,
 html[data-theme='dark'] .app-menu-option:focus-visible,
 html[data-theme='dark'] .access-gate-actions button:not(.refresh-button):hover:not(:disabled),
 html[data-theme='dark'] .conversation-confirm-cancel:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
 }
 
 /*
@@ -724,14 +725,14 @@ html[data-theme='dark'] [data-slot='button'][data-variant='destructive'] {
 }
 
 html[data-theme='dark'] .conversation-confirm-delete:hover {
-  background: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
-  border-color: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+  background: var(--ast-danger-control-hover);
+  border-color: var(--ast-danger-control-hover);
 }
 
 html[data-theme='dark'] [data-slot='button'].bg-destructive:hover:not(:disabled),
 html[data-theme='dark'] [data-slot='button'][data-variant='destructive']:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
-  border-color: color-mix(in srgb, var(--ast-destructive-control) 82%, white);
+  background: var(--ast-danger-control-hover);
+  border-color: var(--ast-danger-control-hover);
 }
 
 @media (prefers-reduced-transparency: reduce) {

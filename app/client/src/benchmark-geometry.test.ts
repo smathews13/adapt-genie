@@ -156,7 +156,7 @@ describe('the v3 Lab chrome', () => {
     expect(rule('.bench-stage-node')).toMatch(/width:\s*28px/);
     expect(rule('.bench-stage-node')).toMatch(/height:\s*28px/);
     expect(rule('.bench-stage-node')).toMatch(/border-radius:\s*50%/);
-    expect(rule('.bench-pipeline::before')).toMatch(/rgba\(143,\s*193,\s*232,\s*0\.35\)/);
+    expect(rule('.bench-pipeline::before')).toMatch(/background:\s*var\(--ast-action-edge\)/);
   });
 
   it('keeps the contract strip at six hairline cells', () => {
@@ -164,9 +164,9 @@ describe('the v3 Lab chrome', () => {
     expect(rule('.bench-contract')).toMatch(/min-height:\s*52px/);
   });
 
-  it('paints comparison deltas in the north-star teal and rose', () => {
-    expect(rule('.bench-delta-pos')).toMatch(/#9ad6ce/i);
-    expect(rule('.bench-delta-neg')).toMatch(/#e8a9b8/i);
+  it('paints comparison deltas with canonical status tokens', () => {
+    expect(rule('.bench-delta-pos')).toMatch(/var\(--ast-positive-text\)/);
+    expect(rule('.bench-delta-neg')).toMatch(/var\(--ast-negative-text\)/);
   });
 
   it('sets the six region min-heights from the 1080px reference', () => {
@@ -186,8 +186,8 @@ describe('the v3 Lab chrome', () => {
       /grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(0,\s*1fr\) minmax\(0,\s*1fr\)/
     );
     expect(rule('.bench-sql-triple pre')).toMatch(/overflow:\s*visible/);
-    expect(rule('.bench-audit-banner')).toMatch(/rgba\(232,\s*168,\s*152/);
-    expect(rule('.bench-chip-fixed')).toMatch(/#9ad6ce/i);
-    expect(rule('.bench-chip-broken')).toMatch(/#e8a9b8/i);
+    expect(rule('.bench-audit-banner')).toMatch(/background:\s*var\(--ast-negative-fill\)/);
+    expect(rule('.bench-chip-fixed')).toMatch(/color:\s*var\(--ast-positive-text\)/);
+    expect(rule('.bench-chip-broken')).toMatch(/color:\s*var\(--ast-negative-text\)/);
   });
 });

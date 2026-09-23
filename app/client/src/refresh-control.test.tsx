@@ -197,7 +197,7 @@ describe('the treatment, once, for every seat', () => {
 
     expect(base, 'page-shell.css still has a .refresh-button rule').not.toEqual('');
     expect(base).toMatch(/background:\s*var\(--db-blue-600\)/);
-    expect(base).toMatch(/color:\s*#fff/);
+    expect(base).toMatch(/color:\s*var\(--ast-action-ink-on-fill\)/);
     expect(base).toMatch(/font-weight:\s*600/);
   });
 
@@ -222,12 +222,13 @@ describe('the treatment, once, for every seat', () => {
    * reader most wants to read it, and what it says then is "Refreshing…", which is
    * the sentence carrying the state.
    */
-  it('dims as a whole while it works, so the white label keeps its ratio', () => {
+  it('uses an opaque disabled recipe instead of fading the label', () => {
     const disabled = partial('page-shell.css').match(/\.refresh-button:disabled \{([^}]*)\}/)?.[1] ?? '';
 
     expect(disabled, 'page-shell.css still has a disabled rule').not.toEqual('');
-    expect(disabled).toMatch(/opacity:\s*0\.6/);
-    expect(disabled).toMatch(/color:\s*#fff/);
+    expect(disabled).toMatch(/opacity:\s*1/);
+    expect(disabled).toMatch(/background:\s*var\(--ast-neutral-fill\)/);
+    expect(disabled).toMatch(/color:\s*var\(--ast-ink-disabled\)/);
   });
 
   /**

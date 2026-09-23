@@ -85,10 +85,10 @@ describe('the answer and plan cards sit on the design’s scale, not the library
   });
 
   it('sizes the takeaway as a card heading and not as a hero', () => {
-    // 16.5px/700. It was a clamp to 28px on a page whose own h2 is 22px, so the
+    // 17px/700. The shared ADAPT scale keeps it below the 30px page title.
     // one sentence in the card out-shouted the page it was on.
     const rule = ruleFor(ANSWER_CSS, '.answer-takeaway {');
-    expect(rule).toContain('font-size: calc(var(--ast-fs-16) + 0.5px)');
+    expect(rule).toContain('font-size: var(--ast-type-card)');
     expect(rule).toContain('font-weight: 700');
     expect(rule).toContain('line-height: 1.35');
   });
@@ -99,12 +99,12 @@ describe('the answer and plan cards sit on the design’s scale, not the library
     expect(rule).not.toContain('var(--ast-lh-body)');
   });
 
-  it('keeps the answer prose on the 14px body rung and the takeaway above it', () => {
-    // The prose paragraphs stay at 14px; the takeaway stays on the heading rung.
+  it('keeps the answer prose on the 15px body rung and the takeaway above it', () => {
+    // The prose paragraphs use the shared 15px body; the takeaway stays on the heading rung.
     // Sources and Caveats are the two collapsible support panels and share their
     // own unified 13px rung (asserted in the sources/caveats parity test).
-    expect(ruleFor(ANSWER_CSS, '.answer-prose {')).toContain('font-size: var(--ast-fs-14)');
-    expect(ruleFor(ANSWER_CSS, '.answer-takeaway {')).toContain('font-size: calc(var(--ast-fs-16) + 0.5px)');
+    expect(ruleFor(ANSWER_CSS, '.answer-prose {')).toContain('font-size: var(--ast-type-body)');
+    expect(ruleFor(ANSWER_CSS, '.answer-takeaway {')).toContain('font-size: var(--ast-type-card)');
   });
 });
 
@@ -144,12 +144,12 @@ describe('the provenance chip has three tones and none is the action colour', ()
     expect(stored, 'the two are not the same chip').not.toContain('var(--ast-warn-fill)');
   });
 
-  it('paints a failure chip as muted dark red, not a light or pink fill', () => {
+  it('paints a failure chip from the canonical negative family', () => {
     const rule = ruleFor(ANSWER_CSS, ".provenance-chip[data-tone='failed'] {");
-    expect(rule).toContain('color-mix(in oklab, var(--ast-navy) 72%, var(--ast-neg-text))');
-    expect(rule).toContain('color: var(--ast-ice)');
-    expect(rule).not.toMatch(/background:\s*var\(--ast-neg-text\)/);
-    expect(rule).not.toMatch(/#e8a9b8|#faf3f5|--ast-neg-fill|--ast-neg-on-dark/i);
+    expect(rule).toContain('background: var(--ast-negative-fill)');
+    expect(rule).toContain('border: 1px solid var(--ast-negative-border)');
+    expect(rule).toContain('color: var(--ast-negative-text)');
+    expect(rule).not.toMatch(/color-mix|#[0-9a-f]{3,8}|rgba\(/i);
     expect(ANSWER_CSS).toContain("[data-slot='badge'].provenance-chip[data-tone='failed']");
   });
 
@@ -215,8 +215,8 @@ describe('the caveats change how loudly they are said and nothing else', () => {
     // the design reference draws at 8ar. Same meaning, same seating, a family
     // whose text rung is legible.
     const rule = ruleFor(BODY_CSS, '.keep-in-mind {');
-    expect(rule).toContain('background: var(--ast-ice)');
-    expect(rule).toContain('border-radius: 6px');
+    expect(rule).toContain('background: var(--ast-surface-sunken)');
+    expect(rule).toContain('border-radius: var(--ast-radius-card)');
     expect(rule).toContain('border: 0');
     expect(rule).toContain('padding: 14px');
     expect(rule).toContain('height: auto');

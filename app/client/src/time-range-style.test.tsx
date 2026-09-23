@@ -106,9 +106,12 @@ describe('the four labels are separated rather than run together', () => {
     expect(CSS).toMatch(/\.time-range-segment\[aria-checked='true'\]\s*\{[^}]*background/);
   });
 
-  it('puts elevated semantic glass behind inactive segments', () => {
-    expect(CSS).toMatch(/\.time-range-segments\s*\{[^}]*background:\s*var\(--ast-surface-elevated\)/);
-    expect(CSS).toMatch(/\.time-range-segment\s*\{[^}]*background:\s*var\(--ast-surface-elevated\)/);
+  it('keeps rest transparent and fills the selected segment blue', () => {
+    expect(CSS).toMatch(/\.time-range-segments\s*\{[^}]*background:\s*var\(--ast-surface\)/);
+    expect(CSS).toMatch(/\.time-range-segment\s*\{[^}]*background:\s*transparent/);
+    expect(CSS).toMatch(
+      /\.time-range-segment\[aria-checked='true'\]\s*\{[^}]*background:\s*var\(--ast-action\)[^}]*color:\s*var\(--ast-action-ink-on-fill\)/
+    );
   });
 
   it('leaves a focused segment a visible ring', () => {

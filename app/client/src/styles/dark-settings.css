@@ -2,7 +2,7 @@ html[data-theme='dark'] .settings-page.settings-modal {
   background: var(--ast-surface-elevated);
   backdrop-filter: none;
   border-color: var(--ast-border-input);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ast-shadow-overlay);
 }
 
 html[data-theme='dark'] .settings-rail button.active,
@@ -19,10 +19,10 @@ html[data-theme='dark'] .settings-footer-actions .settings-cancel {
   color: var(--foreground);
 }
 html[data-theme='dark'] .settings-footer-actions .settings-cancel:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
 }
 html[data-theme='dark'] .settings-footer-actions .settings-cancel:active:not(:disabled) {
-  background: rgba(143, 193, 232, 0.16);
+  background: var(--ast-info-fill);
 }
 
 html[data-theme='dark'] .environment-tabs button.active {
@@ -41,11 +41,11 @@ html[data-theme='dark'] .environment-tools [data-slot='button'] {
   color: var(--muted-foreground);
 }
 html[data-theme='dark'] .environment-tools [data-slot='button']:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
   color: var(--foreground);
 }
 html[data-theme='dark'] .environment-tools [data-slot='button']:active:not(:disabled) {
-  background: rgba(143, 193, 232, 0.28);
+  background: var(--ast-action-tint);
   color: var(--ast-white);
 }
 html[data-theme='dark'] .environment-list:focus-visible {
@@ -54,22 +54,22 @@ html[data-theme='dark'] .environment-list:focus-visible {
   box-shadow: none;
 }
 html[data-theme='dark'] .appearance-grid {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ast-surface-sunken);
 }
 html[data-theme='dark'] .settings-save-notice,
 html[data-theme='dark'] .runtime-field-label {
   color: var(--ast-caption);
 }
 html[data-theme='dark'] .settings-modal-overlay {
-  background: color-mix(in srgb, var(--ast-scrim) 50%, transparent);
+  background: var(--ast-scrim);
 }
 html[data-theme='dark'] .settings-footer-actions [data-slot='button'][data-pressed='true'] {
-  background: color-mix(in srgb, var(--ast-primary-control-fill) 68%, var(--ast-primary-control-border));
+  background: var(--ast-primary-control-active);
   border-color: var(--ast-ice-accent);
   color: var(--ast-ink-on-dark);
 }
 html[data-theme='dark'] .settings-close:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ast-neutral-fill);
 }
 
 @media (prefers-reduced-transparency: reduce) {

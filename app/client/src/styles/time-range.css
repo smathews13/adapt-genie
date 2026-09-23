@@ -34,8 +34,8 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--db-line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--ast-surface-elevated);
+  border-radius: var(--ast-radius-control);
+  background: var(--ast-surface);
   overflow: hidden;
   font-size: var(--text-sm);
 }
@@ -49,8 +49,8 @@
 .time-range-segment {
   padding: 5px 10px;
   border: 0;
-  background: var(--ast-surface-elevated);
-  color: var(--db-slate);
+  background: transparent;
+  color: var(--ast-ink-secondary);
   font: inherit;
   line-height: 1.4;
   cursor: pointer;
@@ -64,8 +64,8 @@
 }
 
 .time-range-segment:hover:not([aria-checked='true']) {
-  background: var(--db-hover-tint);
-  color: var(--db-ink-deep);
+  background: var(--ast-control-hover);
+  color: var(--ast-ink);
 }
 
 /*
@@ -74,15 +74,15 @@
  * once by the screen reader and once by the cascade.
  */
 .time-range-segment[aria-checked='true'] {
-  background: var(--db-chip);
-  color: var(--db-ink-deep);
+  background: var(--ast-action);
+  color: var(--ast-action-ink-on-fill);
   font-weight: 500;
 }
 
 /* Inset, because the group clips its overflow and an outset ring would be cut
    off on the first and last segments. */
 .time-range-segment:focus-visible {
-  outline: 2px solid var(--db-blue-600);
+  outline: 2px solid var(--ast-action);
   outline-offset: -2px;
 }
 

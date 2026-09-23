@@ -5,6 +5,7 @@ import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/relea
 import { requestLatencyShutdown } from './lib/request-latency-shutdown';
 import { registerStaticDelivery } from './lib/static-delivery';
 import { readMlflowTokenEvidence } from './lib/mlflow-token-evidence';
+import { slackRuntimeLifecycle } from './slack/runtime-lifecycle';
 
 // Static ESM imports have completed before this guard runs, so the production
 // artifact has already evaluated AppKit, Lakebase, and pg. Stop here during the
@@ -29,7 +30,7 @@ if (process.argv.includes('--module-smoke')) {
 // That timeout is applied per session by the read funnel instead — see
 // lib/lakebase-pool.ts.
 createApp({
-  plugins: [lakebase({ pool: lakebasePoolSettings() }), requestLatencyShutdown(), server()],
+  plugins: [lakebase({ pool: lakebasePoolSettings() }), requestLatencyShutdown(), slackRuntimeLifecycle(), server()],
   async onPluginsReady(appkit) {
     // Git replaces app.yaml, including a bundle release's private schema value,
     // but keeps the App identity and its Postgres ownership. Resolve that owned
@@ -76,6 +77,14 @@ createApp({
       { setupWatchlistRoutes },
       { setupAskStarterRoutes },
       { setupAppGroupsRoutes },
+      { setupSlackSettingsRoutes },
+      { setupSlackOAuthRoutes },
+      { setupSlackStatusRoutes },
+      { SlackAdapterBootstrap },
+      { createDefaultSlackEventProcessor },
+      { SlackDeliveryService },
+      { logSlackOperationalAudit },
+      { authenticatedAdaptLinkOutUrl },
       { bootstrapSeedRoles, isAdminRoute },
       { respondToHandlerFailures },
     ] = await Promise.all([
@@ -109,6 +118,14 @@ createApp({
       import('./routes/watchlist-routes'),
       import('./routes/ask-starter-routes'),
       import('./routes/app-groups-routes'),
+      import('./routes/slack-settings-routes'),
+      import('./routes/slack-oauth-routes'),
+      import('./routes/slack-status-routes'),
+      import('./slack/bootstrap'),
+      import('./slack/event-processor'),
+      import('./slack/delivery-service'),
+      import('./slack/audit'),
+      import('./slack/link-out-url'),
       import('./lib/admin-roles'),
       import('./lib/handler-failures'),
     ]);
@@ -117,12 +134,14 @@ createApp({
     // do not wait for Lakebase DDL while role-bearing requests still wait for the
     // authoritative roster to be settled.
     const readiness: { roles?: Promise<void> } = {};
-    const { storeReady } = await setupInsightsRoutes(appkit, {
+    const insights = await setupInsightsRoutes(appkit, {
       rolesReady: () =>
         readiness.roles ?? Promise.reject(new Error('Role bootstrap was requested before it was scheduled.')),
       onRequestLatencyRecorder: (recorder) => appkit.requestLatencyShutdown.setRecorder(recorder),
       traceTokenEvidenceReader: readMlflowTokenEvidence,
     });
+    const { storeReady } = insights;
+    const { governedRuns } = insights;
     // A configured release remains authoritative for target-specific values.
     // Git boots only backfill a missing/legacy snapshot from existing durable
     // resources and never replace a complete snapshot with public placeholders.
@@ -169,6 +188,47 @@ createApp({
     setupWatchlistRoutes(appkit);
     setupAskStarterRoutes(appkit);
     setupAppGroupsRoutes(appkit);
+    setupSlackSettingsRoutes(appkit);
+    // OAuth routes are intentionally present but broker/store unavailable until
+    // approved durable implementations are injected. They return typed 503s
+    // and never persist codes or tokens in this default composition.
+    setupSlackOAuthRoutes(appkit);
+    const slackAdapter = new SlackAdapterBootstrap(appkit, {
+      // The composition is complete but remains fail-closed until a production
+      // delegated-token broker and durable link-intent issuer are injected.
+      brokerAvailable: () => false,
+      createProcessor: (config, _secrets, client) => {
+        const delivery = new SlackDeliveryService(
+          appkit.lakebase,
+          client,
+          governedRuns,
+          logSlackOperationalAudit,
+          (runId) => {
+            const base = process.env.DATABRICKS_APP_URL?.trim();
+            if (!base) throw new Error('Authenticated ADAPT app URL is unavailable.');
+            return new URL(`/api/runs/${encodeURIComponent(runId)}/trace`, base).toString();
+          }
+        );
+        return createDefaultSlackEventProcessor({
+          store: appkit.lakebase,
+          config,
+          governedRuns,
+          delivery,
+          audit: logSlackOperationalAudit,
+          expectedAudience: config.oauthExpectedAudience,
+          linkOutUrl: () => Promise.resolve(authenticatedAdaptLinkOutUrl()),
+        });
+      },
+    });
+    appkit.slackRuntimeLifecycle.setAdapter(slackAdapter);
+    setupSlackStatusRoutes(appkit, { readiness: () => slackAdapter.readiness() });
+    void storeReady.then(
+      async () => {
+        const status = await slackAdapter.start();
+        if (!status.ready) console.warn(`[slack] Socket adapter not ready: ${status.reason}.`);
+      },
+      () => undefined
+    );
     setupEvalDatasetRoutes(appkit);
     setupBenchmarkLabRoutes(appkit);
     setupEnvironmentRoutes(appkit);

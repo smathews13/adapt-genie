@@ -46,12 +46,14 @@ describe('staged Settings saves', () => {
     expect(PAGE).not.toMatch(/setTimeout\(\(\) => close\(\), SAVE_PRESS_MS\)/);
   });
 
-  it('restores canonical server state after a failed durable save', () => {
-    for (const panel of [RUNTIME, BENCHMARK]) {
-      const failure = panel.slice(panel.lastIndexOf('} catch (caught)'));
-      expect(failure).toContain("onSaveState({ kind: 'failed'");
-      expect(failure).toContain('onDirtyChange(0)');
-    }
+  it('keeps Appearance drafts staged while Benchmark restores canonical state after failure', () => {
+    const runtimeFailure = RUNTIME.slice(RUNTIME.lastIndexOf('} catch (caught)'));
+    expect(runtimeFailure).toContain("onSaveState({ kind: 'failed'");
+    expect(runtimeFailure).not.toContain('onDirtyChange(0)');
+
+    const benchmarkFailure = BENCHMARK.slice(BENCHMARK.lastIndexOf('} catch (caught)'));
+    expect(benchmarkFailure).toContain("onSaveState({ kind: 'failed'");
+    expect(benchmarkFailure).toContain('onDirtyChange(0)');
     expect(settingsSaveDisabled(false, 0, true)).toBe(true);
   });
 

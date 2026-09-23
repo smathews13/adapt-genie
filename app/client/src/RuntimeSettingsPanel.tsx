@@ -16,13 +16,16 @@ import {
   type TableStyleId,
 } from '../../shared/runtime-settings';
 import { applyColorScheme, type ColorScheme } from './color-scheme';
-import { runtimeSettingsDocumentFromResponse } from './runtime-settings-api';
+import {
+  RuntimeSettingsDraftConflict,
+  runtimeSettingsDocumentFromResponse,
+  saveRuntimeSettingsDraft,
+} from './runtime-settings-api';
 import { AppSelect } from './AppSelect';
 import { adoptRuntimeEntityStyles, previewRuntimeAppearance } from './runtime-entity-styles';
 import { RuntimeTimezoneField } from './RuntimeTimezoneField';
 import {
   changedSettingKeys,
-  changedSettingsPatch,
   saveRetryAfterLoad,
   type SettingsLoadResult,
   type SettingsSaveState,
@@ -103,6 +106,14 @@ export function previewColorScheme(dark: boolean): ColorScheme {
   return scheme;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- pure save contract covered by Appearance tests
+export function assertAppearanceThemePreserved(draft: RuntimeSettings, saved: RuntimeSettings): void {
+  if (saved.colorScheme === draft.colorScheme) return;
+  throw new Error(
+    `Appearance was not saved: the server returned ${saved.colorScheme} mode after ${draft.colorScheme} mode was submitted.`
+  );
+}
+
 export function RuntimeSettingsPanel({
   section,
   onSaveState = () => {},
@@ -134,7 +145,8 @@ export function RuntimeSettingsPanel({
       savedSettings.current = loaded.settings;
       revision.current = loaded.revision;
       setSettings(loaded.settings);
-      applyColorScheme(loaded.settings.colorScheme);
+      // Runtime data must never repaint the caller-owned Appearance theme.
+      if (section === 'appearance') applyColorScheme(loaded.settings.colorScheme);
       setState('ready');
       return { ok: true };
     } catch (caught) {
@@ -143,7 +155,7 @@ export function RuntimeSettingsPanel({
       setFailure({ operation: 'load', message });
       return { ok: false, message };
     }
-  }, []);
+  }, [section]);
 
   useEffect(() => {
     // Mount fetch: the first paint has to come from the server.
@@ -187,28 +199,25 @@ export function RuntimeSettingsPanel({
       const changed = savedSettings.current ? changedSettingKeys(savedSettings.current, settings).length : 0;
       const before = savedSettings.current;
       if (!before) throw new Error('Runtime settings have not loaded from Lakebase.');
-      const response = await fetch('/api/runtime-settings', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          revision: revision.current,
-          patch: changedSettingsPatch(before, settings) ?? {},
-        }),
-      });
-      const saved = await runtimeSettingsDocumentFromResponse(response, 'saved');
+      const saved = await saveRuntimeSettingsDraft(
+        section === 'appearance' ? '/api/runtime-settings' : '/api/admin/runtime-settings',
+        before,
+        settings,
+        revision.current
+      );
+      if (section === 'appearance') assertAppearanceThemePreserved(settings, saved.settings);
       savedSettings.current = saved.settings;
       revision.current = saved.revision;
       setSettings(saved.settings);
-      adoptRuntimeEntityStyles(saved.settings);
+      if (section === 'appearance') adoptRuntimeEntityStyles(saved.settings);
       setState('saved');
       onDirtyChange(0);
       onSaveState({ kind: 'saved', count: changed });
     } catch (caught) {
-      const prior = savedSettings.current;
-      if (prior) {
-        setSettings(prior);
-        adoptRuntimeEntityStyles(prior);
-        onDirtyChange(0);
+      if (caught instanceof RuntimeSettingsDraftConflict) {
+        savedSettings.current = caught.latest.settings;
+        revision.current = caught.latest.revision;
+        onDirtyChange(changedSettingKeys(caught.latest.settings, settings).length);
       }
       setState('failed');
       setFailure({ operation: 'save', message: (caught as Error).message });

@@ -39,7 +39,7 @@ describe('runtime and appearance modal sections', () => {
   it('writes through the caller-scoped route and preserves real errors and load retry', () => {
     expect(source).toContain("fetch('/api/runtime-settings'");
     expect(source).toContain("runtimeSettingsDocumentFromResponse(response, 'loaded')");
-    expect(source).toContain("runtimeSettingsDocumentFromResponse(response, 'saved')");
+    expect(source).toContain('saveRuntimeSettingsDraft(');
     expect(source).toContain("failure?.operation === 'load'");
     expect(source).toContain('failure.message');
   });
@@ -210,7 +210,10 @@ describe('runtime and appearance modal sections', () => {
     expect(source).not.toContain('Limits how many reasoning passes');
     expect(source).toContain('2026-07-22 – 2026-08-03');
     expect(source).toContain('Rockstar, 2K');
+    expect(source).toContain('assertAppearanceThemePreserved(settings, saved.settings)');
+    expect(source).toContain("if (section === 'appearance') adoptRuntimeEntityStyles(saved.settings)");
     expect(source).toContain('adoptRuntimeEntityStyles(saved.settings)');
+    expect(source).not.toContain('adoptRuntimeEntityStyles(prior)');
     expect(source).not.toContain('previewColorScheme(on)');
     expect(source).not.toContain('previewRuntimeTypography(settings)');
     expect(styles).toMatch(/\.appearance-sample-plaque\s*\{[^}]*background:\s*var\(--background\)/);

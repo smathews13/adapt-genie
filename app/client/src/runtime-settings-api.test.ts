@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RUNTIME_SETTINGS } from '../../shared/runtime-settings';
-import { runtimeSettingsFromResponse } from './runtime-settings-api';
+import {
+  RuntimeSettingsDraftConflict,
+  runtimeSettingsFromResponse,
+  saveRuntimeSettingsDraft,
+} from './runtime-settings-api';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -46,5 +50,44 @@ describe('runtime settings API responses', () => {
     await expect(runtimeSettingsFromResponse(response, 'loaded')).rejects.toThrow(
       'answered 404 without an error message'
     );
+  });
+
+  it('rebases a disjoint stale save without dropping the draft', async () => {
+    const draft = { ...DEFAULT_RUNTIME_SETTINGS, density: 'compact' as const };
+    const latest = { ...DEFAULT_RUNTIME_SETTINGS, animations: false };
+    const saved = { ...latest, density: 'compact' as const };
+    const fetcher = vi
+      .fn<(input: string, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(json({ detail: 'stale revision' }, 409))
+      .mockResolvedValueOnce(json({ settings: latest, revision: 2 }))
+      .mockResolvedValueOnce(json({ settings: saved, revision: 3 }));
+
+    await expect(
+      saveRuntimeSettingsDraft('/api/runtime-settings', DEFAULT_RUNTIME_SETTINGS, draft, 1, fetcher)
+    ).resolves.toMatchObject({ settings: saved, revision: 3 });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    const retryBody = fetcher.mock.calls[2]?.[1]?.body;
+    if (typeof retryBody !== 'string') throw new Error('expected JSON request body');
+    expect(JSON.parse(retryBody)).toEqual({ revision: 2, patch: { density: 'compact' } });
+  });
+
+  it('keeps a same-field conflicted draft for an explicit second save', async () => {
+    const draft = { ...DEFAULT_RUNTIME_SETTINGS, fontBodyColor: '#222222' };
+    const latest = { ...DEFAULT_RUNTIME_SETTINGS, fontBodyColor: '#111111' };
+    const fetcher = vi
+      .fn<(input: string, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(json({ detail: 'stale revision' }, 409))
+      .mockResolvedValueOnce(json({ settings: latest, revision: 2 }));
+
+    const conflict = await saveRuntimeSettingsDraft(
+      '/api/runtime-settings',
+      DEFAULT_RUNTIME_SETTINGS,
+      draft,
+      1,
+      fetcher
+    ).catch((error: unknown) => error);
+
+    expect(conflict).toBeInstanceOf(RuntimeSettingsDraftConflict);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });

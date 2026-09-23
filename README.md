@@ -234,7 +234,7 @@ Have these before you start:
   back with `databricks postgres list-projects`. No owner role is needed; that
   was an input to creating the database;
 - **one existing Genie space**, with its tables already curated. You supply its
-  id, not its contents. `genie/adapt_poc_space.json` is the committed ADAPT
+  id, not its contents. `genie/adapt_space.json` is the committed ADAPT
   space definition used to curate it;
 - an existing SQL warehouse;
 - a workspace source path for the committed deploy tree;

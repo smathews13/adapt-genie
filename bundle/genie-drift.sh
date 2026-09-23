@@ -34,5 +34,5 @@ step "Genie content: this repository vs. the live workspace (target: $TARGET)"
 
 python3 "$BUNDLE_ROOT/bundle/genie-drift-check.py" \
   --profile "$PROFILE" \
-  --reference "$BUNDLE_ROOT/genie/adapt_poc_space.json" \
+  --reference "$BUNDLE_ROOT/genie/adapt_space.json" \
   --space "data genie space      " data_genie_space       "$DATA_ID"

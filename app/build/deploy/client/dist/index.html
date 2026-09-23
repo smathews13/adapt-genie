@@ -2,7 +2,7 @@
 <html
   lang="en"
   class="light"
-  data-theme="dark"
+  data-brand="adapt"
   data-background-graphics="off"
   data-animations="on"
   data-density="comfortable"
@@ -11,18 +11,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#11171c" />
+    <meta name="theme-color" content="#f4f7f9" />
     <script>
+      const root = document.documentElement;
+      let saved = null;
       try {
-        const saved = JSON.parse(localStorage.getItem('astrolabe.runtime-appearance.v1') || 'null');
-        if (saved && typeof saved === 'object') {
-          const root = document.documentElement;
-          if (saved.colorScheme === 'dark' || saved.colorScheme === 'light') {
-            root.dataset.theme = saved.colorScheme;
-            document
-              .querySelector('meta[name="theme-color"]')
-              ?.setAttribute('content', saved.colorScheme === 'dark' ? '#11171c' : '#ffffff');
+        const raw = localStorage.getItem('astrolabe.runtime-appearance.v1');
+        if (raw !== null) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            saved = parsed;
           }
+        }
+      } catch {
+        // The product default remains safe when storage is unavailable or malformed.
+      }
+      const scheme = saved?.colorScheme === 'dark' ? 'dark' : 'light';
+      root.dataset.theme = scheme;
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', scheme === 'dark' ? '#0b1014' : '#f4f7f9');
+      try {
+        if (saved) {
           root.dataset.backgroundGraphics = 'off';
           root.dataset.animations = saved.animations === false ? 'off' : 'on';
           root.dataset.density = saved.density === 'compact' ? 'compact' : 'comfortable';
@@ -85,7 +95,7 @@
           }
         }
       } catch {
-        // Defaults above are the safe first paint when storage is unavailable.
+        // The selected theme remains valid if a cached optional field is malformed.
       }
     </script>
     <style>
@@ -96,10 +106,10 @@
       }
       body {
         margin: 0;
-        background: #ffffff;
+        background: #f4f7f9;
       }
       html[data-theme='dark'] body {
-        background: #11171c;
+        background: #0b1014;
       }
     </style>
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -134,10 +144,10 @@
     -->
     <link rel="preload" href="/fonts/DMSans-variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     <title>ADAPT - Digital Sales Intelligence</title>
-    <script type="module" crossorigin src="/assets/index-BHXo9vkb.js"></script>
+    <script type="module" crossorigin src="/assets/index-BHOynWBg.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-DGruFWvd.js">
-    <link rel="modulepreload" crossorigin href="/assets/appkit-ui-Dft8hW2o.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-Bxwj6Etz.css">
+    <link rel="modulepreload" crossorigin href="/assets/appkit-ui-CrLg7UCC.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-BoTZWSFl.css">
   </head>
   <body>
     <div id="root"></div>

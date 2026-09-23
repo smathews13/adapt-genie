@@ -6,7 +6,8 @@ const v1Source = readFileSync(new URL('./v1-routes.ts', import.meta.url), 'utf8'
 
 describe('browser and v1 governed execution equivalence', () => {
   it('wires the existing Ask executor into one GovernedRunService', () => {
-    expect(insightsSource).toContain('new GovernedRunService(appkit, executeGovernedAsk)');
+    expect(insightsSource).toContain('const governedRuns = new GovernedRunService(appkit, (req, res, overrides) =>');
+    expect(insightsSource).toContain('return execute(req, res, overrides)');
     expect(insightsSource).toMatch(
       /app\.post\('\/api\/insights\/ask', async \(req, res\) => governedRuns\.executeBrowser\(req, res\)\)/
     );

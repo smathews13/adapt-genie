@@ -149,6 +149,7 @@ import {
 import { createAskResponder } from '../lib/ask-responder';
 import {
   GovernedRunService,
+  type GovernedExecutor,
   type GovernedExecutionOverrides,
   type GovernedExecutorRequest,
 } from '../lib/governed-run-service';
@@ -3502,7 +3503,13 @@ export function setupInsightsRoutes(
   const storeReady = prepareStore(appkit);
   const idleConfig = options.appSessionConfig ?? resolveIdleTimeout();
   const readGroupRole = groupRoleLookupForStore(appkit.lakebase, options.identityControlPlaneReader);
-  let exposedGovernedRuns: GovernedRunService | null = null;
+  let executeGovernedAsk: GovernedExecutor | null = null;
+  const governedRuns = new GovernedRunService(appkit, (req, res, overrides) => {
+    const execute = executeGovernedAsk;
+    if (!execute) return Promise.reject(new Error('The governed run executor is not ready.'));
+    return execute(req, res, overrides);
+  });
+  governedRuns.startPlanExpirySweep();
 
   // Reads are what the pages depend on, and a `CREATE TABLE IF NOT EXISTS` that
   // succeeds says nothing about whether the store still answers minutes later.
@@ -3524,9 +3531,6 @@ export function setupInsightsRoutes(
   }
 
   appkit.server.extend((app) => {
-    const governedRuns = new GovernedRunService(appkit, executeGovernedAsk);
-    exposedGovernedRuns = governedRuns;
-    governedRuns.startPlanExpirySweep();
     // Registered before browser session middleware. These routes perform their
     // own bearer proof and no other API route inherits this exception.
     setupV1Routes(app, {
@@ -4615,7 +4619,7 @@ export function setupInsightsRoutes(
       });
     });
 
-    async function executeGovernedAsk(
+    executeGovernedAsk = async function executeGovernedAskImpl(
       req: GovernedExecutorRequest,
       res: Response | undefined,
       overrides: GovernedExecutionOverrides = {}
@@ -5880,7 +5884,7 @@ export function setupInsightsRoutes(
         cancellationWatch?.stop();
         unregisterCancellation();
       }
-    }
+    };
 
     app.post('/api/insights/ask', async (req, res) => governedRuns.executeBrowser(req, res));
 
@@ -6412,6 +6416,5 @@ export function setupInsightsRoutes(
 
   // Handed back rather than awaited. See the note on this function: awaiting it
   // here would be the cold-start block this arrangement exists to remove.
-  if (!exposedGovernedRuns) throw new Error('The governed run service was not registered.');
-  return Promise.resolve({ storeReady, governedRuns: exposedGovernedRuns });
+  return Promise.resolve({ storeReady, governedRuns });
 }

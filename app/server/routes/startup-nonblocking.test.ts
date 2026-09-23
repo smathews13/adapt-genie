@@ -74,6 +74,31 @@ afterEach(async () => {
 });
 
 describe('boot does not wait for the schema before it serves', () => {
+  it('exposes the governed run service before AppKit invokes deferred route registration', async () => {
+    const store = gatedStore();
+    const app = express();
+    let registerRoutes: ((target: typeof app) => void) | null = null;
+
+    const { governedRuns, storeReady } = await setupInsightsRoutes({
+      lakebase: store.lakebase,
+      server: {
+        extend: (fn: (target: typeof app) => void) => {
+          registerRoutes = fn;
+        },
+      },
+      servingTransport: () => Promise.reject(new Error('not used')),
+    } as unknown as InsightsAppKit);
+
+    expect(governedRuns).toBeDefined();
+    const register = registerRoutes as ((target: typeof app) => void) | null;
+    expect(register).not.toBeNull();
+    if (!register) throw new Error('route registration was not queued');
+    register(app);
+
+    store.release();
+    await storeReady;
+  });
+
   it('registers routes and answers a request while the schema pass is still running', async () => {
     const store = gatedStore();
     const app = express();

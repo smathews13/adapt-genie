@@ -73,7 +73,8 @@
     font-size: var(--built-on-databricks-fs);
     gap: 6px;
   }
-  .ask-layout {
+  .ask-layout,
+  .ask-layout[data-inspector-collapsed='true'] {
     --conversation-width: var(--conversation-expanded-width);
     grid-template-columns: var(--conversation-width) 1fr;
   }

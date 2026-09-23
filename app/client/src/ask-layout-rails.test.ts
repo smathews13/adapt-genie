@@ -12,6 +12,7 @@ const RAIL = withoutComments(partial('rail.css'));
 const INSIGHTS = withoutComments(partial('insight-rail.css'));
 const ASK = withoutComments(partial('ask.css'));
 const COMPOSER = withoutComments(partial('composer.css'));
+const RESPONSIVE = withoutComments(partial('responsive.css'));
 const QUESTION = withoutComments(readFileSync(new URL('styles/question-attribution.css', import.meta.url), 'utf8'));
 const TOKENS = withoutComments(partial('tokens.css'));
 const HOME = readFileSync(new URL('HomePage.tsx', import.meta.url), 'utf8');
@@ -59,6 +60,9 @@ describe('the two rails share one width and the card sits in the middle', () => 
     );
     expect(RAIL).toMatch(
       /\.ask-layout\[data-inspector-collapsed='true'\]\s*\{[^}]*grid-template-columns:[^}]*var\(--ask-pane-collapsed-width\)/
+    );
+    expect(RESPONSIVE).toMatch(
+      /@media \(max-width:\s*1240px\)[\s\S]*\.ask-layout,\s*\.ask-layout\[data-inspector-collapsed='true'\]\s*\{[^}]*grid-template-columns:\s*var\(--conversation-width\) 1fr/
     );
   });
 

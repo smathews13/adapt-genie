@@ -4,7 +4,7 @@
       "type": "answer",
       "answer": {
         "narrative": "The governed SQL fallback counted distinct active players over the most recent 30-day window (29-day lookback from the latest event date) across the Rockstar and 2K labels, scoped to IN_SCOPE records only. Rockstar dominates with approximately 26,464 total active player-title combinations across its five titles, followed by 2K (~21,038). GTA Online is the ",
-        "sql": "WITH latest AS (\n  SELECT MAX(event_date) AS as_of_date\n  FROM cmegdemos_catalog.adapt_demo.silver_gameplay_activity\n)\nSELECT profile_label AS label, title_name,\n  COUNT(DISTINCT player_id) AS active_players_30d\nFROM cmegdemos_catalog.adapt_demo.silver_gameplay_activity\nCROSS JOIN latest\nWHERE brand_scope_status = 'IN_SCOPE'\n  AND event_date >= DATE_SUB(latest.as_of_date, 29)\nGROUP BY profile_label, title_name\nORDER BY active_players_30d DESC",
+        "sql": "WITH latest AS (\n  SELECT MAX(event_date) AS as_of_date\n  FROM sample_catalog.adapt_demo.silver_gameplay_activity\n)\nSELECT profile_label AS label, title_name,\n  COUNT(DISTINCT player_id) AS active_players_30d\nFROM sample_catalog.adapt_demo.silver_gameplay_activity\nCROSS JOIN latest\nWHERE brand_scope_status = 'IN_SCOPE'\n  AND event_date >= DATE_SUB(latest.as_of_date, 29)\nGROUP BY profile_label, title_name\nORDER BY active_players_30d DESC",
         "trace": {
           "id": "tr-257dab9bf22e5dabcfa8b230d47de618",
           "totalMs": 15677.850381000098,
@@ -67,7 +67,7 @@
         "id": "msg-0c81eea3b2c8465dbf4d8f30acb639da",
         "sources": [
           {
-            "name": "cmegdemos_catalog.adapt_demo.silver_gameplay_activity",
+            "name": "sample_catalog.adapt_demo.silver_gameplay_activity",
             "freshness": "As of 2026-08-03"
           }
         ]

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
-const TABLE = 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary';
+const TABLE = 'sample_catalog.player_insights_demo.gold_title_daily_summary';
 
 vi.mock('./data-entity-state', () => ({
   useTrackedTables: () => [TABLE],
@@ -22,7 +22,7 @@ describe('Monitoring ranked table links', () => {
 
     expect(markup).toContain(`/connections?entity=${encodeURIComponent(TABLE)}`);
     expect(markup).toContain(
-      'https://workspace.example.test/explore/data/cmegdemos_catalog/player_insights_demo/gold_title_daily_summary'
+      'https://workspace.example.test/explore/data/sample_catalog/player_insights_demo/gold_title_daily_summary'
     );
     expect(markup).toContain(`Open ${TABLE} in Databricks`);
     expect(markup).toContain('data-entity-part="catalog"');

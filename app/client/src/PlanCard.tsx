@@ -213,7 +213,7 @@ export function PlanCard({
                     stops reading as a lead.
 
                     Titles name tables as often as the detail under them does --
-                    "Read cmegdemos_catalog.….gold_title_daily_summary" is a
+                    "Read sample_catalog.….gold_title_daily_summary" is a
                     title, not a sentence -- so the same treatment applies here.
                     A linked name inside the bold lead keeps the link's own 500
                     rather than the lead's 700; it is still the only blue,

@@ -6,7 +6,7 @@
  * wire. It reached the browser and was dropped there, because
  * `unavailableNotice` had nowhere to put it, and nobody noticed for months: the
  * server logs held "PERMISSION DENIED on
- * cmegdemos_catalog.adapt_demo.gold_title_daily_summary" while the
+ * sample_catalog.adapt_demo.gold_title_daily_summary" while the
  * reader was shown "a service this needed did not respond just now". A single
  * prose field invites exactly that, because prose has no shape a renderer can
  * be required to honour. Named fields can be asserted on, and

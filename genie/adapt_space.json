@@ -11,11 +11,11 @@
   },
   "data_sources": {
     "tables": [
-      {"identifier": "cmegdemos_catalog.adapt_poc.pub_steam_visibility_with_t2_rollup"},
-      {"identifier": "cmegdemos_catalog.adapt_poc.pub_steam_wishlist_by_country_with_t2_hier"},
-      {"identifier": "cmegdemos_catalog.adapt_poc.pub_steam_wishlist_by_language_with_t2_hier"},
-      {"identifier": "cmegdemos_catalog.adapt_poc.txn_steam_analytics_with_sales"},
-      {"identifier": "cmegdemos_catalog.adapt_poc.txn_steam_sales_with_analytics"}
+      {"identifier": "sample_catalog.sample_schema.pub_steam_visibility_with_t2_rollup"},
+      {"identifier": "sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier"},
+      {"identifier": "sample_catalog.sample_schema.pub_steam_wishlist_by_language_with_t2_hier"},
+      {"identifier": "sample_catalog.sample_schema.txn_steam_analytics_with_sales"},
+      {"identifier": "sample_catalog.sample_schema.txn_steam_sales_with_analytics"}
     ]
   },
   "instructions": {
@@ -27,8 +27,8 @@
           "SELECT LABEL,\n",
           "       ROUND(SUM(NET_REV_USD_AMT), 2) AS net_revenue_usd,\n",
           "       SUM(UNIT_QTY) AS units_sold\n",
-          "FROM cmegdemos_catalog.adapt_poc.txn_steam_sales_with_analytics\n",
-          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM cmegdemos_catalog.adapt_poc.txn_steam_sales_with_analytics), 90)\n",
+          "FROM sample_catalog.sample_schema.txn_steam_sales_with_analytics\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM sample_catalog.sample_schema.txn_steam_sales_with_analytics), 90)\n",
           "GROUP BY LABEL\n",
           "ORDER BY net_revenue_usd DESC"
         ]
@@ -39,8 +39,8 @@
         "sql": [
           "SELECT TITLE_ROLL_UP_DESC,\n",
           "       SUM(WISHLIST_ADDS) AS wishlist_adds\n",
-          "FROM cmegdemos_catalog.adapt_poc.pub_steam_wishlist_by_country_with_t2_hier\n",
-          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM cmegdemos_catalog.adapt_poc.pub_steam_wishlist_by_country_with_t2_hier), 90)\n",
+          "FROM sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier\n",
+          "WHERE DATE > date_sub((SELECT MAX(DATE) FROM sample_catalog.sample_schema.pub_steam_wishlist_by_country_with_t2_hier), 90)\n",
           "GROUP BY TITLE_ROLL_UP_DESC\n",
           "ORDER BY wishlist_adds DESC\n",
           "LIMIT 10"

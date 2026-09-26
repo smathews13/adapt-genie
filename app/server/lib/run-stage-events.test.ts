@@ -100,8 +100,8 @@ describe('what a stage may leave in the table', () => {
         input: '{}',
         output: 'raw catalog result that must not be persisted',
         tables: [
-          'cmegdemos_catalog.player_insights_demo.gold_title_daily',
-          'cmegdemos_catalog.player_insights_demo.gold_title_daily',
+          'sample_catalog.player_insights_demo.gold_title_daily',
+          'sample_catalog.player_insights_demo.gold_title_daily',
           'not-a-qualified-table',
           17,
         ],
@@ -109,7 +109,7 @@ describe('what a stage may leave in the table', () => {
       })
     );
 
-    expect(payload.tables).toEqual(['cmegdemos_catalog.player_insights_demo.gold_title_daily']);
+    expect(payload.tables).toEqual(['sample_catalog.player_insights_demo.gold_title_daily']);
     expect(payload).not.toHaveProperty('output');
     expect(payload).not.toHaveProperty('tool_payload');
   });
@@ -163,7 +163,7 @@ describe('recording a run as it happens', () => {
         id: 'inventory',
         name: 'Listed available tables',
         kind: 'discovery',
-        tables: ['cmegdemos_catalog.player_insights_demo.gold_title_daily'],
+        tables: ['sample_catalog.player_insights_demo.gold_title_daily'],
       })
     );
     recorder.record(stage({ id: 'step-2', status: 'running', duration: 0 }));
@@ -171,7 +171,7 @@ describe('recording a run as it happens', () => {
 
     const replayed = await readStageEvents(store, 'run-1');
     expect(replayed.map((entry) => entry.id)).toEqual(['step-1', 'inventory', 'step-2']);
-    expect(replayed[1].tables).toEqual(['cmegdemos_catalog.player_insights_demo.gold_title_daily']);
+    expect(replayed[1].tables).toEqual(['sample_catalog.player_insights_demo.gold_title_daily']);
     expect(replayed[1]).not.toHaveProperty('output');
     expect(replayed[2].status).toBe('running');
   });

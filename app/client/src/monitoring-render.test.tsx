@@ -2026,8 +2026,8 @@ describe('the per-user panel', () => {
 
   it('renders each ranked source table as a counted governed entity', () => {
     const rows = [
-      { table: 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
-      { table: 'cmegdemos_catalog.player_insights_demo.data_dictionary', runs: 9 },
+      { table: 'sample_catalog.player_insights_demo.gold_title_daily_summary', runs: 20 },
+      { table: 'sample_catalog.player_insights_demo.data_dictionary', runs: 9 },
     ];
     const markup = render(<TablesReadMost rows={rows} />);
     const rendered = text(markup);

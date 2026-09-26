@@ -789,7 +789,7 @@ export interface CollapsedName {
 }
 
 /**
- * `cmegdemos_catalog.player_insights_demo.silver_player_profiles` at row width.
+ * `sample_catalog.player_insights_demo.silver_player_profiles` at row width.
  *
  * The catalog is the segment a reader of ONE workspace's runs never needs and
  * the object is the one they are looking for, so the catalog is elided and the

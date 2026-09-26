@@ -172,10 +172,10 @@ function makeDeps(store: FakeStore, overrides: Partial<BenchmarkRunnerDeps> = {}
     describeServedModel: () =>
       Promise.resolve({
         endpoint: 'app',
-        entityName: 'cmegdemos_catalog-player_insights_demo-player_insights_agent',
+        entityName: 'sample_catalog-player_insights_demo-player_insights_agent',
         version: '9',
         determinate: true,
-        routes: [{ name: 'cmegdemos_catalog-player_insights_demo-player_insights_agent_9', trafficPercentage: 100 }],
+        routes: [{ name: 'sample_catalog-player_insights_demo-player_insights_agent_9', trafficPercentage: 100 }],
         note: 'All traffic on one route.',
       }),
     ...overrides,
@@ -279,24 +279,24 @@ describe('reading the served model version', () => {
       traffic_config: {
         routes: [
           {
-            served_model_name: 'cmegdemos_catalog-player_insights_demo-player_insights_agent_9',
+            served_model_name: 'sample_catalog-player_insights_demo-player_insights_agent_9',
             traffic_percentage: 100,
           },
           {
-            served_model_name: 'cmegdemos_catalog-player_insights_demo-player_insights_agent_8',
+            served_model_name: 'sample_catalog-player_insights_demo-player_insights_agent_8',
             traffic_percentage: 0,
           },
         ],
       },
       served_entities: [
         {
-          name: 'cmegdemos_catalog-player_insights_demo-player_insights_agent_9',
-          entity_name: 'cmegdemos_catalog.player_insights_demo.player_insights_agent',
+          name: 'sample_catalog-player_insights_demo-player_insights_agent_9',
+          entity_name: 'sample_catalog.player_insights_demo.player_insights_agent',
           entity_version: '9',
         },
         {
-          name: 'cmegdemos_catalog-player_insights_demo-player_insights_agent_8',
-          entity_name: 'cmegdemos_catalog.player_insights_demo.player_insights_agent',
+          name: 'sample_catalog-player_insights_demo-player_insights_agent_8',
+          entity_name: 'sample_catalog.player_insights_demo.player_insights_agent',
           entity_version: '8',
         },
       ],
@@ -313,7 +313,7 @@ describe('reading the served model version', () => {
     expect(parsed).toMatchObject({
       version: '9',
       determinate: true,
-      entityName: 'cmegdemos_catalog.player_insights_demo.player_insights_agent',
+      entityName: 'sample_catalog.player_insights_demo.player_insights_agent',
     });
     expect(parsed.routes).toHaveLength(2);
     expect(parsed.note).toContain('version 9');

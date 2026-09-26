@@ -156,7 +156,7 @@ describe('sseEvents', () => {
 
 describe('consumeServingStream', () => {
   it('forwards the discovery table contract with its sanitized stage payload', async () => {
-    const table = 'cmegdemos_catalog.player_insights_demo.gold_title_daily';
+    const table = 'sample_catalog.player_insights_demo.gold_title_daily';
     const seen: Record<string, unknown>[] = [];
     const body = bodyOf([
       `data: ${JSON.stringify({

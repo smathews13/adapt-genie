@@ -125,7 +125,7 @@ describe('extractStructuredAnswer', () => {
     expect(result).not.toBeNull();
     expect(result?.takeaway).toBe(liveAnswerResponse.custom_outputs.answer.takeaway);
     expect(result?.sql).toMatch(/^(SELECT|WITH)/);
-    expect(result?.sources[0]?.name).toContain('cmegdemos_catalog.adapt_demo');
+    expect(result?.sources[0]?.name).toContain('sample_catalog.adapt_demo');
     const figure = result?.figures[0];
     expect(typeof figure?.label).toBe('string');
     expect(typeof figure?.value).toBe('number');
@@ -182,8 +182,8 @@ function clarificationResponse(clarification: Record<string, unknown> = {}) {
         question: 'Which table did you mean? Give the full catalog.schema.table for the master table.',
         reason: 'The question named "the master table", which is not a table this agent can resolve.',
         options: [
-          'cmegdemos_catalog.player_insights_demo.silver_player_profiles',
-          'cmegdemos_catalog.player_insights_demo.gold_player_180d_summary',
+          'sample_catalog.player_insights_demo.silver_player_profiles',
+          'sample_catalog.player_insights_demo.gold_player_180d_summary',
         ],
         trace: liveAnswerResponse.custom_outputs.answer.trace,
         ...clarification,
@@ -3242,7 +3242,7 @@ describe('GET /api/runs/:id/trace', () => {
    */
   it('links a stored trace into the experiment saved in the app, not only the one in the environment', async () => {
     process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
-    process.env.DATABRICKS_HOST = 'https://fevm-cmegdemos.cloud.databricks.com';
+    process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
     delete process.env.PLAYER_INSIGHTS_EXPERIMENT_ID;
     const app = await startInsightsApp(
       agentContractTransport([]),
@@ -3273,7 +3273,7 @@ describe('GET /api/runs/:id/trace', () => {
 
   it('leaves the link off, and the id on, when nothing names an experiment', async () => {
     process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
-    process.env.DATABRICKS_HOST = 'https://fevm-cmegdemos.cloud.databricks.com';
+    process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
     delete process.env.PLAYER_INSIGHTS_EXPERIMENT_ID;
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
@@ -3704,7 +3704,7 @@ describe('the MLflow trace behind an answer', () => {
   });
 
   it('recognises an MLflow trace id and links to it', () => {
-    process.env.DATABRICKS_HOST = 'https://fevm-cmegdemos.cloud.databricks.com';
+    process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
 
     // BOTH IDS HERE ARE INVENTED, and the trace id has to stay that way. A live
     // one sat here, recorded as resolving through GET /api/3.0/mlflow/traces/{id}
@@ -3720,13 +3720,13 @@ describe('the MLflow trace behind an answer', () => {
     expect(reference?.traceId).toBe('tr-0123456789abcdef0123456789abcdef');
     expect(reference?.experimentId).toBe('9998887776665554');
     expect(reference?.url).toBe(
-      'https://fevm-cmegdemos.cloud.databricks.com/ml/experiments/9998887776665554/traces' +
+      'https://example.cloud.databricks.com/ml/experiments/9998887776665554/traces' +
         '?selectedEvaluationId=tr-0123456789abcdef0123456789abcdef'
     );
   });
 
   it("does not claim the agent's local fallback id is an MLflow trace", () => {
-    process.env.DATABRICKS_HOST = 'https://fevm-cmegdemos.cloud.databricks.com';
+    process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
 
     // agent.py falls back to `trace-<uuid>` when no root span is active. Nothing
     // in MLflow answers to that, so offering a link would send people nowhere.
@@ -3734,7 +3734,7 @@ describe('the MLflow trace behind an answer', () => {
   });
 
   it('still reports the id when no experiment is configured to link to', () => {
-    process.env.DATABRICKS_HOST = 'https://fevm-cmegdemos.cloud.databricks.com';
+    process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
 
     const reference = mlflowReference('tr-0123456789abcdef0123456789abcdef', '');
 
@@ -5130,7 +5130,7 @@ describe('the provenance an answer carries', () => {
   });
 
   const ENTRY = {
-    source: 'cmegdemos_catalog.player_insights_demo.silver_gameplay_activity',
+    source: 'sample_catalog.player_insights_demo.silver_gameplay_activity',
     metric: 'active_players',
     window: '2026-05-01 → 2026-08-03',
     filter: 'platform = xbox',

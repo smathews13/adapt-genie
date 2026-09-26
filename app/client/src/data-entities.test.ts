@@ -13,7 +13,7 @@ import {
   type ProseSegment,
 } from './data-entities';
 
-const CATALOG = 'cmegdemos_catalog.player_insights_demo';
+const CATALOG = 'sample_catalog.player_insights_demo';
 const DAILY = `${CATALOG}.gold_title_daily_summary`;
 const PURCHASES = `${CATALOG}.silver_purchases`;
 
@@ -156,7 +156,7 @@ describe('linkifyEntities', () => {
   it('does not linkify an ordinary word that happens to be a table name', () => {
     // The rule that stops this is the underscore requirement on a bare name,
     // and it is the reason a reader can trust the links that do appear.
-    const tracked = ['cmegdemos_catalog.player_insights_demo.sessions'];
+    const tracked = ['sample_catalog.player_insights_demo.sessions'];
     const prose = 'Sessions were flat, and the average session ran 34 minutes.';
     expect(links(linkifyEntities(prose, tracked, tracked))).toEqual([]);
   });

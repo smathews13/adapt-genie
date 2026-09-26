@@ -194,7 +194,7 @@ describe('what flipping it on does', () => {
   });
 
   it('omits empty optional rows and renders a stored table listing with shared entity styling', () => {
-    const table = 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary';
+    const table = 'sample_catalog.player_insights_demo.gold_title_daily_summary';
     const trace = {
       ...TRACE,
       undeclaredKeys: [],
@@ -366,7 +366,7 @@ describe('advanced token consumption', () => {
  * two statements recorded as one field, and stages to count.
  */
 const LONG = {
-  sql: "SELECT `table_name`, `usage_guardrail` FROM `cmegdemos_catalog`.`data_dictionary` WHERE `column_name` ILIKE '%player_id%' AND `business_definition` IS NOT NULL; SELECT COUNT(DISTINCT `player_id`) AS distinct_players FROM `silver_player_profiles`",
+  sql: "SELECT `table_name`, `usage_guardrail` FROM `sample_catalog`.`data_dictionary` WHERE `column_name` ILIKE '%player_id%' AND `business_definition` IS NOT NULL; SELECT COUNT(DISTINCT `player_id`) AS distinct_players FROM `silver_player_profiles`",
   undeclaredKeys: [],
   mlflow: {
     traceId: 'tr-deadbeefdeadbeefdeadbeefdeadbeef',

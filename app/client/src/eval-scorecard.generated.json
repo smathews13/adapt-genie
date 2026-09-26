@@ -16,7 +16,7 @@
     },
     "heldOutFrom": "The six cases of the POC benchmark suite, which are the questions this demo is tuned and demonstrated against. No question in this set appears there. Nothing here is held out from a training set: nothing in this repository is trained.",
     "producedBy": "benchmark-runner",
-    "servedModel": "cmegdemos_catalog.player_insights_demo.player_insights_agent version 39",
+    "servedModel": "sample_catalog.player_insights_demo.player_insights_agent version 39",
     "mlflowRunId": "",
     "caseCount": 12
   },

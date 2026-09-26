@@ -85,14 +85,14 @@ describe('the steps a durable run reports', () => {
           start: 1_829,
           duration: 1,
           calls: 1,
-          tables: ['sample_catalog.player_insights_demo.gold_title_daily'],
+          tables: ['cmegdemos_catalog.player_insights_demo.gold_title_daily'],
         },
       ],
     });
 
     expect(stages.map((stage) => stage.id)).toEqual(['step-1', 'inventory']);
     expect(stages[1].status).toBe('complete');
-    expect(stages[1].tables).toEqual(['sample_catalog.player_insights_demo.gold_title_daily']);
+    expect(stages[1].tables).toEqual(['cmegdemos_catalog.player_insights_demo.gold_title_daily']);
     // Normalized through the same function the stream uses, so a replayed step
     // and a streamed one are the same object to every surface below.
     expect(stages[0].startMeasured).toBe(true);

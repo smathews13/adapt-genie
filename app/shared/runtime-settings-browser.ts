@@ -25,6 +25,7 @@ export const RUNTIME_SETTINGS_KEYS = [
   'fontMutedColor',
   'fontFamily',
   'fontSize',
+  'mobileFontSize',
   'backgroundGraphics',
   'animations',
   'density',
@@ -127,6 +128,8 @@ export type FontFamilyId = (typeof FONT_FAMILY_IDS)[number];
 
 export const FONT_SIZE_IDS = ['s', 'm', 'l'] as const;
 export type FontSizeId = (typeof FONT_SIZE_IDS)[number];
+export const MOBILE_FONT_SIZE_IDS = ['auto', ...FONT_SIZE_IDS] as const;
+export type MobileFontSizeId = (typeof MOBILE_FONT_SIZE_IDS)[number];
 
 export const DENSITY_IDS = ['comfortable', 'compact'] as const;
 export type DensityId = (typeof DENSITY_IDS)[number];
@@ -199,6 +202,7 @@ export type RuntimeSettings = {
   fontMutedColor: string;
   fontFamily: FontFamilyId;
   fontSize: FontSizeId;
+  mobileFontSize: MobileFontSizeId;
   backgroundGraphics: boolean;
   animations: boolean;
   density: DensityId;
@@ -275,6 +279,7 @@ export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
   fontMutedColor: THEME_FONT_COLORS.light.muted,
   fontFamily: 'dm-sans',
   fontSize: 'm',
+  mobileFontSize: 'auto',
   backgroundGraphics: true,
   animations: true,
   density: 'comfortable',
@@ -406,6 +411,7 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
     parsedEntityStyles && colorScheme ? upgradePaperEntityStyles(parsedEntityStyles, colorScheme) : parsedEntityStyles;
   const fontFamily = oneOf(root.fontFamily === undefined ? 'dm-sans' : root.fontFamily, FONT_FAMILY_IDS);
   const fontSize = oneOf(root.fontSize === undefined ? 'm' : root.fontSize, FONT_SIZE_IDS);
+  const mobileFontSize = oneOf(root.mobileFontSize === undefined ? 'auto' : root.mobileFontSize, MOBILE_FONT_SIZE_IDS);
   const density = oneOf(root.density === undefined ? 'comfortable' : root.density, DENSITY_IDS);
   const tableStyle = oneOf(root.tableStyle === undefined ? 'polished' : root.tableStyle, TABLE_STYLE_IDS);
   const fontBodyColor =
@@ -439,6 +445,7 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
     fontMutedColor === null ||
     fontFamily === null ||
     fontSize === null ||
+    mobileFontSize === null ||
     density === null ||
     tableStyle === null ||
     typeof answer.takeaway !== 'boolean' ||
@@ -481,6 +488,7 @@ export function parsePersistedRuntimeSettings(value: unknown): RuntimeSettings |
     fontMutedColor,
     fontFamily,
     fontSize,
+    mobileFontSize,
     backgroundGraphics: root.backgroundGraphics === undefined ? true : root.backgroundGraphics,
     animations: root.animations === undefined ? true : root.animations,
     density,
@@ -503,7 +511,11 @@ export function runtimeEntityCssVariables(settings: RuntimeSettings): RuntimeEnt
 /** Type tokens written onto the document so every surface reads one choice. */
 export function runtimeTypographyCssVariables(settings: RuntimeSettings): Record<string, string> {
   const scale = FONT_SIZE_SCALE[settings.fontSize];
+  const mobileScale = FONT_SIZE_SCALE[settings.mobileFontSize === 'auto' ? settings.fontSize : settings.mobileFontSize];
   const sizes = Object.fromEntries(TYPE_TOKEN_PX.map(([name, px]) => [name, `${Math.round(px * scale)}px`]));
+  const mobileSizes = Object.fromEntries(
+    TYPE_TOKEN_PX.map(([name, px]) => [`--mobile-${name.slice(2)}`, `${Math.round(px * mobileScale)}px`])
+  );
   return {
     '--ast-text': settings.fontBodyColor,
     '--ast-text-long': settings.fontBodyColor,
@@ -520,6 +532,7 @@ export function runtimeTypographyCssVariables(settings: RuntimeSettings): Record
     '--db-slate': settings.fontMutedColor,
     '--font-sans': FONT_FAMILY_STACKS[settings.fontFamily],
     ...sizes,
+    ...mobileSizes,
   };
 }
 

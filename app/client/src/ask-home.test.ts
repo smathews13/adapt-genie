@@ -191,7 +191,9 @@ describe('the ask home is the geometry the mockup gives it', () => {
     // chip and the first line of its takeaway covered by the nav tabs.
     expect(body('html')).toMatch(/scroll-padding-top:\s*var\(--app-header-h\)/);
     expect(HOME_PAGE).toContain("block: 'start'");
-    expect(atWidth(800)).toMatch(/padding:\s*24px 16px 0/);
+    expect(atWidth(800)).toMatch(
+      /padding:\s*24px\s+max\(16px,\s*env\(safe-area-inset-right,\s*0px\)\)\s+0\s+max\(16px,\s*env\(safe-area-inset-left,\s*0px\)\)/
+    );
   });
 
   it('keeps the composer in normal flow at every width', () => {

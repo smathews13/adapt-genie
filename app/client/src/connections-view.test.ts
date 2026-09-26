@@ -27,8 +27,8 @@ function check(over: Partial<PreflightCheck> = {}): PreflightCheck {
 
 describe('a three-part Unity Catalog name', () => {
   it('splits catalog, schema and table', () => {
-    expect(unityCatalogNameParts('sample_catalog.player_insights_demo.data_dictionary')).toEqual({
-      catalog: 'sample_catalog',
+    expect(unityCatalogNameParts('cmegdemos_catalog.player_insights_demo.data_dictionary')).toEqual({
+      catalog: 'cmegdemos_catalog',
       schema: 'player_insights_demo',
       table: 'data_dictionary',
     });
@@ -45,25 +45,25 @@ describe('a three-part Unity Catalog name', () => {
 
 describe('the declared-tables search and filters', () => {
   const tables = [
-    check({ id: 't1', name: 'sample_catalog.player_insights_demo.data_dictionary' }),
-    check({ id: 't2', name: 'sample_catalog.player_insights_demo.gold_title_daily_summary' }),
+    check({ id: 't1', name: 'cmegdemos_catalog.player_insights_demo.data_dictionary' }),
+    check({ id: 't2', name: 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary' }),
     check({ id: 't3', name: 'other_catalog.other_schema.silver_player_activity' }),
   ];
 
   it('lists each catalog, and only the schemas inside the chosen one', () => {
-    expect(declaredTableFilterOptions(tables).catalogs).toEqual(['other_catalog', 'sample_catalog']);
+    expect(declaredTableFilterOptions(tables).catalogs).toEqual(['cmegdemos_catalog', 'other_catalog']);
     expect(declaredTableFilterOptions(tables).schemas).toEqual(['other_schema', 'player_insights_demo']);
-    expect(declaredTableFilterOptions(tables, 'sample_catalog').schemas).toEqual(['player_insights_demo']);
+    expect(declaredTableFilterOptions(tables, 'cmegdemos_catalog').schemas).toEqual(['player_insights_demo']);
   });
 
   it('matches a typed fragment anywhere in the three-part name', () => {
     const names = (query: string) =>
       filterDeclaredTables(tables, { query, catalog: '', schema: '' }).map((row) => row.name);
 
-    expect(names('data_dictionary')).toEqual(['sample_catalog.player_insights_demo.data_dictionary']);
-    expect(names('SAMPLE')).toEqual([
-      'sample_catalog.player_insights_demo.data_dictionary',
-      'sample_catalog.player_insights_demo.gold_title_daily_summary',
+    expect(names('data_dictionary')).toEqual(['cmegdemos_catalog.player_insights_demo.data_dictionary']);
+    expect(names('CMEGDEMOS')).toEqual([
+      'cmegdemos_catalog.player_insights_demo.data_dictionary',
+      'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary',
     ]);
     expect(names('other_schema')).toEqual(['other_catalog.other_schema.silver_player_activity']);
   });
@@ -71,15 +71,15 @@ describe('the declared-tables search and filters', () => {
   it('narrows by catalog and then by schema', () => {
     const inCatalog = filterDeclaredTables(tables, {
       query: '',
-      catalog: 'sample_catalog',
+      catalog: 'cmegdemos_catalog',
       schema: '',
     });
     expect(inCatalog).toHaveLength(2);
-    expect(inCatalog.every((row) => row.name.startsWith('sample_catalog.'))).toBe(true);
+    expect(inCatalog.every((row) => row.name.startsWith('cmegdemos_catalog.'))).toBe(true);
 
     const inSchema = filterDeclaredTables(tables, {
       query: '',
-      catalog: 'sample_catalog',
+      catalog: 'cmegdemos_catalog',
       schema: 'player_insights_demo',
     });
     expect(inSchema).toHaveLength(2);

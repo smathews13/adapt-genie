@@ -393,7 +393,7 @@ describe('a recorded statement', () => {
   const SQL =
     'SELECT `table_name`, `column_name` FROM `example_catalog`.`sales_demo`.`data_dictionary` ' +
     "WHERE `column_name` ILIKE '%player_id%' AND `business_definition` IS NOT NULL; " +
-    'SELECT COUNT(DISTINCT `player_id`) AS distinct_players FROM `sample_catalog`.`silver_player_profiles`';
+    'SELECT COUNT(DISTINCT `player_id`) AS distinct_players FROM `cmegdemos_catalog`.`silver_player_profiles`';
 
   it('is separated into the statements a run generated', () => {
     expect(sqlStatements(SQL)).toHaveLength(2);

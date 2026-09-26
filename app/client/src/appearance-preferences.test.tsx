@@ -48,4 +48,18 @@ describe('ADAPT appearance preferences', () => {
     expect(setAttribute).toHaveBeenCalledWith('data-density', 'compact');
     expect(setAttribute).toHaveBeenCalledWith('data-table-style', 'plain');
   });
+
+  it('offers a phone-specific font size while keeping desktop as the safe default', () => {
+    const markup = renderToStaticMarkup(
+      <RuntimeSettingsPanel
+        section="appearance"
+        initialSettings={{ ...DEFAULT_RUNTIME_SETTINGS, fontSize: 'l', mobileFontSize: 's' }}
+      />
+    );
+    expect(markup).toContain('Desktop Size');
+    expect(markup).toContain('Mobile Size');
+    expect(markup).toContain('aria-checked="true" tabindex="0" aria-label="Mobile font size S"');
+    expect(PANEL).toContain('tabIndex={settings.mobileFontSize === size ? 0 : -1}');
+    expect(INDEX).toContain("saved.mobileFontSize === 'auto' || saved.mobileFontSize == null");
+  });
 });

@@ -168,11 +168,11 @@ describe('normalizeStage', () => {
     expect(
       normalizeStage(
         {
-          tables: [' sample_catalog.player_insights_demo.gold_title_daily ', '', 42],
+          tables: [' cmegdemos_catalog.player_insights_demo.gold_title_daily ', '', 42],
         },
         0
       ).tables
-    ).toEqual(['sample_catalog.player_insights_demo.gold_title_daily']);
+    ).toEqual(['cmegdemos_catalog.player_insights_demo.gold_title_daily']);
   });
 
   it('normalizes legacy stored stage prompts before any renderer receives them', () => {

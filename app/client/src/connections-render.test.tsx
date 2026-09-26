@@ -1235,16 +1235,16 @@ describe('a connection row', () => {
 
   it('renders the declared manifest as a count and segmented table rows', () => {
     const configured = [
-      'sample_catalog.player_insights_demo.data_dictionary',
-      'sample_catalog.player_insights_demo.gold_player_180d_summary',
-      'sample_catalog.player_insights_demo.gold_title_daily_summary',
-      'sample_catalog.player_insights_demo.silver_gameplay_activity',
-      'sample_catalog.player_insights_demo.silver_player_profiles',
-      'sample_catalog.player_insights_demo.silver_purchases',
+      'cmegdemos_catalog.player_insights_demo.data_dictionary',
+      'cmegdemos_catalog.player_insights_demo.gold_player_180d_summary',
+      'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary',
+      'cmegdemos_catalog.player_insights_demo.silver_gameplay_activity',
+      'cmegdemos_catalog.player_insights_demo.silver_player_profiles',
+      'cmegdemos_catalog.player_insights_demo.silver_purchases',
     ].join(', ');
     const additional = Array.from(
       { length: 6 },
-      (_, index) => `sample_catalog.player_insights_demo.app_table_${index + 1}`
+      (_, index) => `cmegdemos_catalog.player_insights_demo.app_table_${index + 1}`
     );
     const rendered = renderRow(
       'declared-manifest',
@@ -1921,7 +1921,7 @@ describe('the Unity Catalog tables section', () => {
         tableChecks={[
           check('t1', 'ok', {
             kind: 'table',
-            name: 'sample_catalog.player_insights_demo.data_dictionary',
+            name: 'cmegdemos_catalog.player_insights_demo.data_dictionary',
             detail:
               'Cached 7 columns from an earlier extract. The workspace answered as reader@example.com: 17 columns. ' +
               'That is a metadata read.',

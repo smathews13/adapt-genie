@@ -113,6 +113,7 @@ import {
   type ActiveRunPollingController,
 } from './active-run-polling';
 import { LiveProgress } from './LiveProgress';
+import { MobileContextDrawer } from './MobileContextDrawer';
 import { runningElapsed, runningStepNumber } from './live-progress';
 import {
   beginLiveAsk,
@@ -506,6 +507,7 @@ export function HomePage() {
    * is hidden and its trigger is the rail.
    */
   const [railSheetOpen, setRailSheetOpen] = useState(false);
+  const [contextSheetOpen, setContextSheetOpen] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(() => paneStartsCollapsed('rail'));
   const [inspectorCollapsed, setInspectorCollapsed] = useState(() => paneStartsCollapsed('inspector'));
   const toggleRailCollapsed = useCallback(() => {
@@ -2263,27 +2265,153 @@ export function HomePage() {
           responsive.css decides both, so the page cannot end up with two rails or
           none. Above that width this button is display:none and the aside is the
           rail. */}
-      <Sheet open={railSheetOpen} onOpenChange={setRailSheetOpen}>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="rail-sheet-trigger"
-          onClick={() => setRailSheetOpen(true)}
-        >
-          <MessagesSquare aria-hidden="true" /> Conversations
-          {/* The count, because the button replaces a rail whose length was
-              visible, and "Conversations" alone does not say whether there are
-              any. */}
-          {rail.entries.length > 0 && <span className="rail-sheet-count">{rail.entries.length}</span>}
-        </Button>
-        <SheetContent side="left" className="rail-sheet">
-          <SheetHeader>
-            <SheetTitle>Conversations</SheetTitle>
-          </SheetHeader>
-          <div className="conversation-rail is-sheet">{renderRail('rail-sheet')}</div>
-        </SheetContent>
-      </Sheet>
+      <div className="mobile-ask-drawers">
+        <Sheet open={railSheetOpen} onOpenChange={setRailSheetOpen}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rail-sheet-trigger"
+            onClick={() => setRailSheetOpen(true)}
+          >
+            <MessagesSquare aria-hidden="true" /> Conversations
+            {/* The count, because the button replaces a rail whose length was
+                visible, and "Conversations" alone does not say whether there are
+                any. */}
+            {rail.entries.length > 0 && <span className="rail-sheet-count">{rail.entries.length}</span>}
+          </Button>
+          <SheetContent side="left" className="rail-sheet">
+            <SheetHeader>
+              <SheetTitle>Conversations</SheetTitle>
+            </SheetHeader>
+            <div className="conversation-rail is-sheet">{renderRail('rail-sheet')}</div>
+          </SheetContent>
+        </Sheet>
+        <MobileContextDrawer label="Insights" open={contextSheetOpen} onOpenChange={setContextSheetOpen}>
+          <div className="trace-inspector insight-rail is-sheet" aria-label="Insights">
+            <div className="insight-rail-head">
+              <div>
+                <p className="ast-eyebrow">Steam Sales &amp; Analytics</p>
+                <h3 className="insight-rail-title">{GENIE_SPACE_LABEL}</h3>
+              </div>
+            </div>
+            {railSections.dataInScope ? (
+              <section className="insight-sec">
+                <p className="insight-sec-title">
+                  <Database aria-hidden="true" /> Data in scope
+                </p>
+                {scopeLoading ? (
+                  <AdaptLoader label="Checking the tables in scope" className="insight-note" />
+                ) : scopeTables.length > 0 ? (
+                  scopeTables.map((table) => (
+                    <div className="insight-table" key={table.name} title={table.name}>
+                      <span className={`insight-dot tone-${tableStatusTone(table.status)}`} aria-hidden="true" />
+                      <Suspense
+                        fallback={
+                          <span className="insight-table-link">
+                            <ExternalLink aria-hidden="true" />
+                            <code>{table.display.split('.').at(-1)}</code>
+                          </span>
+                        }
+                      >
+                        <VisitInDatabricks name={table.name} className="insight-table-link">
+                          <code>{table.display.split('.').at(-1)}</code>
+                        </VisitInDatabricks>
+                      </Suspense>
+                      {table.status !== 'ok' && (
+                        <span className="insight-rows">{table.status === 'failed' ? 'blocked' : 'not checked'}</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="insight-note">No tables reported in scope.</p>
+                )}
+                <Link className="insight-connections-link" to="/connections">
+                  View all connections
+                </Link>
+              </section>
+            ) : null}
+            {railSections.watchlist ? (
+              <section className="insight-sec">
+                <div className="insight-sec-head">
+                  <p className="insight-sec-title">Watchlist</p>
+                  {watchlist && 'sourceTable' in watchlist && watchlist.sourceTable ? (
+                    <Suspense fallback={null}>
+                      <VisitInDatabricks name={watchlist.sourceTable} className="insight-watch-source">
+                        Source table
+                      </VisitInDatabricks>
+                    </Suspense>
+                  ) : null}
+                </div>
+                {!watchlist ? <p className="insight-note">Reading sales trends…</p> : null}
+                {watchlist && watchlist.status !== 'ready' ? (
+                  <p className="insight-note" role={watchlist.status === 'unavailable' ? 'alert' : undefined}>
+                    {watchlist.detail}
+                  </p>
+                ) : null}
+                {watchlist?.status === 'ready'
+                  ? watchlist.trends.map((item) => {
+                      const display = watchlistTrendDisplay(item);
+                      return (
+                        <div className="insight-watch" key={item.title}>
+                          <span className="insight-watch-name">{item.title}</span>
+                          <span
+                            className={`insight-watch-val ast-num ${
+                              display.direction === 'up' ? 'up' : display.direction === 'down' ? 'dn' : ''
+                            }`}
+                            title={WATCHLIST_METRIC_DETAIL}
+                            aria-label={
+                              display.hasBaseline
+                                ? `${item.title}: ${display.text} ${WATCHLIST_METRIC_LABEL}`
+                                : `${item.title}: ${display.text} recent ${WATCHLIST_METRIC_LABEL}; prior-period baseline unavailable`
+                            }
+                          >
+                            {!display.hasBaseline ? null : display.direction === 'up' ? (
+                              <TrendingUp aria-hidden="true" />
+                            ) : (
+                              <TrendingDown aria-hidden="true" />
+                            )}{' '}
+                            {display.text}
+                          </span>
+                        </div>
+                      );
+                    })
+                  : null}
+                {watchlist?.status === 'ready' ? (
+                  <p className="insight-watch-meta">
+                    {WATCHLIST_METRIC_DETAIL} · watched-title sales through{' '}
+                    <span className="ast-num">{watchlist.asOfDate}</span>
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+            {railSections.answerConfidence ? (
+              <section className="insight-sec insight-confidence">
+                <p className="insight-sec-title">Answer confidence</p>
+                {scopeLoading ? (
+                  <AdaptLoader label="Checking data sources" className="insight-note" />
+                ) : scopeConfidence.length > 0 ? (
+                  scopeConfidence.map((line) => (
+                    <div className="insight-trust" key={line.text}>
+                      {line.tone === 'ok' ? (
+                        <ShieldCheck className="insight-trust-ok" aria-hidden="true" />
+                      ) : (
+                        <CircleAlert
+                          className={line.tone === 'neg' ? 'insight-trust-neg' : 'insight-trust-warn'}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span>{line.text}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="insight-note">Confidence unavailable — the preflight report could not be read.</p>
+                )}
+              </section>
+            ) : null}
+          </div>
+        </MobileContextDrawer>
+      </div>
 
       <div className="conversation-column">
         <section ref={conversationMainRef} className={`conversation-main${transcriptEmpty ? ' is-empty' : ''}`}>

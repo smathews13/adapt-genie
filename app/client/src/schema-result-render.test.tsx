@@ -14,7 +14,7 @@ const MONITORING = readFileSync(new URL('./MonitoringPage.tsx', import.meta.url)
 const EXPLORER = readFileSync(new URL('./RunExplorer.tsx', import.meta.url), 'utf8');
 const DETAILS = readFileSync(new URL('./RunDetails.tsx', import.meta.url), 'utf8');
 
-const PURCHASES = `sample_catalog.player_insights_demo.silver_purchases
+const PURCHASES = `cmegdemos_catalog.player_insights_demo.silver_purchases
 Table comment: Windowed purchases with SKU detail, net bookings, and the same guardrail and integrity verdicts as gameplay
 purchase_id: string
 player_id: string
@@ -41,7 +41,7 @@ country_code: string
 integrity_status: string
 `;
 
-const PROFILES = `sample_catalog.player_insights_demo.silver_player_profiles
+const PROFILES = `cmegdemos_catalog.player_insights_demo.silver_player_profiles
 Table comment: Validated player profiles with explicit email eligibility and identity scope
 player_id: string
 platformid_accountid: string
@@ -71,7 +71,7 @@ describe('canonical describe-table schema results', () => {
     const result = schemaResult(PURCHASES);
     expect(result).not.toBeNull();
     if (!result) throw new Error('Purchases fixture did not parse');
-    expect(result.table).toBe('sample_catalog.player_insights_demo.silver_purchases');
+    expect(result.table).toBe('cmegdemos_catalog.player_insights_demo.silver_purchases');
     expect(result.columns).toHaveLength(23);
     expect(result.columns[result.columns.length - 1]).toEqual({ name: 'integrity_status', type: 'string' });
 

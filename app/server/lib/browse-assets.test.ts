@@ -28,9 +28,9 @@ import { isBrowseOk, isBrowseUnavailable } from '../../shared/browse-contract';
 
 describe('Unity Catalog search matching', () => {
   it('matches spaces, underscores, hyphens, and compact identifiers without changing display ids', () => {
-    const query = normalizedUnityCatalogSearch('sample catalog');
-    expect(matchesUnityCatalogSearch('sample-catalog', query)).toBe(true);
-    expect(matchesUnityCatalogSearch('sample_catalog', query)).toBe(true);
+    const query = normalizedUnityCatalogSearch('cmeg_demos');
+    expect(matchesUnityCatalogSearch('cmeg-demos', query)).toBe(true);
+    expect(matchesUnityCatalogSearch('CMEGDemos_catalog', query)).toBe(true);
     expect(matchesUnityCatalogSearch('other_catalog', query)).toBe(false);
   });
 

@@ -186,13 +186,13 @@ describe('toLiveStep', () => {
         name: 'Listed available tables',
         kind: 'discovery',
         input: '{}',
-        output: 'Declared tables:\n  - sample_catalog.player_insights_demo.gold_title_daily  [franchise: 2K]',
-        tables: ['sample_catalog.player_insights_demo.gold_title_daily'],
+        output: 'Declared tables:\n  - cmegdemos_catalog.player_insights_demo.gold_title_daily  [franchise: 2K]',
+        tables: ['cmegdemos_catalog.player_insights_demo.gold_title_daily'],
       })
     );
 
     expect(listed.tableListing).toBe(true);
-    expect(listed.tables).toEqual(['sample_catalog.player_insights_demo.gold_title_daily']);
+    expect(listed.tables).toEqual(['cmegdemos_catalog.player_insights_demo.gold_title_daily']);
     expect(listed.result).toBe('');
   });
 });
@@ -200,8 +200,8 @@ describe('toLiveStep', () => {
 describe('discovery table entities', () => {
   const output = [
     'Declared tables:',
-    '  - sample_catalog.player_insights_demo.gold_title_daily  [franchise: 2K]',
-    '  - sample_catalog.player_insights_demo.silver_player_profiles  [franchise: Rockstar]',
+    '  - cmegdemos_catalog.player_insights_demo.gold_title_daily  [franchise: 2K]',
+    '  - cmegdemos_catalog.player_insights_demo.silver_player_profiles  [franchise: Rockstar]',
     '',
     'This is the declared set in one listing.',
   ].join('\n');
@@ -218,12 +218,12 @@ describe('discovery table entities', () => {
       )
     ).toEqual(['catalog.schema.structured_table']);
     expect(tableNamesFromListing(output)).toEqual([
-      'sample_catalog.player_insights_demo.gold_title_daily',
-      'sample_catalog.player_insights_demo.silver_player_profiles',
+      'cmegdemos_catalog.player_insights_demo.gold_title_daily',
+      'cmegdemos_catalog.player_insights_demo.silver_player_profiles',
     ]);
     expect(stageTableEntities(stage({ id: 'inventory', name: 'Listed available tables', output }))).toEqual([
-      'sample_catalog.player_insights_demo.gold_title_daily',
-      'sample_catalog.player_insights_demo.silver_player_profiles',
+      'cmegdemos_catalog.player_insights_demo.gold_title_daily',
+      'cmegdemos_catalog.player_insights_demo.silver_player_profiles',
     ]);
   });
 

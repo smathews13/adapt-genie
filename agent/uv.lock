@@ -1796,7 +1796,7 @@ wheels = [
 ]
 
 [[package]]
-name = "player-insights-agent-runtime"
+name = "app-runtime"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

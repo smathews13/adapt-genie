@@ -219,7 +219,9 @@ describe('the unified question attribution bubble', () => {
     const band = atRule(partial('responsive.css'), '@media (max-width: 1240px)');
 
     expect(band).toContain('.trace-inspector');
-    expect(band).toMatch(/\.ask-layout\s*\{[^}]*grid-template-columns:/);
+    expect(band).toMatch(
+      /\.ask-layout,\s*\.ask-layout\[data-inspector-collapsed='true'\]\s*\{[^}]*grid-template-columns:/
+    );
     expect(ASK).not.toMatch(/@media\s*\((?:max|min)-width/);
   });
 

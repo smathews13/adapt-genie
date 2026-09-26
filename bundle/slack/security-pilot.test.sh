@@ -84,7 +84,7 @@ for refusal in \
   "durable verifier store and link writer are not injected" \
   "Slack message egress approval is required" \
   "review evidence missing: esiTicket" \
-  "target override is missing: .databricks/bundle/customer/variable-overrides.json"; do
+  "target value missing: slack_adapter_environment"; do
   grep -qF "$refusal" "$ROLLOUT_OUT"
 done
 rm -f "$ROLLOUT_OUT"

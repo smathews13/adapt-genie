@@ -39,7 +39,7 @@ describe('whether an answer actually landed', () => {
   it('treats a markdown catalog listing as landed without a pipe table', () => {
     expect(
       answerHasLanded({
-        narrative: 'All 12 declared tables in sample_catalog.adapt_demo are listed below.',
+        narrative: 'All 12 declared tables in cmegdemos_catalog.adapt_demo are listed below.',
       })
     ).toBe(true);
   });
@@ -127,7 +127,7 @@ describe('the verdict a caveat cannot steal', () => {
 
   it('keeps a 12-table catalog listing Complete when optional analysis detail was clipped', () => {
     const listing = [
-      'All 12 declared tables live in sample_catalog.adapt_demo.',
+      'All 12 declared tables live in cmegdemos_catalog.adapt_demo.',
       '',
       '| Table | Purpose |',
       '| --- | --- |',
@@ -176,7 +176,7 @@ describe('the verdict a caveat cannot steal', () => {
         ],
         caveats: [],
         narrative: [
-          'All 12 declared tables in sample_catalog.adapt_demo are listed below.',
+          'All 12 declared tables in cmegdemos_catalog.adapt_demo are listed below.',
           '',
           '### Gold',
           '`gold_player_180d_summary`',

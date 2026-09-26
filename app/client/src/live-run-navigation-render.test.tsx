@@ -15,7 +15,7 @@ import type { ConversationRunStatus } from './conversation-run';
 import type { Answer } from './app-types';
 import { EMPTY_FEEDBACK } from './stored-feedback';
 
-const TABLE = 'sample_catalog.player_insights_demo.gold_title_daily_summary';
+const TABLE = 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary';
 
 function stage(number: number, status: TraceStage['status'] = 'complete'): TraceStage {
   return {

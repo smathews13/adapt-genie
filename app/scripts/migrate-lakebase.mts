@@ -48,7 +48,7 @@
  * before it has started would report the previous build's schema and fail every
  * release that contained a schema change:
  *
- *     ( cd app && npm run migrate:lakebase -- \
+ *     ( cd player-insights-agent && npm run migrate:lakebase -- \
  *         --app "$APP_NAME" --profile "$PROFILE" )
  *
  * `--verify` is the default; do not pass `--apply` from a release script. What

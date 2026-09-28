@@ -172,11 +172,11 @@ describe('lining up configured against actual', () => {
   it('reads app-owned values from the container environment', () => {
     const all = states({
       report: report(),
-      environment: { DATABRICKS_SERVING_ENDPOINT_NAME: 'app' },
+      environment: { DATABRICKS_SERVING_ENDPOINT_NAME: 'player-insights-agent' },
       stored: stored(),
     });
 
-    expect(state(all, 'agent-endpoint').configured).toBe('app');
+    expect(state(all, 'agent-endpoint').configured).toBe('player-insights-agent');
     expect(state(all, 'agent-endpoint').configuredFrom).toBe('app-environment');
   });
 
@@ -1039,28 +1039,28 @@ describe('resolving the experiment id', () => {
   });
 
   it('resolves the path to an id when no id was supplied, the From-Git case', async () => {
-    process.env[PATH] = '/Shared/app';
+    process.env[PATH] = '/Shared/player-insights-agent';
     const { calls, resolve } = spyResolver('987654');
     const value = await resolveExperimentId(client([]), resolve);
 
     expect(value).toBe('987654');
-    expect(calls).toEqual(['/Shared/app']);
+    expect(calls).toEqual(['/Shared/player-insights-agent']);
   });
 
   it('resolves a path once and reuses the answer', async () => {
-    process.env[PATH] = '/Shared/app';
+    process.env[PATH] = '/Shared/player-insights-agent';
     const { calls, resolve } = spyResolver('987654');
     const first = await resolveExperimentId(client([]), resolve);
     const second = await resolveExperimentId(client([]), resolve);
 
     expect([first, second]).toEqual(['987654', '987654']);
     expect(calls, 'the id a path maps to does not change, so it is resolved once').toEqual([
-      '/Shared/app',
+      '/Shared/player-insights-agent',
     ]);
   });
 
   it('expires a resolved path deterministically', async () => {
-    process.env[PATH] = '/Shared/app';
+    process.env[PATH] = '/Shared/player-insights-agent';
     const { calls, resolve } = spyResolver('987654');
 
     await resolveExperimentId(client([]), resolve, 0);
@@ -1091,7 +1091,7 @@ describe('resolving the experiment id', () => {
   });
 
   it('does not cache an empty resolve, so an experiment made later is picked up', async () => {
-    process.env[PATH] = '/Shared/app';
+    process.env[PATH] = '/Shared/player-insights-agent';
     const calls: string[] = [];
     let answer = '';
     const resolve = (path: string) => {

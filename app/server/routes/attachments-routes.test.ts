@@ -55,7 +55,7 @@ beforeAll(async () => {
     loadFixture('image-only.pdf'),
   ]);
 
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
   lakebase = createLakebase();
   servingPayloads = [];
 

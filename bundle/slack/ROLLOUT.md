@@ -69,7 +69,7 @@ Replace every `REQUIRED` placeholder outside Git.
 Useful local commands (no workspace required):
 
 ```bash
-cd app
+cd player-insights-agent
 npm test
 npm run typecheck
 npx eslint server/slack server/routes/slack-* shared/egress-contract.ts

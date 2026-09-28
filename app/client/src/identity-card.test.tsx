@@ -64,7 +64,7 @@ const IDENTITY: PanelIdentity = {
     },
     app: {
       displayName: 'ADAPT',
-      resourceName: 'app',
+      resourceName: 'player-insights-agent',
       workspaceHost: 'https://dbc-example.cloud.databricks.com',
       workspaceId: '7474656585748611',
     },
@@ -84,7 +84,7 @@ const IDENTITY: PanelIdentity = {
         {
           resourceKey: 'serving-endpoint',
           resourceType: 'serving_endpoint',
-          displayIdentifier: 'app',
+          displayIdentifier: 'player-insights-agent',
           permission: 'CAN_QUERY',
         },
         {
@@ -135,7 +135,7 @@ describe('IdentityCard', () => {
       'Example Sports',
       'OAuth',
       'ADAPT',
-      'app',
+      'player-insights-agent',
       'https://dbc-example.cloud.databricks.com',
       '7474656585748611',
       'Execution',
@@ -145,7 +145,7 @@ describe('IdentityCard', () => {
       'M2M',
       'Attached resources',
       'Lakebase · databricks-postgres',
-      'Serving · app',
+      'Serving · player-insights-agent',
       'SQL warehouse · 9cd12345…',
     ]) {
       expect(text).toContain(value);
@@ -163,7 +163,7 @@ describe('IdentityCard', () => {
       'aria-label="Lakebase attached resource · databricks-postgres · branch projects/player-insights/branches/production · binding postgres · permission CAN_CONNECT_AND_CREATE"'
     );
     expect(markup).toContain(
-      'aria-label="Serving attached resource · app · binding serving-endpoint · permission CAN_QUERY"'
+      'aria-label="Serving attached resource · player-insights-agent · binding serving-endpoint · permission CAN_QUERY"'
     );
     expect(markup).toContain(
       'aria-label="SQL warehouse attached resource · 9cd123456789abcd · binding sql-warehouse · permission CAN_USE"'
@@ -277,7 +277,7 @@ describe('IdentityCard', () => {
     expect(markup).toContain('title="https://an-extraordinarily-long-workspace-host.cloud.databricks.com"');
     for (const [label, value] of [
       ['workspace user ID', '1122334455667788'],
-      ['Databricks app resource name', 'app'],
+      ['Databricks app resource name', 'player-insights-agent'],
       ['workspace ID', '7474656585748611'],
       ['application ID', 'abcdefab-0000-4000-8000-000000000000-extra-long-application-id'],
       ['service principal ID', '9988776655443322'],

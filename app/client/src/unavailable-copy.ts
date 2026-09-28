@@ -46,7 +46,7 @@ export interface UnavailableNotice {
    * One line naming what failed, as specifically as the payload allows.
    *
    * With evidence this names the dependency and what it did, because "Agent
-   * serving endpoint app refused this request" is something a
+   * serving endpoint player-insights-agent refused this request" is something a
    * reader can act on and "This question was not answered" is something they
    * already know -- they were watching. Without evidence it falls back to the
    * server's own sentence, which is then the most specific statement available.

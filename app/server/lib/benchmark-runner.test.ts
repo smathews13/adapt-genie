@@ -171,7 +171,7 @@ function makeDeps(store: FakeStore, overrides: Partial<BenchmarkRunnerDeps> = {}
     newId: () => `run-${(sequence += 1)}`,
     describeServedModel: () =>
       Promise.resolve({
-        endpoint: 'app',
+        endpoint: 'player-insights-agent',
         entityName: 'sample_catalog-player_insights_demo-player_insights_agent',
         version: '9',
         determinate: true,
@@ -309,7 +309,7 @@ describe('reading the served model version', () => {
     // reports the version as unknown, which is how the first live run of this
     // runner recorded "not determinate" against an endpoint sitting at 100% on
     // one version.
-    const parsed = parseServedModel('app', liveShape);
+    const parsed = parseServedModel('player-insights-agent', liveShape);
     expect(parsed).toMatchObject({
       version: '9',
       determinate: true,

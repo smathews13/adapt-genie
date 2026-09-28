@@ -15,7 +15,7 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
   try {
     await Promise.all([
       mkdir(path.join(root, "resources"), { recursive: true }),
-      mkdir(path.join(root, "app", "server", "slack"), {
+      mkdir(path.join(root, "player-insights-agent", "server", "slack"), {
         recursive: true,
       }),
       mkdir(path.join(root, ".databricks", "bundle", target), {
@@ -34,17 +34,17 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
         resources.map((name) => `- name: ${name}`).join("\n"),
       ),
       writeFile(
-        path.join(root, "app", "app.yaml"),
+        path.join(root, "player-insights-agent", "app.yaml"),
         resources.map((name) => `valueFrom: ${name}`).join("\n"),
       ),
       writeFile(
-        path.join(root, "app", "server", "server.ts"),
+        path.join(root, "player-insights-agent", "server", "server.ts"),
         "approved runtime injections",
       ),
       writeFile(
         path.join(
           root,
-          "app",
+          "player-insights-agent",
           "server",
           "slack",
           "socket-mode-adapter.ts",
@@ -54,7 +54,7 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
       writeFile(
         path.join(
           root,
-          "app",
+          "player-insights-agent",
           "server",
           "slack",
           "message-client.ts",

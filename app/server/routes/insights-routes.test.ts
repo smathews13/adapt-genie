@@ -1034,7 +1034,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
   });
 
   it('answers an approved plan instead of handing back another plan', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const app = await startInsightsApp(agentContractTransport(captured));
 
@@ -1089,7 +1089,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
    * mismatch: a stale id, or one belonging to a different question.
    */
   it('re-renders a plan the agent re-issued instead of answering with canned figures', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(alwaysPlans('plan-freshly-issued'));
 
     try {
@@ -1114,7 +1114,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
   });
 
   it('stores the re-issued plan as a plan turn, so the conversation is not silent about it', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(alwaysPlans('plan-freshly-issued'), lakebase);
 
@@ -1141,7 +1141,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
    * Answering with representative figures is the other bad option. So neither.
    */
   it('refuses outright when the agent re-proposes the plan it was told to run', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(alwaysPlans('plan-approved-and-ignored'));
 
     try {
@@ -1165,7 +1165,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
   });
 
   it('leaves the ordinary unapproved proposal exactly as it was', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(alwaysPlans('plan-first-proposal'));
 
     try {
@@ -1184,7 +1184,7 @@ describe('plan approval round trip through POST /api/insights/ask', () => {
   });
 
   it('puts the approval on the wire as snake_case custom_inputs', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const app = await startInsightsApp(agentContractTransport(captured));
 
@@ -1294,7 +1294,7 @@ describe('serving request body', () => {
   });
 
   it('builds the endpoint path the workspace client posts to', () => {
-    expect(servingInvocationPath('app')).toBe('/serving-endpoints/app/invocations');
+    expect(servingInvocationPath('player-insights-agent')).toBe('/serving-endpoints/app/invocations');
   });
 
   it('cannot be sent through the SDK typed query, which drops custom_inputs', async () => {
@@ -1317,7 +1317,7 @@ describe('serving request body', () => {
     type ServiceClient = ConstructorParameters<typeof sdkServing.ServingEndpointsService>[0];
     type QueryInput = Parameters<sdkServing.ServingEndpointsService['query']>[0];
     const service = new sdkServing.ServingEndpointsService(stubClient as unknown as ServiceClient);
-    await service.query({ name: 'app', ...body } as unknown as QueryInput);
+    await service.query({ name: 'player-insights-agent', ...body } as unknown as QueryInput);
 
     // `servingEndpoints.query()` rebuilds the body from a fixed allowlist, so the
     // approval never reaches the agent. This is why the route posts to
@@ -1489,7 +1489,7 @@ describe('the production serving transport', () => {
     });
 
     await stubTransport(seen)({
-      path: servingInvocationPath('app'),
+      path: servingInvocationPath('player-insights-agent'),
       payload,
     });
 
@@ -1655,7 +1655,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('puts the saved runtime settings on the next ask payload', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const stored: RuntimeSettings = {
       ...DEFAULT_RUNTIME_SETTINGS,
@@ -1698,7 +1698,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('sends stored attachment text, which no route test could previously observe', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const lakebase = memoryLakebase([
       {
@@ -1728,7 +1728,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('concatenates every attachment in the conversation', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const lakebase = memoryLakebase([
       { conversation_id: 'conv-two', filename: 'a.txt', extracted_text: 'first report' },
@@ -1749,7 +1749,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('omits attachment_text entirely when the conversation has no attachments', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const app = await startInsightsApp(agentContractTransport(captured), memoryLakebase());
 
@@ -1763,7 +1763,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('sends the last twelve stored turns as the conversation history', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const lakebase = memoryLakebase();
     // Seven trivial asks store a user and an assistant row each, so the eighth ask
@@ -1808,7 +1808,7 @@ describe('what the route actually puts on the wire', () => {
   });
 
   it('replays a stored plan turn with its id so the agent can match the approval', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport(captured), lakebase);
@@ -1845,7 +1845,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('forwards every field of custom_outputs.answer unchanged', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     let answered: AskResponse;
@@ -1919,7 +1919,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
    * is a worse outcome, so the contract is loose and the gap is reported.
    */
   it('forwards fields a newer agent adds, and says so', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const warnings: string[] = [];
     const warn = vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
       warnings.push(args.map(String).join(' '));
@@ -1962,7 +1962,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
     // answer parse fails, and the route's fallback served the representative
     // answer (figures, SQL and all), for a question the agent had just said it
     // could not answer. HTTP 200, nothing logged, wrong numbers on screen.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(() => Promise.resolve(clarificationResponse()), lakebase);
 
@@ -1989,7 +1989,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('stores the question it asked, so the conversation reads as a conversation', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(() => Promise.resolve(clarificationResponse()), lakebase);
 
@@ -2019,7 +2019,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('shows the steps that led to a question when the run is opened', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(() => Promise.resolve(clarificationResponse()), lakebase);
 
@@ -2046,7 +2046,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('keeps the trace detail the trace panel renders', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     let answered: AskResponse;
@@ -2073,7 +2073,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('says so when the question ran as the application instead of as the reader', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -2102,7 +2102,7 @@ describe('the answer contract survives the round trip into the HTTP response', (
   });
 
   it('answers only from the run, with no stored fixture mixed into it', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     let answered: AskResponse;
@@ -2238,7 +2238,7 @@ describe('Plotly charts on the answer contract', () => {
   });
 
   it('reaches the HTTP response the browser reads', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const specs = [chart(), chart({ id: 'chart-2', kind: 'line' })];
     const app = await startInsightsApp(() => Promise.resolve(answerWithCharts(specs)), memoryLakebase());
 
@@ -2258,7 +2258,7 @@ describe('Plotly charts on the answer contract', () => {
   });
 
   it('is persisted with the answer, so reopening a conversation still has its charts', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const specs = [chart()];
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(() => Promise.resolve(answerWithCharts(specs)), lakebase);
@@ -2399,7 +2399,7 @@ describe('the label a conversation carries in the rail', () => {
 
   /** Asks, approves the plan it proposes, and returns the store. */
   async function askAndApprove(conversationId: string, prompt: string) {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), store);
     try {
@@ -2425,7 +2425,7 @@ describe('the label a conversation carries in the rail', () => {
   });
 
   it('renames a conversation an upload created, which used to read "New conversation" forever', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), store);
 
@@ -2468,7 +2468,7 @@ describe('the label a conversation carries in the rail', () => {
   });
 
   it('does not rename a conversation on its later turns', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), store);
 
@@ -2577,7 +2577,7 @@ describe('an answered conversation is a run', () => {
   });
 
   it('lists a just-answered question, keyed by the id the answer came back with', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -2613,7 +2613,7 @@ describe('an answered conversation is a run', () => {
   });
 
   it('leaves an unapproved plan out of the list', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -2641,7 +2641,7 @@ describe('an answered conversation is a run', () => {
    * already covered and the defect lived between them.
    */
   it('carries the first turn of a new conversation all the way to its trace', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -2713,7 +2713,7 @@ describe('the run verdict a chart cannot degrade', () => {
   });
 
   it('lists a run whose only amber step was the chart as complete', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(
       transportWithStages([step('plan', 'complete'), step('synthesis', 'complete'), step('plot', 'partial')]),
       memoryLakebase()
@@ -2741,7 +2741,7 @@ describe('the run verdict a chart cannot degrade', () => {
   });
 
   it('still lets a step that IS the answer degrade the run', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(
       transportWithStages([step('discover', 'partial'), step('plot', 'complete')]),
       memoryLakebase()
@@ -2863,7 +2863,7 @@ describe('strict channel admission', () => {
   beforeEach(() => {
     process.env.DATABRICKS_HOST = 'https://workspace.example.com';
     process.env.PIA_V1_EXPECTED_AUDIENCE = 'adapt-agent';
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
   });
 
   afterEach(() => {
@@ -3008,7 +3008,7 @@ describe('an answer the store did not keep', () => {
   }
 
   it('answers statelessly when the app role cannot use the Postgres schema', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: CapturedInvocation[] = [];
     const denied = new Error('permission denied for schema player_insights') as Error & { code: string };
     denied.code = '42501';
@@ -3039,7 +3039,7 @@ describe('an answer the store did not keep', () => {
   });
 
   it('still answers, and says the run behind the answer was not stored', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = lakebaseThatDropsAnswers();
     const app = await startInsightsApp(agentContractTransport([]), store.lakebase);
 
@@ -3076,7 +3076,7 @@ describe('an answer the store did not keep', () => {
    * query can reach, however well the answer itself was written.
    */
   it('counts a first turn whose conversation row was lost as not stored', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const backing = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), {
       query(text: string, params: unknown[] = []) {
@@ -3107,7 +3107,7 @@ describe('an answer the store did not keep', () => {
   });
 
   it('reports a stored answer as stored, so the ordinary case still links', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3177,7 +3177,7 @@ describe('GET /api/runs/:id/trace', () => {
    * appends itself.
    */
   it('carries the answer’s own caveats, which the Final answer tab draws', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3193,7 +3193,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('carries stored breakout rows and headline figures into Run Explorer', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const base = servingResponses.liveAnswerResponse.custom_outputs.answer as Record<string, unknown>;
     const content = [
       '| Month | Franchise | Revenue | Returns |',
@@ -3241,7 +3241,7 @@ describe('GET /api/runs/:id/trace', () => {
    * id, was told it had taken effect, and got no link on any trace.
    */
   it('links a stored trace into the experiment saved in the app, not only the one in the environment', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
     delete process.env.PLAYER_INSIGHTS_EXPERIMENT_ID;
     const app = await startInsightsApp(
@@ -3272,7 +3272,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('leaves the link off, and the id on, when nothing names an experiment', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     process.env.DATABRICKS_HOST = 'https://example.cloud.databricks.com';
     delete process.env.PLAYER_INSIGHTS_EXPERIMENT_ID;
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
@@ -3291,7 +3291,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it("returns the selected run's own stages rather than a reference shape", async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3318,7 +3318,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('returns the runtime that ask sent, not today’s settings', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const stored: RuntimeSettings = {
       ...DEFAULT_RUNTIME_SETTINGS,
       answer: {
@@ -3349,7 +3349,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('restates the tool stages with their arguments and results', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3377,7 +3377,7 @@ describe('GET /api/runs/:id/trace', () => {
    * count and nothing downstream may treat it as one.
    */
   it('reports the agent call counter and the tool-tagged stages as separate quantities', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3406,7 +3406,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('does not publish a toolCalls array that could be mistaken for the counter', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3512,7 +3512,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('separates a turn that only proposed a plan from one that ran', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), lakebase);
 
@@ -3589,7 +3589,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('never labels a stored live run as representative', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3604,7 +3604,7 @@ describe('GET /api/runs/:id/trace', () => {
   });
 
   it('forwards fields a newer agent adds to a stage instead of dropping them', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const base = servingResponses.liveAnswerResponse.custom_outputs.answer as Record<string, unknown>;
     const trace = base.trace as { stages: Record<string, unknown>[] };
     const widened = {
@@ -3665,7 +3665,7 @@ describe('an agent endpoint that never answers', () => {
   });
 
   it('abandons a silent endpoint rather than waiting forever', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let servingSignal: AbortSignal | undefined;
     let abortObserved = false;
     const appkit = {
@@ -3811,7 +3811,7 @@ describe('a canned answer discloses that no live query produced it', () => {
   });
 
   it('does not mark an answer the agent actually produced', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -3838,7 +3838,7 @@ describe('a canned answer discloses that no live query produced it', () => {
    * on a screen with no figures teaches people to ignore the warning.
    */
   it('leaves a prose reply with no borrowed figures to disclose', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(
       () =>
         Promise.resolve({
@@ -3864,7 +3864,7 @@ describe('a canned answer discloses that no live query produced it', () => {
   });
 
   it('strips the process view off a live answer that has no MLflow id', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const payload = JSON.parse(JSON.stringify(servingResponses.liveAnswerResponse)) as Record<string, unknown>;
     const outputs = payload.custom_outputs as { answer: { trace: { id: string; stages: unknown[] } } };
     outputs.answer.trace.id = 'trace-local';
@@ -3893,7 +3893,7 @@ describe('a canned answer discloses that no live query produced it', () => {
   });
 
   it('recovers the MLflow id from the serving envelope and keeps the process view', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const payload = JSON.parse(JSON.stringify(servingResponses.liveAnswerResponse)) as Record<string, unknown>;
     const outputs = payload.custom_outputs as { answer: { trace: { id: string } } };
     outputs.answer.trace.id = 'trace-local';
@@ -3916,7 +3916,7 @@ describe('a canned answer discloses that no live query produced it', () => {
   });
 
   it('binds a stream tr- id when the serving request id is a UUID', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const payload = JSON.parse(JSON.stringify(servingResponses.liveAnswerResponse)) as Record<string, unknown>;
     const outputs = payload.custom_outputs as { answer: { trace: { id: string } }; trace_id?: string };
     outputs.answer.trace.id = 'trace-local';
@@ -3967,7 +3967,7 @@ describe('a failed run is answered with nothing', () => {
 
   /** Captures console.error so the loudness of the log is asserted, not assumed. */
   async function askThrough(transport: ServingTransport, conversationId: string) {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const errors: string[] = [];
     const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
       errors.push(args.map(String).join(' '));
@@ -4025,7 +4025,7 @@ describe('a failed run is answered with nothing', () => {
     const evidence = (body as { evidence?: FailureEvidence }).evidence;
     // The name a reader can go and look at, from the environment this request
     // was actually sent with.
-    expect(evidence?.dependency).toEqual({ kind: 'agent-endpoint', name: 'app' });
+    expect(evidence?.dependency).toEqual({ kind: 'agent-endpoint', name: 'player-insights-agent' });
     // Verbatim. Anything else here is a paraphrase of an error, which is a
     // second error to debug.
     expect(evidence?.providerMessage).toBe('socket hang up after 30000 ms');
@@ -4060,7 +4060,7 @@ describe('a failed run is answered with nothing', () => {
     expect(status).toBe(403);
     const evidence = (body as { evidence?: FailureEvidence }).evidence;
     expect(evidence?.status).toBe(403);
-    expect(evidence?.dependency?.name).toBe('app');
+    expect(evidence?.dependency?.name).toBe('player-insights-agent');
     // The reader's own address is theirs to see; the table is not.
     expect(evidence?.providerMessage).not.toContain('other_label');
     expect(evidence?.providerMessage).not.toContain('SELECT');
@@ -4114,7 +4114,7 @@ describe('a failed run is answered with nothing', () => {
   });
 
   it('writes no answer row for a question that was never answered', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const app = await startInsightsApp(() => Promise.reject(new Error('connection refused')), lakebase);
@@ -4142,7 +4142,7 @@ describe('a failed run is answered with nothing', () => {
    * that appears when nothing is wrong is one nobody reads when something is.
    */
   it('says nothing of the kind about an answer the agent produced', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -4192,7 +4192,7 @@ describe('an answer says which of its parts came from the run', () => {
     });
 
   it('marks a structured answer live, because nothing on it was borrowed', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -4216,7 +4216,7 @@ describe('an answer says which of its parts came from the run', () => {
   });
 
   it('serves a prose reply with its words and nothing underneath them', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(prose, memoryLakebase());
 
     try {
@@ -4249,7 +4249,7 @@ describe('an answer says which of its parts came from the run', () => {
   });
 
   it('does not keep streamed steps on a prose reply that has no MLflow id', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const transport: ServingTransport = ({ onStage }) => {
       onStage?.({
         id: 'step-1',
@@ -4298,7 +4298,7 @@ describe('an answer says which of its parts came from the run', () => {
   });
 
   it('keeps streamed steps on a prose reply once serving recorded an MLflow id', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const transport: ServingTransport = ({ onStage }) => {
       onStage?.({
         id: 'step-1',
@@ -4354,7 +4354,7 @@ describe('an answer says which of its parts came from the run', () => {
    * label, and no deployment on which one comes back.
    */
   it('has no provenance to state when nothing ran at all, because it serves no answer', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const app = await startInsightsApp(() => Promise.reject(new Error('socket hang up')), memoryLakebase());
 
@@ -4382,7 +4382,7 @@ describe('an answer says which of its parts came from the run', () => {
    * renderer defaults to under it.
    */
   it('stores the prose answer as empty, so a reopened conversation stays empty', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const lakebase = memoryLakebase();
     const app = await startInsightsApp(prose, lakebase);
 
@@ -4413,7 +4413,7 @@ describe('an answer says which of its parts came from the run', () => {
    * meaning anything.
    */
   it('is not reported as a field the agent added and the app cannot read', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -4481,7 +4481,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
     // The request leaves no conversation row and no user turn behind it. A
     // question that was never asked must not appear in the rail, and the next
     // turn in that conversation must not carry it as context.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const app = await startInsightsApp(agentContractTransport([]), store);
 
@@ -4508,7 +4508,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
     // What shadow mode is for. On a database where the ledger's CREATE was
     // refused on ownership, every ledger statement fails and no reader may
     // notice.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {
@@ -4526,7 +4526,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('records the run and closes it as SUCCEEDED, naming the answer it can be replayed from', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const { ledger, lakebase } = lakebaseWithLedger(store);
     const app = await startInsightsApp(agentContractTransport([]), lakebase);
@@ -4551,7 +4551,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('aborts a never-ending Ask at the deadline and ignores output attempted afterward', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let fetchSignal: AbortSignal | undefined;
     let lateStageAttempted = false;
     const transport: ServingTransport = ({ signal, onStage }) => {
@@ -4624,7 +4624,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('settles an oversized stream once as interrupted and stores the steps that ran', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const { ledger, lakebase } = lakebaseWithLedger(store);
     const app = await startInsightsApp(() => Promise.reject(new StreamLimitExceededError('events', 608)), lakebase);
@@ -4646,7 +4646,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('persists before serving and finishes after the Ask view disconnects', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let announceStarted: () => void = () => {};
     let releaseAnswer: () => void = () => {};
     const started = new Promise<void>((resolve) => {
@@ -4705,7 +4705,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('cancels an owned run durably, aborts its serving consumer, and persists no answer', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const savedWarehouse = process.env.DATABRICKS_SQL_WAREHOUSE_ID;
     process.env.DATABRICKS_SQL_WAREHOUSE_ID = 'warehouse-cancel-test';
     let announceStarted: () => void = () => {};
@@ -4796,7 +4796,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('returns 404 without revealing or stopping another reader run', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let announceStarted: () => void = () => {};
     let releaseAnswer: () => void = () => {};
     const started = new Promise<void>((resolve) => {
@@ -4838,7 +4838,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('guards Stop all as admin-only and cancels only the current snapshot', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let announceStarted: () => void = () => {};
     const started = new Promise<void>((resolve) => {
       announceStarted = resolve;
@@ -4897,7 +4897,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
      * agent path empty for the rest of the run -- because the steps only ever
      * existed on the socket that closed.
      */
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     let announceStarted: () => void = () => {};
     let releaseAnswer: () => void = () => {};
     const started = new Promise<void>((resolve) => {
@@ -4993,7 +4993,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
     // response body a reader's own step arguments reach. Row data must not: the
     // authoritative trace carries results, and this table's own schema comment
     // rules them out.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const transport: ServingTransport = ({ onStage }) => {
       onStage?.({
         id: 'step-1-1-data_genie',
@@ -5030,7 +5030,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   });
 
   it('parks a run behind a plan rather than finishing it, and lets go of the lease', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const { ledger, lakebase } = lakebaseWithLedger(store);
     const app = await startInsightsApp(agentContractTransport([]), lakebase);
@@ -5051,7 +5051,7 @@ describe('the run ledger under POST /api/insights/ask', () => {
   it('opens an attempt naming the process that took the run', async () => {
     // A lease naming nothing is a lease nobody can chase. Apps run more than
     // one container, so a run stuck mid-flight has to point at one.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const store = memoryLakebase();
     const { ledger, lakebase } = lakebaseWithLedger(store);
     const app = await startInsightsApp(agentContractTransport([]), lakebase);
@@ -5238,7 +5238,7 @@ describe('the provenance an answer carries', () => {
   });
 
   it('reaches the answer the browser reads', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(transportServing([ENTRY]), memoryLakebase());
 
     try {
@@ -5259,7 +5259,7 @@ describe('the provenance an answer carries', () => {
     // The Run Explorer, from the stored row rather than from the reply. Every
     // hop between the model and that pane is a place the field can be dropped,
     // and the pane is the one surface where "over what window" is the question.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(transportServing([ENTRY]), memoryLakebase());
 
     try {
@@ -5281,7 +5281,7 @@ describe('the provenance an answer carries', () => {
     // Absent and empty read the same on screen, and they do not mean the same
     // thing: this run was answered by a model version that derives nothing, and
     // the pane must be able to tell that from a run that derived nothing.
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startInsightsApp(agentContractTransport([]), memoryLakebase());
 
     try {

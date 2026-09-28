@@ -153,7 +153,7 @@ input fails validation when skipped; Genie sharing still requires review.
   the same warning, and a test fails while the addresses are there:
 
   ```bash
-  cd app && npm test -- scripts/deploy-app-yaml.test.ts
+  cd player-insights-agent && npm test -- scripts/deploy-app-yaml.test.ts
   ```
 
   **That test is the only thing catching this before the commit**, so do not

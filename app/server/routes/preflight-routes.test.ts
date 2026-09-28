@@ -134,7 +134,7 @@ describe('GET /api/preflight', () => {
   beforeEach(() => resetLakebaseHealth());
 
   it('reads endpoint metadata without invoking the agent', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const captured: Record<string, unknown>[] = [];
     const app = await startApp(reportingTransport(AGENT_REPORT, captured), noLakebase);
 
@@ -148,7 +148,7 @@ describe('GET /api/preflight', () => {
   });
 
   it('reports endpoint visibility without claiming query permission', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startApp(reportingTransport(AGENT_REPORT), noLakebase);
 
     let body: Record<string, unknown>;
@@ -185,7 +185,7 @@ describe('GET /api/preflight', () => {
   });
 
   it('reports unverified, not ok, when the agent could not check something', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     const app = await startApp(reportingTransport(AGENT_REPORT), noLakebase);
 
     let body: Record<string, unknown>;
@@ -200,7 +200,7 @@ describe('GET /api/preflight', () => {
   });
 
   it('answers an unreachable endpoint with 503 and the grant that would fix it', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     process.env.DATABRICKS_CLIENT_ID = 'ca9f730e-186a-4809-b8b7-7b04031b4153';
     const app = await startApp(
       () => Promise.resolve({}),
@@ -231,7 +231,7 @@ describe('GET /api/preflight', () => {
   });
 
   it('does not tell an operator to re-log the model when the endpoint has retired the checks', async () => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
     // The endpoint now answers this request without a report, on every version.
     // The old branch read that as a model version predating preflight and told
     // the operator to log and deploy again, advice that cannot work, because

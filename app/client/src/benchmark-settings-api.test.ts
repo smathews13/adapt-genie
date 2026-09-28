@@ -13,14 +13,14 @@ describe('benchmark settings response', () => {
         settings: { ...DEFAULT_BENCHMARK_SETTINGS, evalSetId: 'held-out-eval' },
         revision: 1,
         experimentUrl: 'https://example.databricks.com/ml/experiments/1',
-        currentAgentEndpoint: 'app',
+        currentAgentEndpoint: 'player-insights-agent',
         tracesAlwaysOnInAgent: true,
       }),
       'loaded'
     );
     expect(payload.settings.evalSetId).toBe('held-out-eval');
     expect(payload.experimentUrl).toContain('/ml/experiments/1');
-    expect(payload.currentAgentEndpoint).toBe('app');
+    expect(payload.currentAgentEndpoint).toBe('player-insights-agent');
     expect(payload.tracesAlwaysOnInAgent).toBe(true);
   });
 

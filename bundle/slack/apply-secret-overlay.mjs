@@ -132,7 +132,7 @@ async function main() {
   const files = {
     databricks: path.join(root, "databricks.yml"),
     appResource: path.join(root, "resources", "adapt_app.app.yml"),
-    appYaml: path.join(root, "app", "app.yaml"),
+    appYaml: path.join(root, "player-insights-agent", "app.yaml"),
   };
   const overlay = JSON.parse(await readFile(overlayPath, "utf8"));
   const merged = renderSlackSecretOverlay({

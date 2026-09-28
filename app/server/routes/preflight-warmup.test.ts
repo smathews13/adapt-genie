@@ -67,7 +67,7 @@ beforeEach(() => {
   // Without this the route never reaches the endpoint and answers
   // `preflight_unavailable`, which would still exercise the warm-up but would
   // stop these cases describing the path a real arrival takes.
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
 });
 
 describe('opening the app warms the warehouse', () => {

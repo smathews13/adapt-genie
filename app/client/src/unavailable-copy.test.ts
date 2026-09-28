@@ -25,7 +25,7 @@ const DENIAL = unavailableResult({
   requestId: 'req-77',
   executionIdentity: { mode: 'signed_in_user', verified: true },
   evidence: {
-    dependency: { kind: 'agent-endpoint', name: 'app' },
+    dependency: { kind: 'agent-endpoint', name: 'player-insights-agent' },
     status: 403,
     providerCode: 'PERMISSION_DENIED',
     providerMessage: 'The endpoint refused this request under the signed-in user\u2019s own credential.',
@@ -40,7 +40,7 @@ describe('what the heading says first', () => {
     // answered" tells a reader watching a spinner nothing they did not just see.
     // A named endpoint and a verb is something they can act on.
     expect(unavailableNoticeFor('ask', DENIAL).heading).toBe(
-      'Agent serving endpoint app refused this request'
+      'Agent serving endpoint player-insights-agent refused this request'
     );
   });
 
@@ -51,7 +51,7 @@ describe('what the heading says first', () => {
     const silent = unavailableResult({
       code: 'DEPENDENCY_UNAVAILABLE',
       requestId: 'req-1',
-      evidence: { dependency: { kind: 'agent-endpoint', name: 'app' } },
+      evidence: { dependency: { kind: 'agent-endpoint', name: 'player-insights-agent' } },
     });
     expect(unavailableNoticeFor('ask', silent).heading).toContain('did not respond');
     expect(unavailableNoticeFor('ask', DENIAL).heading).toContain('refused this request');
@@ -117,14 +117,14 @@ describe('the error the provider actually returned', () => {
   });
 
   it('does not paraphrase, because a paraphrased error is a second error to debug', () => {
-    const raw = 'RESOURCE_DOES_NOT_EXIST: Endpoint app does not exist.';
+    const raw = 'RESOURCE_DOES_NOT_EXIST: Endpoint player-insights-agent does not exist.';
     const notice = unavailableNoticeFor(
       'ask',
       unavailableResult({
         code: 'DEPENDENCY_UNAVAILABLE',
         requestId: 'req-4',
         evidence: {
-          dependency: { kind: 'agent-endpoint', name: 'app' },
+          dependency: { kind: 'agent-endpoint', name: 'player-insights-agent' },
           status: 404,
           providerMessage: raw,
         },

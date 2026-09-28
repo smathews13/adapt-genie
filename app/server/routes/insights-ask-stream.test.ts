@@ -102,7 +102,7 @@ describe('POST /api/insights/ask, asked for as a stream', () => {
   // never happened.
   const savedEndpoint = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
   beforeEach(() => {
-    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+    process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
   });
   afterEach(() => {
     if (savedEndpoint === undefined) delete process.env.DATABRICKS_SERVING_ENDPOINT_NAME;

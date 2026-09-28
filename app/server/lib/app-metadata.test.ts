@@ -112,7 +112,7 @@ describe('the active deployment source', () => {
         body: {
           name: 'adapt',
           active_deployment: {
-            source_code_path: '/Workspace/Users/someone/.bundle/app-dab/dev/files',
+            source_code_path: '/Workspace/Users/someone/.bundle/player-insights-agent-dab/dev/files',
             git_source: {
               branch: 'release',
               source_code_path: 'app/build/deploy',
@@ -128,7 +128,7 @@ describe('the active deployment source', () => {
       workspaceUrl: 'https://workspace.example.com/apps/adapt',
       gitRef: 'release',
     });
-    // NOT THE BUNDLE TREE. `.bundle/app-dab/...` is where a
+    // NOT THE BUNDLE TREE. `.bundle/player-insights-agent-dab/...` is where a
     // DAB deploy puts files; it is not what a Git-sourced app runs, and sending
     // an operator there is sending them to code that is not serving.
     expect(facts.source.workspaceUrl).not.toContain('.bundle');
@@ -168,7 +168,7 @@ describe('the active deployment source', () => {
           name: 'adapt',
           url: 'https://adapt-7474656585748611.aws.databricksapps.com',
           active_deployment: {
-            source_code_path: '/Workspace/Users/operator/app-real-src',
+            source_code_path: '/Workspace/Users/operator/player-insights-agent-real-src',
             deployment_artifacts: {
               source_code_path: '/Workspace/Users/system/src/a-generated-snapshot',
             },
@@ -178,7 +178,7 @@ describe('the active deployment source', () => {
     });
 
     // The row still READS as the path, which is what makes it worth scanning.
-    expect(facts.source.path).toBe('/Workspace/Users/operator/app-real-src');
+    expect(facts.source.path).toBe('/Workspace/Users/operator/player-insights-agent-real-src');
     expect(facts.source.workspaceUrl).toBe(
       'https://workspace.example.com/browse/folders/1999001141571163?o=7474656585748611'
     );
@@ -219,7 +219,7 @@ describe('the active deployment source', () => {
    * this repository would be a real customer workspace id in a published tree.
    */
   it('reads the workspace id off the app URL, and states none where there is none to read', () => {
-    expect(workspaceIdFromAppUrl('https://app-7474656585748611.aws.databricksapps.com')).toBe(
+    expect(workspaceIdFromAppUrl('https://player-insights-agent-7474656585748611.aws.databricksapps.com')).toBe(
       '7474656585748611'
     );
     // Not any host that ends a label in digits: a wrong `?o=` sends a reader to
@@ -243,11 +243,11 @@ describe('the active deployment source', () => {
     expect(
       sourceFolderPath({
         active_deployment: {
-          source_code_path: '/Workspace/Users/operator/app-real-src',
+          source_code_path: '/Workspace/Users/operator/player-insights-agent-real-src',
           deployment_artifacts: { source_code_path: '/Workspace/Users/system/src/a-snapshot' },
         },
       })
-    ).toBe('/Workspace/Users/operator/app-real-src');
+    ).toBe('/Workspace/Users/operator/player-insights-agent-real-src');
 
     // A Git deployment's path is relative to a repository and names no
     // workspace object, so there is nothing to ask about.
@@ -263,7 +263,7 @@ describe('the active deployment source', () => {
     expect(
       sourceFolderPath({
         active_deployment: {
-          source_code_path: '/Workspace/Users/someone/.bundle/app-dab/cmeg/files',
+          source_code_path: '/Workspace/Users/someone/.bundle/player-insights-agent-dab/cmeg/files',
           git_source: { branch: 'main', source_code_path: 'app/build/deploy' },
         },
       })
@@ -376,7 +376,7 @@ describe('asking the workspace at all', () => {
           body: {
             name: 'adapt',
             url: 'https://adapt-7474656585748611.aws.databricksapps.com',
-            active_deployment: { source_code_path: '/Workspace/Users/operator/app-real-src' },
+            active_deployment: { source_code_path: '/Workspace/Users/operator/player-insights-agent-real-src' },
           },
         }),
       resolveFolderId: (path) => {
@@ -385,7 +385,7 @@ describe('asking the workspace at all', () => {
       },
     });
 
-    expect(asked).toEqual(['/Workspace/Users/operator/app-real-src']);
+    expect(asked).toEqual(['/Workspace/Users/operator/player-insights-agent-real-src']);
     expect(facts.source.workspaceUrl).toBe(
       'https://workspace.example.com/browse/folders/1999001141571163?o=7474656585748611'
     );

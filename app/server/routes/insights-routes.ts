@@ -90,6 +90,7 @@ import { createStageRecorder, readStageEvents, type StageRecorder } from '../lib
 import { isUsableIdempotencyKey } from '../lib/run-request-hash';
 import { terminalStateFor } from '../lib/run-state';
 import { answerRatherThanExit } from '../lib/handler-failures';
+import { createIdentityReadinessProbe, identityReadinessHttp } from '../lib/execution-identity-readiness';
 import { requestLatencyRecorder } from '../lib/request-latency';
 import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import type { TokenAttribution } from '../../shared/llm-token-usage';
@@ -3502,6 +3503,16 @@ export function setupInsightsRoutes(
 
   const storeReady = prepareStore(appkit);
   const idleConfig = options.appSessionConfig ?? resolveIdleTimeout();
+  const identityProbe = createIdentityReadinessProbe({
+    invoke: async ({ payload, userToken }) => {
+      try {
+        return { result: await invokeServing(appkit, payload, undefined, 15_000, userToken) };
+      } catch (error) {
+        return { error };
+      }
+    },
+  });
+  void identityProbe.get();
   const readGroupRole = groupRoleLookupForStore(appkit.lakebase, options.identityControlPlaneReader);
   let executeGovernedAsk: GovernedExecutor | null = null;
   const governedRuns = new GovernedRunService(appkit, (req, res, overrides) => {
@@ -3545,6 +3556,10 @@ export function setupInsightsRoutes(
     // the settings and setup modules register after them), answers 500 when it
     // throws instead of rejecting into an unhandled promise and exiting Node.
     answerRatherThanExit(app);
+    app.get('/internal/readiness', async (_req, res) => {
+      const http = identityReadinessHttp(await identityProbe.get());
+      res.status(http.status).json(http.body);
+    });
     app.use(requireIdentity);
     // Bootstrap/end sit before the guard they support. Every other API route
     // registered here or by a later module is checked against Lakebase without
@@ -4662,6 +4677,20 @@ export function setupInsightsRoutes(
             persistence: 'not_stored',
             executionIdentity: refusedIdentityClaim(),
             detail: disclosableRefusal(identity),
+          })
+        );
+        return;
+      }
+
+      const identityVerdict = await identityProbe.get();
+      if (!identityVerdict.ok) {
+        reply.status(unavailableHttpStatus('IDENTITY_REQUIRED')).json(
+          unavailableResult({
+            code: 'IDENTITY_REQUIRED',
+            requestId: identity.correlationId,
+            runId: null,
+            persistence: 'not_stored',
+            executionIdentity: refusedIdentityClaim(),
           })
         );
         return;

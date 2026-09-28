@@ -86,7 +86,7 @@ describe('the production serving transport, exercised as shipped', () => {
     });
 
     await workspaceServingTransport({
-      path: servingInvocationPath('app'),
+      path: servingInvocationPath('player-insights-agent'),
       payload,
     });
 
@@ -147,7 +147,7 @@ describe('the streaming transport, exercised as shipped', () => {
 
     const stages: string[] = [];
     const result = await workspaceServingTransport({
-      path: servingInvocationPath('app'),
+      path: servingInvocationPath('player-insights-agent'),
       payload,
       onStage: (stage) => stages.push(String(stage.name)),
     });

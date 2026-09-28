@@ -421,7 +421,7 @@ describe('what the app can say about the release it is running', () => {
       releaseIdentity({
         PIA_APP_BUILD_SHA: 'abc123',
         PIA_RELEASE_ID: 'rel-2026-08-17.1',
-        DATABRICKS_APP_NAME: 'app',
+        DATABRICKS_APP_NAME: 'player-insights-agent',
         DATABRICKS_WORKSPACE_ID: '1234567890',
         PIA_BUNDLE_TARGET: 'cmeg',
         DATABRICKS_SERVING_ENDPOINT_NAME: 'pia-agent',
@@ -430,7 +430,7 @@ describe('what the app can say about the release it is running', () => {
     ).toEqual({
       app_build_sha: 'abc123',
       release_id: 'rel-2026-08-17.1',
-      app_name: 'app',
+      app_name: 'player-insights-agent',
       workspace_id: '1234567890',
       deployment: 'cmeg',
       serving_endpoint: 'pia-agent',

@@ -10,9 +10,10 @@ without on-behalf-of-user credential forwarding, so Model Serving had no user
 token to hand the container, and the agent -- which reads Genie and SQL as the
 invoker or not at all -- could do nothing but fail.
 
-`agent/log_model.py` writes the user auth policy and the baked "run as user"
-flag together, so a version logged through `bundle/agent-release.sh` is
-internally consistent. That is exactly why this check is worth having: it means
+`extensions/sample-neutral/agent/log_model.py` writes the user auth policy and
+the baked "run as user" flag together, so a version logged through
+`bundle/agent-release.sh` is internally consistent. That is exactly why this
+check is worth having: it means
 a missing policy is evidence that something OTHER than the release wrote the
 version, and it is the half of the wiring a release can still see afterwards.
 Read at deploy time it costs one MLmodel download; read by a customer it costs
@@ -28,8 +29,10 @@ WHAT IT VERIFIES, on the registered version itself:
 
 The fourth line is where "at least dashboards.genie and sql when those are
 configured" is enforced, and it is enforced WITHOUT a second list: the release
-summary's `api_scopes` is what `agent/user_authorization.py::api_scopes` derived
-from this target's Genie spaces and warehouse. Requiring the policy to cover it means a target with a
+summary's `api_scopes` is what
+`extensions/sample-neutral/agent/user_authorization.py::api_scopes` derived from
+this target's Genie spaces and warehouse, plus the Vector Search pair when an
+index is configured. Requiring the policy to cover it means a target with a
 Genie space must carry the Genie scope and a target with a warehouse must carry
 the SQL scope, with the spellings owned by the agent rather than repeated here.
 
@@ -50,7 +53,7 @@ A pass here is therefore "the model half of the wiring is present", not "the
 customer's first question will work". Saying so is the point; a check that
 implied the latter would be read as one and believed.
 
-THREE WAYS IN, ONE DECISION. `--registered` and `--mlmodel` read the policy with
+THREE WAYS IN, ONE JUDGEMENT. `--registered` and `--mlmodel` read the policy with
 MLflow's own reader, which is the only thing in this file that needs MLflow --
 lazily, so the third way needs nothing but the standard library. That matters:
 `bundle/run-checks.sh` runs every `bundle/*.test.sh` on a CI runner with no pip
@@ -58,7 +61,7 @@ install at all, on the stated ground that a dependency is a way for a gate to
 stop running for reasons unrelated to what it checks. So the suite beside this
 file proves every finding through `--auth-policy-json`, which takes the same
 mapping MLflow hands back, and the two MLflow doors are a thin call onto the same
-decision rather than a second copy of it.
+judgement rather than a second copy of it.
 
     bundle/model-user-auth-check.py --logged summary.json --registered
     bundle/model-user-auth-check.py --logged summary.json --mlmodel path/to/MLmodel
@@ -75,15 +78,24 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-AGENT = REPO / "agent"
+_SAMPLE_AGENT = REPO / "extensions" / "sample-neutral" / "agent"
+AGENT = _SAMPLE_AGENT if _SAMPLE_AGENT.is_dir() else REPO / "agent"
 
 EXIT_OK, EXIT_FINDING, EXIT_COULD_NOT_RUN = 0, 1, 2
+SYNTHETIC_USER_TOKEN = "identity-readiness-synthetic-token"
+OBO_NOT_WIRED = (
+    "OBO not wired: x-forwarded-access-token is not reaching the serving endpoint."
+)
 
 #: The environment variable `bundle/agent-release.sh` exports to say whether this
 #: release asked for user authorization. Read as a DEFAULT for --user-authorization
@@ -109,18 +121,22 @@ def load(name: str, path: Path):
         raise Unreadable(f"{path.name} could not be loaded")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    module_dir = str(path.parent)
-    added_module_dir = module_dir not in sys.path
-    if added_module_dir:
-        sys.path.insert(0, module_dir)
+    sibling_path = str(path.parent)
+    added_sibling_path = sibling_path not in sys.path
+    if added_sibling_path:
+        # A module loaded by filename does not gain its own directory on
+        # sys.path. Runtime modules import sibling files (for example SDK
+        # attribution), so the release check must load them the same way Python
+        # loads agent.py inside the packaged model.
+        sys.path.insert(0, sibling_path)
     try:
         spec.loader.exec_module(module)
     except Exception as exc:  # noqa: BLE001 - reported as 'could not run'
         del sys.modules[name]
         raise Unreadable(f"{path} could not be imported: {exc}") from exc
     finally:
-        if added_module_dir:
-            sys.path.remove(module_dir)
+        if added_sibling_path:
+            sys.path.remove(sibling_path)
     return module
 
 
@@ -213,6 +229,100 @@ def read_auth_policy_mlflow(source: str) -> dict[str, Any] | None:
     return as_policy(getattr(model, "auth_policy", None), f"the MLmodel at {source}")
 
 
+def observe_runtime_identity(result: Any = None, error: Any = None) -> str:
+    """What the serving probe actually met, from a body or an HTTP error.
+
+    `token_forwarded` is the synthetic-token success: Model Serving tried to
+    downscope junk and said `user_credentials`. `service_principal` is the
+    silent-SP failure the boot-time readiness check also names IDENTITY_*.
+    Envelope `execution_identity.mode` is not trusted as the runtime principal.
+    """
+    text = f"{error or ''}\n{result if isinstance(result, str) else json.dumps(result or '')}"
+    if re.search(
+        r"Unable to authenticate using user_credentials|model_serving_user_credentials",
+        text,
+        re.I,
+    ):
+        return "token_forwarded"
+    custom = result if isinstance(result, dict) else {}
+    nested = custom.get("custom_outputs") if isinstance(custom.get("custom_outputs"), dict) else custom
+    code = str((nested or {}).get("code") or "")
+    kind = str((nested or {}).get("type") or "")
+    message = str((nested or {}).get("message") or "")
+    combined = f"{message}\n{text}"
+    if kind == "unavailable" and code in {"IDENTITY_REQUIRED", "IDENTITY_MISMATCH"}:
+        return "service_principal"
+    if re.search(
+        r"without working user-authorization credential forwarding|"
+        r"no credential for the signed-in user|no invoker token",
+        combined,
+        re.I,
+    ):
+        return "service_principal"
+    identity = (nested or {}).get("execution_identity")
+    mode = identity.get("mode") if isinstance(identity, dict) else None
+    if mode == "signed_in_user":
+        return "signed_in_user"
+    if mode in {"service_principal", "assigned_service_principal"}:
+        return "service_principal"
+    return "unknown"
+
+
+def compare_serving_identity(observed: str, *, user_auth: bool) -> str:
+    """`ok`, `obo_not_wired`, `unverified`, or `skipped`."""
+    if not user_auth:
+        return "skipped"
+    if observed in {"signed_in_user", "token_forwarded"}:
+        return "ok"
+    if observed == "service_principal":
+        return "obo_not_wired"
+    return "unverified"
+
+
+def identity_probe_payload() -> dict[str, Any]:
+    return {
+        "input": [{"role": "user", "content": "identity readiness probe"}],
+        "custom_inputs": {
+            "identity_mode": "signed_in_user",
+            "expected_user": "readiness-probe@invalid.example",
+            "request_id": "identity-readiness-probe",
+        },
+    }
+
+
+def invoke_serving_probe(host: str, token: str, endpoint: str) -> dict[str, Any]:
+    """POST /serving-endpoints/{name}/invocations with a synthetic user token."""
+    base = host.rstrip("/")
+    url = f"{base}/serving-endpoints/{quote(endpoint, safe='')}/invocations"
+    body = json.dumps(identity_probe_payload()).encode("utf-8")
+    request = Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "x-forwarded-access-token": SYNTHETIC_USER_TOKEN,
+        },
+    )
+    try:
+        with urlopen(request, timeout=60) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+            try:
+                return {"result": json.loads(raw)}
+            except json.JSONDecodeError:
+                return {"result": raw}
+    except HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        try:
+            parsed: Any = json.loads(raw)
+        except json.JSONDecodeError:
+            parsed = raw
+        return {"error": parsed if parsed else str(exc), "status": exc.code}
+    except URLError as exc:
+        raise Unreadable(f"the serving endpoint {endpoint} could not be reached: {exc}") from exc
+
+
 def scopes_of(policy: dict[str, Any] | None) -> tuple[bool, list[str]]:
     """(a user_auth_policy is present, the scopes it declares).
 
@@ -243,13 +353,26 @@ def main(argv: list[str]) -> int:
         "--auth-policy-json",
         metavar="PATH",
         default=None,
-        help="a JSON MLmodel fragment: {\"auth_policy\": {...}}. Needs no mlflow.",
+        help='a JSON MLmodel fragment: {"auth_policy": {...}}. Needs no mlflow.',
     )
     ap.add_argument(
         "--user-authorization",
         metavar="RAW",
         default=os.environ.get(USER_AUTH_ENV),
         help=f"what this release set {USER_AUTH_ENV} to; defaults to that variable",
+    )
+    serving = ap.add_mutually_exclusive_group()
+    serving.add_argument(
+        "--serving-endpoint",
+        metavar="NAME",
+        default=None,
+        help="invoke the live endpoint with a synthetic user token (deploy-time OBO probe)",
+    )
+    serving.add_argument(
+        "--serving-probe-json",
+        metavar="PATH",
+        default=None,
+        help="fixture {result,error,status} for the serving probe; needs no workspace",
     )
     args = ap.parse_args(argv)
 
@@ -358,7 +481,7 @@ def main(argv: list[str]) -> int:
         )
 
     # A user policy with nothing beside it leaves a bare `WorkspaceClient()` --
-    # which is what the orchestrator's own model calls use -- with nothing to
+    # which is what the served Player Insights Agent model calls use -- with nothing to
     # resolve. `agent/user_authorization.py` says the two halves must agree or the
     # endpoint cannot authenticate at all; this is that sentence, enforced.
     if has_user_policy and not (policy or {}).get("system_auth_policy"):
@@ -375,7 +498,7 @@ def main(argv: list[str]) -> int:
         for finding in findings:
             print(f"  FAIL  {finding}")
         print()
-        caveats(args.registered)
+        caveats(args.registered, serving_checked=False)
         return EXIT_FINDING
 
     genie = [s for s in baked if "genie" in s]
@@ -389,11 +512,62 @@ def main(argv: list[str]) -> int:
         print(f"        SQL is reachable as the invoker ({', '.join(sorted(sql))})")
     print("        a system auth policy sits beside it, so a plain WorkspaceClient resolves")
     print()
-    caveats(args.registered)
+
+    serving_checked = bool(args.serving_endpoint or args.serving_probe_json)
+    if serving_checked:
+        serving_status = probe_serving(args)
+        if serving_status != EXIT_OK:
+            caveats(args.registered, serving_checked=True)
+            return serving_status
+
+    caveats(args.registered, serving_checked=serving_checked)
     return EXIT_OK
 
 
-def caveats(registered: bool) -> None:
+def probe_serving(args: argparse.Namespace) -> int:
+    """Deploy-time complement to the app's boot-time identity readiness check."""
+    if args.serving_probe_json:
+        try:
+            document = json.loads(Path(args.serving_probe_json).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"  COULD NOT RUN. the serving probe fixture is not readable JSON: {exc}")
+            print("  The endpoint's token forwarding is UNKNOWN, which is not a pass.")
+            return EXIT_COULD_NOT_RUN
+        if not isinstance(document, dict):
+            print("  COULD NOT RUN. the serving probe fixture is not a JSON object")
+            return EXIT_COULD_NOT_RUN
+        outcome = document
+    else:
+        host = (os.environ.get("DATABRICKS_HOST") or "").strip()
+        token = (os.environ.get("DATABRICKS_TOKEN") or "").strip()
+        if not host or not token:
+            print("  COULD NOT RUN. --serving-endpoint needs DATABRICKS_HOST and DATABRICKS_TOKEN.")
+            print("  The endpoint's token forwarding is UNKNOWN, which is not a pass.")
+            return EXIT_COULD_NOT_RUN
+        try:
+            outcome = invoke_serving_probe(host, token, args.serving_endpoint)
+        except Unreadable as exc:
+            print(f"  COULD NOT RUN. {exc}")
+            print("  The endpoint's token forwarding is UNKNOWN, which is not a pass.")
+            return EXIT_COULD_NOT_RUN
+
+    observed = observe_runtime_identity(result=outcome.get("result"), error=outcome.get("error"))
+    verdict = compare_serving_identity(observed, user_auth=True)
+    if verdict == "ok":
+        print(f"  ok    serving probe observed {observed}: the endpoint accepted a user token")
+        print("        (synthetic; Model Serving must try to downscope it)")
+        return EXIT_OK
+    if verdict == "obo_not_wired":
+        print(f"  FAIL  {OBO_NOT_WIRED} observed={observed}")
+        print("        The model expects SIGNED_IN_USER but the runtime is the service principal.")
+        print("        Recreate the serving endpoint with on-behalf-of-user forwarding enabled.")
+        return EXIT_FINDING
+    print(f"  FAIL  serving probe could not tell whether OBO is wired (observed={observed}).")
+    print("        Treat forwarding as unknown and do not ship this endpoint.")
+    return EXIT_FINDING
+
+
+def caveats(registered: bool, serving_checked: bool = False) -> None:
     """What this run did NOT establish, printed pass or fail.
 
     On the pass it stops the check being quoted as "on-behalf-of-user is
@@ -401,12 +575,17 @@ def caveats(registered: bool) -> None:
     the customer's question to work.
     """
     print("  NOT verified by this check, and not verifiable from a model version:")
-    print("   - whether the serving ENDPOINT was created with on-behalf-of-user")
-    print("     forwarding enabled. A version can carry the policy and still meet a")
-    print("     caller with no user credential to downscope.")
-    print("   - whether the calling application forwards the signed-in user's token")
-    print("     on /invocations. Without it the invoker is the app's own service")
-    print("     principal, which authenticates fine and is the wrong principal.")
+    if serving_checked:
+        print("   - whether the calling application forwards the signed-in user's token")
+        print("     on /invocations. The probe uses a synthetic token at deploy time;")
+        print("     the app still has to forward the real one at ask time.")
+    else:
+        print("   - whether the serving ENDPOINT was created with on-behalf-of-user")
+        print("     forwarding enabled. A version can carry the policy and still meet a")
+        print("     caller with no user credential to downscope.")
+        print("   - whether the calling application forwards the signed-in user's token")
+        print("     on /invocations. Without it the invoker is the app's own service")
+        print("     principal, which authenticates fine and is the wrong principal.")
     print("   - whether these scope strings are ones the platform recognises. MLflow")
     print("     does not validate them; a scope that does not exist registers cleanly")
     print("     and fails at serve time.")

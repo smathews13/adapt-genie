@@ -27,12 +27,16 @@ from preflight import (
     BUILD_SHA_VAR,
     DIRTY_SUFFIX,
     WideningCheckUnavailable,
+    genie_curated_tables,
     newly_granted_tables,
     resolve_build_stamp,
     resolve_declared_manifest,
     resolve_table_tags,
     widening_refusal,
 )
+from space_fingerprint import SPACE_FINGERPRINTS_KEY
+from space_fingerprint import dumps as dumps_space_fingerprints
+from space_fingerprint import records_from_genie
 from unattributed_figures import ALLOW_UNATTRIBUTED_FIGURES_ENV
 from unattributed_figures import MODEL_CONFIG_KEY as ALLOW_UNATTRIBUTED_KEY
 from unattributed_figures import announce as announce_waiver
@@ -82,6 +86,15 @@ mlflow.set_experiment(experiment)
 # short manifest produces an endpoint that advertises tables it cannot read.
 workspace = WorkspaceClient()
 manifest, manifest_notes = resolve_declared_manifest(settings, workspace)
+space_fingerprint_records = records_from_genie(settings, workspace, genie_curated_tables)
+space_fingerprints = dumps_space_fingerprints(space_fingerprint_records)
+if space_fingerprint_records:
+    print(
+        "Genie space fingerprints: "
+        + ", ".join(
+            f"{row['role']}={row['sha256'][:12]}" for row in space_fingerprint_records
+        )
+    )
 table_tags, table_tag_notes = resolve_table_tags(
     dataclasses.replace(settings, declared_manifest=manifest),
     workspace,
@@ -263,6 +276,7 @@ print(
             # In the machine-readable summary as well as in the announcement, so a
             # release record can be diffed rather than read.
             "evidence_gateway": allow_unattributed.mode,
+            SPACE_FINGERPRINTS_KEY: space_fingerprints,
         },
         indent=2,
     )
@@ -284,6 +298,7 @@ release_decisions = {
     # in its Databricks secret resource and never reaches this process.
     PUBLIC_KEY_CONFIG: os.environ.get(PUBLIC_KEY_ENV, "").strip(),
     AUDIENCE_CONFIG: os.environ.get(AUDIENCE_ENV, "").strip(),
+    SPACE_FINGERPRINTS_KEY: space_fingerprints,
 }
 
 # The serving container inherits none of this script's environment, so the

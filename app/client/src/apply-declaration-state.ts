@@ -3,7 +3,7 @@ import type { NotebookPanel } from './connection-model';
 import { notebookPathView } from './notebook-card-state';
 
 export function modelReleaseNotebookSnippet(release: ModelReleaseRequest, appUrl: string): string {
-  return `from apply_model_version import apply_model_version\n\napply_model_version(\n    request_id="${release.id}",\n    app_url="${appUrl}",\n    repo_root="/path/to/player-insights-agent",\n)`;
+  return `from apply_model_version import apply_model_version\n\napply_model_version(\n    request_id="${release.id}",\n    app_url="${appUrl}",\n    repo_root="/path/to/app",\n)`;
 }
 
 export function releaseVersionLine(release: ModelReleaseRequest): string {

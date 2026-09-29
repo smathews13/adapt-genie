@@ -303,7 +303,7 @@ describe('askStreaming', () => {
       persistence_status: 'not_stored',
       execution_identity: { mode: 'signed_in_user', verified: true },
       evidence: {
-        dependency: { kind: 'agent-endpoint', name: 'player-insights-agent' },
+        dependency: { kind: 'agent-endpoint', name: 'app' },
         status: 403,
         providerCode: 'PERMISSION_DENIED',
         providerMessage: 'The endpoint refused this request under the signed-in user\u2019s own credential.',
@@ -332,7 +332,7 @@ describe('askStreaming', () => {
     // And the error itself, which is the whole point.
     expect(refused.result.evidence?.status).toBe(403);
     expect(refused.result.evidence?.providerCode).toBe('PERMISSION_DENIED');
-    expect(refused.result.evidence?.dependency?.name).toBe('player-insights-agent');
+    expect(refused.result.evidence?.dependency?.name).toBe('app');
     expect(refused.result.execution_identity?.mode).toBe('signed_in_user');
     // Stages the user watched arrive are still counted, so the interface can
     // leave them on the timeline instead of implying the run never started.
@@ -454,7 +454,7 @@ describe('askStreaming', () => {
         last_verified_at: null,
         persistence_status: 'not_stored',
         evidence: {
-          dependency: { kind: 'agent-endpoint', name: 'player-insights-agent' },
+          dependency: { kind: 'agent-endpoint', name: 'app' },
           status: 503,
           providerCode: 'ENDPOINT_OVERLOADED',
           providerMessage: 'Served entity is currently scaling up and cannot accept requests.',
@@ -469,7 +469,7 @@ describe('askStreaming', () => {
     const notice = unavailableNoticeFor('ask', failure.result, { interactive: true });
 
     // What failed, by name, in the line a reader actually reads.
-    expect(notice.heading).toBe('Agent serving endpoint player-insights-agent did not respond');
+    expect(notice.heading).toBe('Agent serving endpoint app did not respond');
     // What it said, verbatim and in full.
     expect(notice.error).toBe(
       'HTTP 503 \u00b7 ENDPOINT_OVERLOADED \u00b7 Served entity is currently scaling up and cannot accept requests.'

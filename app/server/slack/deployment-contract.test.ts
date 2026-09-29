@@ -7,8 +7,8 @@ import { renderSlackSecretOverlay } from '../../../bundle/slack/apply-secret-ove
 const root = path.resolve(__dirname, '..', '..', '..');
 const bundle = fs.readFileSync(path.join(root, 'databricks.yml'), 'utf8');
 const appResource = fs.readFileSync(path.join(root, 'resources', 'adapt_app.app.yml'), 'utf8');
-const appYaml = fs.readFileSync(path.join(root, 'player-insights-agent', 'app.yaml'), 'utf8');
-const publicAppYaml = fs.readFileSync(path.join(root, 'player-insights-agent', 'build', 'deploy', 'app.yaml'), 'utf8');
+const appYaml = fs.readFileSync(path.join(root, 'app', 'app.yaml'), 'utf8');
+const publicAppYaml = fs.readFileSync(path.join(root, 'app', 'build', 'deploy', 'app.yaml'), 'utf8');
 const overlay = JSON.parse(
   fs.readFileSync(path.join(root, 'bundle', 'slack', 'secret-bindings.overlay.json'), 'utf8')
 ) as unknown;

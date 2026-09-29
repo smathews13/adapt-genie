@@ -18,7 +18,7 @@ CONTRACT = Path(
     os.environ.get("ADAPT_SCOPE_CONTRACT", REPO / "bundle" / "scope-contract.json")
 ).resolve()
 BUNDLE = REPO / "databricks.yml"
-PROBES = REPO / "player-insights-agent" / "server" / "lib" / "dependency-probes.ts"
+PROBES = REPO / "app" / "server" / "lib" / "dependency-probes.ts"
 USER_AUTH = REPO / "agent" / "user_authorization.py"
 
 EXIT_OK, EXIT_FINDING, EXIT_COULD_NOT_RUN = 0, 1, 2

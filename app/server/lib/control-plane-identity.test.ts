@@ -12,7 +12,7 @@ import { APPS_PATH } from './app-metadata';
 
 const INPUT = {
   email: 'sam.mathews@databricks.com',
-  appName: 'player-insights-agent',
+  appName: 'app',
   workspaceHost: 'https://dbc-example.cloud.databricks.com',
 };
 
@@ -38,7 +38,7 @@ function completeReader(calls: string[] = []): ControlPlaneReader {
     if (path === `${APPS_PATH}/${INPUT.appName}`) {
       return Promise.resolve({
         name: INPUT.appName,
-        url: 'https://player-insights-agent-7474656585748611.aws.databricksapps.com',
+        url: 'https://app-7474656585748611.aws.databricksapps.com',
         service_principal_name: 'ADAPT application',
         service_principal_client_id: 'abcdefab-0000-4000-8000-000000000000',
         service_principal_id: '9988776655443322',
@@ -53,7 +53,7 @@ function completeReader(calls: string[] = []): ControlPlaneReader {
           },
           {
             name: 'serving-endpoint',
-            serving_endpoint: { name: 'player-insights-agent', permission: 'CAN_QUERY' },
+            serving_endpoint: { name: 'app', permission: 'CAN_QUERY' },
           },
           {
             name: 'sql-warehouse',
@@ -73,7 +73,7 @@ function readerWithResources(resources: unknown): ControlPlaneReader {
   return (path, query) => {
     if (path !== `${APPS_PATH}/${INPUT.appName}`) return base(path, query);
     return Promise.resolve({
-      url: 'https://player-insights-agent-7474656585748611.aws.databricksapps.com',
+      url: 'https://app-7474656585748611.aws.databricksapps.com',
       service_principal_name: 'ADAPT application',
       service_principal_client_id: 'abcdefab-0000-4000-8000-000000000000',
       service_principal_id: '9988776655443322',
@@ -115,7 +115,7 @@ describe('Databricks control-plane identity metadata', () => {
           {
             resourceKey: 'serving-endpoint',
             resourceType: 'serving_endpoint',
-            displayIdentifier: 'player-insights-agent',
+            displayIdentifier: 'app',
             permission: 'CAN_QUERY',
           },
           {

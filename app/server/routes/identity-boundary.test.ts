@@ -382,7 +382,7 @@ describe('a deployed app with a forwarded identity', () => {
       client: process.env.DATABRICKS_CLIENT_ID,
     };
     process.env.DATABRICKS_HOST = 'https://dbc-example.cloud.databricks.com';
-    process.env.DATABRICKS_APP_NAME = 'player-insights-agent';
+    process.env.DATABRICKS_APP_NAME = 'app';
     process.env.DATABRICKS_CLIENT_ID = '071769f1-5623-45b6-a172-c8b0060adf31';
     const reader: ControlPlaneReader = (path) => {
       if (path === SCIM_USERS_PATH) {
@@ -391,7 +391,7 @@ describe('a deployed app with a forwarded identity', () => {
         });
       }
       return Promise.resolve({
-        url: 'https://player-insights-agent-7474656585748611.aws.databricksapps.com',
+        url: 'https://app-7474656585748611.aws.databricksapps.com',
         service_principal_name: 'ADAPT application',
         service_principal_client_id: process.env.DATABRICKS_CLIENT_ID,
         service_principal_id: '9988776655443322',
@@ -406,7 +406,7 @@ describe('a deployed app with a forwarded identity', () => {
           },
           {
             name: 'serving-endpoint',
-            serving_endpoint: { name: 'player-insights-agent', permission: 'CAN_QUERY' },
+            serving_endpoint: { name: 'app', permission: 'CAN_QUERY' },
           },
           {
             name: 'sql-warehouse',
@@ -425,7 +425,7 @@ describe('a deployed app with a forwarded identity', () => {
         user: { displayName: 'CMEG Analyst', objectId: '1122334455667788', state: 'verified' },
         app: {
           displayName: 'ADAPT',
-          resourceName: 'player-insights-agent',
+          resourceName: 'app',
           workspaceHost: process.env.DATABRICKS_HOST,
           workspaceId: '7474656585748611',
         },
@@ -444,7 +444,7 @@ describe('a deployed app with a forwarded identity', () => {
             {
               resourceKey: 'serving-endpoint',
               resourceType: 'serving_endpoint',
-              displayIdentifier: 'player-insights-agent',
+              displayIdentifier: 'app',
               permission: 'CAN_QUERY',
             },
             {

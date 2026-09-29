@@ -41,8 +41,8 @@ function endpoint(): HealthDependency {
     id: 'agent-endpoint',
     kind: 'serving-endpoint',
     connectionsId: 'agent-endpoint',
-    label: 'Orchestrator serving endpoint \u00b7 player-insights-agent',
-    name: 'player-insights-agent',
+    label: 'Orchestrator serving endpoint \u00b7 app',
+    name: 'app',
     result: 'answered',
     lastCheckedAt: CHECKED_AT,
     reason: '',
@@ -113,8 +113,8 @@ describe('declared tables in the Health resource list', () => {
 
     const serving = rows.find((row) => row.id === 'agent-endpoint');
     expect(serving).toMatchObject({
-      label: 'Orchestrator serving endpoint \u00b7 player-insights-agent',
-      name: 'player-insights-agent',
+      label: 'Orchestrator serving endpoint \u00b7 app',
+      name: 'app',
       connectionsId: 'agent-endpoint',
       pill: { label: 'Serving endpoint', value: 'Connected' },
     });

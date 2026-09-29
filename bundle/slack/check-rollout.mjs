@@ -85,12 +85,12 @@ export async function slackRolloutFindings({ root, target, evidencePath }) {
     overrides,
   ] = await Promise.all([
     text(path.join(root, "resources", "adapt_app.app.yml")),
-    text(path.join(root, "player-insights-agent", "app.yaml")),
-    text(path.join(root, "player-insights-agent", "server", "server.ts")),
+    text(path.join(root, "app", "app.yaml")),
+    text(path.join(root, "app", "server", "server.ts")),
     text(
       path.join(
         root,
-        "player-insights-agent",
+        "app",
         "server",
         "slack",
         "socket-mode-adapter.ts",
@@ -99,7 +99,7 @@ export async function slackRolloutFindings({ root, target, evidencePath }) {
     text(
       path.join(
         root,
-        "player-insights-agent",
+        "app",
         "server",
         "slack",
         "message-client.ts",

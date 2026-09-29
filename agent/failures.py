@@ -28,6 +28,8 @@ and counted, and they reach a user only through the terminal code they map to.
 Anything here that ever needs to be a request's terminal outcome must be added to
 the shared file first, which is where the meaning gets agreed.
 
+Operator fixes for each user-facing code: `docs/refusal-remedies.md`.
+
 THE CONVERSE IS NOT TRUE, and `APP_ONLY_CODES` is where that is written down: the
 shared file holds codes this agent cannot reach, so "every shared code appears in
 `TERMINAL_CODES`" is the wrong pin and would be satisfied by making this module's

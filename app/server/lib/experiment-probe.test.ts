@@ -31,12 +31,12 @@ describe('the experiment is read as the application', () => {
   it('passes when the workspace answers, naming the experiment it found', () => {
     const check = experimentVerdict({
       experimentId: '1999001141553187',
-      read: { kind: 'ok', body: { experiment: { name: '/Shared/player-insights-agent', lifecycle_stage: 'active' } } },
+      read: { kind: 'ok', body: { experiment: { name: '/Shared/app', lifecycle_stage: 'active' } } },
     });
 
     expect(check?.status).toBe('ok');
-    expect(check?.display_name).toBe('/Shared/player-insights-agent');
-    expect(check?.detail).toContain('/Shared/player-insights-agent');
+    expect(check?.display_name).toBe('/Shared/app');
+    expect(check?.detail).toContain('/Shared/app');
     expect(check?.detail).toContain('active');
   });
 

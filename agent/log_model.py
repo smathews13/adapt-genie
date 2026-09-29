@@ -23,6 +23,7 @@ from config import (
 )
 from genie_capability import AUDIENCE_CONFIG, AUDIENCE_ENV, PUBLIC_KEY_CONFIG, PUBLIC_KEY_ENV
 from host_metadata_probe import bound as bound_host_metadata_probe
+from register_uc_model_version import register_logged_model_as_version
 from preflight import (
     BUILD_SHA_VAR,
     DIRTY_SUFFIX,
@@ -91,9 +92,7 @@ space_fingerprints = dumps_space_fingerprints(space_fingerprint_records)
 if space_fingerprint_records:
     print(
         "Genie space fingerprints: "
-        + ", ".join(
-            f"{row['role']}={row['sha256'][:12]}" for row in space_fingerprint_records
-        )
+        + ", ".join(f"{row['role']}={row['sha256'][:12]}" for row in space_fingerprint_records)
     )
 table_tags, table_tag_notes = resolve_table_tags(
     dataclasses.replace(settings, declared_manifest=manifest),
@@ -332,6 +331,9 @@ with mlflow.start_run(run_name="log_adapt_orchestrator"):
             # absence indistinguishable from any other import error.
             str(ROOT / "evidence.py"),
             str(ROOT / "failures.py"),
+            # tools.py imports this at module scope. A version logged without it
+            # fails to LOAD in the serving container.
+            str(ROOT / "generated_answer_contract.py"),
             str(ROOT / "genie_capability.py"),
             str(ROOT / "genie_mcp.py"),
             # Stable operating guidance travels with the artifact. The payload
@@ -360,7 +362,6 @@ with mlflow.start_run(run_name="log_adapt_orchestrator"):
             str(ROOT / "user_authorization.py"),
         ],
         **authorization,
-        registered_model_name=model_name,
         input_example={
             "input": [
                 {
@@ -411,14 +412,11 @@ with mlflow.start_run(run_name="log_adapt_orchestrator"):
 #
 # Reading it back: Unity Catalog omits `aliases` from GetRegisteredModel unless
 # include_aliases=true, so a plain `registered-models get` reports none.
-version = model_info.registered_model_version
-if version is None:
-    raise RuntimeError(
-        f"log_model did not register a version of {model_name}; refusing to move the "
-        "'prod' alias, because the alias would then point at some earlier run's version."
-    )
-version = str(version)
+# Register as a new version of the existing UC model. Passing
+# registered_model_name into log_model always create_registered_model first,
+# which a full metastore rejects even when this name already exists.
 client = MlflowClient(registry_uri="databricks-uc")
+version = register_logged_model_as_version(client, name=model_name, model_info=model_info)
 client.set_registered_model_alias(model_name, "prod", version)
 print(
     json.dumps(
@@ -432,6 +430,7 @@ print(
             "api_scopes": list(scopes),
             "model_uri": model_info.model_uri,
             "experiment": experiment,
+            SPACE_FINGERPRINTS_KEY: space_fingerprints,
         }
     )
 )

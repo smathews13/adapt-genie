@@ -366,7 +366,7 @@ beforeEach(() => {
   // Without this the app never calls the transport at all, falls back to
   // representative data, and every case below would pass or fail for the wrong
   // reason.
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
   process.env.DATABRICKS_APP_NAME = 'adapt';
   for (const key of RELEASE_ENV_KEYS) {
     releaseEnv[key] = process.env[key];

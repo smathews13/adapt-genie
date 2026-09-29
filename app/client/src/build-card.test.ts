@@ -181,7 +181,7 @@ describe('the two columns of the card', () => {
     deployedBy: 'someone@example.com',
     otelExporter: 'http://localhost:4314',
     source: {
-      path: '/Workspace/Users/someone/player-insights-agent-real-src',
+      path: '/Workspace/Users/someone/app-real-src',
       workspaceUrl: 'https://workspace.example.com/browse/folders/1999001141571163?o=1234567890',
       gitRef: 'main',
     },

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,6 +31,7 @@ import sdk_attribution
 from config import Settings, format_genie_space
 from evidence import EvidenceGateway, EvidenceRefused, Verdict
 from preflight import FRANCHISE_TAG_KEY
+from generated_answer_contract import ANSWER_CONTRACT_FIELDS as ANSWER_WIRE_FIELDS
 
 # The SQL guard lives in `sql_policy` so the evidence gateway can be built on the
 # SAME objects rather than on a second policy that resembles them. Re-exported
@@ -2454,3 +2455,9 @@ LIST_DATA_ASSETS_TOOL = {
         },
     },
 }
+
+
+def unknown_answer_fields(payload: Mapping[str, Any]) -> list[str]:
+    """Names on an answer dict that are not AnswerContract wire fields."""
+
+    return sorted(key for key in payload if key not in ANSWER_WIRE_FIELDS)

@@ -162,7 +162,7 @@ This command is not part of Deploy from Git. A Git update runs no bundle deploy,
 agent release, app-release wrapper, resource reconciliation, or model log.
 
 ```bash
-cd player-insights-agent
+cd app
 TARGET=<target> PROFILE=<your-profile> npm run deploy
 ```
 

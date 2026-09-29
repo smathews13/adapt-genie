@@ -171,7 +171,7 @@ beforeEach(() => {
   endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
   // Without one, `invokeServing` throws before the transport is reached and
   // every assertion about what the endpoint was told passes vacuously.
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
   // The deployed app is the subject. Every rule here is relaxed on a laptop,
   // where there is no proxy to forward a token and no user to be.
   process.env.NODE_ENV = 'production';

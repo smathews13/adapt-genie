@@ -48,7 +48,7 @@ function endpointSubjects(configured: Record<string, string>) {
 function asDeployed() {
   const states = resourceStates({
     report: null,
-    environment: { DATABRICKS_SERVING_ENDPOINT_NAME: 'player-insights-agent' },
+    environment: { DATABRICKS_SERVING_ENDPOINT_NAME: 'app' },
     stored: new Map(),
   });
   return Object.fromEntries(states.map((state) => [state.resource.id, state.configured]));

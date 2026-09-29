@@ -24,8 +24,8 @@ const summary: TagSummary = {
   results: [
     {
       kind: 'serving-endpoint',
-      name: 'player-insights-agent-with-an-intentionally-long-identifier',
-      label: 'Orchestrator serving endpoint · player-insights-agent-with-an-intentionally-long-identifier',
+      name: 'app-with-an-intentionally-long-identifier',
+      label: 'Orchestrator serving endpoint · app-with-an-intentionally-long-identifier',
       support: 'supported',
       billingAttribution: true,
       status: 'permission-required',
@@ -74,7 +74,7 @@ describe('compact Resource Tags results', () => {
     expect(markup.indexOf('The signed-in administrator needs CAN_MANAGE')).toBeLessThan(
       markup.indexOf('PERMISSION_DENIED')
     );
-    expect(markup).toContain('title="player-insights-agent-with-an-intentionally-long-identifier"');
+    expect(markup).toContain('title="app-with-an-intentionally-long-identifier"');
     expect(actionableResourceTagResults(summary.results).map((result) => result.kind)).toEqual(['serving-endpoint']);
     expect(markup).not.toContain('catalog.schema.index');
     expect(markup).not.toContain('Data Genie space');

@@ -9,6 +9,7 @@ schema returned by that server.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -23,6 +24,17 @@ SQL_KEYS = {"sql", "query", "generated_sql", "statement"}
 COLUMN_KEYS = {"columns", "column_names"}
 ID_FIELDS = ("conversation_id", "message_id", "response_id", "request_id", "id")
 MAX_RESULT_CHARS = 40_000
+
+
+def _diagnostics_enabled() -> bool:
+    return os.getenv("ADAPT_GENIE_MCP_DIAGNOSTICS", "").strip().lower() in {"1", "true", "yes"}
+
+
+def _diagnose(event: str, **fields: Any) -> None:
+    if not _diagnostics_enabled():
+        return
+    safe = {key: value for key, value in fields.items() if key not in {"payload", "arguments", "token", "key"}}
+    print(f"[genie-mcp] {event} {safe}", flush=True)
 
 
 @dataclass(frozen=True)
@@ -257,12 +269,14 @@ def invoke_managed_genie(
     client = client_factory(server_url=server_url, workspace_client=workspace_client)
     tools = list(client.list_tools())
     names = tuple(_tool_name(tool) for tool in tools if _tool_name(tool))
+    _diagnose("discovered", tools=list(names), space_id=space_id)
     ask = _select(tools, ASK_TOOL_NAMES, polling=False)
     if ask is None:
         raise RuntimeError(f"Managed Genie MCP exposed no query tool; discovered: {list(names)}.")
 
     called = [_tool_name(ask)]
     result = client.call_tool(_tool_name(ask), _question_arguments(ask, question))
+    _diagnose("ask", tool=_tool_name(ask), status=status_of(result))
     deadline = time.monotonic() + max(0.0, timeout_seconds)
     while True:
         status = status_of(result)
@@ -286,3 +300,4 @@ def invoke_managed_genie(
         sleep(min(0.5, max(0.0, deadline - time.monotonic())))
         called.append(_tool_name(poll))
         result = client.call_tool(_tool_name(poll), _poll_arguments(poll, result))
+        _diagnose("poll", tool=_tool_name(poll), status=status_of(result))

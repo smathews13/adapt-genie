@@ -3,40 +3,29 @@
 This is an operator checklist, not evidence that external resources exist.
 Replace every `REQUIRED` placeholder outside Git.
 
-## Customer-supplied runtime values
+## Customer-facing checklist
 
-The customer supplies only the technical values below. Named business,
-security, incident, or release owners and ticket numbers are not required by
-the rollout checker.
+ADAPT uses per-user Databricks authorization for Slack so each linked user keeps
+their own Unity Catalog permissions. The customer is asked only to:
 
-- **Slack workspace/team ID** — Find it in the Slack administration workspace
-  details, or call Slack's `auth.test` API after installing the bot and use the
-  returned `team_id`. Example: `T012ABC34DE`.
-- **Production Slack app registration ID** — Open the production app at
-  `api.slack.com/apps`, choose **Basic Information**, and copy **App ID**.
-  Example: `A012ABC34DE`. The development and production IDs must differ.
-- **Slack secrets** — In the same Slack app, create the app-level token under
-  **Basic Information → App-Level Tokens** with `connections:write`; copy the
-  bot token from **OAuth & Permissions** after installation; and copy the
-  client and signing secrets from **Basic Information → App Credentials**.
-  Store all four directly in a Databricks secret scope—never in Git or rollout
-  evidence. Example scope/key names: `adapt-slack-prod/app-token`,
-  `adapt-slack-prod/bot-token`, `adapt-slack-prod/client-secret`, and
-  `adapt-slack-prod/signing-secret`.
-- **Databricks workspace URL** — Copy the URL from the target workspace browser
-  address. Example: `https://dbc-12345678-abcd.cloud.databricks.com`.
-- **Databricks App URL** — Open **Compute → Apps → ADAPT** after the app exists
-  and copy its URL. Example:
-  `https://adapt-1234567890123456.aws.databricksapps.com`.
-- **OAuth client ID and expected audience** — Copy these from the Databricks
-  OAuth application/connection created for ADAPT. Example client ID:
-  `12345678-abcd-1234-abcd-1234567890ab`; example audience: the target
-  workspace URL above. Register the callback as
-  `<ADAPT app URL>/api/slack/oauth/callback`.
-- **Token-broker endpoint/reference** — This is not available in Slack or
-  Databricks by default. The implementation team supplies it after deploying
-  the approved delegated-token broker. Example:
-  `https://token-broker.company.example/adapt`.
+- **Install or authorize the custom Slack app** in the target workspace.
+- **Store the Socket Mode app token and bot token** through the agreed secure
+  secret-sharing path. The app token is created under **Basic Information →
+  App-Level Tokens** with `connections:write` and has the `xapp…` format. The
+  bot token appears under **OAuth & Permissions** after installation and has
+  the `xoxb…` format.
+- **Confirm Socket Mode is allowed** and enabled under **Settings → Socket
+  Mode**. ADAPT does not use Events API HTTP delivery for this deployment.
+- **Ensure each Slack pilot user has a Databricks identity and the required
+  Genie and Unity Catalog access**, then let each user complete ADAPT's one-time
+  sign-in/linking flow from Slack.
+
+Do not ask the customer to manually provide Slack Team ID, Slack App ID, Slack
+client secret, Slack signing secret, Databricks workspace/App URLs, Databricks
+OAuth client ID or audience, secret-scope names, or a token-broker reference.
+The implementation team discovers or provisions those as deployment details.
+The delegated-token broker remains required for per-user OBO, but it is an
+implementation dependency, not a customer input.
 
 ## Configure
 
@@ -52,8 +41,8 @@ the rollout checker.
    ```
 
    Review and commit that generic overlay only on the private deployment branch.
-   It adds no values: it declares four required bundle variables, four App secret
-   resources, and four `valueFrom` bindings. Default/main remains deployable
+   It adds no values: it declares one scope plus two key variables, two App
+   secret resources, and two `valueFrom` bindings. Default/main remains deployable
    without any Slack scope or key.
 
 2. Review `development.manifest.json` and `t2-production.manifest.json`, plus
@@ -64,10 +53,12 @@ the rollout checker.
    and nonce is verified from the broker's exchanged-token proof rather than a
    callback query parameter.
 3. Create separate Slack registrations through approved T2 administration.
-4. Put customer values and the overlay's required secret **scope/key names** only in
+4. Put implementation-managed runtime values and the overlay's required app/bot
+   token **scope/key names** only in
    `.databricks/bundle/<target>/variable-overrides.json` (gitignored).
-5. Put app/bot/client/signing secret values only in the target's Databricks
-   secret scope. Never place values in variables, shell history, or this folder.
+5. Put the app and bot token values only in the target's Databricks secret scope.
+   Never place values in variables, shell history, or this folder. Socket Mode
+   with manual installation does not require a Slack client or signing secret.
 6. Copy `rollout-evidence.template.json` outside the repository, replace every
    placeholder with implementation and protocol-review evidence, then run:
 

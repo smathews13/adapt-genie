@@ -22,12 +22,7 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
         recursive: true,
       }),
     ]);
-    const resources = [
-      "slack-app-token",
-      "slack-bot-token",
-      "slack-client-secret",
-      "slack-signing-secret",
-    ];
+    const resources = ["slack-app-token", "slack-bot-token"];
     await Promise.all([
       writeFile(
         path.join(root, "resources", "adapt_app.app.yml"),

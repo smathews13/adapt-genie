@@ -13,6 +13,7 @@ const overlay = JSON.parse(
   fs.readFileSync(path.join(root, 'bundle', 'slack', 'secret-bindings.overlay.json'), 'utf8')
 ) as unknown;
 const secretResources = ['slack-app-token', 'slack-bot-token', 'slack-client-secret', 'slack-signing-secret'];
+const overlayResources = ['slack-app-token', 'slack-bot-token'];
 
 describe('Slack deployment contract', () => {
   it('authors only disabled, kill-switched, customer-neutral defaults', () => {
@@ -56,12 +57,14 @@ describe('Slack deployment contract', () => {
     }
   });
 
-  it('adds all four resource/valueFrom bindings only through the reviewed overlay', () => {
+  it('adds only the two Socket Mode resource/valueFrom bindings through the reviewed overlay', () => {
     const merged = renderSlackSecretOverlay({ databricks: bundle, appResource, appYaml, overlay });
-    for (const resource of secretResources) {
+    for (const resource of overlayResources) {
       expect(merged.appResource).toContain(`- name: ${resource}`);
       expect(merged.appYaml).toContain(`valueFrom: ${resource}`);
     }
+    expect(merged.appResource).not.toContain('- name: slack-client-secret');
+    expect(merged.appResource).not.toContain('- name: slack-signing-secret');
     expect(merged.databricks).toMatch(/^\s{2}slack_secret_scope:/m);
     expect(merged.appYaml).toContain("name: SLACK_ADAPTER_APP_TOKEN_SECRET_REF\n    value: 'SLACK_ADAPTER_APP_TOKEN'");
     expect(() =>

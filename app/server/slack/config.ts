@@ -18,8 +18,6 @@ export interface SlackRuntimeConfig {
   tokenBrokerRef: string;
   appTokenSecretRef: string;
   botTokenSecretRef: string;
-  clientSecretRef: string;
-  signingSecretRef: string;
   registrationId: string;
   testRegistrationId: string;
   productionRegistrationId: string;
@@ -69,8 +67,6 @@ const RuntimeSchema = z.strictObject({
   tokenBrokerRef: z.string().trim().min(1).max(256),
   appTokenSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   botTokenSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
-  clientSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
-  signingSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   testRegistrationId: z.string().trim().min(1).max(128),
   productionRegistrationId: z.string().trim().min(1).max(128),
   globalConcurrency: PositiveInt.max(100),
@@ -129,8 +125,6 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
     tokenBrokerRef: text(env, 'SLACK_ADAPTER_TOKEN_BROKER_REF'),
     appTokenSecretRef: text(env, 'SLACK_ADAPTER_APP_TOKEN_SECRET_REF'),
     botTokenSecretRef: text(env, 'SLACK_ADAPTER_BOT_TOKEN_SECRET_REF'),
-    clientSecretRef: text(env, 'SLACK_ADAPTER_CLIENT_SECRET_REF'),
-    signingSecretRef: text(env, 'SLACK_ADAPTER_SIGNING_SECRET_REF'),
     testRegistrationId: text(env, 'SLACK_ADAPTER_TEST_REGISTRATION_ID'),
     productionRegistrationId: text(env, 'SLACK_ADAPTER_PRODUCTION_REGISTRATION_ID'),
     globalConcurrency: text(env, 'SLACK_ADAPTER_GLOBAL_CONCURRENCY'),
@@ -177,8 +171,6 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
       tokenBrokerRef: parsed.data.tokenBrokerRef,
       appTokenSecretRef: parsed.data.appTokenSecretRef,
       botTokenSecretRef: parsed.data.botTokenSecretRef,
-      clientSecretRef: parsed.data.clientSecretRef,
-      signingSecretRef: parsed.data.signingSecretRef,
       registrationId,
       testRegistrationId: parsed.data.testRegistrationId,
       productionRegistrationId: parsed.data.productionRegistrationId,

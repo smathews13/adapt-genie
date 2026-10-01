@@ -49,8 +49,6 @@ const config: SlackRuntimeConfig = {
   tokenBrokerRef: 'broker-registration',
   appTokenSecretRef: 'APP_TOKEN',
   botTokenSecretRef: 'BOT_TOKEN',
-  clientSecretRef: 'CLIENT_SECRET',
-  signingSecretRef: 'SIGNING_SECRET',
   registrationId: 'registration-1',
   testRegistrationId: 'registration-1',
   productionRegistrationId: 'registration-2',

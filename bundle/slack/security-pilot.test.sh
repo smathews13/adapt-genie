@@ -58,8 +58,14 @@ for resource in slack-app-token slack-bot-token slack-client-secret slack-signin
     echo "default/public app unexpectedly binds $resource" >&2
     exit 1
   fi
+done
+for resource in slack-app-token slack-bot-token; do
   grep -q "\"name\": \"$resource\"" "$OVERLAY"
 done
+if grep -Eq '"name": "slack-(client|signing)-secret"' "$OVERLAY"; then
+  echo "Socket Mode overlay unexpectedly requires unused Slack HTTP/OAuth secrets" >&2
+  exit 1
+fi
 if grep -Eq '^  slack_(secret_scope|(app|bot)_token_secret_key|(client|signing)_secret_key):' "$ROOT/databricks.yml"; then
   echo "default databricks.yml unexpectedly declares Slack secret variables" >&2
   exit 1

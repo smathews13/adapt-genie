@@ -27,16 +27,9 @@ export const REQUIRED_TARGET_VALUES = [
   "slack_secret_scope",
   "slack_app_token_secret_key",
   "slack_bot_token_secret_key",
-  "slack_client_secret_key",
-  "slack_signing_secret_key",
 ];
 
-const SECRET_RESOURCES = [
-  "slack-app-token",
-  "slack-bot-token",
-  "slack-client-secret",
-  "slack-signing-secret",
-];
+const SECRET_RESOURCES = ["slack-app-token", "slack-bot-token"];
 
 async function text(file) {
   try {

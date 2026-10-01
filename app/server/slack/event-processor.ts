@@ -367,6 +367,7 @@ export function createDefaultSlackEventProcessor(
       readSlackInstallation(dependencies.store, {
         environment: dependencies.config.environment,
         workspaceHash: event.workspaceHash,
+        registrationId: dependencies.config.registrationId,
       }),
       readSlackUserLink(dependencies.store, {
         environment: dependencies.config.environment,

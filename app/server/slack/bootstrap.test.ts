@@ -18,6 +18,7 @@ const config: SlackRuntimeConfig = {
   oauthCallbackUrl: 'https://adapt.example/api/slack/oauth/callback',
   publicBaseUrl: 'https://adapt.example',
   tokenBrokerRef: 'broker-registration',
+  brokerEncryptionKeyRef: 'BROKER_KEY',
   appTokenSecretRef: 'APP_TOKEN',
   botTokenSecretRef: 'BOT_TOKEN',
   registrationId: 'test-registration',
@@ -152,12 +153,13 @@ describe('Slack adapter bootstrap', () => {
         ),
       },
     };
+    const acknowledge = vi.fn().mockResolvedValue(undefined);
     const socket: SocketConnection = {
       start: vi.fn().mockImplementation((value: Parameters<SocketConnection['start']>[0]) => {
         handlers = value;
         return Promise.resolve();
       }),
-      acknowledge: vi.fn().mockResolvedValue(undefined),
+      acknowledge,
       stop: vi.fn().mockResolvedValue(undefined),
     };
     const process = vi.fn();
@@ -169,21 +171,25 @@ describe('Slack adapter bootstrap', () => {
     });
     await expect(bootstrap.start()).resolves.toEqual({ ready: true, reason: 'running' });
     killSwitch = true;
-    await handlers?.onEnvelope({
-      id: 'Ev01',
-      payload: {
-        team_id: 'TALLOWED',
-        event_id: 'Ev01',
-        event: {
-          type: 'message',
-          channel_type: 'im',
-          user: 'U01',
-          channel: 'D01',
-          ts: '123.456',
-          text: 'must not run',
+    if (!handlers) throw new Error('socket handlers were not installed');
+    await expect(
+      handlers.onEnvelope({
+        id: 'Ev01',
+        payload: {
+          team_id: 'TALLOWED',
+          event_id: 'Ev01',
+          event: {
+            type: 'message',
+            channel_type: 'im',
+            user: 'U01',
+            channel: 'D01',
+            ts: '123.456',
+            text: 'must not run',
+          },
         },
-      },
-    });
+      })
+    ).rejects.toThrow('kill switch');
+    expect(acknowledge).not.toHaveBeenCalled();
     expect(process).not.toHaveBeenCalled();
     expect(bootstrap.readiness()).toEqual({ ready: false, reason: 'kill_switch' });
   });

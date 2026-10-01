@@ -26,6 +26,7 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
       "slack-app-token",
       "slack-bot-token",
       "slack-oauth-client-secret",
+      "slack-broker-encryption-key",
     ];
     await Promise.all([
       writeFile(

@@ -17,6 +17,7 @@ export interface SlackRuntimeConfig {
   oauthCallbackUrl: string;
   publicBaseUrl: string;
   tokenBrokerRef: string;
+  brokerEncryptionKeyRef: string;
   appTokenSecretRef: string;
   botTokenSecretRef: string;
   registrationId: string;
@@ -67,6 +68,7 @@ const RuntimeSchema = z.strictObject({
     .url()
     .refine((value) => new URL(value).protocol === 'https:'),
   tokenBrokerRef: z.string().trim().min(1).max(256),
+  brokerEncryptionKeyRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   appTokenSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   botTokenSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   testRegistrationId: z.string().trim().min(1).max(128),
@@ -126,6 +128,7 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
     oauthCallbackUrl: text(env, 'SLACK_ADAPTER_OAUTH_CALLBACK_URL'),
     publicBaseUrl: text(env, 'SLACK_ADAPTER_PUBLIC_BASE_URL'),
     tokenBrokerRef: text(env, 'SLACK_ADAPTER_TOKEN_BROKER_REF'),
+    brokerEncryptionKeyRef: text(env, 'SLACK_ADAPTER_BROKER_ENCRYPTION_KEY_REF'),
     appTokenSecretRef: text(env, 'SLACK_ADAPTER_APP_TOKEN_SECRET_REF'),
     botTokenSecretRef: text(env, 'SLACK_ADAPTER_BOT_TOKEN_SECRET_REF'),
     testRegistrationId: text(env, 'SLACK_ADAPTER_TEST_REGISTRATION_ID'),
@@ -173,6 +176,7 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
       oauthCallbackUrl: parsed.data.oauthCallbackUrl,
       publicBaseUrl: parsed.data.publicBaseUrl,
       tokenBrokerRef: parsed.data.tokenBrokerRef,
+      brokerEncryptionKeyRef: parsed.data.brokerEncryptionKeyRef,
       appTokenSecretRef: parsed.data.appTokenSecretRef,
       botTokenSecretRef: parsed.data.botTokenSecretRef,
       registrationId,

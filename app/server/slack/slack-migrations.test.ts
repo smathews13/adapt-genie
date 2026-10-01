@@ -74,6 +74,8 @@ describe('Slack append-only migrations', () => {
     const ddl = migration?.statements.join('\n') ?? '';
     expect(migration?.name).toBe('durable slack oauth intents');
     expect(ddl).toContain('CREATE TABLE IF NOT EXISTS player_insights.slack_link_intents');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS player_insights.slack_broker_secrets');
+    expect(ddl).toContain('ciphertext');
     expect(ddl).toContain('verifier_ref_fingerprint');
     expect(ddl).toContain('slack_link_intents_expires_idx');
     expect(ddl).not.toMatch(/\b(code_verifier|oauth_code|access_token|refresh_token|raw_token)\b/i);

@@ -28,12 +28,14 @@ export const REQUIRED_TARGET_VALUES = [
   "slack_app_token_secret_key",
   "slack_bot_token_secret_key",
   "slack_oauth_client_secret_key",
+  "slack_broker_encryption_key_secret_key",
 ];
 
 const SECRET_RESOURCES = [
   "slack-app-token",
   "slack-bot-token",
   "slack-oauth-client-secret",
+  "slack-broker-encryption-key",
 ];
 
 async function text(file) {

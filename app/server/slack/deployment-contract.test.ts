@@ -16,10 +16,16 @@ const secretResources = [
   'slack-app-token',
   'slack-bot-token',
   'slack-oauth-client-secret',
+  'slack-broker-encryption-key',
   'slack-client-secret',
   'slack-signing-secret',
 ];
-const overlayResources = ['slack-app-token', 'slack-bot-token', 'slack-oauth-client-secret'];
+const overlayResources = [
+  'slack-app-token',
+  'slack-bot-token',
+  'slack-oauth-client-secret',
+  'slack-broker-encryption-key',
+];
 
 describe('Slack deployment contract', () => {
   it('authors only disabled, kill-switched, customer-neutral defaults', () => {
@@ -57,6 +63,7 @@ describe('Slack deployment contract', () => {
       'SLACK_ADAPTER_APP_TOKEN',
       'SLACK_ADAPTER_BOT_TOKEN',
       'SLACK_ADAPTER_OAUTH_CLIENT_SECRET',
+      'SLACK_ADAPTER_BROKER_ENCRYPTION_KEY',
       'SLACK_ADAPTER_CLIENT_SECRET',
       'SLACK_ADAPTER_SIGNING_SECRET',
     ]) {

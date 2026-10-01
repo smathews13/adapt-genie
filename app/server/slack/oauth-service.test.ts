@@ -26,6 +26,7 @@ const config: SlackRuntimeConfig = {
   oauthCallbackUrl: 'https://adapt.example/api/slack/oauth/callback',
   publicBaseUrl: 'https://adapt.example',
   tokenBrokerRef: 'approved-broker',
+  brokerEncryptionKeyRef: 'BROKER_KEY',
   appTokenSecretRef: 'APP_TOKEN',
   botTokenSecretRef: 'BOT_TOKEN',
   registrationId: 'test-registration',
@@ -194,6 +195,33 @@ describe('Slack OAuth linking skeleton', () => {
       completeSlackOAuth({ state: intent.state, code: 'replayed-code' }, config, { ...state, broker, linkWriter })
     ).resolves.toEqual({ ok: false, reason: 'intent_not_found' });
     expect(broker.exchangeAndStore).toHaveBeenCalledOnce();
+  });
+
+  it('revokes newly exchanged credentials when the durable link write fails', async () => {
+    const state = stores();
+    const linkWriter = writer();
+    vi.mocked(linkWriter.write).mockRejectedValueOnce(new Error('lakebase unavailable'));
+    const broker = {
+      exchangeAndStore: vi.fn().mockImplementation((input: { expectedNonce: string }) =>
+        Promise.resolve({
+          ok: true as const,
+          metadata: exchangeMetadata,
+          proof: exchangeProof({ nonce: input.expectedNonce }),
+        })
+      ),
+      revoke: vi.fn().mockResolvedValue(undefined),
+    };
+    await createSlackOAuthLinkOut({ slackTeamId: 'TALLOWED', slackUserId: 'U123' }, config, {
+      ...state,
+      broker,
+      linkWriter,
+    });
+    const intent = [...state.intents.values()][0];
+    if (!intent) throw new Error('fixture intent missing');
+    await expect(
+      completeSlackOAuth({ state: intent.state, code: 'code-value' }, config, { ...state, broker, linkWriter })
+    ).resolves.toEqual({ ok: false, reason: 'broker_unavailable' });
+    expect(broker.revoke).toHaveBeenCalledWith(exchangeMetadata.tokenReference);
   });
 
   it.each([

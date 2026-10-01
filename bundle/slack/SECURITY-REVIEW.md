@@ -49,10 +49,11 @@ not change that runtime control.
 - IP allowlist decision: `REQUIRED`; document whether stable egress IPs exist.
 - Default/main and the public Git artifact contain no Slack secret resources or
   `valueFrom` entries. The Socket Mode app and bot tokens plus the
-  implementation-managed Databricks OAuth client secret become Databricks
-  secret-resource bindings only after `secret-bindings.overlay.json` is applied
-  to a reviewed private deployment branch. Manual installation uses neither a
-  Slack client secret nor a signing secret.
+  implementation-managed Databricks OAuth client secret and broker encryption
+  key become Databricks secret-resource bindings only after
+  `secret-bindings.overlay.json` is applied to a reviewed private deployment
+  branch. Manual installation uses neither a Slack client secret nor a signing
+  secret.
 - Rotation cadence, overlap procedure, and emergency rotation process: `REQUIRED`.
 - Token broker must retain OAuth credentials; ADAPT stores opaque references only.
 - Logs, status APIs, migration records, and release snapshots must never contain
@@ -99,5 +100,5 @@ Until every gate is complete, the precise decision is **NO-GO for a live pilot**
 ## Current external dependency blockers
 
 - Slack registrations, target values, secret values, the Databricks custom OAuth
-  app, broker secret scope/ACL, external approvals, and workspace resources must
-  still be created in the demo/customer environment.
+  app, external approvals, and workspace resources must still be created in the
+  demo/customer environment.

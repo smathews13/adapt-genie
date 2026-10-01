@@ -13,6 +13,7 @@ const SECRET_RESOURCE_NAMES = [
   "slack-app-token",
   "slack-bot-token",
   "slack-oauth-client-secret",
+  "slack-broker-encryption-key",
   "slack-client-secret",
   "slack-signing-secret",
 ];
@@ -37,7 +38,7 @@ function assertDefaultIsUnbound({ databricks, appResource, appYaml }) {
     }
   }
   if (
-    /^\s{2}slack_(?:secret_scope|(?:app|bot)_token_secret_key|oauth_client_secret_key|client_secret_key|signing_secret_key):/m.test(
+    /^\s{2}slack_(?:secret_scope|(?:app|bot)_token_secret_key|oauth_client_secret_key|broker_encryption_key_secret_key|client_secret_key|signing_secret_key):/m.test(
       databricks,
     )
   ) {

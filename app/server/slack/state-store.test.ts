@@ -108,11 +108,12 @@ describe('Slack state stores', () => {
         {
           environment: 'production',
           workspaceHash: 'workspace-hash',
+          registrationId: 'registration-production',
         }
       )
     ).resolves.toBeNull();
     expect(query.mock.calls[0]?.[0]).toContain("status = 'active'");
-    expect(query.mock.calls[0]?.[1]).toEqual(['production', 'workspace-hash']);
+    expect(query.mock.calls[0]?.[1]).toEqual(['production', 'workspace-hash', 'registration-production']);
   });
 
   it('claims dedup keys with one atomic statement and returns the existing run on retry', async () => {

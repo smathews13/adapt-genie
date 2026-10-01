@@ -136,7 +136,24 @@ export class SlackAdapterBootstrap {
           }
           await process?.(event);
         },
-      })
+      }),
+      {
+        beforeAcknowledge: async () => {
+          const current = await readEffectiveSlackSettings(this.#store);
+          if (!current.storeReady) {
+            this.#readiness = { ready: false, reason: 'settings_unavailable' };
+            throw new Error('Slack settings are unavailable.');
+          }
+          if (!current.settings.enabled) {
+            this.#readiness = { ready: false, reason: 'disabled' };
+            throw new Error('Slack adapter is disabled.');
+          }
+          if (current.settings.killSwitch) {
+            this.#readiness = { ready: false, reason: 'kill_switch' };
+            throw new Error('Slack adapter kill switch is active.');
+          }
+        },
+      }
     );
     try {
       await lifecycle.start();

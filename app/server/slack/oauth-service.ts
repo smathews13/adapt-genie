@@ -75,6 +75,7 @@ export interface SlackOAuthTokenBroker {
     expectedWorkspace: string;
     expectedNonce: string;
   }): Promise<SlackOAuthExchangeResult>;
+  revoke?(reference: TokenReference): Promise<void>;
 }
 
 export interface SlackLinkWriter {
@@ -249,6 +250,7 @@ export async function completeSlackOAuth(
       exchange: exchange.metadata,
     });
   } catch {
+    await dependencies.broker.revoke?.(exchange.metadata.tokenReference).catch(() => undefined);
     return { ok: false, reason: 'broker_unavailable' };
   }
   return { ok: true };

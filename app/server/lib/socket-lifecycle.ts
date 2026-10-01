@@ -22,6 +22,7 @@ export type SocketEnvelopeHandler = (envelope: SocketEnvelope) => Promise<void>;
 export interface SocketLifecycleOptions {
   initialBackoffMs?: number;
   maxBackoffMs?: number;
+  beforeAcknowledge?: SocketEnvelopeHandler;
 }
 
 /**
@@ -35,6 +36,7 @@ export class SocketLifecycleController {
   readonly #handleEnvelope: SocketEnvelopeHandler;
   readonly #initialBackoffMs: number;
   readonly #maxBackoffMs: number;
+  readonly #beforeAcknowledge: SocketEnvelopeHandler | null;
   #connection: SocketConnection | null = null;
   #running = false;
   #connecting: Promise<void> | null = null;
@@ -50,6 +52,7 @@ export class SocketLifecycleController {
     this.#handleEnvelope = handleEnvelope;
     this.#initialBackoffMs = Math.max(1, options.initialBackoffMs ?? 250);
     this.#maxBackoffMs = Math.max(this.#initialBackoffMs, options.maxBackoffMs ?? 10_000);
+    this.#beforeAcknowledge = options.beforeAcknowledge ?? null;
   }
 
   async start(): Promise<void> {
@@ -95,6 +98,7 @@ export class SocketLifecycleController {
     try {
       await connection.start({
         onEnvelope: async (envelope) => {
+          if (this.#beforeAcknowledge) await this.#beforeAcknowledge(envelope);
           await connection.acknowledge(envelope.id);
           await this.#handleEnvelope(envelope);
         },

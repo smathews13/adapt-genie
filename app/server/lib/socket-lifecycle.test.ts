@@ -108,6 +108,29 @@ describe('Socket lifecycle controller', () => {
     await controller.stop();
   });
 
+  it('does not acknowledge an envelope rejected by the pre-acknowledgement gate', async () => {
+    const connections: FakeConnection[] = [];
+    const handled = vi.fn();
+    const controller = new SocketLifecycleController(
+      () => {
+        const connection = new FakeConnection(() => undefined);
+        connections.push(connection);
+        return connection;
+      },
+      handled,
+      {
+        beforeAcknowledge: () => Promise.reject(new Error('kill switch active')),
+      }
+    );
+    await controller.start();
+    await expect(connections[0]?.handlers?.onEnvelope({ id: 'blocked-envelope', payload: {} })).rejects.toThrow(
+      'kill switch active'
+    );
+    expect(connections[0]?.acknowledgements).toEqual([]);
+    expect(handled).not.toHaveBeenCalled();
+    await controller.stop();
+  });
+
   it.each(['disconnect', 'refresh'] as const)(
     'reconnects after %s with at most one active connection',
     async (event) => {

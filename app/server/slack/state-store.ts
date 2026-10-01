@@ -34,16 +34,16 @@ export interface SlackInstallation {
 
 export async function readSlackInstallation(
   store: SlackStore,
-  scope: { environment: SlackRuntimeEnvironment; workspaceHash: string }
+  scope: { environment: SlackRuntimeEnvironment; workspaceHash: string; registrationId: string }
 ): Promise<SlackInstallation | null> {
   const result = await store.query(
     `SELECT installation_id, environment, workspace_hash, registration_id, status, bot_user_hash,
             bot_token_ref, app_token_ref, client_secret_ref, signing_secret_ref,
             granted_scopes, granted_scopes_hash, revision
        FROM ${SLACK_INSTALLATIONS_TABLE}
-      WHERE environment = $1 AND workspace_hash = $2 AND status = 'active'
+      WHERE environment = $1 AND workspace_hash = $2 AND registration_id = $3 AND status = 'active'
       LIMIT 1`,
-    [scope.environment, scope.workspaceHash]
+    [scope.environment, scope.workspaceHash, scope.registrationId]
   );
   return result.rows[0] ? installationFrom(result.rows[0]) : null;
 }

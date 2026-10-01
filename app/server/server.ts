@@ -88,7 +88,7 @@ createApp({
       { createSlackOAuthLinkOut },
       { LakebaseDurableSlackLinkIntentStore },
       { DatabricksSecretManagerPkceVerifierStore },
-      { WorkspaceDatabricksSecretManager },
+      { LakebaseEncryptedSecretManager },
       { DatabricksOAuthTokenBroker },
       { LakebaseSlackLinkWriter, ensureSlackInstallation },
       { bootstrapSeedRoles, isAdminRoute },
@@ -135,7 +135,7 @@ createApp({
       import('./slack/oauth-service'),
       import('./slack/durable-link-intent-store'),
       import('./slack/databricks-secret-manager'),
-      import('./slack/workspace-secret-manager'),
+      import('./slack/lakebase-encrypted-secret-manager'),
       import('./slack/databricks-oauth-token-broker'),
       import('./slack/lakebase-link-writer'),
       import('./lib/admin-roles'),
@@ -202,25 +202,27 @@ createApp({
     setupAppGroupsRoutes(appkit);
     setupSlackSettingsRoutes(appkit);
     const configuredSlack = readSlackRuntimeConfig();
-    const slackObo = configuredSlack.ready
-      ? (() => {
-          const secretManager = new WorkspaceDatabricksSecretManager({
-            scope: configuredSlack.config.tokenBrokerRef,
-          });
-          const intentStore = new LakebaseDurableSlackLinkIntentStore(appkit.lakebase);
-          const verifierStore = new DatabricksSecretManagerPkceVerifierStore(secretManager);
-          const broker = new DatabricksOAuthTokenBroker({ secretManager });
-          const linkWriter = new LakebaseSlackLinkWriter(appkit.lakebase, configuredSlack.config, broker);
-          return {
-            config: configuredSlack.config,
-            intentStore,
-            verifierStore,
-            broker,
-            linkWriter,
-            linkReferenceForActor: (actor: string) => linkWriter.linkReferenceForActor(actor),
-          };
-        })()
-      : null;
+    const brokerEncryptionKey = configuredSlack.ready
+      ? process.env[configuredSlack.config.brokerEncryptionKeyRef]?.trim()
+      : '';
+    const slackObo =
+      configuredSlack.ready && brokerEncryptionKey
+        ? (() => {
+            const secretManager = new LakebaseEncryptedSecretManager(appkit.lakebase, brokerEncryptionKey);
+            const intentStore = new LakebaseDurableSlackLinkIntentStore(appkit.lakebase);
+            const verifierStore = new DatabricksSecretManagerPkceVerifierStore(secretManager);
+            const broker = new DatabricksOAuthTokenBroker({ secretManager });
+            const linkWriter = new LakebaseSlackLinkWriter(appkit.lakebase, configuredSlack.config, broker);
+            return {
+              config: configuredSlack.config,
+              intentStore,
+              verifierStore,
+              broker,
+              linkWriter,
+              linkReferenceForActor: (actor: string) => linkWriter.linkReferenceForActor(actor),
+            };
+          })()
+        : null;
     setupSlackOAuthRoutes(
       appkit,
       slackObo

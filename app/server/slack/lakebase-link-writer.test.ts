@@ -15,6 +15,7 @@ const config: SlackRuntimeConfig = {
   oauthCallbackUrl: 'https://adapt.example/api/slack/oauth/callback',
   publicBaseUrl: 'https://adapt.example',
   tokenBrokerRef: 'adapt-slack-broker',
+  brokerEncryptionKeyRef: 'BROKER_KEY',
   appTokenSecretRef: 'APP_TOKEN',
   botTokenSecretRef: 'BOT_TOKEN',
   registrationId: 'registration-test',
@@ -34,7 +35,10 @@ const config: SlackRuntimeConfig = {
 
 describe('Lakebase Slack link writer', () => {
   it('persists only opaque broker references after a proven exchange', async () => {
-    const query = vi.fn().mockResolvedValue({ rows: [{ link_id: 'link-1' }] });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ link_id: 'link-1' }] });
     const writer = new LakebaseSlackLinkWriter({ query }, config, { revoke: vi.fn() });
     await writer.write({
       actor: { kind: 'broker-proven', ownerHash: 'owner-hash' },
@@ -64,6 +68,58 @@ describe('Lakebase Slack link writer', () => {
     expect(wire).toContain('credential-1');
     expect(wire).toContain('credential-fp');
     expect(wire).not.toMatch(/access_token|refresh_token|authorization.?code|nonce-value|state-value/i);
+  });
+
+  it('revokes the previous credential before replacing a user link', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            owner_hash: 'owner-hash',
+            delegated_identity_ref: 'credential-old',
+            token_ref_provider: 'databricks-secret-broker',
+            token_ref_fingerprint: 'old-fingerprint',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ link_id: 'link-new' }] });
+    const revoke = vi.fn().mockResolvedValue(undefined);
+    const writer = new LakebaseSlackLinkWriter({ query }, config, { revoke });
+    await writer.write({
+      actor: { kind: 'broker-proven', ownerHash: 'owner-hash' },
+      linkReference: 'link-new',
+      intent: {
+        id: 'link-new',
+        state: 'state-value',
+        nonce: 'nonce-value',
+        slackTeamId: 'TALLOWED',
+        slackUserId: 'U123',
+        databricksWorkspace: config.databricksWorkspaceHost,
+        databricksAudience: config.oauthExpectedAudience,
+        redirectUri: config.oauthCallbackUrl,
+        verifierReference: { id: 'pkce-1', provider: 'oauth-link-secret-store', fingerprint: 'fingerprint' },
+        createdAt: '2026-10-01T00:00:00.000Z',
+        expiresAt: '2026-10-01T00:10:00.000Z',
+      },
+      exchange: {
+        ownerHash: 'owner-hash',
+        delegatedIdentityRef: 'credential-new',
+        tokenReference: {
+          id: 'credential-new',
+          provider: 'databricks-secret-broker',
+          fingerprint: 'new-fingerprint',
+        },
+        databricksSubjectFingerprint: 'subject-fp',
+        expiresAt: null,
+      },
+    });
+    expect(revoke.mock.invocationCallOrder[0]).toBeLessThan(query.mock.invocationCallOrder[1] ?? 0);
+    expect(revoke).toHaveBeenCalledWith({
+      id: 'credential-old',
+      provider: 'databricks-secret-broker',
+      fingerprint: 'old-fingerprint',
+    });
   });
 
   it('revokes the link before deleting broker-held credential material', async () => {

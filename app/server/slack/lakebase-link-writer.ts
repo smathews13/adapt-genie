@@ -1,15 +1,7 @@
-import {
-  createSlackInstallation,
-  readSlackInstallation,
-  type SlackInstallation,
-  type SlackStore,
-} from './state-store';
+import { createSlackInstallation, readSlackInstallation, type SlackInstallation, type SlackStore } from './state-store';
 import { hashSlackIdentifier, type SlackInstallationScope, type SlackRuntimeConfig } from './config';
 import { SLACK_INSTALLATIONS_TABLE, SLACK_USER_LINKS_TABLE } from './schema';
-import type {
-  SlackLinkWriter,
-  SlackOAuthExchangeMetadata,
-} from './oauth-service';
+import type { SlackLinkWriter, SlackOAuthExchangeMetadata } from './oauth-service';
 import type { SlackLinkIntentMetadata } from '../../shared/channel/delegated-identity';
 
 function text(row: Record<string, unknown>, key: string): string {
@@ -49,6 +41,25 @@ export class LakebaseSlackLinkWriter implements SlackLinkWriter {
     if (workspaceHash !== this.#config.allowedTeamHash) {
       throw new Error('Slack workspace did not match the configured installation.');
     }
+    const slackUserHash = hashSlackIdentifier(input.intent.slackUserId);
+    const previous = await this.#store.query(
+      `SELECT owner_hash, delegated_identity_ref, token_ref_provider, token_ref_fingerprint
+         FROM ${SLACK_USER_LINKS_TABLE}
+        WHERE environment = $1 AND workspace_hash = $2 AND slack_user_hash = $3 AND status = 'active'
+        LIMIT 1`,
+      [this.#config.environment, workspaceHash, slackUserHash]
+    );
+    const prior = previous.rows[0];
+    if (prior && text(prior, 'owner_hash') !== input.exchange.ownerHash) {
+      throw new Error('Slack user link conflicted with another verified owner.');
+    }
+    if (prior && text(prior, 'delegated_identity_ref') !== input.exchange.delegatedIdentityRef) {
+      await this.#credentials.revoke({
+        id: text(prior, 'delegated_identity_ref'),
+        provider: text(prior, 'token_ref_provider'),
+        fingerprint: text(prior, 'token_ref_fingerprint'),
+      });
+    }
     const result = await this.#store.query(
       `INSERT INTO ${SLACK_USER_LINKS_TABLE}
          (link_id, environment, workspace_hash, slack_user_hash, owner_hash,
@@ -75,7 +86,7 @@ export class LakebaseSlackLinkWriter implements SlackLinkWriter {
         input.linkReference,
         this.#config.environment,
         workspaceHash,
-        hashSlackIdentifier(input.intent.slackUserId),
+        slackUserHash,
         input.exchange.ownerHash,
         input.exchange.delegatedIdentityRef,
         input.exchange.tokenReference.provider,
@@ -111,6 +122,7 @@ export class LakebaseSlackLinkWriter implements SlackLinkWriter {
     const installation = await readSlackInstallation(this.#store, {
       environment: this.#config.environment,
       workspaceHash: this.#config.allowedTeamHash,
+      registrationId: this.#config.registrationId,
     });
     return installation ? 'linked' : 'uninstalled';
   }
@@ -175,11 +187,7 @@ export class LakebaseSlackLinkWriter implements SlackLinkWriter {
          FROM ${SLACK_USER_LINKS_TABLE}
         WHERE environment = $1 AND workspace_hash = $2 AND owner_hash = $3 AND status = 'active'
         LIMIT 1`,
-      [
-        this.#config.environment,
-        this.#config.allowedTeamHash,
-        hashSlackIdentifier(actor.trim().toLowerCase()),
-      ]
+      [this.#config.environment, this.#config.allowedTeamHash, hashSlackIdentifier(actor.trim().toLowerCase())]
     );
     return result.rows[0] ? text(result.rows[0], 'link_id') || null : null;
   }
@@ -192,6 +200,7 @@ export async function ensureSlackInstallation(
   const existing = await readSlackInstallation(store, {
     environment: config.environment,
     workspaceHash: config.allowedTeamHash,
+    registrationId: config.registrationId,
   });
   if (existing) {
     if (existing.registrationId !== config.registrationId) {
@@ -216,6 +225,7 @@ export async function ensureSlackInstallation(
   const raced = await readSlackInstallation(store, {
     environment: config.environment,
     workspaceHash: config.allowedTeamHash,
+    registrationId: config.registrationId,
   });
   if (!raced) throw new Error('Slack installation could not be recorded.');
   return raced;

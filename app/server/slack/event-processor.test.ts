@@ -48,6 +48,7 @@ const config: SlackRuntimeConfig = {
   oauthCallbackUrl: 'https://adapt.example/api/slack/oauth/callback',
   publicBaseUrl: 'https://adapt.example',
   tokenBrokerRef: 'broker-registration',
+  brokerEncryptionKeyRef: 'BROKER_KEY',
   appTokenSecretRef: 'APP_TOKEN',
   botTokenSecretRef: 'BOT_TOKEN',
   registrationId: 'registration-1',

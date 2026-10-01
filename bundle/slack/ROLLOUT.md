@@ -41,9 +41,10 @@ implementation dependency, not a customer input.
    ```
 
    Review and commit that generic overlay only on the private deployment branch.
-   It adds no values: it declares one scope plus three key variables, three App
-   secret resources, and three `valueFrom` bindings. Two hold the customer-supplied
-   Slack tokens; one holds the implementation-managed Databricks OAuth client secret.
+   It adds no values: it declares one scope plus four key variables, four App
+   secret resources, and four `valueFrom` bindings. Two hold the customer-supplied
+   Slack tokens; two hold the implementation-managed Databricks OAuth client secret
+   and broker encryption key.
    Default/main remains deployable
    without any Slack scope or key.
 
@@ -61,13 +62,12 @@ implementation dependency, not a customer input.
 4. Put implementation-managed runtime values and the overlay's required app/bot
    token **scope/key names** only in
    `.databricks/bundle/<target>/variable-overrides.json` (gitignored).
-5. Put the app token, bot token, and implementation-managed Databricks OAuth
-   client secret only in the target's Databricks secret scope. Never place values
-   in variables, shell history, or this folder. Socket Mode with manual installation
-   does not require a Slack client or signing secret. Set
-   `slack_adapter_token_broker_ref` to a separate broker secret scope and grant
-   the ADAPT App service principal `MANAGE` on that scope so it can create,
-   refresh, and revoke per-user credential records.
+5. Put the app token, bot token, implementation-managed Databricks OAuth client
+   secret, and a generated 32-byte base64 broker encryption key only in the
+   target's Databricks secret scope. Never place values in variables, shell
+   history, or this folder. Socket Mode with manual installation does not require
+   a Slack client or signing secret. The broker persists only AES-GCM ciphertext
+   in its dedicated Lakebase table; the encryption key remains an injected secret.
 6. Copy `rollout-evidence.template.json` outside the repository, replace every
    placeholder with implementation and protocol-review evidence, then run:
 

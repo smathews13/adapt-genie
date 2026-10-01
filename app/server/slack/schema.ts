@@ -7,6 +7,7 @@ export const SLACK_EVENT_DEDUP_TABLE = appTable('slack_event_dedup');
 export const SLACK_DELIVERIES_TABLE = appTable('slack_deliveries');
 export const SLACK_SETTINGS_TABLE = appTable('slack_settings');
 export const SLACK_LINK_INTENTS_TABLE = appTable('slack_link_intents');
+export const SLACK_BROKER_SECRETS_TABLE = appTable('slack_broker_secrets');
 
 export const SLACK_STATE_DDL = [
   `CREATE TABLE IF NOT EXISTS ${SLACK_INSTALLATIONS_TABLE} (
@@ -155,4 +156,12 @@ export const SLACK_OAUTH_INTENT_DDL = [
    )`,
   `CREATE INDEX IF NOT EXISTS slack_link_intents_expires_idx
      ON ${SLACK_LINK_INTENTS_TABLE} (expires_at)`,
+  `CREATE TABLE IF NOT EXISTS ${SLACK_BROKER_SECRETS_TABLE} (
+     key_hash TEXT PRIMARY KEY,
+     ciphertext TEXT NOT NULL,
+     initialization_vector TEXT NOT NULL,
+     authentication_tag TEXT NOT NULL,
+     expires_at TIMESTAMPTZ,
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
 ] as const;

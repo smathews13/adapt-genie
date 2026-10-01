@@ -15,6 +15,7 @@ function validEnv(): NodeJS.ProcessEnv {
     SLACK_ADAPTER_OAUTH_CALLBACK_URL: 'https://adapt.example/api/slack/oauth/callback',
     SLACK_ADAPTER_PUBLIC_BASE_URL: 'https://adapt.example',
     SLACK_ADAPTER_TOKEN_BROKER_REF: 'broker-registration',
+    SLACK_ADAPTER_BROKER_ENCRYPTION_KEY_REF: 'BROKER_KEY',
     SLACK_ADAPTER_APP_TOKEN_SECRET_REF: 'SLACK_APP_TOKEN',
     SLACK_ADAPTER_BOT_TOKEN_SECRET_REF: 'SLACK_BOT_TOKEN',
     SLACK_ADAPTER_TEST_REGISTRATION_ID: 'registration-test',

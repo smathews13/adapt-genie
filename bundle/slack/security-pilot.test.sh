@@ -24,8 +24,16 @@ if (appToken.token_type !== 'app-level' || !appToken.value.startsWith('REQUIRED:
 }
 exact(manifest.oauth_config.scopes.bot, ['chat:write', 'im:history'], 'bot scopes');
 exact(manifest.settings.event_subscriptions.bot_events, ['message.im'], 'events');
-if (!manifest.settings.socket_mode_enabled || manifest.settings.org_deploy_enabled) {
-  throw new Error('Socket Mode/org deploy contract changed');
+if (
+  !manifest.settings.socket_mode_enabled ||
+  manifest.settings.org_deploy_enabled ||
+  manifest.settings.token_rotation_enabled
+) {
+  throw new Error('Socket Mode/org deploy/token lifetime contract changed');
+}
+const home = manifest.features?.app_home;
+if (!home?.messages_tab_enabled || home.messages_tab_read_only_enabled || home.home_tab_enabled) {
+  throw new Error('writable DM-only App Home contract changed');
 }
 if (/(?:channels|files|admin|search|users|groups|mpim):|https?:|xox[baprs]-|xapp-/i.test(JSON.stringify(manifest))) {
   throw new Error('manifest contains forbidden scope or live value');

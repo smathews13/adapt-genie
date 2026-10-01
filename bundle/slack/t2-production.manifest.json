@@ -4,10 +4,15 @@
     "minor_version": 1
   },
   "display_information": {
-    "name": "ADAPT Security Pilot T2",
-    "description": "T2 production registration template for the DM-only ADAPT security pilot"
+    "name": "ADAPT",
+    "description": "DM-only ADAPT assistant"
   },
   "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
     "bot_user": {
       "display_name": "ADAPT",
       "always_online": false
@@ -24,6 +29,6 @@
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": true,
-    "token_rotation_enabled": true
+    "token_rotation_enabled": false
   }
 }

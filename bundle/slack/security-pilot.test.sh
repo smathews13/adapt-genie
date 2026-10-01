@@ -31,10 +31,6 @@ if (
 ) {
   throw new Error('Socket Mode/org deploy/token lifetime contract changed');
 }
-const home = manifest.features?.app_home;
-if (!home?.messages_tab_enabled || home.messages_tab_read_only_enabled || home.home_tab_enabled) {
-  throw new Error('writable DM-only App Home contract changed');
-}
 if (/(?:channels|files|admin|search|users|groups|mpim):|https?:|xox[baprs]-|xapp-/i.test(JSON.stringify(manifest))) {
   throw new Error('manifest contains forbidden scope or live value');
 }

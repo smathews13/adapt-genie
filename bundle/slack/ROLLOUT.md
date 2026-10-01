@@ -48,9 +48,10 @@ implementation dependency, not a customer input.
 2. Review `development.manifest.json` and `t2-production.manifest.json`, plus
    their `.app-token.json` declarations. App-level tokens are created separately
    from Slack manifest import; the only approved app-token scope is
-   `connections:write`. The writable App Home Messages tab is enabled for DMs.
-   Slack token rotation remains off because this transport does not persist and
-   refresh Slack's 12-hour credentials. Review `databricks-oauth.contract.json` separately:
+   `connections:write`. App Home is not required: users send ordinary DMs to the
+   installed bot and `message.im` carries them over Socket Mode. Slack token
+   rotation remains off because this transport does not persist and refresh
+   Slack's 12-hour credentials. Review `databricks-oauth.contract.json` separately:
    Databricks user scopes are `all-apis offline_access openid profile email`,
    and nonce is verified from the broker's exchanged-token proof rather than a
    callback query parameter.

@@ -3,6 +3,41 @@
 This is an operator checklist, not evidence that external resources exist.
 Replace every `REQUIRED` placeholder outside Git.
 
+## Customer-supplied runtime values
+
+The customer supplies only the technical values below. Named business,
+security, incident, or release owners and ticket numbers are not required by
+the rollout checker.
+
+- **Slack workspace/team ID** — Find it in the Slack administration workspace
+  details, or call Slack's `auth.test` API after installing the bot and use the
+  returned `team_id`. Example: `T012ABC34DE`.
+- **Production Slack app registration ID** — Open the production app at
+  `api.slack.com/apps`, choose **Basic Information**, and copy **App ID**.
+  Example: `A012ABC34DE`. The development and production IDs must differ.
+- **Slack secrets** — In the same Slack app, create the app-level token under
+  **Basic Information → App-Level Tokens** with `connections:write`; copy the
+  bot token from **OAuth & Permissions** after installation; and copy the
+  client and signing secrets from **Basic Information → App Credentials**.
+  Store all four directly in a Databricks secret scope—never in Git or rollout
+  evidence. Example scope/key names: `adapt-slack-prod/app-token`,
+  `adapt-slack-prod/bot-token`, `adapt-slack-prod/client-secret`, and
+  `adapt-slack-prod/signing-secret`.
+- **Databricks workspace URL** — Copy the URL from the target workspace browser
+  address. Example: `https://dbc-12345678-abcd.cloud.databricks.com`.
+- **Databricks App URL** — Open **Compute → Apps → ADAPT** after the app exists
+  and copy its URL. Example:
+  `https://adapt-1234567890123456.aws.databricksapps.com`.
+- **OAuth client ID and expected audience** — Copy these from the Databricks
+  OAuth application/connection created for ADAPT. Example client ID:
+  `12345678-abcd-1234-abcd-1234567890ab`; example audience: the target
+  workspace URL above. Register the callback as
+  `<ADAPT app URL>/api/slack/oauth/callback`.
+- **Token-broker endpoint/reference** — This is not available in Slack or
+  Databricks by default. The implementation team supplies it after deploying
+  the approved delegated-token broker. Example:
+  `https://token-broker.company.example/adapt`.
+
 ## Configure
 
 1. Start from the approved internal source commit in a **private deployment
@@ -34,7 +69,7 @@ Replace every `REQUIRED` placeholder outside Git.
 5. Put app/bot/client/signing secret values only in the target's Databricks
    secret scope. Never place values in variables, shell history, or this folder.
 6. Copy `rollout-evidence.template.json` outside the repository, replace every
-   placeholder with approved ticket/owner/implementation evidence, then run:
+   placeholder with implementation and protocol-review evidence, then run:
 
    ```bash
    node bundle/slack/check-rollout.mjs \
@@ -44,7 +79,7 @@ Replace every `REQUIRED` placeholder outside Git.
 
    The checker refuses missing overlay bindings, protocol security review,
    scanner-blocked package imports, broker/verifier/link implementation, target
-   values, egress approval, owners, or tickets.
+   values, or egress approval.
 
 7. Keep `slack_adapter_enabled=false` and `slack_adapter_kill_switch=true` until
    the approved activation window; run the checker against the final activation
@@ -99,7 +134,8 @@ databricks apps get <app-name> --profile <profile>
 
 1. Set the operational kill switch first. Confirm status remains readable and no
    new run is admitted.
-2. Revoke/uninstall both Slack registrations as required by the incident owner.
+2. Revoke/uninstall both Slack registrations when the rollback procedure calls
+   for external revocation.
 3. Revoke brokered user links and token references; do not copy token values into
    ADAPT during cleanup.
 4. Re-point the app to the named known-good source snapshot:
@@ -117,4 +153,4 @@ databricks apps get <app-name> --profile <profile>
 
 Rollback success means the web app is healthy, Slack is disabled or kill-switched,
 and no new Slack event can start a run. It does not mean external revocation is
-complete until the named owners verify it.
+complete until Slack and broker state have both been verified.

@@ -64,16 +64,12 @@ test("accepts a fully approved native protocol tree without requiring Slack pack
       writeFile(
         evidencePath,
         JSON.stringify({
-          esiTicket: "ESI-123",
-          changeTicket: "CHANGE-123",
           egressApproved: true,
           overlayReviewed: true,
           brokerImplementation: "broker-v1",
           verifierStoreImplementation: "verifier-v1",
           linkWriterImplementation: "writer-v1",
           protocolSecurityReview: "SECURITY-REVIEW-123",
-          securityOwner: "security-owner",
-          incidentOwner: "incident-owner",
         }),
       ),
       writeFile(

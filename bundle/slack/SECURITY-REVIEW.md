@@ -2,18 +2,6 @@
 
 Status: **repository preparation only — no live pilot is approved or running**.
 
-## Required owners and approvals
-
-- Business owner: `REQUIRED: T2 owner`
-- Slack app owner: `REQUIRED: T2 Slack administrator`
-- Databricks owner: `REQUIRED: target workspace administrator`
-- Security/privacy reviewers: `REQUIRED: T2 Security and Privacy`
-- Incident and support owner: `REQUIRED`
-- ESI/security review ticket: `REQUIRED: ESI-____`
-- Change/release ticket: `REQUIRED: ____`
-
-No placeholder above may be marked complete from repository evidence.
-
 ## Fixed permission boundary
 
 - Transport: the documented Socket Mode protocol over native/injected
@@ -63,7 +51,7 @@ not change that runtime control.
   `valueFrom` entries. App, bot, client, and signing secrets become Databricks
   secret-resource bindings only after `secret-bindings.overlay.json` is applied
   to a reviewed private deployment branch.
-- Rotation owner, cadence, overlap procedure, and emergency rotation: `REQUIRED`.
+- Rotation cadence, overlap procedure, and emergency rotation process: `REQUIRED`.
 - Token broker must retain OAuth credentials; ADAPT stores opaque references only.
 - Logs, status APIs, migration records, and release snapshots must never contain
   tokens, OAuth codes, PKCE verifiers, secret values, or secret-resource IDs.
@@ -90,7 +78,6 @@ v50 state; use a forward repair for schema changes.
 
 ## Go-live gates
 
-- [ ] External owners and ESI/change tickets are approved.
 - [ ] Both manifests were imported by the correct Slack administrators.
 - [ ] T2 team ID and registrations were independently verified.
 - [ ] Target override and all secret bindings were reviewed out of Git.

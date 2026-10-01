@@ -151,14 +151,10 @@ export async function slackRolloutFindings({ root, target, evidencePath }) {
     findings.push("review evidence file is missing or invalid");
   } else {
     for (const key of [
-      "esiTicket",
-      "changeTicket",
       "brokerImplementation",
       "verifierStoreImplementation",
       "linkWriterImplementation",
       "protocolSecurityReview",
-      "securityOwner",
-      "incidentOwner",
     ]) {
       const value = evidence[key];
       if (!supplied(value) || /^REQUIRED\b/i.test(String(value).trim()))

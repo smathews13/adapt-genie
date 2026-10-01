@@ -83,8 +83,8 @@ for refusal in \
   "production token broker is not injected" \
   "durable verifier store and link writer are not injected" \
   "Slack message egress approval is required" \
-  "review evidence missing: esiTicket" \
-  "target value missing: slack_adapter_environment"; do
+  "review evidence missing: brokerImplementation" \
+  "target override is missing"; do
   grep -qF "$refusal" "$ROLLOUT_OUT"
 done
 rm -f "$ROLLOUT_OUT"

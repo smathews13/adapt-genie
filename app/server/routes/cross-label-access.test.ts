@@ -139,13 +139,16 @@ async function startApp(transport: InsightsAppKit['servingTransport']) {
 
 let nodeEnv: string | undefined;
 let endpointName: string | undefined;
+let identityReadiness: string | undefined;
 
 beforeEach(() => {
   resetLakebaseHealth();
   recorded = [];
   nodeEnv = process.env.NODE_ENV;
   endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+  identityReadiness = process.env.ENFORCE_IDENTITY_READINESS;
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
+  process.env.ENFORCE_IDENTITY_READINESS = 'false';
   process.env.NODE_ENV = 'production';
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -157,6 +160,8 @@ afterEach(() => {
   else process.env.NODE_ENV = nodeEnv;
   if (endpointName === undefined) delete process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
   else process.env.DATABRICKS_SERVING_ENDPOINT_NAME = endpointName;
+  if (identityReadiness === undefined) delete process.env.ENFORCE_IDENTITY_READINESS;
+  else process.env.ENFORCE_IDENTITY_READINESS = identityReadiness;
   vi.restoreAllMocks();
 });
 

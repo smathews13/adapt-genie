@@ -163,15 +163,18 @@ function asUser(email: string, token: string) {
 
 let nodeEnv: string | undefined;
 let endpointName: string | undefined;
+let identityReadiness: string | undefined;
 
 beforeEach(() => {
   resetLakebaseHealth();
   recorded = [];
   nodeEnv = process.env.NODE_ENV;
   endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
+  identityReadiness = process.env.ENFORCE_IDENTITY_READINESS;
   // Without one, `invokeServing` throws before the transport is reached and
   // every assertion about what the endpoint was told passes vacuously.
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
+  process.env.ENFORCE_IDENTITY_READINESS = 'false';
   // The deployed app is the subject. Every rule here is relaxed on a laptop,
   // where there is no proxy to forward a token and no user to be.
   process.env.NODE_ENV = 'production';
@@ -185,6 +188,8 @@ afterEach(() => {
   else process.env.NODE_ENV = nodeEnv;
   if (endpointName === undefined) delete process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
   else process.env.DATABRICKS_SERVING_ENDPOINT_NAME = endpointName;
+  if (identityReadiness === undefined) delete process.env.ENFORCE_IDENTITY_READINESS;
+  else process.env.ENFORCE_IDENTITY_READINESS = identityReadiness;
   vi.restoreAllMocks();
 });
 

@@ -199,7 +199,7 @@ export const LATER_MIGRATIONS: readonly Migration[] = [
     name: 'admin role column',
     statements: [
       /**
-       * Which of the three roles a named person holds, requested in
+       * Which in-app role a named person holds, requested in
        * `docs/superadmin-migration-request.md` and carried here rather than in
        * `admin-roles-schema.ts` for the reason that file's own header gives:
        * Postgres checks ownership BEFORE it finds an `ADD COLUMN IF NOT EXISTS`
@@ -207,7 +207,8 @@ export const LATER_MIGRATIONS: readonly Migration[] = [
        * the app's role does not own the table and succeeds only where it was
        * never needed.
        *
-       * Values are `super_admin`, `admin`, `consumer`. The default is `admin`
+       * Values currently include `super_admin`, `admin`, `executive`, and
+       * `consumer`. The default is `admin`
        * because that is what every row already in the table means -- somebody
        * named from inside the app as an administrator of this deployment -- so
        * applying it changes nobody's role. No index: the table is read whole on
@@ -1128,6 +1129,20 @@ ON CONFLICT (id) DO UPDATE SET
     // Pre-run link-out rows legitimately have no run id. Restoring NOT NULL
     // would either fail or require deleting delivery history.
     down: null,
+  },
+  {
+    version: 51,
+    name: 'audited executive role timestamps',
+    statements: [
+      `ALTER TABLE ${APP_SCHEMA}.admin_emails
+         ADD COLUMN IF NOT EXISTS role_updated_at TIMESTAMPTZ DEFAULT NOW()`,
+      `UPDATE ${APP_SCHEMA}.admin_emails
+          SET role_updated_at = added_at
+        WHERE role_updated_at IS NULL`,
+      `ALTER TABLE ${APP_SCHEMA}.admin_emails
+         ALTER COLUMN role_updated_at SET NOT NULL`,
+    ],
+    down: [`ALTER TABLE ${APP_SCHEMA}.admin_emails DROP COLUMN IF EXISTS role_updated_at`],
   },
 ];
 

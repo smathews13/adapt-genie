@@ -521,7 +521,7 @@ app_totals AS (
 identity_population AS (
   SELECT lower(roster.email) AS user_key,
          lower(roster.email) AS display_email,
-         CASE WHEN roster.role IN ('super_admin', 'admin', 'consumer') THEN roster.role ELSE 'admin' END AS app_role,
+         CASE WHEN roster.role IN ('super_admin', 'admin', 'executive', 'consumer') THEN roster.role ELSE 'admin' END AS app_role,
          NULL::timestamptz AS identity_updated_at
   FROM (
     SELECT DISTINCT ON (lower(email)) email, role
@@ -686,7 +686,10 @@ export async function readUserSpendHourlyPage(
     activityComplete: true,
     billingComplete: false,
     role:
-      row.app_role === 'super_admin' || row.app_role === 'admin' || row.app_role === 'consumer'
+      row.app_role === 'super_admin' ||
+      row.app_role === 'admin' ||
+      row.app_role === 'executive' ||
+      row.app_role === 'consumer'
         ? row.app_role
         : 'consumer',
     sourceThrough: stamp(row.source_through),

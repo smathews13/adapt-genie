@@ -284,7 +284,7 @@ const ADDED_COLUMNS = [...schemaStatements[ALTER_MESSAGES].matchAll(/ADD COLUMN 
  * `runs.correlation_id`) then looked short, which is the fixture claiming a
  * schema nobody deployed rather than the runner getting it wrong.
  */
-function ownedTable(columnsByTable: Record<string, string[]>) {
+function ownedTable(columnsByTable: Record<string, string[]>, requiredByTable = REQUIRED_COLUMNS) {
   return {
     lakebase: {
       query(text: string, params?: unknown[]) {
@@ -294,7 +294,13 @@ function ownedTable(columnsByTable: Record<string, string[]>) {
         if (/information_schema\.columns/i.test(text)) {
           const table = typeof params?.[1] === 'string' ? params[1] : '';
           const present = columnsByTable[table] ?? [];
-          return Promise.resolve({ rows: present.map((column_name) => ({ column_name, is_nullable: 'YES' })) });
+          const required = new Set(requiredByTable[table] ?? []);
+          return Promise.resolve({
+            rows: present.map((column_name) => ({
+              column_name,
+              is_nullable: required.has(column_name) ? 'NO' : 'YES',
+            })),
+          });
         }
         return Promise.resolve({ rows: [] as Record<string, unknown>[] });
       },
@@ -311,6 +317,20 @@ const ALTERED_COLUMNS: Record<string, string[]> = MIGRATIONS.reduce<Record<strin
       const added = [...statement.matchAll(/ADD COLUMN IF NOT EXISTS\s+(\w+)/gi)].map((match) => match[1]);
       const madeNullable = [...statement.matchAll(/ALTER COLUMN\s+(\w+)\s+DROP NOT NULL/gi)].map((match) => match[1]);
       accumulated[target] = [...(accumulated[target] ?? []), ...added, ...madeNullable];
+    }
+    return accumulated;
+  },
+  {}
+);
+
+/** Columns which a refused ALTER requires to already be non-nullable. */
+const REQUIRED_COLUMNS: Record<string, string[]> = MIGRATIONS.reduce<Record<string, string[]>>(
+  (accumulated, migration) => {
+    for (const statement of migration.statements) {
+      const target = /^ALTER\s+TABLE\s+(?:IF EXISTS\s+)?\w+\.(\w+)/i.exec(statement.trim())?.[1];
+      if (!target) continue;
+      const required = [...statement.matchAll(/ALTER COLUMN\s+(\w+)\s+SET NOT NULL/gi)].map((match) => match[1]);
+      accumulated[target] = [...(accumulated[target] ?? []), ...required];
     }
     return accumulated;
   },

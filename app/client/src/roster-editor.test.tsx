@@ -3,8 +3,8 @@
  *
  * Every test here is a way the panel could disagree with the route. Each of the
  * disagreements looks tidier on screen than the truth, which is why they need a test
- * rather than a comment: a menu with all three roles in it always looks more
- * complete than one with two, and a Remove button on every row looks more consistent
+ * rather than a comment: a menu with every role in it always looks more complete
+ * than one with a safe subset, and a Remove button on every row looks more consistent
  * than one that is sometimes absent.
  *
  * Rendered rather than asserted against the source, because this repository has
@@ -39,6 +39,7 @@ import {
   badgeAnnouncement,
   badgeLabel,
   badgeTitle,
+  managesExecutiveRoles,
   managesUserRoster,
   roleFrom,
   showsAdminSurfaces,
@@ -476,15 +477,20 @@ describe('the badge and the layout', () => {
   it('gives both administrator ranks the admin layout', () => {
     expect(showsAdminSurfaces('super_admin')).toBe(true);
     expect(showsAdminSurfaces('admin')).toBe(true);
+    expect(showsAdminSurfaces('executive')).toBe(false);
     expect(showsAdminSurfaces('consumer')).toBe(false);
   });
 
-  it('shows Identity to both admin ranks but limits controls to Super Admin', () => {
+  it('shows Identity to both admin ranks and lets Admin manage only Executive designations', () => {
     expect(showsUserRoster('super_admin')).toBe(true);
     expect(showsUserRoster('admin')).toBe(true);
+    expect(showsUserRoster('executive')).toBe(false);
     expect(showsUserRoster('failed')).toBe(false);
     expect(managesUserRoster('super_admin')).toBe(true);
     expect(managesUserRoster('admin')).toBe(false);
+    expect(managesExecutiveRoles('super_admin')).toBe(true);
+    expect(managesExecutiveRoles('admin')).toBe(true);
+    expect(managesExecutiveRoles('executive')).toBe(false);
   });
 
   it('renders no roster failure narrative', () => {
@@ -495,6 +501,7 @@ describe('the badge and the layout', () => {
 
   it('reads the rank off the identity payload', () => {
     expect(roleFrom({ signedInAs: LEAD, role: 'super_admin' }).state).toBe('super_admin');
+    expect(roleFrom({ signedInAs: ANALYST, role: 'executive' }).state).toBe('executive');
   });
 
   it('still resolves a role it does not know as unknown rather than guessing', () => {
@@ -564,6 +571,27 @@ describe("the controls are the app's own", () => {
 });
 
 describe('the Add button', () => {
+  it('can restrict an Admin add row to the Executive designation', () => {
+    const markup = renderToStaticMarkup(
+      <table>
+        <tfoot>
+          <RosterAddRow
+            draft={ANALYST}
+            role="executive"
+            roles={['executive']}
+            busy={false}
+            onDraftChange={() => {}}
+            onRoleChange={() => {}}
+            onAdd={() => {}}
+          />
+        </tfoot>
+      </table>
+    );
+    expect(markup).toContain('Executive');
+    expect(markup).not.toContain('Super admin');
+    expect(markup).not.toContain('>Admin<');
+  });
+
   it('requires a valid work email, not merely non-empty text', () => {
     expect(canSubmit('', false)).toBe(false);
     expect(canSubmit('  ', false)).toBe(false);
@@ -574,7 +602,7 @@ describe('the Add button', () => {
     expect(addDisabledReason('', 'admin', false)).toBe('Enter a work email address.');
   });
 
-  it.each<Role>(['super_admin', 'admin', 'consumer'])(
+  it.each<Role>(['super_admin', 'admin', 'executive', 'consumer'])(
     'enables a valid %s submission with an accessible description',
     (role) => {
       const markup = renderToStaticMarkup(

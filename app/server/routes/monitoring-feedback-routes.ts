@@ -124,7 +124,7 @@ export function monitoringFeedbackRequest(
   } else if (feedback && feedback !== 'up' && feedback !== 'down') {
     error = 'Feedback must be up or down.';
   } else if (role && !isRole(role)) {
-    error = 'Role must be super_admin, admin, or consumer.';
+    error = 'Role must be super_admin, admin, executive, or consumer.';
   } else if (user.length > 320 || organization.length > 253) {
     error = 'One or more feedback filters are too long.';
   }
@@ -163,7 +163,7 @@ export const MONITORING_FEEDBACK_QUERY = `
            CASE
              WHEN lower(f.user_email) = ANY($12::text[]) THEN 'super_admin'
              WHEN lower(f.user_email) = ANY($13::text[]) THEN 'admin'
-             WHEN lower(roster.${ROLE_COLUMN}) IN ('super_admin', 'admin', 'consumer')
+             WHEN lower(roster.${ROLE_COLUMN}) IN ('super_admin', 'admin', 'executive', 'consumer')
                THEN lower(roster.${ROLE_COLUMN})
              WHEN roster.email IS NOT NULL THEN 'admin'
              ELSE 'consumer'

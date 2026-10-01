@@ -173,6 +173,7 @@ export interface RunnerOptions {
 const ALTER_TARGET = /^ALTER TABLE\s+(?:IF EXISTS\s+)?(\w+)\.(\w+)/i;
 const ADDED_COLUMN = /ADD COLUMN IF NOT EXISTS\s+(\w+)/gi;
 const DROPPED_NOT_NULL_COLUMN = /ALTER COLUMN\s+(\w+)\s+DROP NOT NULL/gi;
+const SET_NOT_NULL_COLUMN = /ALTER COLUMN\s+(\w+)\s+SET NOT NULL/gi;
 const CREATE_TABLE_TARGET = /^CREATE TABLE IF NOT EXISTS\s+(\w+)\.(\w+)/i;
 const CREATE_INDEX_TARGET = /^CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF NOT EXISTS\s+(\w+)\s+ON\s+(\w+)\./i;
 
@@ -249,12 +250,13 @@ function identifierText(value: unknown): string | null {
  * somebody for, and reporting both at the same volume is what taught people to
  * skip the line.
  *
- * Three kinds of statement can be decided this way, and they are the three that
+ * Four kinds of statement can be decided this way, and they are the ones that
  * Postgres refuses on ownership before it decides they are no-ops:
- * `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS` and
- * `CREATE INDEX IF NOT EXISTS`. Anything else, and any verifying read that
- * itself fails, answers false and stays loud: the point is to quieten the case
- * that is PROVABLY harmless, not the case nobody could check.
+ * `ADD COLUMN IF NOT EXISTS`, `ALTER COLUMN ... SET NOT NULL`,
+ * `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`. Anything else,
+ * and any verifying read that itself fails, answers false and stays loud: the
+ * point is to quieten the case that is PROVABLY harmless, not the case nobody
+ * could check.
  */
 export async function statementAlreadySatisfied(client: LakebaseReader, statement: string): Promise<boolean> {
   const trimmed = statement.trim();
@@ -263,7 +265,8 @@ export async function statementAlreadySatisfied(client: LakebaseReader, statemen
   if (altered) {
     const wanted = [...statement.matchAll(ADDED_COLUMN)].map((match) => match[1].toLowerCase());
     const nullable = [...statement.matchAll(DROPPED_NOT_NULL_COLUMN)].map((match) => match[1].toLowerCase());
-    if (wanted.length === 0 && nullable.length === 0) return false;
+    const required = [...statement.matchAll(SET_NOT_NULL_COLUMN)].map((match) => match[1].toLowerCase());
+    if (wanted.length === 0 && nullable.length === 0 && required.length === 0) return false;
     try {
       const result = await client.lakebase.query(
         `SELECT column_name, is_nullable FROM information_schema.columns
@@ -276,7 +279,11 @@ export async function statementAlreadySatisfied(client: LakebaseReader, statemen
           return name ? [[name, identifierText(row.is_nullable)?.toUpperCase() ?? '']] : [];
         })
       );
-      return wanted.every((column) => columns.has(column)) && nullable.every((column) => columns.get(column) === 'YES');
+      return (
+        wanted.every((column) => columns.has(column)) &&
+        nullable.every((column) => columns.get(column) === 'YES') &&
+        required.every((column) => columns.get(column) === 'NO')
+      );
     } catch {
       return false;
     }

@@ -200,7 +200,8 @@ describe('the copy on the card', () => {
     expect(editor).not.toContain('Adding grants the role');
     expect(roles).not.toContain('Telemetry feeds the Ops health block');
     expect(editor).not.toContain('Telemetry feeds the Ops health block');
-    expect(roles).toContain("const ADDABLE_ROLES: readonly Role[] = ['super_admin', 'admin', 'consumer']");
+    expect(roles).toContain('roles = ASSIGNABLE_ROLES');
+    expect(roles).toContain("['executive'] as const");
   });
 
   it('uses compact branded loaders while identity lists are first read', () => {

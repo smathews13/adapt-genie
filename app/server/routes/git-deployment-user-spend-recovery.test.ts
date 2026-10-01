@@ -101,14 +101,14 @@ function recoveryStore() {
       return { rows: [] };
     }
     if (sql.includes(ADMIN_AUDIT_TABLE)) return { rows: [] };
-    if (/SELECT email, (?:role, )?added_by, added_at FROM player_insights\.admin_emails/i.test(sql)) {
+    if (/SELECT email, role, added_by, role_updated_at FROM player_insights\.admin_emails/i.test(sql)) {
       return {
         rows: [
           {
             email: PROFILE,
             role: 'consumer',
             added_by: ADMIN,
-            added_at: '2026-09-02T08:00:00Z',
+            role_updated_at: '2026-09-02T08:00:00Z',
           },
         ],
       };

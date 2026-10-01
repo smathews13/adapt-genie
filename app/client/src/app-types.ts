@@ -108,7 +108,7 @@ export interface Identity {
    * `failed`, and `failed` draws the consumer set. It is NOT a permission --
    * every admin route is refused on the server whatever this says.
    */
-  role?: 'super_admin' | 'admin' | 'consumer';
+  role?: 'super_admin' | 'admin' | 'executive' | 'consumer';
   /**
    * Whether the stored half of the admin list could be read. Carried so the
    * settings editor can say the list is unreadable rather than draw zero rows;

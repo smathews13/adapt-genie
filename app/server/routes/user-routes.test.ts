@@ -45,8 +45,8 @@ const STRANGER = 'stranger@example.invalid';
 const TELEMETRY = 'example_catalog.adapt_telemetry';
 
 interface Rows {
-  roster: { email: string; role: string; added_by: string; added_at: string }[];
-  audit: { actor: string; action: string; subject: string; detail: string }[];
+  roster: { email: string; role: string; added_by: string; added_at: string; role_updated_at?: string }[];
+  audit: { actor: string; action: string; subject: string; detail: string; recorded_at: string }[];
   grants: { email: string; object: string; privilege: string; provenance: string }[];
   groups: { group_name: string; role: string; added_by: string; added_at: string }[];
 }
@@ -77,7 +77,13 @@ function fakeLakebase(seedRows: Rows['roster'] = []): AdminStore & { rows: Rows 
       if (sql.includes(ADDED_ADMINS_TABLE)) {
         if (sql.startsWith('INSERT')) {
           const at = rows.roster.findIndex((row) => row.email === values[0]);
-          const row = { email: values[0], role: values[1], added_by: values[2], added_at: '2026-08-17T00:00:00.000Z' };
+          const row = {
+            email: values[0],
+            role: values[1],
+            added_by: values[2],
+            added_at: '2026-09-30T18:45:00.000Z',
+            role_updated_at: '2026-09-30T18:45:00.000Z',
+          };
           if (at >= 0) rows.roster[at] = row;
           else rows.roster.push(row);
           return Promise.resolve({ rows: [{ email: values[0] }] });
@@ -91,7 +97,13 @@ function fakeLakebase(seedRows: Rows['roster'] = []): AdminStore & { rows: Rows 
         return Promise.resolve({ rows: rows.roster as unknown as Record<string, unknown>[] });
       }
       if (sql.includes(ADMIN_AUDIT_TABLE)) {
-        rows.audit.push({ actor: values[1], action: values[2], subject: values[3], detail: values[4] });
+        rows.audit.push({
+          actor: values[1],
+          action: values[2],
+          subject: values[3],
+          detail: values[4],
+          recorded_at: '2026-09-30T18:45:01.000Z',
+        });
         return Promise.resolve({ rows: [] });
       }
       if (sql.includes(ADMIN_GRANTS_TABLE)) {
@@ -249,7 +261,7 @@ describe('an administrator who is not the super admin', () => {
     expect(response.status).toBe(200);
   });
 
-  it('is refused every method that changes a role', async () => {
+  it('is refused every mutation outside the Executive workflow', async () => {
     const store = fakeLakebase();
     const app = await startApp(store);
     const attempts = [
@@ -262,6 +274,59 @@ describe('an administrator who is not the super admin', () => {
     // that answered 403 after the write would be no guard.
     expect(store.rows.roster).toEqual([]);
     expect(store.rows.audit).toEqual([]);
+  });
+
+  it('assigns and removes Executive only for a member of the configured Users group', async () => {
+    const store = fakeLakebase();
+    const readGroupRole = vi.fn((email: string) =>
+      Promise.resolve(email === DEPUTY ? ('admin' as const) : email === ANALYST ? ('consumer' as const) : null)
+    );
+    const app = await startApp(store, readGroupRole);
+
+    const assigned = await app.add(DEPUTY, ANALYST, 'executive');
+    expect(assigned.status).toBe(200);
+    expect(store.rows.roster[0]).toMatchObject({
+      email: ANALYST,
+      role: 'executive',
+      added_by: DEPUTY,
+      role_updated_at: '2026-09-30T18:45:00.000Z',
+    });
+    expect(store.rows.audit[0]).toMatchObject({
+      actor: DEPUTY,
+      action: 'role-changed',
+      subject: ANALYST,
+      recorded_at: '2026-09-30T18:45:01.000Z',
+    });
+
+    const removed = await app.change(DEPUTY, ANALYST, 'consumer');
+    expect(removed.status).toBe(200);
+    expect(store.rows.roster[0].role).toBe('consumer');
+  });
+
+  it('refuses Executive assignment outside the configured Users group', async () => {
+    const store = fakeLakebase();
+    const readGroupRole = vi.fn((email: string) => Promise.resolve(email === DEPUTY ? ('admin' as const) : null));
+    const app = await startApp(store, readGroupRole);
+
+    const response = await app.add(DEPUTY, ANALYST, 'executive');
+
+    expect(response.status).toBe(403);
+    expect(await errorOf(response)).toBe('executive_role_assignment_refused');
+    expect(store.rows.roster).toEqual([]);
+  });
+
+  it('cannot use the Executive workflow to demote an administrator', async () => {
+    const store = fakeLakebase([{ email: ANALYST, role: 'admin', added_by: LEAD, added_at: '' }]);
+    const readGroupRole = vi.fn((email: string) =>
+      Promise.resolve(email === DEPUTY ? ('admin' as const) : email === ANALYST ? ('consumer' as const) : null)
+    );
+    const app = await startApp(store, readGroupRole);
+
+    const response = await app.change(DEPUTY, ANALYST, 'consumer');
+
+    expect(response.status).toBe(403);
+    expect(await errorOf(response)).toBe('executive_role_assignment_refused');
+    expect(store.rows.roster[0].role).toBe('admin');
   });
 
   it('cannot appoint itself', async () => {
@@ -452,8 +517,8 @@ describe('the super admin reads the roster', () => {
 
     expect(analyst).toMatchObject({ role: 'admin', seedFloor: 'admin', canRemove: false });
     expect(analyst?.assignable).toEqual(['super_admin']);
-    expect(readGroupRole).toHaveBeenCalledOnce();
     expect(readGroupRole).toHaveBeenCalledWith(ANALYST);
+    expect(readGroupRole).toHaveBeenCalledWith(LEAD);
   });
 });
 
@@ -467,12 +532,18 @@ describe('appointing an administrator', () => {
 
     expect(response.status).toBe(200);
     expect(store.rows.roster).toEqual([
-      { email: ANALYST, role: 'admin', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+      {
+        email: ANALYST,
+        role: 'admin',
+        added_by: LEAD,
+        added_at: '2026-09-30T18:45:00.000Z',
+        role_updated_at: '2026-09-30T18:45:00.000Z',
+      },
     ]);
     expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
       role: 'admin',
       setBy: LEAD,
-      setAt: '2026-08-17T00:00:00.000Z',
+      setAt: '2026-09-30T18:45:00.000Z',
     });
     // A promotion used to grant read on the telemetry schema and the
     // `system.billing` tables. Read access to billing needs a metastore admin, so
@@ -488,12 +559,18 @@ describe('appointing an administrator', () => {
 
     expect(response.status).toBe(200);
     expect(store.rows.roster).toEqual([
-      { email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+      {
+        email: ANALYST,
+        role: 'consumer',
+        added_by: LEAD,
+        added_at: '2026-09-30T18:45:00.000Z',
+        role_updated_at: '2026-09-30T18:45:00.000Z',
+      },
     ]);
     expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
       role: 'consumer',
       setBy: LEAD,
-      setAt: '2026-08-17T00:00:00.000Z',
+      setAt: '2026-09-30T18:45:00.000Z',
     });
   });
 
@@ -511,7 +588,7 @@ describe('appointing an administrator', () => {
     expect(payload.entries.find((entry) => entry.email === ANALYST)).toMatchObject({
       role: 'admin',
       setBy: LEAD,
-      setAt: '2026-08-17T00:00:00.000Z',
+      setAt: '2026-09-30T18:45:00.000Z',
     });
     expect(store.rows.roster).toHaveLength(1);
   });
@@ -606,7 +683,13 @@ describe('appointing an administrator', () => {
 
     expect(response.status).toBe(200);
     expect(store.rows.roster).toEqual([
-      { email: ANALYST, role: 'admin', added_by: LEAD, added_at: '2026-08-17T00:00:00.000Z' },
+      {
+        email: ANALYST,
+        role: 'admin',
+        added_by: LEAD,
+        added_at: '2026-09-30T18:45:00.000Z',
+        role_updated_at: '2026-09-30T18:45:00.000Z',
+      },
     ]);
   });
 });

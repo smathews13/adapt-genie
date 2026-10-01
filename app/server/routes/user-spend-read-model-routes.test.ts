@@ -69,12 +69,13 @@ function routes(
   const query = vi.fn((sql: string, params: unknown[] = []) => {
     calls.push({ sql, params });
     return Promise.resolve({
-      rows: /SELECT email, role, added_by, added_at FROM player_insights\.admin_emails/.test(sql)
+      rows: /SELECT email, role, added_by, role_updated_at FROM player_insights\.admin_emails/.test(sql)
         ? rosterRows.map((row) => ({
             email: row.display_email,
             role: row.app_role,
             added_by: 'bootstrap',
             added_at: row.identity_updated_at,
+            role_updated_at: row.identity_updated_at,
           }))
         : sql === READ_USER_SPEND_COMPONENTS_QUERY
           ? [

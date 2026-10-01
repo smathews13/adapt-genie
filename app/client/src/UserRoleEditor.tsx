@@ -35,7 +35,7 @@ import {
   stepsDownFrom,
   type RosterEntry,
 } from './user-roster';
-import type { Role, RosterPayload } from '../../shared/user-roster-contract';
+import { ASSIGNABLE_ROLES, type Role, type RosterPayload } from '../../shared/user-roster-contract';
 import { AppSelect } from './AppSelect';
 import { roleOptions } from './user-role-options';
 import { RoleBadgePill } from './RoleBadge';
@@ -51,10 +51,6 @@ import {
   writeGroupRoleMapping,
   writeHumanRoster,
 } from './identity-settings-api';
-
-/** A super admin may appoint any role directly from the add row. The server
- * remains authoritative for promotion and last-super-admin safeguards. */
-const ADDABLE_ROLES: readonly Role[] = ['super_admin', 'admin', 'consumer'];
 
 /**
  * One row's role control, or the line saying why there is none.
@@ -121,6 +117,7 @@ export function RosterAddRow({
   busy,
   adding = false,
   error = '',
+  roles = ASSIGNABLE_ROLES,
   descriptionId = 'roster-add-description',
   onDraftChange,
   onRoleChange,
@@ -131,6 +128,7 @@ export function RosterAddRow({
   busy: boolean;
   adding?: boolean;
   error?: string;
+  roles?: readonly Role[];
   descriptionId?: string;
   onDraftChange: (value: string) => void;
   onRoleChange: (role: Role) => void;
@@ -172,7 +170,7 @@ export function RosterAddRow({
           value={role}
           disabled={busy}
           onValueChange={onRoleChange}
-          options={ADDABLE_ROLES.map((option) => ({
+          options={roles.map((option) => ({
             value: option,
             label: roleWord(option),
             content: <RoleBadgePill state={option} />,
@@ -635,11 +633,21 @@ export function GroupRoleDefaults({
   );
 }
 
-export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanRoles?: boolean }) {
+export function UserRoleEditor({
+  canManageHumanRoles = true,
+  canManageExecutiveRoles = true,
+}: {
+  /** Full Super Admin role management, including workspace-group mappings. */
+  canManageHumanRoles?: boolean;
+  /** Admin-level management of Executive designations for Users-group members. */
+  canManageExecutiveRoles?: boolean;
+}) {
   const [payload, setPayload] = useState<RosterPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<'add' | 'other' | null>(null);
   const [writeError, setWriteError] = useState('');
+  const [humanDraft, setHumanDraft] = useState('');
+  const [humanDraftRole, setHumanDraftRole] = useState<Role>('executive');
   const [groupDraft, setGroupDraft] = useState('');
   const [groupDraftRole, setGroupDraftRole] = useState<Extract<Role, 'admin' | 'consumer'>>('consumer');
   const [groupAddError, setGroupAddError] = useState('');
@@ -647,6 +655,8 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
   const loadGeneration = useRef(0);
   const mutationInFlight = useRef(false);
   const busy = busyAction !== null;
+  const canManageAnyHumanRole = canManageHumanRoles || canManageExecutiveRoles;
+  const addableHumanRoles = canManageHumanRoles ? ASSIGNABLE_ROLES : (['executive'] as const);
 
   const load = useCallback(async (showLoading = true) => {
     const generation = ++loadGeneration.current;
@@ -723,6 +733,17 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
     if (added) setGroupDraft('');
   }
 
+  async function addHumanRole() {
+    const email = humanDraft.trim();
+    if (!email || busy || !canManageAnyHumanRole) return;
+    const added = await run(
+      () => writeHumanRoster('/api/users', 'POST', { email, role: humanDraftRole }),
+      `${normalizeRosterEmail(email)} is now ${roleWord(humanDraftRole).toLowerCase()}.`,
+      { action: 'add', apply: setPayload }
+    );
+    if (added) setHumanDraft('');
+  }
+
   async function changeGroupMapping(entry: GroupRoleEntry, role: Extract<Role, 'admin' | 'consumer'>) {
     if (entry.role === role || busy) return;
     setGroupAddError('');
@@ -773,7 +794,7 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
             <RosterRows
               payload={payload}
               busy={busy}
-              manageHumanRoles={canManageHumanRoles}
+              manageHumanRoles={canManageAnyHumanRole}
               onChange={(entry, role) =>
                 (() => {
                   if (mutationInFlight.current) return;
@@ -807,6 +828,24 @@ export function UserRoleEditor({ canManageHumanRoles = true }: { canManageHumanR
                   `${entry.email} is now a Consumer. Their Databricks App access is unchanged.`,
                   { apply: setPayload }
                 )
+              }
+              footer={
+                canManageAnyHumanRole ? (
+                  <RosterAddRow
+                    draft={humanDraft}
+                    role={humanDraftRole}
+                    roles={addableHumanRoles}
+                    busy={busy}
+                    adding={busyAction === 'add'}
+                    error={writeError}
+                    onDraftChange={(value) => {
+                      setHumanDraft(value);
+                      setWriteError('');
+                    }}
+                    onRoleChange={setHumanDraftRole}
+                    onAdd={() => void addHumanRole()}
+                  />
+                ) : undefined
               }
             />
             {payload.appAccessPrincipals?.length ? (

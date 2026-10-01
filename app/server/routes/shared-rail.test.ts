@@ -29,10 +29,17 @@ function recordingStore(role?: 'admin' | 'super_admin', conversationRows: Record
     lakebase: {
       query(sql: string, params: unknown[] = []) {
         queries.push({ sql, params });
-        if (/SELECT email, role, added_by, added_at FROM player_insights\.admin_emails/i.test(sql)) {
+        if (/SELECT email, role, added_by, role_updated_at FROM player_insights\.admin_emails/i.test(sql)) {
           return Promise.resolve({
             rows: role
-              ? [{ email: 'alice@cmeg.example', role, added_by: 'operator@cmeg.example', added_at: new Date(0) }]
+              ? [
+                  {
+                    email: 'alice@cmeg.example',
+                    role,
+                    added_by: 'operator@cmeg.example',
+                    role_updated_at: new Date(0),
+                  },
+                ]
               : [],
           });
         }
@@ -85,6 +92,7 @@ const ROUTE_SOURCE = readFileSync(new URL('insights-routes.ts', import.meta.url)
 let previous: string | undefined;
 let previousOrganizations: string | undefined;
 let nodeEnv: string | undefined;
+let identityReadiness: string | undefined;
 let logs: string[];
 
 beforeEach(() => {
@@ -93,7 +101,9 @@ beforeEach(() => {
   previous = process.env[SHARED_CONVERSATION_RAIL_ENV];
   previousOrganizations = process.env.PLAYER_INSIGHTS_ORGANIZATIONS;
   nodeEnv = process.env.NODE_ENV;
+  identityReadiness = process.env.ENFORCE_IDENTITY_READINESS;
   process.env.NODE_ENV = 'production';
+  process.env.ENFORCE_IDENTITY_READINESS = 'false';
   logs = [];
   const capture = (...args: unknown[]) => void logs.push(args.join(' '));
   vi.spyOn(console, 'error').mockImplementation(capture);
@@ -109,6 +119,8 @@ afterEach(() => {
   else process.env.PLAYER_INSIGHTS_ORGANIZATIONS = previousOrganizations;
   if (nodeEnv === undefined) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = nodeEnv;
+  if (identityReadiness === undefined) delete process.env.ENFORCE_IDENTITY_READINESS;
+  else process.env.ENFORCE_IDENTITY_READINESS = identityReadiness;
   vi.restoreAllMocks();
 });
 

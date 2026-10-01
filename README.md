@@ -62,8 +62,8 @@ plans the answer, decides what to ask, and writes the final prose.
 
 **Direct governed queries are the primary data path.** ADAPT starts with the
 smallest metadata and SQL reads needed over its declared table manifest. If that
-path cannot answer, it may ask one Genie space — *ADAPT — Steam Sales &
-Analytics* — once. Both paths run under the asking user's grants. If Genie is
+path cannot answer, it may ask one Genie space — _ADAPT — Steam Sales &
+Analytics_ — once. Both paths run under the asking user's grants. If Genie is
 unavailable or not shared, the run records that caveat rather than pretending
 Genie answered. There is no separate data-dictionary space.
 
@@ -83,18 +83,18 @@ and which Genie space answered. It is what Run Explorer reads.
 Every answer is a structured contract rather than a block of prose, and the same
 sections appear on every run:
 
-| Section | What it is |
-| --- | --- |
-| Takeaway | The single sentence a reader would repeat. |
-| Narrative | Short interpretation of the findings. |
-| Content | The concrete findings, kept separate from interpretation. |
-| Figures | Labelled values with an optional comparison. |
-| Charts | Plotly panels, whose kind is derived from the traces rather than declared. |
-| Sources | Each table read, and whether it was read for values (`reading`) or for meaning (`reference`). |
-| Caveats | Governance, coverage and interpretation limits that apply. |
+| Section    | What it is                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
+| Takeaway   | The single sentence a reader would repeat.                                                                    |
+| Narrative  | Short interpretation of the findings.                                                                         |
+| Content    | The concrete findings, kept separate from interpretation.                                                     |
+| Figures    | Labelled values with an optional comparison.                                                                  |
+| Charts     | Plotly panels, whose kind is derived from the traces rather than declared.                                    |
+| Sources    | Each table read, and whether it was read for values (`reading`) or for meaning (`reference`).                 |
+| Caveats    | Governance, coverage and interpretation limits that apply.                                                    |
 | Derivation | Per statement: source, metric, window, filter. Parsed from the SQL that ran, never from what the model wrote. |
-| SQL | The statements Genie ran. |
-| Trace | Every stage, nested, with its real input and output. |
+| SQL        | The statements Genie ran.                                                                                     |
+| Trace      | Every stage, nested, with its real input and output.                                                          |
 
 A turn has three possible outcomes, not one. It can return an **answer**; it can
 return a **plan** for approval before doing analytical work; or it can return a
@@ -139,18 +139,17 @@ The top navigation shows **Ask**, **Monitoring** and **Ops**. The remaining
 routes below stay registered and reachable by URL and from in-app links; only the
 top-level tabs were trimmed for the digital-sales audience.
 
-| Page | Nav | Who | What it is for |
-| --- | --- | --- | --- |
-| **Ask** (`/`) | yes | everyone | The conversation. Answers, plans, clarifications, attachments, feedback. |
-| **Monitoring** | yes | admins | Usage, latency and failures over time. |
-| **Ops** | yes | admins | Serving endpoint, traffic, and operational state. |
-| **Run Explorer** (`/runs`) | URL only | everyone | Every recorded run, and one run's trace read four ways: the answer, the step list, the nested call graph, and the timeline. The timeline is the same component the answer card draws, so the two cannot disagree about a measurement. |
-| **Connections** (`/connections`) | URL only | everyone | Every dependency this deployment has, what it is configured with, what the running model reports it is actually using, and whether those two disagree. |
-| **Architecture** (`/architecture`) | URL only | everyone | The same connections as a diagram, with a text equivalent carrying every fact the drawing does. Statuses are the Connections page's own, so a node cannot grade a dependency differently from the row that grades it. |
-| **Settings** | gear, admins | admins | Runtime settings, people and roles, and the deployment's own configuration. |
+| Page                               | Nav          | Who      | What it is for                                                                                                                                                                                                                        |
+| ---------------------------------- | ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ask** (`/`)                      | yes          | everyone | The conversation. Answers, plans, clarifications, attachments, feedback.                                                                                                                                                              |
+| **Monitoring**                     | yes          | admins   | Usage, latency and failures over time.                                                                                                                                                                                                |
+| **Ops**                            | yes          | admins   | Serving endpoint, traffic, and operational state.                                                                                                                                                                                     |
+| **Run Explorer** (`/runs`)         | URL only     | everyone | Every recorded run, and one run's trace read four ways: the answer, the step list, the nested call graph, and the timeline. The timeline is the same component the answer card draws, so the two cannot disagree about a measurement. |
+| **Connections** (`/connections`)   | URL only     | everyone | Every dependency this deployment has, what it is configured with, what the running model reports it is actually using, and whether those two disagree.                                                                                |
+| **Architecture** (`/architecture`) | URL only     | everyone | The same connections as a diagram, with a text equivalent carrying every fact the drawing does. Statuses are the Connections page's own, so a node cannot grade a dependency differently from the row that grades it.                 |
+| **Settings**                       | gear, admins | admins   | Runtime settings, people and roles, and the deployment's own configuration.                                                                                                                                                           |
 
-Admin routes are registered for everyone and refused by every admin API with a
-403. Hiding a nav entry and breaking a URL are different decisions; a consumer
+Admin routes are registered for everyone and refused by every admin API with a 403. Hiding a nav entry and breaking a URL are different decisions; a consumer
 who follows an admin's link gets a sentence explaining the refusal rather than a
 page of broken panels.
 
@@ -159,13 +158,13 @@ page of broken panels.
 Connections compares two documents. One is what the running model reports about
 itself. The other is optional: a declaration a notebook publishes into a table
 the app reads, which lets the team that owns the pipeline state what the
-deployment is *meant* to be configured with. Each key is badged **In use**,
+deployment is _meant_ to be configured with. Each key is badged **In use**,
 **Awaiting model version**, **Not applied**, or **Not checked**.
 
 Publishing changes nothing at runtime. That is the design, not a limitation. A
 document fetched over the network does not get to widen what an agent may read.
 Everything waits for the next model release, including a value that would
-*narrow* the agent's reach, because narrowing and widening take the same
+_narrow_ the agent's reach, because narrowing and widening take the same
 reviewable path.
 
 An administrator who reviews the drift can click **Apply**, which records an
@@ -192,25 +191,25 @@ user; grant `SELECT` to whoever should see the comparison.
 
 Read this before pointing anything at this repository.
 
-**The app source path is `app/build/deploy`. There is nothing
+**The app source path is `player-insights-agent/build/deploy`. There is nothing
 to build first.** That directory is committed and holds the bundled server and
 the built client. It deliberately has **no `package.json`**, so the platform logs
 "No dependencies file found. Skipping installation" and the deploy takes about
 fifteen seconds. Only rebuild it if you change the code:
 
 ```bash
-cd app && npm install && npm run build:deploy
-git add app/build/deploy
+cd player-insights-agent && npm install && npm run build:deploy
+git add player-insights-agent/build/deploy
 ```
 
 **Both of the obvious source paths fail quietly.** The repository root has no
-`app.yaml`. `app/` hangs, because the platform finds a
+`app.yaml`. `player-insights-agent/` hangs, because the platform finds a
 `package.json` there and tries to install a 500-package tree with no registry
 egress from app compute.
 
 **Two `app.yaml` files exist and only one is deployable.**
-`app/app.yaml` is the source one and runs `npm run start`.
-`app/build/deploy/app.yaml` is the built one, runs the bundled
+`player-insights-agent/app.yaml` is the source one and runs `npm run start`.
+`player-insights-agent/build/deploy/app.yaml` is the built one, runs the bundled
 server, and is the one the platform reads.
 
 ### What the workspace needs first
@@ -234,7 +233,7 @@ Have these before you start:
   back with `databricks postgres list-projects`. No owner role is needed; that
   was an input to creating the database;
 - **one existing Genie space**, with its tables already curated. You supply its
-  id, not its contents. `genie/adapt_space.json` is the committed ADAPT
+  id, not its contents. `genie/adapt_poc_space.json` is the committed ADAPT
   space definition used to curate it;
 - an existing SQL warehouse;
 - a workspace source path for the committed deploy tree;
@@ -330,25 +329,25 @@ workflow.
 
 ### Deployment landmines
 
-| Issue | How this process avoids it |
-| --- | --- |
-| Some CLI versions crash creating an App when an empty `telemetry_export_destinations: []` is rendered | The customer target omits the optional field entirely. The bundle deploy creates the App on the direct engine; Terraform is not offered as an alternative. |
-| Old bundle state still *owns* a Lakebase project the current YAML only *attaches* | `bundle/deploy.sh` refuses a local `resources.json` that still tracks `postgres_projects`, `postgres_branches`, or `postgres_databases`. Migrate those entries out of state first, and never pass `--auto-approve`: skipping the change list has destroyed an attached Lakebase project before. |
-| A crashed deploy leaves a stale lock | Retry with `--force-lock` only after confirming no deploy is live: set `ADAPT_CONFIRMED_NO_LIVE_DEPLOY=true` and pass `--force-lock` to the wrapper. Do not make it the normal command. |
-| A clean clone has no `node_modules`, so `tsc` exits 127 | `app-release.sh` runs `npm ci` when `node_modules` is absent, before `npm run build:deploy`. |
-| An empty schema inside an otherwise usable catalog failed preflight | Empty schemas are skipped. There is no local table ceiling; Unity Catalog may still refuse a very wide dependency list at log time. |
-| A newly created App's compute is `STOPPED` | `app-release.sh` starts compute before its first code deploy. |
-| Recreating a deleted App gives it a new service principal, which cannot own the old app schema | Preserve the old data and set `lakebase_app_schema` to a new, unused schema before deploying. The new app creates and owns it on first start. The ownership gate refuses the old schema rather than trying to steal it; move data deliberately afterwards rather than dropping a schema to get past the gate. |
-| The Lakebase resource ID differs from the live PostgreSQL database name | Set `lakebase_database_id` from `databricks postgres list-databases`; the grant step resolves the SQL-facing name separately before connecting. |
-| First on-behalf-of request returns HTTP 400 `Unable to authenticate using user_credentials` | Treat it as consent and session state: restart the app after a scope change and have the user sign in again. Repeating the bundle deploy does not repair an old token. |
-| Additional users cannot run the Genie space | Grant every user or group `CAN RUN` on the space. No identities are hardcoded anywhere. |
-| A restored Lakebase project keeps billing | Inventory and delete the orphan explicitly. This is recovery cleanup, not part of a normal deploy. |
+| Issue                                                                                                 | How this process avoids it                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Some CLI versions crash creating an App when an empty `telemetry_export_destinations: []` is rendered | The customer target omits the optional field entirely. The bundle deploy creates the App on the direct engine; Terraform is not offered as an alternative.                                                                                                                                                    |
+| Old bundle state still _owns_ a Lakebase project the current YAML only _attaches_                     | `bundle/deploy.sh` refuses a local `resources.json` that still tracks `postgres_projects`, `postgres_branches`, or `postgres_databases`. Migrate those entries out of state first, and never pass `--auto-approve`: skipping the change list has destroyed an attached Lakebase project before.               |
+| A crashed deploy leaves a stale lock                                                                  | Retry with `--force-lock` only after confirming no deploy is live: set `ADAPT_CONFIRMED_NO_LIVE_DEPLOY=true` and pass `--force-lock` to the wrapper. Do not make it the normal command.                                                                                                                       |
+| A clean clone has no `node_modules`, so `tsc` exits 127                                               | `app-release.sh` runs `npm ci` when `node_modules` is absent, before `npm run build:deploy`.                                                                                                                                                                                                                  |
+| An empty schema inside an otherwise usable catalog failed preflight                                   | Empty schemas are skipped. There is no local table ceiling; Unity Catalog may still refuse a very wide dependency list at log time.                                                                                                                                                                           |
+| A newly created App's compute is `STOPPED`                                                            | `app-release.sh` starts compute before its first code deploy.                                                                                                                                                                                                                                                 |
+| Recreating a deleted App gives it a new service principal, which cannot own the old app schema        | Preserve the old data and set `lakebase_app_schema` to a new, unused schema before deploying. The new app creates and owns it on first start. The ownership gate refuses the old schema rather than trying to steal it; move data deliberately afterwards rather than dropping a schema to get past the gate. |
+| The Lakebase resource ID differs from the live PostgreSQL database name                               | Set `lakebase_database_id` from `databricks postgres list-databases`; the grant step resolves the SQL-facing name separately before connecting.                                                                                                                                                               |
+| First on-behalf-of request returns HTTP 400 `Unable to authenticate using user_credentials`           | Treat it as consent and session state: restart the app after a scope change and have the user sign in again. Repeating the bundle deploy does not repair an old token.                                                                                                                                        |
+| Additional users cannot run the Genie space                                                           | Grant every user or group `CAN RUN` on the space. No identities are hardcoded anywhere.                                                                                                                                                                                                                       |
+| A restored Lakebase project keeps billing                                                             | Inventory and delete the orphan explicitly. This is recovery cleanup, not part of a normal deploy.                                                                                                                                                                                                            |
 
 ## Updating it: Deploy from Git
 
 **App-code updates are Deploy from Git onto the existing app.** No preparatory
 bundle release is required. UI, server and other TypeScript in
-`app/build/deploy` are pulled from this repository onto the
+`player-insights-agent/build/deploy` are pulled from this repository onto the
 live app.
 
 Deploy from Git replaces the generated `app.yaml` with the public artifact's
@@ -367,15 +366,15 @@ bundle release and never blanks the deployment's existing scope.
 3. Confirm the Git settings. Set once; re-check them, because the UI can clear
    the path when you start a new flow.
 
-   | Setting | Value |
-   | --- | --- |
-   | Repository | `https://github.com/smathews13/adapt-genie` |
-   | Provider | **GitHub** |
-   | Branch / reference | **`main`** (reference type **Branch**) |
-   | Source code path | **`app/build/deploy`** |
+   | Setting            | Value                                       |
+   | ------------------ | ------------------------------------------- |
+   | Repository         | `https://github.com/smathews13/adapt-genie` |
+   | Provider           | **GitHub**                                  |
+   | Branch / reference | **`main`** (reference type **Branch**)      |
+   | Source code path   | **`app/build/deploy`**                      |
 
 4. Click **Deploy**. The app updates then, and only then. Do **not** enable
-   *Auto deploy on push events*; an update is a deliberate step.
+   _Auto deploy on push events_; an update is a deliberate step.
 
 **Do not leave Source code path blank.** Left blank, the platform deploys from
 the repository root, which has no `app.yaml`, and the deploy fails with "No
@@ -431,13 +430,16 @@ saved.
 
 **Databricks owns membership; ADAPT owns roles.** The Identity roster reads the
 Databricks App ACL and overlays ADAPT's Lakebase roles on its explicit users.
-Someone added in Databricks therefore appears as a Consumer until an ADAPT super
-admin assigns a higher app role. ADAPT role changes never grant or revoke App
-access. Resetting a stored role returns that member to Consumer while leaving
+Someone admitted through the Users access group therefore appears as a Consumer
+until an ADAPT admin assigns the in-app Executive designation or a super admin
+assigns another app role. Executive changes only audience metadata; they do not
+change prompts, answers, Databricks App access, or Unity Catalog grants. Resetting
+a stored role returns that member to Consumer while leaving
 Databricks access unchanged. Groups and service principals remain
 Databricks-managed and are shown separately. Lakebase remains the runtime source
-of truth for super-admin, admin and consumer roles, so those roles survive code
-deploys.
+of truth for super-admin, admin, executive and consumer roles. Each role change
+updates the roster timestamp and appends an audit row, so assignments survive
+code deploys and remain queryable for logging.
 
 ### When you still need something else
 
@@ -501,7 +503,7 @@ databricks permissions update genie <space_id> \
   --json '{"access_control_list":[{"user_name":"someone@example.com","permission_level":"CAN_RUN"}]}'
 ```
 
-Do **not** grant the *serving-endpoint* principal `CAN RUN`. That was the old
+Do **not** grant the _serving-endpoint_ principal `CAN RUN`. That was the old
 passthrough remedy; under user authorization it grants nothing the caller needs.
 
 ## Who can sign in, and who can administer

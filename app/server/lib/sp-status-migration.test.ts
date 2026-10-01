@@ -6,7 +6,7 @@ describe('service-principal status migration', () => {
   it('keeps idempotent v36 stable-link evidence in the current migration order', () => {
     const migration = LATER_MIGRATIONS.find((entry) => entry.version === 36);
     expect(migration?.name).toBe('service principal connection evidence');
-    expect(LATER_MIGRATIONS.slice(-10).map((entry) => entry.version)).toEqual([41, 42, 43, 44, 45, 46, 47, 48, 49, 50]);
+    expect(LATER_MIGRATIONS.slice(-10).map((entry) => entry.version)).toEqual([42, 43, 44, 45, 46, 47, 48, 49, 50, 51]);
     const sql = migration?.statements.join('\n') ?? '';
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS definition_id TEXT');
     expect(sql).toContain('sp_personas_definition_idx');
@@ -22,5 +22,15 @@ describe('service-principal status migration', () => {
     expect(sql).toContain('Which brand had the most sales yesterday?');
     expect(sql).toContain('Civilization');
     expect(sql).toContain('ON CONFLICT (id) DO UPDATE SET');
+  });
+
+  it('records a dedicated role-update timestamp for audited Executive assignments', () => {
+    const migration = LATER_MIGRATIONS.find((entry) => entry.version === 51);
+    const sql = migration?.statements.join('\n') ?? '';
+
+    expect(migration?.name).toBe('audited executive role timestamps');
+    expect(sql).toContain('role_updated_at TIMESTAMPTZ DEFAULT NOW()');
+    expect(sql).toContain('SET role_updated_at = added_at');
+    expect(sql).toContain('ALTER COLUMN role_updated_at SET NOT NULL');
   });
 });

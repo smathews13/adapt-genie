@@ -244,7 +244,7 @@ export function announceSeedAdmins(raw: string | undefined = process.env[SEED_AD
     console.log(
       `[admin] NO SEED SUPER ADMINISTRATOR. Nobody can appoint or remove administrators from ` +
         'inside the app unless the stored roster already names a super admin. This deployment therefore ' +
-        `has the two roles it always had. To name one, prefix an entry in ${SEED_ADMIN_EMAILS_ENV} with ` +
+        `has no in-app super administrator. To name one, prefix an entry in ${SEED_ADMIN_EMAILS_ENV} with ` +
         `"${SEED_SUPER_ADMIN_PREFIX}".`
     );
   }
@@ -540,9 +540,29 @@ export function isSuperAdminRoute(path: string): boolean {
   return matchesPrefix(path, SUPER_ADMIN_ROUTE_PREFIXES);
 }
 
-/** Identity reads are admin-visible; every write under the roster path remains Super-Admin-only. */
+/** Identity reads are admin-visible; roster writes otherwise remain Super-Admin-only. */
 export function requiresSuperAdmin(method: string, path: string): boolean {
   return method.toUpperCase() !== 'GET' && isSuperAdminRoute(path);
+}
+
+/**
+ * The narrow roster mutations a plain admin may ask the route to validate.
+ *
+ * The route still proves that the target belongs to the configured Users group
+ * and currently holds only Consumer/Executive. This middleware exception only
+ * lets that request reach the authoritative checks.
+ */
+export function isAdminManagedExecutiveMutation(method: string, path: string, body: unknown): boolean {
+  const verb = method.toUpperCase();
+  const role =
+    body && typeof body === 'object' && typeof (body as { role?: unknown }).role === 'string'
+      ? (body as { role: string }).role
+      : '';
+  if (verb === 'POST' && path.toLowerCase() === '/api/users') return role === 'executive';
+  if (verb === 'PATCH' && path.toLowerCase().startsWith('/api/users/')) {
+    return role === 'executive' || role === 'consumer';
+  }
+  return false;
 }
 
 /**
@@ -568,7 +588,8 @@ export const ADMIN_REQUIRED_BODY = {
  */
 export const SUPER_ADMIN_REQUIRED_BODY = {
   error: 'super_admin_role_required',
-  detail: 'This deployment restricts changing roles to its super administrator.',
+  detail:
+    'This deployment restricts that role change to its super administrator. Admins may manage Executive designations for Users-group members.',
 } as const;
 
 /**
@@ -654,7 +675,7 @@ export function requireSuperAdmin(
   readGroupRole: GroupRoleLookup = groupRoleLookupForStore(store)
 ) {
   return function refuseNonSuperAdmins(req: Request, res: Response, next: NextFunction) {
-    if (!requiresSuperAdmin(req.method, req.path)) {
+    if (!requiresSuperAdmin(req.method, req.path) || isAdminManagedExecutiveMutation(req.method, req.path, req.body)) {
       next();
       return;
     }
@@ -709,7 +730,7 @@ export type AdminAction =
    * to one of them, because the fact a permission change has to be answerable for
    * afterwards is which role somebody went FROM and which they went TO. An addition
    * and a removal are the two rows the admin list wrote when the role was a boolean;
-   * with three roles they can no longer carry the change, and a promotion recorded
+   * with multiple roles they can no longer carry the change, and a promotion recorded
    * as an addition would read as though the person had not been there before.
    */
   | 'role-changed'

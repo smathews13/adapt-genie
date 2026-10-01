@@ -784,7 +784,8 @@ describe('the versions this build ships', () => {
         const normalized = statement.replace(/\s+/g, ' ').trim();
         expect(
           /IF NOT EXISTS|ON CONFLICT|IF EXISTS|CREATE OR REPLACE/i.test(normalized) ||
-            /^UPDATE .* WHERE sentiment IS NULL AND /i.test(normalized)
+            /^UPDATE .* WHERE \w+ IS NULL(?: AND |$)/i.test(normalized) ||
+            /^ALTER TABLE .* ALTER COLUMN \w+ SET (?:DEFAULT|NOT NULL)/i.test(normalized)
         ).toBe(true);
       }
     }

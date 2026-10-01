@@ -140,7 +140,7 @@ export interface UserSpendReadModelStore {
 
 export interface UserSpendRosterEntry {
   email: string;
-  role: 'super_admin' | 'admin' | 'consumer';
+  role: 'super_admin' | 'admin' | 'executive' | 'consumer';
 }
 
 export interface UserSpendRefreshResult {
@@ -555,7 +555,7 @@ app_totals AS (
 identity_population AS (
   SELECT lower(roster.email) AS user_key,
          lower(roster.email) AS display_email,
-         CASE WHEN roster.role IN ('super_admin', 'admin', 'consumer') THEN roster.role ELSE 'admin' END AS app_role,
+         CASE WHEN roster.role IN ('super_admin', 'admin', 'executive', 'consumer') THEN roster.role ELSE 'admin' END AS app_role,
          NULL::timestamptz AS identity_updated_at
   FROM (
     SELECT DISTINCT ON (lower(email)) email, role
@@ -640,7 +640,7 @@ export interface UserSpendSummaryRow {
   appSpendDbu: number | null;
   activityComplete: boolean;
   billingComplete: boolean;
-  role: 'super_admin' | 'admin' | 'consumer';
+  role: 'super_admin' | 'admin' | 'executive' | 'consumer';
   sourceThrough: string | null;
   computedAt: string | null;
   identityRevision: string | null;
@@ -798,7 +798,10 @@ export async function readUserSpendReadModelPage(
       activityComplete: bool(row.activity_complete),
       billingComplete: bool(row.billing_complete),
       role:
-        row.app_role === 'super_admin' || row.app_role === 'admin' || row.app_role === 'consumer'
+        row.app_role === 'super_admin' ||
+        row.app_role === 'admin' ||
+        row.app_role === 'executive' ||
+        row.app_role === 'consumer'
           ? row.app_role
           : 'consumer',
       sourceThrough: stamp(row.source_through),

@@ -1858,7 +1858,7 @@ export function HomePage() {
     identity.sharedConversationRail === true && (identity.role === 'admin' || identity.role === 'super_admin');
 
   useEffect(() => {
-    if (identity.role === 'consumer') {
+    if (identity.role === 'consumer' || identity.role === 'executive') {
       ownerPreferenceLoadedFor.current = '';
       setOwnerFilters([]);
       clearOwnerSelectionPreference();

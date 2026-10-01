@@ -127,7 +127,10 @@ export function identityFromResponse(value: unknown): Identity {
     ...(typeof candidate.sharedConversationRail === 'boolean'
       ? { sharedConversationRail: candidate.sharedConversationRail }
       : {}),
-    ...(candidate.role === 'super_admin' || candidate.role === 'admin' || candidate.role === 'consumer'
+    ...(candidate.role === 'super_admin' ||
+    candidate.role === 'admin' ||
+    candidate.role === 'executive' ||
+    candidate.role === 'consumer'
       ? { role: candidate.role }
       : {}),
     ...(typeof candidate.addedAdminsReadable === 'boolean'

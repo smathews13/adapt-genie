@@ -62,6 +62,10 @@ describe('the seed is a floor', () => {
     expect(effectiveRole({ seed: NO_SEED, stored: [stored(ANALYST, 'consumer')], email: ANALYST })).toBe('consumer');
   });
 
+  it('raises a Users-group consumer floor to the stored Executive role', () => {
+    expect(effectiveRole({ seed: NO_SEED, stored: [stored(ANALYST, 'executive')], email: ANALYST })).toBe('executive');
+  });
+
   it('matches an address whatever case it was written in', () => {
     const seed: SeedRoles = { superAdmins: [LEAD], admins: [LEAD] };
     expect(effectiveRole({ seed, stored: [], email: 'Lead@Example.INVALID' })).toBe('super_admin');
@@ -220,6 +224,7 @@ describe('the payload decides what each row may do', () => {
     rosterPayload({
       seed: LEAD_SEEDED,
       stored: [stored(DEPUTY, 'admin'), stored(ANALYST, 'consumer')],
+      executiveEligible: new Set([ANALYST]),
       storedRosterReadable: true,
       roleColumnPresent: true,
       reader: DEPUTY,
@@ -238,6 +243,30 @@ describe('the payload decides what each row may do', () => {
 
   it('marks the reader', () => {
     expect(payload().entries.find((entry) => entry.isYou)?.email).toBe(DEPUTY);
+  });
+
+  it('lets an Admin manage only Consumer and Executive designations', () => {
+    const analyst = payload().entries.find((entry) => entry.email === ANALYST);
+    const deputy = payload().entries.find((entry) => entry.email === DEPUTY);
+    expect(analyst?.assignable).toEqual(['executive']);
+    expect(analyst?.canRemove).toBe(false);
+    expect(deputy?.assignable).toEqual([]);
+  });
+
+  it('keeps full role management with Super Admin', () => {
+    const managed = rosterPayload({
+      seed: LEAD_SEEDED,
+      stored: [stored(DEPUTY, 'admin'), stored(ANALYST, 'consumer')],
+      executiveEligible: new Set([ANALYST]),
+      storedRosterReadable: true,
+      roleColumnPresent: true,
+      reader: LEAD,
+    });
+    expect(managed.entries.find((entry) => entry.email === ANALYST)?.assignable).toEqual([
+      'super_admin',
+      'admin',
+      'executive',
+    ]);
   });
 
   it('marks only the matching deployment owner independently of role', () => {
@@ -369,6 +398,54 @@ describe('reading a roster whose table predates the role column', () => {
 });
 
 describe('reading a stored role back', () => {
+  it('falls back to added_at while the role timestamp migration is still converging', async () => {
+    let reads = 0;
+    const store: AdminStore = {
+      query() {
+        reads += 1;
+        if (reads === 1) {
+          const error = new Error('column "role_updated_at" does not exist') as Error & { code: string };
+          error.code = '42703';
+          return Promise.reject(error);
+        }
+        return Promise.resolve({
+          rows: [
+            {
+              email: ANALYST,
+              role: 'executive',
+              added_by: LEAD,
+              role_updated_at: '2026-08-17T00:00:00.000Z',
+            },
+          ],
+        });
+      },
+    };
+
+    expect((await readRoster(store)).rows[0]).toEqual(stored(ANALYST, 'executive'));
+  });
+
+  it('keeps an Executive row and its dedicated update timestamp', async () => {
+    const store: AdminStore = {
+      query: () =>
+        Promise.resolve({
+          rows: [
+            {
+              email: ANALYST,
+              role: 'executive',
+              added_by: LEAD,
+              role_updated_at: '2026-09-30T18:45:00.000Z',
+            },
+          ],
+        }),
+    };
+    expect((await readRoster(store)).rows[0]).toEqual({
+      email: ANALYST,
+      role: 'executive',
+      setBy: LEAD,
+      setAt: '2026-09-30T18:45:00.000Z',
+    });
+  });
+
   it('keeps a consumer row a consumer', async () => {
     // The row a super admin creates for somebody they have listed without promoting.
     // Read back as an admin, it would hand out the role the row exists to withhold.
@@ -389,6 +466,24 @@ describe('reading a stored role back', () => {
         }),
     };
     expect((await readRoster(store)).rows[0].role).toBe('super_admin');
+  });
+});
+
+describe('writing an audited role timestamp', () => {
+  it('updates role_updated_at whenever an Executive designation changes', async () => {
+    const written: Array<{ text: string; params: unknown[] }> = [];
+    const store: AdminStore = {
+      query(text: string, params: unknown[] = []) {
+        written.push({ text: text.replace(/\s+/g, ' ').trim(), params });
+        return Promise.resolve({ rows: [] });
+      },
+    };
+
+    await writeRole(store, { email: ANALYST, role: 'executive', actor: LEAD, roleColumnPresent: true });
+
+    expect(written[0].text).toContain('role_updated_at');
+    expect(written[0].text).toContain('role_updated_at = NOW()');
+    expect(written[0].params).toEqual([ANALYST, 'executive', LEAD]);
   });
 });
 

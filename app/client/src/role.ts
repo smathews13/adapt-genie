@@ -33,7 +33,7 @@ export type { Role };
  * showing Consumer to an administrator is confusing, and showing Admin to a
  * consumer is a false claim of privilege. The badge never guesses.
  */
-export type RoleState = 'resolving' | 'super_admin' | 'admin' | 'consumer' | 'failed';
+export type RoleState = 'resolving' | Role | 'failed';
 
 /**
  * What the app knows about the caller's role, as the header holds it.
@@ -58,7 +58,7 @@ export const ROLE_RESOLVING: RoleResolution = { state: 'resolving', addedAdminsR
  * the role beside the address, so a second request for it would be a second
  * chance to disagree about who is reading, and the two answers would race.
  *
- * Anything that is not one of the three roles resolves to `failed`, and both ways
+ * Anything that is not one of the four roles resolves to `failed`, and both ways
  * of getting there mean the same thing: a request that did not land, and a
  * server old enough to answer without a role, are both "we do not know". Failed
  * draws the consumer layout, so not knowing costs a reader some tabs rather than
@@ -101,6 +101,11 @@ export function managesUserRoster(state: RoleState): boolean {
   return state === 'super_admin';
 }
 
+/** Admins may maintain Executive designations; only Super Admin manages every role. */
+export function managesExecutiveRoles(state: RoleState): boolean {
+  return state === 'admin' || state === 'super_admin';
+}
+
 /* ── The badge ───────────────────────────────────────────────────────────── */
 
 /**
@@ -131,6 +136,7 @@ export function badgeTitle(state: RoleState): string {
   // extra control is, and the Admin line already covers the rest.
   if (state === 'super_admin') return 'You can open Monitoring, Ops, Connections and Settings, and set who else can.';
   if (state === 'admin') return 'You can open Monitoring, Ops, Connections and Settings.';
+  if (state === 'executive') return 'You can ask questions, see your own runs, and receive Executive experiences.';
   if (state === 'consumer') return 'You can ask questions, see your own runs, and customize your settings.';
   if (state === 'failed') return 'Could not read your role. Reload the page.';
   return '';
@@ -164,6 +170,7 @@ export function badgeAnnouncement(previous: RoleState, next: RoleState): string 
   // The first resolve. Nothing was claimed before it, so nothing changed.
   if (previous === 'resolving') return '';
   if (next === 'consumer') return 'Your role changed. You are now a consumer.';
+  if (next === 'executive') return 'Your role changed. You are now an executive.';
   if (next === 'failed') return 'Your role could not be read.';
   // Losing the super rank while keeping Admin. Spoken for the same reason as the
   // line above rather than because the rank is important: a control has just left
@@ -236,7 +243,7 @@ export function navEntries(state: RoleState, features: ExperimentalFeatures): Na
  * withholds the control rather than guessing that identity is usable.
  */
 export function showsSettingsGear(state: RoleState): boolean {
-  return state === 'consumer' || showsAdminSurfaces(state) || SHOW_EVERY_TAB_TO_EVERYONE;
+  return state === 'consumer' || state === 'executive' || showsAdminSurfaces(state) || SHOW_EVERY_TAB_TO_EVERYONE;
 }
 
 /**

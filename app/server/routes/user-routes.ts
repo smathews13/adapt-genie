@@ -184,6 +184,13 @@ export function setupUserRoutes(
       groupRoleForRequest(req, email, readGroupRole)
     );
   };
+  const executiveEligible = async (req: Request, emails: readonly string[]) => {
+    const unique = [...new Set(emails.map(normalizeAdminEmail).filter(Boolean))];
+    const roles = await Promise.all(
+      unique.map(async (email) => [email, await groupRoleForRequest(req, email, readGroupRole)] as const)
+    );
+    return new Set(roles.filter(([, role]) => role === 'consumer').map(([email]) => email));
+  };
   const configuredGroups = [
     { displayName: adaptAdminGroupLabel(), groupName: adminGroup, role: 'admin' as const },
     { displayName: adaptUserGroupLabel(), groupName: userGroup, role: 'consumer' as const },
@@ -288,14 +295,22 @@ export function setupUserRoutes(
         read(appkit.lakebase, req),
         readDeploymentOwner().catch(() => ''),
       ]);
-      const seed = await roleFloors(req, rows);
+      const reader = userEmail(req);
+      const [seed, eligible] = await Promise.all([
+        roleFloors(req, rows, [reader]),
+        executiveEligible(
+          req,
+          rows.map((row) => row.email)
+        ),
+      ]);
       const payload = await attachIdentityMetadata(
         rosterPayload({
           seed,
           stored: rows,
+          executiveEligible: eligible,
           storedRosterReadable: readable,
           roleColumnPresent,
-          reader: userEmail(req),
+          reader,
           deploymentOwner,
         })
       );
@@ -467,7 +482,29 @@ export function setupUserRoutes(
         });
         return;
       }
-      const seed = await roleFloors(req, rows, [email]);
+      const seed = await roleFloors(req, rows, [email, actor]);
+      const actorRole = effectiveRole({ seed, stored: rows, email: actor });
+      const current = effectiveRole({ seed, stored: rows, email });
+      const groupFloor = await groupRoleForRequest(req, email, readGroupRole);
+      if (role === 'executive' && groupFloor !== 'consumer') {
+        res.status(403).json({
+          error: 'executive_role_assignment_refused',
+          detail: 'Executive may only be assigned to a member of the configured Users access group.',
+        });
+        return;
+      }
+      if (actorRole !== 'super_admin') {
+        const allowedExecutiveChange =
+          (current === 'consumer' && role === 'executive') || (current === 'executive' && role === 'consumer');
+        if (!allowedExecutiveChange) {
+          res.status(403).json({
+            error: 'executive_role_assignment_refused',
+            detail:
+              'Admins may only assign or remove Executive for members of the configured Users access group. Other role changes require a super admin.',
+          });
+          return;
+        }
+      }
       const refusal = roleChangeRefusal({
         email,
         role,
@@ -482,7 +519,7 @@ export function setupUserRoutes(
       }
       // Safe: roleChangeRefusal answered 'unknown-role' for anything else.
       const to = role as Role;
-      const from = effectiveRole({ seed, stored: rows, email });
+      const from = current;
       let roleStored = false;
       try {
         await writeRole(appkit.lakebase, { email, role: to, actor, roleColumnPresent });
@@ -527,11 +564,18 @@ export function setupUserRoutes(
         readRosterForRequest(store, req),
         readDeploymentOwner().catch(() => ''),
       ]);
-      const seed = await roleFloors(req, after.rows);
+      const [seed, eligible] = await Promise.all([
+        roleFloors(req, after.rows, [reader]),
+        executiveEligible(
+          req,
+          after.rows.map((row) => row.email)
+        ),
+      ]);
       const payload = await attachIdentityMetadata(
         rosterPayload({
           seed,
           stored: after.rows,
+          executiveEligible: eligible,
           storedRosterReadable: true,
           roleColumnPresent: after.roleColumnPresent,
           reader,

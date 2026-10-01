@@ -648,6 +648,13 @@
   background: var(--ast-info-text);
   color: var(--ast-white);
 }
+/* Executive is an in-app audience designation, not an administrator rank.
+   Provenance gold distinguishes it from both privileged blue and neutral Consumer
+   without implying that it changes Databricks or Unity Catalog permissions. */
+.role-badge[data-role-state='executive'] {
+  background: var(--ast-provenance-fill);
+  color: var(--ast-provenance-text);
+}
 /* The ordinary case, so it is the neutral family and nothing louder.
 
    MOVED ONTO THE PALETTE, and this pair was genuinely off it. --db-chip #E8ECF0

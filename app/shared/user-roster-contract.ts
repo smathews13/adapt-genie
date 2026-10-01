@@ -1,7 +1,7 @@
 import type { OrganizationMapping } from './organization-mapping';
 
 /**
- * The three roles, and what the user roster sends over the wire.
+ * The four roles, and what the user roster sends over the wire.
  *
  * Shared so the editor and the routes cannot disagree about what a row is, for the
  * reason admin-contract.ts is shared: a row here carries facts that can differ --
@@ -28,13 +28,13 @@ import type { OrganizationMapping } from './organization-mapping';
  * when the deployment's shared-rail switch is on, but that role never changes
  * what any question or SQL query may read.
  */
-export type Role = 'super_admin' | 'admin' | 'consumer';
+export type Role = 'super_admin' | 'admin' | 'executive' | 'consumer';
 
 /** Every role, highest first, for a select control and for iteration in tests. */
-export const ROLES: readonly Role[] = ['super_admin', 'admin', 'consumer'];
+export const ROLES: readonly Role[] = ['super_admin', 'admin', 'executive', 'consumer'];
 
 /**
- * The roles a super admin may assign, which is all three.
+ * The roles a super admin may assign, which is all four.
  *
  * A super admin can appoint another super admin. The alternative was considered
  * and is worse: a deployment with exactly one person who can appoint anybody is a
@@ -47,6 +47,7 @@ export const ASSIGNABLE_ROLES: readonly Role[] = ROLES;
 export const ROLE_WORD: Readonly<Record<Role, string>> = {
   super_admin: 'Super admin',
   admin: 'Admin',
+  executive: 'Executive',
   consumer: 'Consumer',
 };
 
@@ -54,16 +55,17 @@ export const ROLE_WORD: Readonly<Record<Role, string>> = {
  * Rank, so "the higher of two roles" is arithmetic rather than a branch per pair.
  *
  * Exported because the client orders the roster by it and the server compares the
- * seed floor against the stored role with it, and two orderings of three values is
+ * seed floor against the stored role with it, and two orderings of four values is
  * two places to get the order wrong.
  */
 export const ROLE_RANK: Readonly<Record<Role, number>> = {
   consumer: 0,
-  admin: 1,
-  super_admin: 2,
+  executive: 1,
+  admin: 2,
+  super_admin: 3,
 };
 
-/** Whether a string off the wire or out of a column is one of the three roles. */
+/** Whether a string off the wire or out of a column is one of the four roles. */
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && ROLES.includes(value as Role);
 }
@@ -87,6 +89,11 @@ export function opensAdminSurfaces(role: Role): boolean {
 /** Whether this role may read and change the roster. Super admin only. */
 export function opensUserRoster(role: Role): boolean {
   return role === 'super_admin';
+}
+
+/** Whether this role may assign or remove Executive designations in the app roster. */
+export function managesExecutiveRoles(role: Role): boolean {
+  return role === 'admin' || role === 'super_admin';
 }
 
 /**

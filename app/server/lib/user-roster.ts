@@ -44,6 +44,8 @@
 import {
   highestRole,
   isRole,
+  managesExecutiveRoles,
+  opensAdminSurfaces,
   ROLE_RANK,
   ROLE_WORD,
   ROLES,
@@ -70,6 +72,7 @@ export type { Role, RosterEntry, RosterPayload, RosterRefusal };
  * app already owns is the smallest change that cannot repeat that.
  */
 export const ROLE_COLUMN = 'role';
+export const ROLE_UPDATED_AT_COLUMN = 'role_updated_at';
 
 /**
  * The statement that adds it, printed rather than run.
@@ -101,6 +104,12 @@ function missingRoleColumn(error: unknown): boolean {
   if (code === UNDEFINED_COLUMN) return true;
   const message = (error as Error)?.message ?? '';
   return message.includes(ROLE_COLUMN) && /does not exist|undefined column/i.test(message);
+}
+
+function missingRoleUpdatedAtColumn(error: unknown): boolean {
+  const code = (error as { code?: unknown }).code;
+  if (code !== UNDEFINED_COLUMN) return false;
+  return (error as Error)?.message?.includes(ROLE_UPDATED_AT_COLUMN) ?? false;
 }
 
 /** One stored row, in the form the comparison is made in. */
@@ -160,10 +169,20 @@ export function invalidateRosterCache(store: AdminStore): void {
 export async function readRoster(store: AdminStore): Promise<StoredRoster> {
   try {
     const withRole = await store.query(
-      `SELECT email, ${ROLE_COLUMN}, added_by, added_at FROM ${ADDED_ADMINS_TABLE} ORDER BY added_at ASC`
+      `SELECT email, ${ROLE_COLUMN}, added_by, ${ROLE_UPDATED_AT_COLUMN} FROM ${ADDED_ADMINS_TABLE} ORDER BY added_at ASC`
     );
     return { rows: withRole.rows.map((row) => storedRole(row, columnText(row[ROLE_COLUMN]))), roleColumnPresent: true };
   } catch (error) {
+    if (missingRoleUpdatedAtColumn(error)) {
+      const legacyTimestamp = await store.query(
+        `SELECT email, ${ROLE_COLUMN}, added_by, added_at AS ${ROLE_UPDATED_AT_COLUMN}
+           FROM ${ADDED_ADMINS_TABLE} ORDER BY added_at ASC`
+      );
+      return {
+        rows: legacyTimestamp.rows.map((row) => storedRole(row, columnText(row[ROLE_COLUMN]))),
+        roleColumnPresent: true,
+      };
+    }
     if (!missingRoleColumn(error)) throw error;
     const withoutRole = await store.query(
       `SELECT email, added_by, added_at FROM ${ADDED_ADMINS_TABLE} ORDER BY added_at ASC`
@@ -190,7 +209,7 @@ export function readRosterForRequest(store: AdminStore, req: Request): Promise<S
 }
 
 /**
- * One row, with anything that is not one of the three roles read as admin.
+ * One row, with anything that is not one of the four roles read as admin.
  *
  * AN UNRECOGNISED VALUE READS AS ADMIN, not as consumer and not as an error,
  * because a row in this table has always meant "this person administers this
@@ -205,7 +224,10 @@ function storedRole(row: Record<string, unknown>, rawRole: string): StoredRole {
     email: normalizeAdminEmail(columnText(row.email)),
     role: isRole(candidate) ? candidate : 'admin',
     setBy: columnText(row.added_by),
-    setAt: row.added_at instanceof Date ? row.added_at.toISOString() : columnText(row.added_at),
+    setAt:
+      row[ROLE_UPDATED_AT_COLUMN] instanceof Date
+        ? row[ROLE_UPDATED_AT_COLUMN].toISOString()
+        : columnText(row[ROLE_UPDATED_AT_COLUMN] ?? row.added_at),
   };
 }
 
@@ -237,11 +259,13 @@ export async function writeRole(
     return;
   }
   await store.query(
-    `INSERT INTO ${ADDED_ADMINS_TABLE} (email, ${ROLE_COLUMN}, added_by) VALUES ($1, $2, $3)
+    `INSERT INTO ${ADDED_ADMINS_TABLE} (email, ${ROLE_COLUMN}, added_by, ${ROLE_UPDATED_AT_COLUMN})
+       VALUES ($1, $2, $3, NOW())
      ON CONFLICT (email) DO UPDATE
        SET ${ROLE_COLUMN} = EXCLUDED.${ROLE_COLUMN},
            added_by = EXCLUDED.added_by,
-           added_at = NOW()`,
+           added_at = NOW(),
+           ${ROLE_UPDATED_AT_COLUMN} = NOW()`,
     [email, input.role, actor]
   );
   invalidateRosterCache(store);
@@ -447,6 +471,7 @@ export const REFUSAL_DETAIL: Readonly<Record<RosterRefusal, string>> = {
 export function rosterPayload(input: {
   seed: SeedRoles;
   stored: readonly StoredRole[];
+  executiveEligible?: ReadonlySet<string>;
   storedRosterReadable: boolean;
   roleColumnPresent: boolean;
   reader: string;
@@ -455,8 +480,9 @@ export function rosterPayload(input: {
   const you = normalizeAdminEmail(input.reader);
   const deploymentOwner = normalizeAdminEmail(input.deploymentOwner ?? '');
   const superAdminCount = countSuperAdmins({ seed: input.seed, stored: input.stored });
-  const adminCount = everyKnownUser({ seed: input.seed, stored: input.stored }).filter(
-    (user) => user.role !== 'consumer'
+  const readerRole = effectiveRole({ seed: input.seed, stored: input.stored, email: you });
+  const adminCount = everyKnownUser({ seed: input.seed, stored: input.stored }).filter((user) =>
+    opensAdminSurfaces(user.role)
   ).length;
   const entries: RosterEntry[] = everyKnownUser({ seed: input.seed, stored: input.stored })
     .map((user) => {
@@ -470,8 +496,16 @@ export function rosterPayload(input: {
         setBy: row?.setBy ?? '',
         setAt: row?.setAt ?? '',
         isYou: user.email === you,
-        assignable: ROLES.filter(
-          (candidate) =>
+        assignable: ROLES.filter((candidate) => {
+          const allowedForReader =
+            (readerRole === 'super_admin' &&
+              (candidate !== 'executive' || input.executiveEligible?.has(user.email) === true)) ||
+            (managesExecutiveRoles(readerRole) &&
+              input.executiveEligible?.has(user.email) === true &&
+              ((user.role === 'consumer' && candidate === 'executive') ||
+                (user.role === 'executive' && candidate === 'consumer')));
+          return (
+            allowedForReader &&
             !roleChangeRefusal({
               email: user.email,
               role: candidate,
@@ -479,8 +513,11 @@ export function rosterPayload(input: {
               stored: input.stored,
               roleColumnPresent: input.roleColumnPresent,
             })
-        ),
-        canRemove: !removalRefusal({ email: user.email, seed: input.seed, stored: input.stored }),
+          );
+        }),
+        canRemove:
+          readerRole === 'super_admin' &&
+          !removalRefusal({ email: user.email, seed: input.seed, stored: input.stored }),
       };
     })
     .sort((left, right) => ROLE_RANK[right.role] - ROLE_RANK[left.role] || left.email.localeCompare(right.email));

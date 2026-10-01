@@ -47,6 +47,7 @@ const EVERY_STATE: Readonly<Record<RoleState, true>> = {
   resolving: true,
   super_admin: true,
   admin: true,
+  executive: true,
   consumer: true,
   failed: true,
 };
@@ -286,8 +287,9 @@ describe('badge, then who, then what they can open, then who built it', () => {
 });
 
 describe('all five states reach the screen, and none of them is blank prose', () => {
-  it('says Admin and Consumer in words rather than as an initial', () => {
+  it('says Admin, Executive, and Consumer in words rather than as an initial', () => {
     expect(badge('admin')).toContain('Admin');
+    expect(badge('executive')).toContain('Executive');
     expect(badge('consumer')).toContain('Consumer');
     // "A" and "C" would be indistinguishable from the initials the header draws
     // elsewhere, which is why role.ts refuses to abbreviate them.
@@ -438,6 +440,8 @@ describe('all five states reach the screen, and none of them is blank prose', ()
     // that take it.
     expect(ruleFor('admin')).toMatch(/background:\s*var\(--ast-info-fill\)/);
     expect(ruleFor('admin')).toMatch(/color:\s*var\(--ast-info-text\)/);
+    expect(ruleFor('executive')).toMatch(/background:\s*var\(--ast-provenance-fill\)/);
+    expect(ruleFor('executive')).toMatch(/color:\s*var\(--ast-provenance-text\)/);
 
     // The super rank is the SAME family inverted -- the deep rung as the fill,
     // white on it -- rather than a sixth colour. That is the one move that reads
@@ -474,6 +478,7 @@ describe('all five states reach the screen, and none of them is blank prose', ()
    */
   it('gives both administrator ranks a shield and gives no other state an icon', () => {
     for (const state of ADMIN_STATES) expect(badge(state)).toContain('<svg');
+    expect(badge('executive')).not.toContain('<svg');
     expect(badge('consumer')).not.toContain('<svg');
     expect(badge('failed')).not.toContain('<svg');
     expect(badge('resolving')).not.toContain('<svg');

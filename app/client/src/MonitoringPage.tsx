@@ -2023,6 +2023,7 @@ export function UserMonitoringPanel({
                   content: <RoleBadgePill state="super_admin" />,
                 },
                 { value: 'admin', label: 'Admin', content: <RoleBadgePill state="admin" /> },
+                { value: 'executive', label: 'Executive', content: <RoleBadgePill state="executive" /> },
                 { value: 'consumer', label: 'Consumer', content: <RoleBadgePill state="consumer" /> },
               ]}
               onValueChange={(role) => onRole(role === NO_FILTER ? '' : role)}

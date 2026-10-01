@@ -12,8 +12,14 @@ const publicAppYaml = fs.readFileSync(path.join(root, 'app', 'build', 'deploy', 
 const overlay = JSON.parse(
   fs.readFileSync(path.join(root, 'bundle', 'slack', 'secret-bindings.overlay.json'), 'utf8')
 ) as unknown;
-const secretResources = ['slack-app-token', 'slack-bot-token', 'slack-client-secret', 'slack-signing-secret'];
-const overlayResources = ['slack-app-token', 'slack-bot-token'];
+const secretResources = [
+  'slack-app-token',
+  'slack-bot-token',
+  'slack-oauth-client-secret',
+  'slack-client-secret',
+  'slack-signing-secret',
+];
+const overlayResources = ['slack-app-token', 'slack-bot-token', 'slack-oauth-client-secret'];
 
 describe('Slack deployment contract', () => {
   it('authors only disabled, kill-switched, customer-neutral defaults', () => {
@@ -50,6 +56,7 @@ describe('Slack deployment contract', () => {
     for (const secret of [
       'SLACK_ADAPTER_APP_TOKEN',
       'SLACK_ADAPTER_BOT_TOKEN',
+      'SLACK_ADAPTER_OAUTH_CLIENT_SECRET',
       'SLACK_ADAPTER_CLIENT_SECRET',
       'SLACK_ADAPTER_SIGNING_SECRET',
     ]) {
@@ -57,7 +64,7 @@ describe('Slack deployment contract', () => {
     }
   });
 
-  it('adds only the two Socket Mode resource/valueFrom bindings through the reviewed overlay', () => {
+  it('adds only the two Slack tokens and implementation-owned OAuth secret through the reviewed overlay', () => {
     const merged = renderSlackSecretOverlay({ databricks: bundle, appResource, appYaml, overlay });
     for (const resource of overlayResources) {
       expect(merged.appResource).toContain(`- name: ${resource}`);

@@ -41,8 +41,10 @@ implementation dependency, not a customer input.
    ```
 
    Review and commit that generic overlay only on the private deployment branch.
-   It adds no values: it declares one scope plus two key variables, two App
-   secret resources, and two `valueFrom` bindings. Default/main remains deployable
+   It adds no values: it declares one scope plus three key variables, three App
+   secret resources, and three `valueFrom` bindings. Two hold the customer-supplied
+   Slack tokens; one holds the implementation-managed Databricks OAuth client secret.
+   Default/main remains deployable
    without any Slack scope or key.
 
 2. Review `development.manifest.json` and `t2-production.manifest.json`, plus
@@ -59,9 +61,13 @@ implementation dependency, not a customer input.
 4. Put implementation-managed runtime values and the overlay's required app/bot
    token **scope/key names** only in
    `.databricks/bundle/<target>/variable-overrides.json` (gitignored).
-5. Put the app and bot token values only in the target's Databricks secret scope.
-   Never place values in variables, shell history, or this folder. Socket Mode
-   with manual installation does not require a Slack client or signing secret.
+5. Put the app token, bot token, and implementation-managed Databricks OAuth
+   client secret only in the target's Databricks secret scope. Never place values
+   in variables, shell history, or this folder. Socket Mode with manual installation
+   does not require a Slack client or signing secret. Set
+   `slack_adapter_token_broker_ref` to a separate broker secret scope and grant
+   the ADAPT App service principal `MANAGE` on that scope so it can create,
+   refresh, and revoke per-user credential records.
 6. Copy `rollout-evidence.template.json` outside the repository, replace every
    placeholder with implementation and protocol-review evidence, then run:
 
@@ -78,7 +84,7 @@ implementation dependency, not a customer input.
 7. Keep `slack_adapter_enabled=false` and `slack_adapter_kill_switch=true` until
    the approved activation window; run the checker against the final activation
    override where enabled is `true` and the kill switch is `false`.
-8. Deploy code and migration v50 from the private overlay branch using the normal
+8. Deploy code through migration v52 from the private overlay branch using the normal
    bundle/app release process. Do not use public Deploy from Git for a
    Slack-enabled deployment: the public artifact intentionally has no secret
    resources and will return the adapter to disabled/unconfigured.
@@ -87,9 +93,9 @@ implementation dependency, not a customer input.
 10. Obtain security review for the native/injected fetch + WebSocket protocol
     implementation. Runtime and the next rebuilt deploy artifact must contain no
     imports/requires of `@slack/bolt`, `@slack/socket-mode`, `@slack/web-api`,
-    Undici, or receiver packages. Their currently locked versions are temporary
-    review evidence only until the parent removes them. Inject the approved
-    durable verifier store, token broker, and link writer.
+    Undici, or receiver packages. Confirm the migration-v52 intent store,
+    Databricks-secret-backed verifier/token broker, and Lakebase link writer are
+    active in readiness.
 11. Validate OAuth audience, client ID, workspace, callback/base URL, team ID,
     registration separation, uninstall, and revocation.
 12. Approve the `slack-message` egress control, then remove the kill switch only

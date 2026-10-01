@@ -38,6 +38,8 @@ import {
   SLACK_INSTALLATIONS_TABLE,
   SLACK_SETTINGS_DDL,
   SLACK_SETTINGS_TABLE,
+  SLACK_LINK_INTENTS_TABLE,
+  SLACK_OAUTH_INTENT_DDL,
   SLACK_RENDER_DELIVERY_MIGRATION_DDL,
   SLACK_STATE_DDL,
   SLACK_USER_LINKS_TABLE,
@@ -1143,6 +1145,15 @@ ON CONFLICT (id) DO UPDATE SET
          ALTER COLUMN role_updated_at SET NOT NULL`,
     ],
     down: [`ALTER TABLE ${APP_SCHEMA}.admin_emails DROP COLUMN IF EXISTS role_updated_at`],
+  },
+  {
+    version: 52,
+    name: 'durable slack oauth intents',
+    statements: SLACK_OAUTH_INTENT_DDL,
+    down: [
+      `DROP INDEX IF EXISTS ${APP_SCHEMA}.slack_link_intents_expires_idx`,
+      `DROP TABLE IF EXISTS ${SLACK_LINK_INTENTS_TABLE}`,
+    ],
   },
 ];
 

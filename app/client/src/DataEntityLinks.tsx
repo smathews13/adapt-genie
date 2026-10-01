@@ -20,6 +20,7 @@ import type { SourceRef } from './answer-shape';
 import { databricksLink, type DatabricksObject } from '../../shared/databricks-links';
 import { useRequestedEntity, useTrackedTables, useWorkspaceHost } from './data-entity-state';
 import { ExportMenu } from './ExportMenu';
+import { INLINE_NUMBER } from './inline-number';
 
 /**
  * The rendering half of "an answer names a table, the reader can go and see it".
@@ -334,8 +335,6 @@ function ProseRuns({
     </>
   );
 }
-
-const INLINE_NUMBER = /\d{4}-\d{1,2}-\d{1,2}|[-+\u2212]?(?:[$€£]\s*)?\d[\d,]*(?:\.\d+)?%?/g;
 
 /**
  * Tool/function identifiers the shipped agent can put in reader-facing prose.

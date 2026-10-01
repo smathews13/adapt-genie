@@ -262,7 +262,7 @@ variables:
     description: Public HTTPS base URL used for opaque Slack link-outs.
     default: ""
   slack_adapter_token_broker_ref:
-    description: Opaque approved token-broker registration reference.
+    description: Implementation-managed Databricks secret scope used by the delegated token broker.
     default: ""
   slack_adapter_global_concurrency:
     default: ""

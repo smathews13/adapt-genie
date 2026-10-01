@@ -84,7 +84,13 @@ createApp({
       { createDefaultSlackEventProcessor },
       { SlackDeliveryService },
       { logSlackOperationalAudit },
-      { authenticatedAdaptLinkOutUrl },
+      { readSlackRuntimeConfig },
+      { createSlackOAuthLinkOut },
+      { LakebaseDurableSlackLinkIntentStore },
+      { DatabricksSecretManagerPkceVerifierStore },
+      { WorkspaceDatabricksSecretManager },
+      { DatabricksOAuthTokenBroker },
+      { LakebaseSlackLinkWriter, ensureSlackInstallation },
       { bootstrapSeedRoles, isAdminRoute },
       { respondToHandlerFailures },
     ] = await Promise.all([
@@ -125,7 +131,13 @@ createApp({
       import('./slack/event-processor'),
       import('./slack/delivery-service'),
       import('./slack/audit'),
-      import('./slack/link-out-url'),
+      import('./slack/config'),
+      import('./slack/oauth-service'),
+      import('./slack/durable-link-intent-store'),
+      import('./slack/databricks-secret-manager'),
+      import('./slack/workspace-secret-manager'),
+      import('./slack/databricks-oauth-token-broker'),
+      import('./slack/lakebase-link-writer'),
       import('./lib/admin-roles'),
       import('./lib/handler-failures'),
     ]);
@@ -189,15 +201,42 @@ createApp({
     setupAskStarterRoutes(appkit);
     setupAppGroupsRoutes(appkit);
     setupSlackSettingsRoutes(appkit);
-    // OAuth routes are intentionally present but broker/store unavailable until
-    // approved durable implementations are injected. They return typed 503s
-    // and never persist codes or tokens in this default composition.
-    setupSlackOAuthRoutes(appkit);
+    const configuredSlack = readSlackRuntimeConfig();
+    const slackObo = configuredSlack.ready
+      ? (() => {
+          const secretManager = new WorkspaceDatabricksSecretManager({
+            scope: configuredSlack.config.tokenBrokerRef,
+          });
+          const intentStore = new LakebaseDurableSlackLinkIntentStore(appkit.lakebase);
+          const verifierStore = new DatabricksSecretManagerPkceVerifierStore(secretManager);
+          const broker = new DatabricksOAuthTokenBroker({ secretManager });
+          const linkWriter = new LakebaseSlackLinkWriter(appkit.lakebase, configuredSlack.config, broker);
+          return {
+            config: configuredSlack.config,
+            intentStore,
+            verifierStore,
+            broker,
+            linkWriter,
+            linkReferenceForActor: (actor: string) => linkWriter.linkReferenceForActor(actor),
+          };
+        })()
+      : null;
+    setupSlackOAuthRoutes(
+      appkit,
+      slackObo
+        ? {
+            intentStore: slackObo.intentStore,
+            verifierStore: slackObo.verifierStore,
+            broker: slackObo.broker,
+            linkWriter: slackObo.linkWriter,
+            linkReferenceForActor: slackObo.linkReferenceForActor,
+          }
+        : {}
+    );
     const slackAdapter = new SlackAdapterBootstrap(appkit, {
-      // The composition is complete but remains fail-closed until a production
-      // delegated-token broker and durable link-intent issuer are injected.
-      brokerAvailable: () => false,
+      brokerAvailable: () => Boolean(slackObo && process.env[slackObo.config.oauthClientSecretRef]?.trim()),
       createProcessor: (config, _secrets, client) => {
+        if (!slackObo) throw new Error('Slack delegated identity dependencies are unavailable.');
         const delivery = new SlackDeliveryService(
           appkit.lakebase,
           client,
@@ -216,7 +255,22 @@ createApp({
           delivery,
           audit: logSlackOperationalAudit,
           expectedAudience: config.oauthExpectedAudience,
-          linkOutUrl: () => Promise.resolve(authenticatedAdaptLinkOutUrl()),
+          broker: slackObo.broker,
+          linkOutUrl: async (event) => {
+            const runtime = event.runtime();
+            const result = await createSlackOAuthLinkOut(
+              { slackTeamId: runtime.teamId, slackUserId: runtime.userId },
+              config,
+              {
+                intentStore: slackObo.intentStore,
+                verifierStore: slackObo.verifierStore,
+                broker: slackObo.broker,
+                linkWriter: slackObo.linkWriter,
+              }
+            );
+            if (!result.ok) throw new Error('Slack identity link could not be created.');
+            return result.url;
+          },
         });
       },
     });
@@ -224,6 +278,7 @@ createApp({
     setupSlackStatusRoutes(appkit, { readiness: () => slackAdapter.readiness() });
     void storeReady.then(
       async () => {
+        if (slackObo) await ensureSlackInstallation(appkit.lakebase, slackObo.config);
         const status = await slackAdapter.start();
         if (!status.ready) console.warn(`[slack] Socket adapter not ready: ${status.reason}.`);
       },

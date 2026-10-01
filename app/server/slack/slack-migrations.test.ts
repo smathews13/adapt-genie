@@ -68,4 +68,14 @@ describe('Slack append-only migrations', () => {
     expect(ddl).toContain("expires_at <= claimed_at + interval '7 days'");
     expect(ddl).toContain('slack_event_dedup_expires_idx');
   });
+
+  it('stores one-time OAuth intent metadata without verifier or token material in v52', () => {
+    const migration = LATER_MIGRATIONS.find((entry) => entry.version === 52);
+    const ddl = migration?.statements.join('\n') ?? '';
+    expect(migration?.name).toBe('durable slack oauth intents');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS player_insights.slack_link_intents');
+    expect(ddl).toContain('verifier_ref_fingerprint');
+    expect(ddl).toContain('slack_link_intents_expires_idx');
+    expect(ddl).not.toMatch(/\b(code_verifier|oauth_code|access_token|refresh_token|raw_token)\b/i);
+  });
 });

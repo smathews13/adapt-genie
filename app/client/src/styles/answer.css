@@ -1125,6 +1125,11 @@ html[data-table-style='plain'] .answer-table tbody tr:hover {
   line-height: 1.3;
   text-transform: lowercase;
 }
+/*
+ * A PROSE NUMERAL IS NOT A KPI. `.ast-num` gives it the mono face; the weight
+ * stays the sentence's, so a figure is bold only when the agent bolded it.
+ * At 700 every digit read as a headline, down to the "25" in "NBA 2K25".
+ */
 .answer-inline-number {
-  font-weight: 700;
+  font-weight: inherit;
 }

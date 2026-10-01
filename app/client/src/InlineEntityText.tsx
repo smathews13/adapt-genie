@@ -3,8 +3,8 @@ import { Link } from 'react-router';
 
 import { entityHref, linkifyEntities } from './data-entities';
 import { useTrackedTables } from './data-entity-state';
+import { INLINE_NUMBER } from './inline-number';
 
-const INLINE_NUMBER = /\d{4}-\d{1,2}-\d{1,2}|[-+\u2212]?(?:[$€£]\s*)?\d[\d,]*(?:\.\d+)?%?/g;
 const KNOWN_TOOLS = [
   'data_genie',
   'dictionary_genie',

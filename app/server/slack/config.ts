@@ -13,6 +13,7 @@ export interface SlackRuntimeConfig {
   databricksWorkspaceHost: string;
   oauthExpectedAudience: string;
   oauthClientId: string;
+  oauthClientSecretRef: string;
   oauthCallbackUrl: string;
   publicBaseUrl: string;
   tokenBrokerRef: string;
@@ -55,6 +56,7 @@ const RuntimeSchema = z.strictObject({
     .refine((value) => new URL(value).protocol === 'https:'),
   oauthExpectedAudience: z.string().trim().min(1).max(256),
   oauthClientId: z.string().trim().min(1).max(256),
+  oauthClientSecretRef: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   oauthScopes: z.literal(SLACK_DATABRICKS_OAUTH_SCOPES),
   oauthCallbackUrl: z
     .string()
@@ -119,6 +121,7 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
     databricksWorkspaceHost: text(env, 'SLACK_ADAPTER_DATABRICKS_WORKSPACE'),
     oauthExpectedAudience: text(env, 'SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE'),
     oauthClientId: text(env, 'SLACK_ADAPTER_OAUTH_CLIENT_ID'),
+    oauthClientSecretRef: text(env, 'SLACK_ADAPTER_OAUTH_CLIENT_SECRET_REF'),
     oauthScopes: text(env, 'SLACK_ADAPTER_OAUTH_SCOPES'),
     oauthCallbackUrl: text(env, 'SLACK_ADAPTER_OAUTH_CALLBACK_URL'),
     publicBaseUrl: text(env, 'SLACK_ADAPTER_PUBLIC_BASE_URL'),
@@ -166,6 +169,7 @@ export function readSlackRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Sl
       databricksWorkspaceHost: parsed.data.databricksWorkspaceHost,
       oauthExpectedAudience: parsed.data.oauthExpectedAudience,
       oauthClientId: parsed.data.oauthClientId,
+      oauthClientSecretRef: parsed.data.oauthClientSecretRef,
       oauthCallbackUrl: parsed.data.oauthCallbackUrl,
       publicBaseUrl: parsed.data.publicBaseUrl,
       tokenBrokerRef: parsed.data.tokenBrokerRef,

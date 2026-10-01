@@ -6,6 +6,7 @@ export const SLACK_CONVERSATION_BINDINGS_TABLE = appTable('slack_conversation_bi
 export const SLACK_EVENT_DEDUP_TABLE = appTable('slack_event_dedup');
 export const SLACK_DELIVERIES_TABLE = appTable('slack_deliveries');
 export const SLACK_SETTINGS_TABLE = appTable('slack_settings');
+export const SLACK_LINK_INTENTS_TABLE = appTable('slack_link_intents');
 
 export const SLACK_STATE_DDL = [
   `CREATE TABLE IF NOT EXISTS ${SLACK_INSTALLATIONS_TABLE} (
@@ -126,4 +127,32 @@ export const SLACK_RENDER_DELIVERY_MIGRATION_DDL = [
        CHECK (delivery_kind IN ('run', 'blocked', 'link_out')),
      ADD COLUMN IF NOT EXISTS delivery_state TEXT NOT NULL DEFAULT 'pending'
        CHECK (delivery_state IN ('pending', 'progress_sent', 'final_sent', 'transient_failed', 'permanent_failed'))`,
+] as const;
+
+/**
+ * Durable, short-lived OAuth intent metadata.
+ *
+ * The PKCE verifier and OAuth credentials deliberately do not live here. The
+ * verifier reference points at the approved secret manager and the row is
+ * atomically deleted when the callback consumes it.
+ */
+export const SLACK_OAUTH_INTENT_DDL = [
+  `CREATE TABLE IF NOT EXISTS ${SLACK_LINK_INTENTS_TABLE} (
+     intent_id TEXT PRIMARY KEY,
+     state TEXT NOT NULL UNIQUE,
+     nonce TEXT NOT NULL,
+     slack_team_id TEXT NOT NULL,
+     slack_user_id TEXT NOT NULL,
+     databricks_workspace TEXT NOT NULL,
+     databricks_audience TEXT NOT NULL,
+     redirect_uri TEXT NOT NULL,
+     verifier_ref_id TEXT NOT NULL,
+     verifier_ref_provider TEXT NOT NULL,
+     verifier_ref_fingerprint TEXT NOT NULL,
+     created_at TIMESTAMPTZ NOT NULL,
+     expires_at TIMESTAMPTZ NOT NULL,
+     CHECK (expires_at > created_at)
+   )`,
+  `CREATE INDEX IF NOT EXISTS slack_link_intents_expires_idx
+     ON ${SLACK_LINK_INTENTS_TABLE} (expires_at)`,
 ] as const;

@@ -44,6 +44,7 @@ const config: SlackRuntimeConfig = {
   databricksWorkspaceHost: 'https://adapt.cloud.databricks.com',
   oauthExpectedAudience: 'adapt',
   oauthClientId: 'oauth-client',
+  oauthClientSecretRef: 'OAUTH_CLIENT_SECRET',
   oauthCallbackUrl: 'https://adapt.example/api/slack/oauth/callback',
   publicBaseUrl: 'https://adapt.example',
   tokenBrokerRef: 'broker-registration',

@@ -48,7 +48,8 @@ not change that runtime control.
   and the exact Databricks OAuth/token-broker endpoints.
 - IP allowlist decision: `REQUIRED`; document whether stable egress IPs exist.
 - Default/main and the public Git artifact contain no Slack secret resources or
-  `valueFrom` entries. The Socket Mode app and bot tokens become Databricks
+  `valueFrom` entries. The Socket Mode app and bot tokens plus the
+  implementation-managed Databricks OAuth client secret become Databricks
   secret-resource bindings only after `secret-bindings.overlay.json` is applied
   to a reviewed private deployment branch. Manual installation uses neither a
   Slack client secret nor a signing secret.
@@ -70,8 +71,8 @@ Record before approval:
   shipped. The approved Bolt/Socket Mode experiment was removed because its
   unused receiver and Undici WASM payloads fail mandatory secret scanning.
 - Protocol implementation security review: `REQUIRED`.
-- Durable verifier store implementation/version: `REQUIRED`
-- Token broker and link-writer implementation/version: `REQUIRED`
+- Durable verifier store implementation/version: migration `v52`
+- Token broker and link-writer implementation/version: current reviewed ADAPT source commit
 
 Migration v50 has no automated down migration because valid pre-run link-out
 deliveries have nullable run IDs. Roll back application source without deleting
@@ -97,6 +98,6 @@ Until every gate is complete, the precise decision is **NO-GO for a live pilot**
 
 ## Current external dependency blockers
 
-- No durable PKCE-verifier store, delegated token broker/link writer, Slack
-  registrations, T2 values, secret values, external approvals, or workspace
-  resources were created by this repository change.
+- Slack registrations, target values, secret values, the Databricks custom OAuth
+  app, broker secret scope/ACL, external approvals, and workspace resources must
+  still be created in the demo/customer environment.

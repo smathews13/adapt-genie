@@ -10,6 +10,7 @@ function validEnv(): NodeJS.ProcessEnv {
     SLACK_ADAPTER_DATABRICKS_WORKSPACE: 'https://example.cloud.databricks.com',
     SLACK_ADAPTER_OAUTH_EXPECTED_AUDIENCE: 'adapt',
     SLACK_ADAPTER_OAUTH_CLIENT_ID: 'oauth-client',
+    SLACK_ADAPTER_OAUTH_CLIENT_SECRET_REF: 'DATABRICKS_OAUTH_CLIENT_SECRET',
     SLACK_ADAPTER_OAUTH_SCOPES: 'all-apis offline_access openid profile email',
     SLACK_ADAPTER_OAUTH_CALLBACK_URL: 'https://adapt.example/api/slack/oauth/callback',
     SLACK_ADAPTER_PUBLIC_BASE_URL: 'https://adapt.example',

@@ -1116,6 +1116,7 @@ export function QuestionDrawer({
           runProcessVariant="monitoring"
           allowUntracedProcess
           collapseSupportingDetails
+          caveatsFirst
           afterEvidence={
             isMlflowTraceId(answer.trace.id) &&
             answer.trace.stages.length > 0 &&

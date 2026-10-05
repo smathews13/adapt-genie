@@ -29,6 +29,7 @@ import { caveatScope, emphasiseFigures } from './caveat-emphasis';
 import { rankCaveats } from './caveat-priority';
 import { caveatSurface } from './caveat-surface';
 import { normalizeReaderAnswer } from '../../shared/answer-content-policy';
+import type { Derivation } from './answer-shape';
 
 /**
  * One bullet, rendered whole.
@@ -78,6 +79,7 @@ export function KeepInMind({
   sql = '',
   limit = 3,
   collapsed = false,
+  method = [],
 }: {
   caveats: readonly string[];
   /** The tables this answer cited, which is what may be tagged inside a caveat. */
@@ -92,11 +94,33 @@ export function KeepInMind({
   limit?: number;
   /** Ask keeps supporting detail closed until the reader requests it. */
   collapsed?: boolean;
+  /**
+   * How the figures were derived, drawn under the caveats. Passed only where
+   * the answer is partial, so a reader sees the method that produced a
+   * best-effort result next to the limits on it.
+   */
+  method?: readonly Derivation[];
 }) {
   const [showAll, setShowAll] = useState(false);
   const displayed = normalizeReaderAnswer({ caveats, sources, sql });
   const { top, rest } = rankCaveats(displayed.caveats ?? [], limit);
   if (top.length === 0) return null;
+  const methodLines = [
+    ...new Set(
+      method
+        .map((entry) =>
+          [
+            entry.metric && `Measured ${entry.metric}`,
+            entry.window && `over ${entry.window}`,
+            entry.filter && `filtered by ${entry.filter}`,
+            entry.source && `from ${entry.source}`,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        )
+        .filter(Boolean)
+    ),
+  ];
 
   return (
     <section className={`keep-in-mind${collapsed ? ' answer-support-panel' : ''}`} aria-label="Caveats">
@@ -134,6 +158,16 @@ export function KeepInMind({
           {showAll ? 'show fewer' : 'show more'}
           <ChevronDown className={showAll ? 'rotate-180 transition-transform' : 'transition-transform'} />
         </Button>
+      ) : null}
+      {methodLines.length > 0 ? (
+        <div className="keep-in-mind-method">
+          <h3 className="keep-in-mind-heading">Method used</h3>
+          <ul className="answer-list keep-in-mind-list">
+            {methodLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </section>
   );

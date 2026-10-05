@@ -162,7 +162,7 @@ import { EMPTY_FEEDBACK, feedbackFromStored } from './stored-feedback';
 import { useIdentity } from './app-state';
 import { acceptAppBudgetStatus, approveContinuedUsage, useAppBudgetStatus } from './app-budget-status';
 import { ComposerBudgetStatus } from './ComposerBudgetStatus';
-import { roleFrom, showsAdminSurfaces } from './role';
+import { roleFrom, showsAdminSurfaces, showsCaveatsFirst, showsSqlTrace } from './role';
 import { conversationAge } from './conversation-age';
 import { PlanCard } from './PlanCard';
 import { StoredAnswerBoundary } from './StoredAnswerBoundary';
@@ -363,7 +363,14 @@ const railUnreadableNotice = unavailableNotice({
 export function HomePage() {
   const identity = useIdentity();
   const budgetStatus = useAppBudgetStatus();
-  const showAdminTrace = showsAdminSurfaces(roleFrom(identity).state);
+  const readerRole = roleFrom(identity).state;
+  const showAdminTrace = showsAdminSurfaces(readerRole);
+  const caveatsFirst = showsCaveatsFirst(readerRole);
+  const sqlTrace = showsSqlTrace(readerRole);
+  // Which layout an answer takes depends on the role, so no answer is drawn
+  // until the role is known; the identity read has its own deadline, after
+  // which the role resolves to failed rather than staying pending.
+  const roleResolving = readerRole === 'resolving';
   /**
    * The address to stamp on a conversation this session creates, or nothing
    * while `/api/identity` has not answered. Undefined is left as undefined all
@@ -383,6 +390,7 @@ export function HomePage() {
     : 'What do you want to know about your business?';
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const awaitingRole = roleResolving && messages.length > 0;
   const [olderMessages, setOlderMessages] = useState<{ hasMore: boolean; cursor: string | null }>({
     hasMore: false,
     cursor: null,
@@ -2492,6 +2500,7 @@ export function HomePage() {
           ) : null}
 
           {!conversationLoading &&
+            !awaitingRole &&
             messages.map((message, index) => {
               // The memoized parse, so the object handed to the cards below keeps
               // its identity between renders and the charts are not rebuilt.
@@ -2533,6 +2542,8 @@ export function HomePage() {
                     feedback={entry}
                     showFeedback={(index === lastAssistantIndex && !loading) || Boolean(entry.saved)}
                     showRunProcess={showAdminTrace}
+                    caveatsFirst={caveatsFirst}
+                    showSqlTrace={sqlTrace}
                     onAsk={askRow}
                     onFeedbackChange={changeFeedback}
                     onSaveFeedback={rateRow}
@@ -2597,6 +2608,15 @@ export function HomePage() {
                     />
                   </div>
                 ) : null}
+              </CardContent>
+            </Card>
+          )}
+
+          {awaitingRole && !conversationLoading && !loading && (
+            <Card className="answer-card">
+              <CardContent className="pt-6 space-y-5">
+                <AdaptLoader label="Confirming your sign-in" variant="compact" />
+                <p className="text-sm text-muted-foreground">Answers appear once your access is confirmed.</p>
               </CardContent>
             </Card>
           )}
@@ -3004,6 +3024,8 @@ const MessageItem = memo(function MessageItem({
   feedback,
   showFeedback,
   showRunProcess,
+  caveatsFirst,
+  showSqlTrace,
   onAsk,
   onFeedbackChange,
   onSaveFeedback,
@@ -3023,6 +3045,8 @@ const MessageItem = memo(function MessageItem({
   feedback: FeedbackEntry;
   showFeedback: boolean;
   showRunProcess: boolean;
+  caveatsFirst: boolean;
+  showSqlTrace: boolean;
   onAsk: (question: string, approval?: { planId: string; label: string }) => void;
   onFeedbackChange: (answerId: string, changes: Partial<FeedbackEntry>) => void;
   onSaveFeedback: (
@@ -3102,6 +3126,8 @@ const MessageItem = memo(function MessageItem({
       saveFeedback={(sentiment, options) => onSaveFeedback(response.id, sentiment, options)}
       showFeedback={showFeedback}
       showRunProcess={showRunProcess}
+      caveatsFirst={caveatsFirst}
+      showSqlTrace={showSqlTrace}
     />
   );
 });

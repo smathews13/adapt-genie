@@ -51,6 +51,8 @@ import { AstrolabeMark } from './AstrolabeMark';
 import { AnswerProse, EntityText } from './DataEntityLinks';
 import { mentionedIdentifiers } from './data-entities';
 import { SourcesModule } from './SourcesModule';
+import { KeepInMind } from './KeepInMind';
+import { sourceRows } from './source-rows';
 import { TraceTimeline, type TraceTimelineVariant } from './TraceTimeline';
 import { evidenceLinkedSourceNames } from './answer-table-origins';
 import type { Answer, FeedbackEntry } from './app-types';
@@ -96,6 +98,8 @@ export function AnswerCard({
   afterEvidence,
   headerExtra,
   collapseSupportingDetails = false,
+  caveatsFirst = false,
+  showSqlTrace = false,
 }: {
   answer: Answer;
   /**
@@ -175,6 +179,16 @@ export function AnswerCard({
   headerExtra?: ReactNode;
   /** Keep Ask's secondary source and caveat panels closed by default. */
   collapseSupportingDetails?: boolean;
+  /**
+   * Draw caveats (and, for a partial answer, the method used) at the top of
+   * the card, open, instead of in the Sources module at the bottom.
+   */
+  caveatsFirst?: boolean;
+  /**
+   * Offer "Advanced trace details" with only the generated SQL, for a reader
+   * who is not shown the run process. Ignored where the full panel is drawn.
+   */
+  showSqlTrace?: boolean;
 }) {
   const readerAnswer = normalizeReaderAnswer(answer);
   const hasGeneratedSql = answerHasGeneratedSql(readerAnswer.sql);
@@ -369,6 +383,15 @@ export function AnswerCard({
             </AlertDescription>
           </Alert>
         )}
+        {caveatsFirst && (
+          <KeepInMind
+            caveats={keepCaveats}
+            sources={sourceRows(readerAnswer.sources)}
+            sql={readerAnswer.sql}
+            limit={Number.MAX_SAFE_INTEGER}
+            method={honesty.tone === 'partial' ? readerAnswer.derivation : []}
+          />
+        )}
         <AnswerFigureSummary figures={readerAnswer.figures} />
         {/* Exact requested rows come first; charts follow as the visual reading of
             those rows. Business readers get the breakout they asked for, while an
@@ -401,7 +424,7 @@ export function AnswerCard({
         {afterEvidence}
         <SourcesModule
           sources={readerAnswer.sources}
-          caveats={keepCaveats}
+          caveats={caveatsFirst ? [] : keepCaveats}
           derivation={readerAnswer.derivation}
           sql={readerAnswer.sql}
           collapseSupportingDetails={collapseSupportingDetails}
@@ -522,6 +545,25 @@ export function AnswerCard({
                       )}
                     </pre>
                   </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </>
+        ) : showSqlTrace && hasGeneratedSql ? (
+          <>
+            <div className="advanced-row">
+              <div>
+                <p>Advanced trace details</p>
+              </div>
+              <StateSwitch checked={advanced} onCheckedChange={setAdvanced} aria-label="Show advanced trace details" />
+            </div>
+            {advanced && (
+              <Tabs defaultValue="sql">
+                <TabsList>
+                  <TabsTrigger value="sql">Generated SQL</TabsTrigger>
+                </TabsList>
+                <TabsContent value="sql">
+                  <AnswerSql sql={readerAnswer.sql} />
                 </TabsContent>
               </Tabs>
             )}

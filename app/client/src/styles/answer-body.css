@@ -339,6 +339,9 @@
  * when all it does is show two more lines of the same list. The amber deep rung
  * is the panel's own emphasis colour and says "more of this" instead.
  */
+.keep-in-mind-method {
+  margin-top: 12px;
+}
 .keep-in-mind-toggle {
   margin: 6px 0 0 -8px;
   color: var(--ast-blue);

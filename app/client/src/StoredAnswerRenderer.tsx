@@ -18,6 +18,8 @@ export interface StoredAnswerRendererProps {
   saveFeedback: (sentiment: FeedbackDirection, options?: { keepCommentOpen?: boolean }) => Promise<void>;
   showFeedback: boolean;
   showRunProcess?: boolean;
+  caveatsFirst?: boolean;
+  showSqlTrace?: boolean;
   processStages?: TraceStage[];
 }
 
@@ -32,6 +34,8 @@ export default function StoredAnswerRenderer({
   saveFeedback,
   showFeedback,
   showRunProcess = true,
+  caveatsFirst = false,
+  showSqlTrace = false,
   processStages,
 }: StoredAnswerRendererProps) {
   if (!answer) {
@@ -59,6 +63,8 @@ export default function StoredAnswerRenderer({
       runProcessPreferenceKey={preferenceKey}
       processStages={processStages}
       collapseSupportingDetails
+      caveatsFirst={caveatsFirst}
+      showSqlTrace={showSqlTrace}
     />
   );
 }

@@ -96,6 +96,24 @@ export function showsUserRoster(state: RoleState): boolean {
   return state === 'admin' || state === 'super_admin';
 }
 
+/**
+ * Whether caveats lead the answer instead of sitting in the closed panel at
+ * the bottom. Consumers and both admin ranks get them first; Executives keep
+ * the compact layout.
+ */
+export function showsCaveatsFirst(state: RoleState): boolean {
+  return state === 'consumer' || showsAdminSurfaces(state);
+}
+
+/**
+ * Whether the generated SQL is offered under "Advanced trace details" without
+ * the rest of the run process. Admins already have the full trace; Executives
+ * do not get either.
+ */
+export function showsSqlTrace(state: RoleState): boolean {
+  return state === 'consumer';
+}
+
 /** Only Super Admin receives controls that change human or group roles. */
 export function managesUserRoster(state: RoleState): boolean {
   return state === 'super_admin';

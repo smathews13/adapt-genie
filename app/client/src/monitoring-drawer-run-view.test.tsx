@@ -245,12 +245,13 @@ describe("the modal draws one run view, the card's own", () => {
     });
     const rendered = text(markup);
 
+    // Caveats lead the answer, as they do in Ask; the rest keeps its order.
+    expect(rendered.indexOf('Caveats')).toBeLessThan(rendered.indexOf('A narrative sentence.'));
     expect(rendered.indexOf('A narrative sentence.')).toBeLessThan(
       rendered.indexOf('1,200 tokens recorded on this run.')
     );
     expect(rendered.indexOf('1,200 tokens recorded on this run.')).toBeLessThan(rendered.indexOf('Data sources'));
-    expect(rendered.indexOf('Data sources')).toBeLessThan(rendered.indexOf('Caveats'));
-    expect(rendered.indexOf('Caveats')).toBeLessThan(rendered.indexOf('Run process'));
+    expect(rendered.indexOf('Data sources')).toBeLessThan(rendered.indexOf('Run process'));
     expect(markup).toContain('aria-label="Caveats"');
     expect(rendered).not.toContain('Keep in mind');
     expect(rendered).not.toContain('What to keep in mind');
@@ -270,8 +271,9 @@ describe("the modal draws one run view, the card's own", () => {
     expect(origin).toBeLessThan(markup.indexOf('<table'));
     expect(tokens).toBeGreaterThan(origin);
     expect(sources).toBeGreaterThan(tokens);
-    expect(keep).toBeGreaterThan(sources);
-    expect(process).toBeGreaterThan(keep);
+    expect(keep).toBeGreaterThan(-1);
+    expect(keep).toBeLessThan(evidence);
+    expect(process).toBeGreaterThan(sources);
 
     expect(MONITORING).toContain('afterEvidence={');
     expect(MONITORING).toContain('tokensNote(detail.tokens)');

@@ -8,7 +8,9 @@ Replace every `REQUIRED` placeholder outside Git.
 ADAPT uses per-user Databricks authorization for Slack so each linked user keeps
 their own Unity Catalog permissions. The customer is asked only to:
 
-- **Install or authorize the custom Slack app** in the target workspace.
+- **Install or authorize the custom Slack app** in the target workspace. If the
+  app already exists, confirm its Messages tab is on and users are allowed to
+  send messages from it (App Home settings), then reinstall if scopes changed.
 - **Store the Socket Mode app token and bot token** through the agreed secure
   secret-sharing path. The app token is created under **Basic Information →
   App-Level Tokens** with `connections:write` and has the `xapp…` format. The
@@ -37,7 +39,7 @@ implementation dependency, not a customer input.
    cd /secure/path/adapt-slack
    node bundle/slack/apply-secret-overlay.mjs --root "$PWD" --check
    node bundle/slack/apply-secret-overlay.mjs --root "$PWD" --approved
-   git diff -- databricks.yml resources/adapt_app.app.yml app/app.yaml
+   git diff -- databricks.yml resources/adapt_app.app.yml player-insights-agent/app.yaml
    ```
 
    Review and commit that generic overlay only on the private deployment branch.
@@ -51,8 +53,13 @@ implementation dependency, not a customer input.
 2. Review `development.manifest.json` and `t2-production.manifest.json`, plus
    their `.app-token.json` declarations. App-level tokens are created separately
    from Slack manifest import; the only approved app-token scope is
-   `connections:write`. App Home is not required: users send ordinary DMs to the
-   installed bot and `message.im` carries them over Socket Mode. Slack token
+   `connections:write`. The Home tab stays off, but the **Messages tab must be on
+   with "Allow users to send Slash commands and messages from the messages tab"
+   checked** (App Home settings, or `features.app_home` in the manifest). Without
+   it Slack shows "Sending messages to this app has been turned off" in the DM and
+   no message reaches ADAPT. After changing it, users must reload Slack. Users
+   then send ordinary DMs to the installed bot and `message.im` carries them over
+   Socket Mode. Slack token
    rotation remains off because this transport does not persist and refresh
    Slack's 12-hour credentials. Review `databricks-oauth.contract.json` separately:
    Databricks user scopes are `all-apis offline_access openid profile email`,
@@ -104,7 +111,7 @@ implementation dependency, not a customer input.
 Useful local commands (no workspace required):
 
 ```bash
-cd app
+cd player-insights-agent
 npm test
 npm run typecheck
 npx eslint server/slack server/routes/slack-* shared/egress-contract.ts

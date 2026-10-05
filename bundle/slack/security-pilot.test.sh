@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP="$ROOT/app/app.yaml"
-PUBLIC_APP="$ROOT/app/build/deploy/app.yaml"
+APP="$ROOT/player-insights-agent/app.yaml"
+PUBLIC_APP="$ROOT/player-insights-agent/build/deploy/app.yaml"
 RESOURCE="$ROOT/resources/adapt_app.app.yml"
 OVERLAY="$ROOT/bundle/slack/secret-bindings.overlay.json"
 REVIEW="$ROOT/bundle/slack/SECURITY-REVIEW.md"
@@ -24,6 +24,10 @@ if (appToken.token_type !== 'app-level' || !appToken.value.startsWith('REQUIRED:
 }
 exact(manifest.oauth_config.scopes.bot, ['chat:write', 'im:history'], 'bot scopes');
 exact(manifest.settings.event_subscriptions.bot_events, ['message.im'], 'events');
+const home = manifest.features.app_home;
+if (!home || home.home_tab_enabled || !home.messages_tab_enabled || home.messages_tab_read_only_enabled) {
+  throw new Error('Messages tab must be enabled and writable, Home tab off');
+}
 if (
   !manifest.settings.socket_mode_enabled ||
   manifest.settings.org_deploy_enabled ||
@@ -92,7 +96,7 @@ for refusal in \
   "overlay binding missing" \
   "Slack message egress approval is required" \
   "review evidence missing: brokerImplementation" \
-  "target override is missing"; do
+  "target value missing: slack_adapter_environment"; do
   grep -qF "$refusal" "$ROLLOUT_OUT"
 done
 rm -f "$ROLLOUT_OUT"

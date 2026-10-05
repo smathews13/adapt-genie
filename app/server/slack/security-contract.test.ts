@@ -26,6 +26,9 @@ describe('Slack security contracts', () => {
   it.each(['development.manifest.json', 't2-production.manifest.json'])('keeps %s at the DM-only minimum', (name) => {
     const source = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'bundle', 'slack', name), 'utf8');
     const manifest = JSON.parse(source) as {
+      features: {
+        app_home: { home_tab_enabled: boolean; messages_tab_enabled: boolean; messages_tab_read_only_enabled: boolean };
+      };
       oauth_config: { scopes: { bot: string[] } };
       settings: {
         socket_mode_enabled: boolean;
@@ -41,6 +44,12 @@ describe('Slack security contracts', () => {
     const appToken = JSON.parse(appTokenSource) as { token_type: string; scopes: string[]; value: string };
     expect(manifest.settings.socket_mode_enabled).toBe(true);
     expect(manifest.settings.org_deploy_enabled).toBe(false);
+    // Without the Messages tab and its send permission, Slack refuses DMs to the app.
+    expect(manifest.features.app_home).toEqual({
+      home_tab_enabled: false,
+      messages_tab_enabled: true,
+      messages_tab_read_only_enabled: false,
+    });
     expect(appToken.token_type).toBe('app-level');
     expect(appToken.scopes).toEqual(['connections:write']);
     expect(appToken.value).toMatch(/^REQUIRED:/);

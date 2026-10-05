@@ -103,6 +103,31 @@ describe('caveats at the top of the answer', () => {
   });
 });
 
+describe('method without ordinary caveats', () => {
+  it('still draws the method used when the only caveat is a degradation notice', () => {
+    const markup = render(
+      'consumer',
+      answer({
+        narrative: 'Retention looks to be roughly flat.',
+        figures: [],
+        caveats: [`${DEGRADED_ANSWER_MARKER} no structured result arrived and no tool steps were recorded.`],
+      })
+    );
+    expect(markup).toContain('Method used');
+    expect(markup).toContain('Measured retention over last 30 days');
+    expect(markup).not.toContain('aria-label="Caveats"');
+  });
+});
+
+describe('asking waits for the role', () => {
+  const HOME_PAGE = readFileSync(new URL('./HomePage.tsx', import.meta.url), 'utf8');
+
+  it('blocks the button, Return and every other entry into ask()', () => {
+    expect(HOME_PAGE).toMatch(/const canAsk =[\s\S]{0,160}!roleResolving;/);
+    expect(HOME_PAGE).toMatch(/async function ask\([\s\S]{0,400}if \(roleResolving\) return;/);
+  });
+});
+
 describe('Advanced trace details for consumers', () => {
   it('offers the toggle with SQL only, and no run process', () => {
     const markup = render('consumer');

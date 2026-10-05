@@ -711,7 +711,9 @@ export function HomePage() {
   // run the button is disabled for -- a second submission while one is in
   // flight, or an empty prompt.
   const budgetBlocked = budgetStatus?.level === 'approval-required';
-  const canAsk = draft.trim().length > 0 && !loading && !conversationLoading && !parsing && !budgetBlocked;
+  // A turn started before the role is known would finish into a hidden transcript.
+  const canAsk =
+    draft.trim().length > 0 && !loading && !conversationLoading && !parsing && !budgetBlocked && !roleResolving;
   /**
    * Which step is in progress, one-based, or 0 when the run has not said so.
    *
@@ -1258,6 +1260,7 @@ export function HomePage() {
   async function ask(question = draft, approval?: { planId: string; label: string }) {
     if (!question.trim() || readLiveAsk(conversationId)?.inFlight || readActiveAsk(conversationId)) return;
     if (budgetStatus?.level === 'approval-required') return;
+    if (roleResolving) return;
     // Everything below writes into the conversation this run started in. Once
     // the user is somewhere else, none of it is theirs to write: an answer, a
     // step, an error banner or a URL change landing in the conversation they

@@ -104,7 +104,6 @@ export function KeepInMind({
   const [showAll, setShowAll] = useState(false);
   const displayed = normalizeReaderAnswer({ caveats, sources, sql });
   const { top, rest } = rankCaveats(displayed.caveats ?? [], limit);
-  if (top.length === 0) return null;
   const methodLines = [
     ...new Set(
       method
@@ -121,6 +120,21 @@ export function KeepInMind({
         .filter(Boolean)
     ),
   ];
+  if (top.length === 0) {
+    if (methodLines.length === 0) return null;
+    // A partial answer whose only caveat was lifted into the banner still owes
+    // the reader how its figures were derived.
+    return (
+      <section className="keep-in-mind" aria-label="Method used">
+        <h3 className="keep-in-mind-heading">Method used</h3>
+        <ul className="answer-list keep-in-mind-list">
+          {methodLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
 
   return (
     <section className={`keep-in-mind${collapsed ? ' answer-support-panel' : ''}`} aria-label="Caveats">

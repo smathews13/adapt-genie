@@ -348,3 +348,46 @@ targets:
       apps:
         adapt_app:
           telemetry_export_destinations: ${var.app_telemetry_destinations}
+
+  # Internal demo target with the same shape as `customer`. Workspace, catalog,
+  # Genie space and Slack values live in its git-ignored
+  # `.databricks/bundle/demo/variable-overrides.json`.
+  demo:
+    mode: production
+    workspace:
+      root_path: ${var.bundle_root_path}
+    variables:
+      manifest_source: genie
+      execution_identity: user-authorization
+      app_telemetry_schema: adapt_telemetry
+      app_telemetry_destinations:
+        - unity_catalog:
+            logs_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_logs
+            metrics_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_metrics
+            traces_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_spans
+    resources:
+      apps:
+        adapt_app:
+          telemetry_export_destinations: ${var.app_telemetry_destinations}
+
+  # Pre-production target with the same shape as `customer`. Its values (app
+  # URL, Slack workspace, OAuth app) live in its own git-ignored
+  # `.databricks/bundle/sandbox/variable-overrides.json`, so moving to
+  # production changes that file's inputs, not the code.
+  sandbox:
+    mode: production
+    workspace:
+      root_path: ${var.bundle_root_path}
+    variables:
+      manifest_source: genie
+      execution_identity: user-authorization
+      app_telemetry_schema: adapt_telemetry
+      app_telemetry_destinations:
+        - unity_catalog:
+            logs_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_logs
+            metrics_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_metrics
+            traces_table: ${var.app_catalog}.${var.app_telemetry_schema}.otel_spans
+    resources:
+      apps:
+        adapt_app:
+          telemetry_export_destinations: ${var.app_telemetry_destinations}

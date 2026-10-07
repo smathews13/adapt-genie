@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP="$ROOT/player-insights-agent/app.yaml"
-PUBLIC_APP="$ROOT/player-insights-agent/build/deploy/app.yaml"
+APP="$ROOT/app/app.yaml"
+PUBLIC_APP="$ROOT/app/build/deploy/app.yaml"
 RESOURCE="$ROOT/resources/adapt_app.app.yml"
 OVERLAY="$ROOT/bundle/slack/secret-bindings.overlay.json"
 REVIEW="$ROOT/bundle/slack/SECURITY-REVIEW.md"

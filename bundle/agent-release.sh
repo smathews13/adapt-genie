@@ -755,7 +755,7 @@ Genie space would not fail this release. Restore it:
   fi
   FINGERPRINT_STATUS=0
   (cd "$BUNDLE_ROOT/agent" && \
-    DATABRICKS_HOST="$WORKSPACE_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" \
+    env ${PROFILE:+DATABRICKS_CONFIG_PROFILE="$PROFILE"} \
       uv run --python 3.13 python "$FINGERPRINT_CHECK" "${FINGERPRINT_ARGS[@]}") || FINGERPRINT_STATUS=$?
   case "$FINGERPRINT_STATUS" in
     0) : ;;

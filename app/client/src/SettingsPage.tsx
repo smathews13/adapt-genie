@@ -5,6 +5,7 @@ import { EgressPanel, EGRESS_SETTINGS_FORM_ID } from './EgressPanel';
 import { EnvironmentPanel } from './EnvironmentPanel';
 import { ExperimentalFeatureName, ExperimentalStatus } from './ExperimentalBadge';
 import { ResourceTagsPanel } from './ResourceTagsPanel';
+import { SlackConnectionPanel } from './SlackConnectionPanel';
 import { BENCHMARK_LAB_ENABLED } from './nav-reveal';
 import {
   NO_EXPERIMENTS,
@@ -373,11 +374,14 @@ export function SettingsPage({
               <AskStartersSettingsPanel onSaveState={setSaveState} onDirtyChange={handlePaneDirty} />
             ) : null}
             {active === 'environment' ? (
-              <EnvironmentPanel
-                showAccessGuide={showsAdminSurfaces(role.state)}
-                accessGuideFocusTarget={accessGuideFocusTarget}
-                initialAccessGuideAvailable={initialAccessGuideAvailable}
-              />
+              <>
+                <EnvironmentPanel
+                  showAccessGuide={showsAdminSurfaces(role.state)}
+                  accessGuideFocusTarget={accessGuideFocusTarget}
+                  initialAccessGuideAvailable={initialAccessGuideAvailable}
+                />
+                {showsAdminSurfaces(role.state) ? <SlackConnectionPanel /> : null}
+              </>
             ) : null}
             {active === 'egress' ? <EgressPanel onSaveState={setSaveState} onDirtyChange={handlePaneDirty} /> : null}
             {active === 'experimental' ? (

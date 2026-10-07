@@ -11,6 +11,7 @@
 #   TARGET=<your-target>                             bundle/app-release.sh --apply
 #   TARGET=customer PROFILE=<their-profile>  bundle/app-release.sh --apply
 #   TARGET=<your-target> bundle/app-release.sh --apply --certify   # also issue a certificate
+#   TARGET=<your-target> bundle/app-release.sh --apply --allow-schema-change   # move the app to a different Postgres schema on purpose
 #   TARGET=<your-target> bundle/app-release.sh --apply --rollback-to /Workspace/.../previous-src
 #
 # The generated build/deploy/app.yaml contains deployment-specific values. This
@@ -25,11 +26,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/decisions-gate.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/app-source-staging.sh"
 configure_python_ca
 
-APPLY=false; ROLLBACK_TO=""; CERTIFY_RUN=false
+APPLY=false; ROLLBACK_TO=""; CERTIFY_RUN=false; ALLOW_SCHEMA_CHANGE=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply) APPLY=true ;;
     --certify) CERTIFY_RUN=true ;;
+    --allow-schema-change) ALLOW_SCHEMA_CHANGE=true ;;
     --rollback-to)
       ROLLBACK_TO="${2:-}"
       [[ -n "$ROLLBACK_TO" ]] || die "--rollback-to needs the ABSOLUTE workspace path of a known-good source directory, e.g.
@@ -125,6 +127,9 @@ Dry run. Nothing was built or deployed. Re-run with --apply to:
   3. npm run build:deploy        (vite client build + esbuild server bundle)
   4. print the findings of any local advisory checks this tree carries.
      They never gate this release.
+  4b. stop if the schema being shipped differs from the one the live source
+     directory already carries (history would look deleted). Override with
+     --allow-schema-change.
   5. check the app owns its Postgres schema. THIS ONE STOPS THE RELEASE, before
      anything is uploaded: ownership cannot be repaired by a later deploy.
   6. resolve the app role, direct Lakebase branch host, Postgres database and
@@ -246,6 +251,42 @@ SHARED_RAIL="$(bundle_var_or_empty shared_conversation_rail)"
 # release bakes the resolved var into PLAYER_INSIGHTS_APP_SCHEMA so Connections
 # and DDL agree with the bundle.
 LAKEBASE_APP_SCHEMA="$(bundle_var lakebase_app_schema)"
+
+# The app's conversation history lives in the Postgres schema it was deployed
+# with. A release that bakes a different one starts the app on an empty schema
+# and the history looks deleted. Compare against what the live source directory
+# already ships and stop on a difference, unless the operator asked for the move.
+# A first deployment, or a source directory that cannot be read, has nothing to
+# compare against and is not blocked.
+step "Postgres schema continuity"
+LIVE_APP_YAML="$(mktemp "${TMPDIR:-/tmp}/adapt-live-app-yaml.XXXXXX")"
+LIVE_APP_SCHEMA=""
+if databricks workspace export "$SRC_PATH/app.yaml" --profile "$PROFILE" --file "$LIVE_APP_YAML" >/dev/null 2>&1; then
+  LIVE_APP_SCHEMA="$(python3 - "$LIVE_APP_YAML" <<'PY'
+import re,sys
+text=open(sys.argv[1]).read()
+found=re.findall(r"name:\s*PLAYER_INSIGHTS_APP_SCHEMA\s*\n\s*value:\s*['\"]?([A-Za-z0-9_]+)['\"]?",text)
+print(found[-1] if found else "")
+PY
+)"
+fi
+rm -f "$LIVE_APP_YAML"
+if [[ -z "$LIVE_APP_SCHEMA" ]]; then
+  note "no schema recorded in the live source directory; nothing to compare"
+elif [[ "$LIVE_APP_SCHEMA" == "$LAKEBASE_APP_SCHEMA" ]]; then
+  note "schema unchanged: $LAKEBASE_APP_SCHEMA"
+elif [[ "$ALLOW_SCHEMA_CHANGE" == true ]]; then
+  note "schema changing from '$LIVE_APP_SCHEMA' to '$LAKEBASE_APP_SCHEMA' (--allow-schema-change)"
+  note "existing history stays in '$LIVE_APP_SCHEMA' and will not show in the app"
+else
+  die "This release would move the app from Postgres schema '$LIVE_APP_SCHEMA' to
+'$LAKEBASE_APP_SCHEMA'. The app would start on an empty schema and its
+conversation history would look deleted. Nothing has been built or uploaded.
+If '$LIVE_APP_SCHEMA' is right, set lakebase_app_schema for this target (the
+private variable-overrides.json) and re-run. If the move is intended, re-run
+with --allow-schema-change."
+fi
+
 CATALOG="$(bundle_var_or_empty app_catalog)"
 SCHEMA="$(bundle_var_or_empty app_schema)"
 LLM_ENDPOINT="$(bundle_var_or_empty llm_endpoint)"

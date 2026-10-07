@@ -4,3 +4,25 @@
 @import '../responsive-settings.css';
 @import '../dark-settings.css';
 @import '../density-settings.css';
+
+.slack-connection {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.slack-connection-field {
+  display: grid;
+  gap: 4px;
+}
+
+.slack-connection-label {
+  font-weight: 600;
+}
+
+.slack-connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

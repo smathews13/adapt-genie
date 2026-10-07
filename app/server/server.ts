@@ -2,6 +2,7 @@ import { createApp, lakebase, server } from '@databricks/appkit';
 import { lakebasePoolSettings } from './lib/lakebase-pool';
 import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
 import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/release-environment';
+import { hydrateSlackSecrets, readSecretWithAppIdentity } from './slack/connection-settings';
 import { requestLatencyShutdown } from './lib/request-latency-shutdown';
 import { registerStaticDelivery } from './lib/static-delivery';
 import { readMlflowTokenEvidence } from './lib/mlflow-token-evidence';
@@ -44,6 +45,14 @@ createApp({
       console.warn(
         `[release-config] Deploy from Git restored ${restoredReleaseValues} target runtime values ` +
           'from the app-owned store.'
+      );
+    }
+    // Slack secrets are read from the customer's secret scope when no app
+    // resource bound them, so a Git deploy keeps working without app.yaml edits.
+    const slackSecrets = await hydrateSlackSecrets(process.env, readSecretWithAppIdentity);
+    if (slackSecrets.loaded.length > 0 || slackSecrets.missing.length > 0) {
+      console.warn(
+        `[slack] Secret scope read: ${slackSecrets.loaded.length} loaded, ${slackSecrets.missing.length} unavailable.`
       );
     }
     const [

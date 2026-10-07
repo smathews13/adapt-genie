@@ -16,7 +16,9 @@
         "/api/2.1/unity-catalog/catalogs/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -31,7 +33,9 @@
         "/api/2.1/unity-catalog/schemas/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -46,7 +50,9 @@
         "/api/2.1/unity-catalog/tables/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -61,7 +67,9 @@
         "/api/2.0/genie/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": "dashboards.genie",
       "same_capability_different_spelling": false
@@ -74,7 +82,9 @@
       },
       "probe_api_prefixes": [],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": "genie",
       "same_capability_different_spelling": false
@@ -87,7 +97,9 @@
       },
       "probe_api_prefixes": [],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -100,7 +112,9 @@
       },
       "probe_api_prefixes": [],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -115,7 +129,9 @@
         "/api/2.0/serving-endpoints/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -130,7 +146,9 @@
         "/api/2.0/sql/"
       ],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": "sql",
       "same_capability_different_spelling": false
@@ -143,7 +161,9 @@
       },
       "probe_api_prefixes": [],
       "declared_by": [
-        "customer"
+        "customer",
+        "demo",
+        "sandbox"
       ],
       "model_equivalent": null,
       "same_capability_different_spelling": false
@@ -190,6 +210,36 @@
   ],
   "targets": {
     "customer": {
+      "declares": [
+        "serving.serving-endpoints",
+        "model-serving",
+        "sql",
+        "dashboards.genie",
+        "genie",
+        "catalog.catalogs:read",
+        "catalog.schemas:read",
+        "catalog.tables:read",
+        "workspace.workspace:read",
+        "postgres"
+      ],
+      "staged": []
+    },
+    "demo": {
+      "declares": [
+        "serving.serving-endpoints",
+        "model-serving",
+        "sql",
+        "dashboards.genie",
+        "genie",
+        "catalog.catalogs:read",
+        "catalog.schemas:read",
+        "catalog.tables:read",
+        "workspace.workspace:read",
+        "postgres"
+      ],
+      "staged": []
+    },
+    "sandbox": {
       "declares": [
         "serving.serving-endpoints",
         "model-serving",

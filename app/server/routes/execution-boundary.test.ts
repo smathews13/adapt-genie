@@ -173,7 +173,7 @@ beforeEach(() => {
   identityReadiness = process.env.ENFORCE_IDENTITY_READINESS;
   // Without one, `invokeServing` throws before the transport is reached and
   // every assertion about what the endpoint was told passes vacuously.
-  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'player-insights-agent';
+  process.env.DATABRICKS_SERVING_ENDPOINT_NAME = 'app';
   process.env.ENFORCE_IDENTITY_READINESS = 'false';
   // The deployed app is the subject. Every rule here is relaxed on a laptop,
   // where there is no proxy to forward a token and no user to be.

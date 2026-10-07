@@ -191,25 +191,25 @@ user; grant `SELECT` to whoever should see the comparison.
 
 Read this before pointing anything at this repository.
 
-**The app source path is `player-insights-agent/build/deploy`. There is nothing
+**The app source path is `app/build/deploy`. There is nothing
 to build first.** That directory is committed and holds the bundled server and
 the built client. It deliberately has **no `package.json`**, so the platform logs
 "No dependencies file found. Skipping installation" and the deploy takes about
 fifteen seconds. Only rebuild it if you change the code:
 
 ```bash
-cd player-insights-agent && npm install && npm run build:deploy
-git add player-insights-agent/build/deploy
+cd app && npm install && npm run build:deploy
+git add app/build/deploy
 ```
 
 **Both of the obvious source paths fail quietly.** The repository root has no
-`app.yaml`. `player-insights-agent/` hangs, because the platform finds a
+`app.yaml`. `app/` hangs, because the platform finds a
 `package.json` there and tries to install a 500-package tree with no registry
 egress from app compute.
 
 **Two `app.yaml` files exist and only one is deployable.**
-`player-insights-agent/app.yaml` is the source one and runs `npm run start`.
-`player-insights-agent/build/deploy/app.yaml` is the built one, runs the bundled
+`app/app.yaml` is the source one and runs `npm run start`.
+`app/build/deploy/app.yaml` is the built one, runs the bundled
 server, and is the one the platform reads.
 
 ### What the workspace needs first
@@ -233,7 +233,7 @@ Have these before you start:
   back with `databricks postgres list-projects`. No owner role is needed; that
   was an input to creating the database;
 - **one existing Genie space**, with its tables already curated. You supply its
-  id, not its contents. `genie/adapt_poc_space.json` is the committed ADAPT
+  id, not its contents. `genie/adapt_space.json` is the committed ADAPT
   space definition used to curate it;
 - an existing SQL warehouse;
 - a workspace source path for the committed deploy tree;
@@ -347,7 +347,7 @@ workflow.
 
 **App-code updates are Deploy from Git onto the existing app.** No preparatory
 bundle release is required. UI, server and other TypeScript in
-`player-insights-agent/build/deploy` are pulled from this repository onto the
+`app/build/deploy` are pulled from this repository onto the
 live app.
 
 Deploy from Git replaces the generated `app.yaml` with the public artifact's

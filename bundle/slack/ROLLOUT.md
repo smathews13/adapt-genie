@@ -22,10 +22,12 @@ their own Unity Catalog permissions. The customer is asked only to:
   Genie and Unity Catalog access**, then let each user complete ADAPT's one-time
   sign-in/linking flow from Slack.
 
-Do not ask the customer to manually provide Slack Team ID, Slack App ID, Slack
-client secret, Slack signing secret, Databricks workspace/App URLs, Databricks
-OAuth client ID or audience, secret-scope names, or a token-broker reference.
+Do not ask the customer for Slack App ID, Slack client secret, Slack signing
+secret, OAuth audience, registration IDs, or a token-broker reference.
 The implementation team discovers or provisions those as deployment details.
+When the team has no access to the customer's Databricks workspace, it sends
+`docs/slack-customer-setup-sheet.md` to collect the app URL, workspace URL,
+Slack Team ID, Databricks OAuth client ID, and two extra secrets.
 The delegated-token broker remains required for per-user OBO, but it is an
 implementation dependency, not a customer input.
 
@@ -39,7 +41,7 @@ implementation dependency, not a customer input.
    cd /secure/path/adapt-slack
    node bundle/slack/apply-secret-overlay.mjs --root "$PWD" --check
    node bundle/slack/apply-secret-overlay.mjs --root "$PWD" --approved
-   git diff -- databricks.yml resources/adapt_app.app.yml player-insights-agent/app.yaml
+   git diff -- databricks.yml resources/adapt_app.app.yml app/app.yaml
    ```
 
    Review and commit that generic overlay only on the private deployment branch.
@@ -92,9 +94,14 @@ implementation dependency, not a customer input.
    the approved activation window; run the checker against the final activation
    override where enabled is `true` and the kill switch is `false`.
 8. Deploy code through migration v52 from the private overlay branch using the normal
-   bundle/app release process. Do not use public Deploy from Git for a
-   Slack-enabled deployment: the public artifact intentionally has no secret
-   resources and will return the adapter to disabled/unconfigured.
+   bundle/app release process. That path binds the four secrets as app
+   resources. A deployment that updates through Deploy from Git instead has no
+   such bindings, so its admin enters the non-secret values once under Settings,
+   Environment, Slack connection (stored in the app's own database and restored
+   on every Git deploy) and grants the app's service principal READ on the secret
+   scope; the app then reads the four secrets from that scope at boot. A
+   deployment managed by a bundle release takes its values from the release and
+   the screen shows them read-only.
 9. Confirm the web app starts and `/api/admin/slack/status` reports the expected
    fail-closed state.
 10. Obtain security review for the native/injected fetch + WebSocket protocol
@@ -111,7 +118,7 @@ implementation dependency, not a customer input.
 Useful local commands (no workspace required):
 
 ```bash
-cd player-insights-agent
+cd app
 npm test
 npm run typecheck
 npx eslint server/slack server/routes/slack-* shared/egress-contract.ts

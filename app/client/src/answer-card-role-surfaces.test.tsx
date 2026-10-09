@@ -54,7 +54,7 @@ function render(role: RoleState, value: Answer = answer()): string {
 describe('role gates', () => {
   it.each<[RoleState, boolean, boolean]>([
     ['consumer', true, true],
-    ['executive', false, false],
+    ['executive', true, true],
     ['admin', true, false],
     ['super_admin', true, false],
     ['failed', false, false],
@@ -79,11 +79,10 @@ describe('caveats at the top of the answer', () => {
     expect(markup.indexOf(CAVEAT)).toBeLessThan(markup.indexOf('answer-figure-summary'));
   });
 
-  it('leaves the executive layout alone: closed and below the answer', () => {
+  it('does the same for executives', () => {
     const markup = render('executive');
-    expect(markup).not.toContain(CAVEAT);
-    expect(markup).toContain('aria-label="Caveats"');
-    expect(markup.indexOf('aria-label="Caveats"')).toBeGreaterThan(markup.indexOf('answer-figure-summary'));
+    expect(markup.indexOf(CAVEAT)).toBeLessThan(markup.indexOf('answer-figure-summary'));
+    expect(markup.match(/aria-label="Caveats"/g)).toHaveLength(1);
   });
 
   it('adds the method used only when the answer is partial', () => {
@@ -140,8 +139,11 @@ describe('Advanced trace details for consumers', () => {
     expect(render('consumer', answer({ sql: '' }))).not.toContain('Advanced trace details');
   });
 
-  it('is not offered to executives', () => {
-    expect(render('executive')).not.toContain('Advanced trace details');
+  it('is offered to executives the same way, SQL only', () => {
+    const markup = render('executive');
+    expect(markup).toContain('Advanced trace details');
+    expect(markup).not.toContain('Run process');
+    expect(markup).not.toContain('Raw I/O');
   });
 });
 

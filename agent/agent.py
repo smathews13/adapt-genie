@@ -1000,6 +1000,11 @@ wishlist demand. Gather a compact EVIDENCE PACKAGE for final synthesis.
 - Never put tool transport prose in the evidence findings. Omit lines beginning "Asking Genie
   space", "Query interpretation", "Query result", and "Relevant tables in this Genie space".
   The final answer has a separate Data sources section and must not repeat a table inventory.
+- Follow-ups: when the request leans on an earlier turn ("that", "those", "same but by
+  language", "what about last quarter"), resolve it from the established visible context,
+  including the query and rows recorded there. Genie keeps no memory between calls, so every
+  question you send it restates the title, metric, filters, and time window carried over,
+  changing only what the user changed.
 - When the request uses a relative window ("last 30 days", "yesterday", "as of today"),
   ground it on Today's date from system context and let Genie resolve the calendar.
 - If `data_genie` cannot answer, returns no data, or reports an unavailable dependency,

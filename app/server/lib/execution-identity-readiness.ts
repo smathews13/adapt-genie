@@ -10,6 +10,8 @@
 export const ENFORCE_IDENTITY_READINESS_ENV = 'ENFORCE_IDENTITY_READINESS';
 export const USER_AUTHORIZATION_ENV = 'PLAYER_INSIGHTS_USER_AUTHORIZATION';
 export const IDENTITY_READINESS_PROBE_USER = 'readiness-probe@invalid.example';
+/** A cold serving endpoint can take longer than 15s to answer its first request. */
+export const IDENTITY_READINESS_TIMEOUT_MS = 90_000;
 export const OBO_NOT_WIRED_LOG = 'OBO not wired: x-forwarded-access-token is not reaching the serving endpoint.';
 
 const TRUTHY = new Set(['1', 'true', 'on', 'yes']);
@@ -68,7 +70,13 @@ function identityModeFrom(value: unknown): RuntimeIdentity | null {
 
 function errorText(error: unknown): string {
   if (error instanceof Error) return `${error.message}\n${error.stack ?? ''}`;
-  return String(error ?? '');
+  if (error == null) return '';
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 export function observeRuntimeIdentity(input: { result?: unknown; error?: unknown }): RuntimeIdentity {
@@ -81,8 +89,20 @@ export function observeRuntimeIdentity(input: { result?: unknown; error?: unknow
   const type = typeof custom?.type === 'string' ? custom.type : '';
   const message = typeof custom?.message === 'string' ? custom.message : '';
   const combined = `${message}\n${text}`;
-  if (type === 'unavailable' && (code === 'IDENTITY_REQUIRED' || code === 'IDENTITY_MISMATCH')) {
-    return 'service_principal';
+  if (type === 'unavailable' && code === 'IDENTITY_MISMATCH') {
+    // The expected user is deliberately impossible. A signed-in-user identity
+    // reaching this comparison proves OBO is wired; an explicitly observed
+    // service principal remains a real failure. Older compatible models may
+    // omit execution_identity, where the comparison itself still proves an
+    // invoker identity was resolved.
+    return identityModeFrom(input.result) === 'service_principal' ? 'service_principal' : 'token_forwarded';
+  }
+  if (type === 'unavailable' && code === 'IDENTITY_REQUIRED') {
+    return /without working user-authorization credential forwarding|no credential for the signed-in user|no user credential|no invoker token/i.test(
+      combined
+    )
+      ? 'service_principal'
+      : 'unknown';
   }
   if (
     /without working user-authorization credential forwarding|no credential for the signed-in user|no invoker token/i.test(
@@ -124,7 +144,7 @@ export function identityProbePayload(): Record<string, unknown> {
 
 export type IdentityProbeInvoke = (input: {
   payload: Record<string, unknown>;
-  userToken: string;
+  forwardedUserToken: string;
 }) => Promise<{ result?: unknown; error?: unknown }>;
 
 export function createIdentityReadinessProbe(input: {
@@ -135,7 +155,21 @@ export function createIdentityReadinessProbe(input: {
   let pending: Promise<IdentityReadinessVerdict> | undefined;
   const env = input.env ?? process.env;
   const get = () => {
-    if (!pending) pending = runIdentityReadinessProbe({ invoke: input.invoke, env, deployed: input.deployed });
+    if (!pending) {
+      const current = runIdentityReadinessProbe({ invoke: input.invoke, env, deployed: input.deployed });
+      pending = current;
+      void current.then(
+        (verdict) => {
+          // Cache only success. A cold endpoint and a transient missing-invoker
+          // response can look identical to a wiring fault; the next Ask must
+          // retry instead of inheriting a process-lifetime refusal.
+          if (!verdict.ok && pending === current) pending = undefined;
+        },
+        () => {
+          if (pending === current) pending = undefined;
+        }
+      );
+    }
     return pending;
   };
   return { get };
@@ -156,7 +190,7 @@ export async function runIdentityReadinessProbe(input: {
   try {
     const outcome = await input.invoke({
       payload: identityProbePayload(),
-      userToken: 'identity-readiness-synthetic-token',
+      forwardedUserToken: 'identity-readiness-synthetic-token',
     });
     const observed = observeRuntimeIdentity(outcome);
     const verdict = compareExecutionIdentity({ expected, observed, enforce: true });

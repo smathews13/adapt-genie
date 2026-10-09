@@ -50,7 +50,7 @@ describe('execution-identity readiness', () => {
     const askWrites: string[] = [];
     const servingTransport = vi.fn(() =>
       Promise.resolve({
-        custom_outputs: { type: 'unavailable', code: 'IDENTITY_MISMATCH', message: 'no invoker token' },
+        custom_outputs: { type: 'unavailable', code: 'IDENTITY_REQUIRED', message: 'no invoker token' },
       })
     );
     const app = express();
@@ -77,7 +77,8 @@ describe('execution-identity readiness', () => {
       expect(ask.status).toBe(401);
       expect(await ask.json()).toMatchObject({ type: 'unavailable', code: 'IDENTITY_REQUIRED' });
       expect(askWrites).toEqual([]);
-      expect(servingTransport).toHaveBeenCalledTimes(1);
+      // The boot probe is not cached while it fails, so this Ask probes again.
+      expect(servingTransport).toHaveBeenCalledTimes(2);
     } finally {
       process.env.ENFORCE_IDENTITY_READINESS = previousEnforce;
       process.env.DATABRICKS_SERVING_ENDPOINT_NAME = previousEndpoint;

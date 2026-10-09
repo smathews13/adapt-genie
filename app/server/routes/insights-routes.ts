@@ -90,7 +90,11 @@ import { createStageRecorder, readStageEvents, type StageRecorder } from '../lib
 import { isUsableIdempotencyKey } from '../lib/run-request-hash';
 import { terminalStateFor } from '../lib/run-state';
 import { answerRatherThanExit } from '../lib/handler-failures';
-import { createIdentityReadinessProbe, identityReadinessHttp } from '../lib/execution-identity-readiness';
+import {
+  createIdentityReadinessProbe,
+  IDENTITY_READINESS_TIMEOUT_MS,
+  identityReadinessHttp,
+} from '../lib/execution-identity-readiness';
 import { requestLatencyRecorder } from '../lib/request-latency';
 import type { TraceTokenEvidenceReader } from '../lib/mlflow-token-evidence';
 import type { TokenAttribution } from '../../shared/llm-token-usage';
@@ -213,6 +217,8 @@ export type ServingTransport = (request: {
    * the benchmark runner, the settings probe) omit it and run as the app.
    */
   userToken?: string;
+  /** Forwarded OBO credential while the App service principal authenticates the request. */
+  forwardedUserToken?: string;
   /** Present only for an explicit Stop; ordinary browser disconnects never set it. */
   signal?: AbortSignal;
 }) => Promise<unknown>;
@@ -2462,14 +2468,61 @@ export function buildServingHistory(rows: HistoryRow[]) {
         }
         if (typeof record.takeaway === 'string') {
           const narrative = typeof record.narrative === 'string' ? record.narrative : row.content;
+          // A follow-up ("now by language", "what about the second one?") is only
+          // answerable if the agent can see what the earlier turn queried and
+          // returned. Genie keeps no memory between calls, so the orchestrator
+          // has to restate the title, filters and window itself, and the query
+          // is where those live. Each part gets its own budget so a long run of
+          // statements cannot crowd the rows out, and each is trimmed whole and
+          // says so, so a partial table is never read as the full result.
+          const head = `${record.takeaway}\n\n${narrative}`.slice(0, HISTORY_TURN_LIMIT);
+          const sections = [head];
+          const sql = typeof record.sql === 'string' ? record.sql.trim() : '';
+          if (sql) sections.push(`Queries behind this answer:\n${replayedSql(sql, HISTORY_SQL_LIMIT)}`);
+          const table = typeof record.content === 'string' ? record.content.trim() : '';
+          const tableBudget = HISTORY_TURN_LIMIT - sections.join('\n\n').length - '\n\nRows returned:\n'.length;
+          if (table && tableBudget > 0) sections.push(`Rows returned:\n${replayedRows(table, tableBudget)}`);
           return {
             role: row.role,
-            content: `${record.takeaway}\n\n${narrative}`.slice(0, 4000),
+            content: sections.join('\n\n').slice(0, HISTORY_TURN_LIMIT),
           };
         }
       }
-      return { role: row.role, content: row.content.slice(0, 4000) };
+      return { role: row.role, content: row.content.slice(0, HISTORY_TURN_LIMIT) };
     });
+}
+
+const HISTORY_TURN_LIMIT = 4000;
+const HISTORY_SQL_LIMIT = 1500;
+const SQL_OMITTED = '-- (earlier statements omitted)\n';
+
+/**
+ * The tail of a run's SQL. `sql` is every statement the run ran, joined by a
+ * blank line, with metadata lookups first and the query that produced the
+ * answer last -- so the end is what carries the filters. Starts on a statement
+ * boundary when there is one, so the first statement kept is whole.
+ */
+function replayedSql(sql: string, limit: number): string {
+  if (sql.length <= limit) return sql;
+  const tail = sql.slice(-(limit - SQL_OMITTED.length));
+  const boundary = tail.indexOf('\n\n');
+  return SQL_OMITTED + (boundary >= 0 ? tail.slice(boundary + 2) : tail);
+}
+
+/** Whole lines of the answer's table up to `limit`, with a count of what was left out. */
+function replayedRows(table: string, limit: number): string {
+  if (table.length <= limit) return table;
+  const lines = table.split('\n');
+  const kept: string[] = [];
+  // Room for the omission note, which is at most this long.
+  let used = 40;
+  for (const line of lines) {
+    if (used + line.length + 1 > limit) break;
+    kept.push(line);
+    used += line.length + 1;
+  }
+  const omitted = lines.length - kept.length;
+  return `${kept.join('\n')}\n(${omitted} more ${omitted === 1 ? 'row' : 'rows'} omitted)`;
 }
 
 function attachmentExtension(filename: string) {
@@ -2734,7 +2787,7 @@ interface ServingApiClient {
 export function createServingTransport(
   resolveClient: (userToken?: string) => Promise<ServingApiClient>
 ): ServingTransport {
-  return async ({ path, payload, onStage, userToken, signal }) => {
+  return async ({ path, payload, onStage, userToken, forwardedUserToken, signal }) => {
     throwIfRunCancelled(signal);
     const client = await resolveClient(userToken);
     throwIfRunCancelled(signal);
@@ -2745,18 +2798,21 @@ export function createServingTransport(
     // shape of the bug this whole indirection exists to prevent, and a reviewer
     // cannot tell "added one key" from "rebuilt from an allowlist" at a glance.
     const streaming = typeof onStage === 'function';
-    const invoke = (asStream: boolean) =>
-      client.request({
+    const invoke = (asStream: boolean) => {
+      const headers = new Headers({
+        'Content-Type': 'application/json',
+        Accept: asStream ? 'text/event-stream' : 'application/json',
+      });
+      if (forwardedUserToken) headers.set('x-forwarded-access-token', forwardedUserToken);
+      return client.request({
         path,
         method: 'POST',
-        headers: new Headers({
-          'Content-Type': 'application/json',
-          Accept: asStream ? 'text/event-stream' : 'application/json',
-        }),
+        headers,
         payload,
         raw: asStream,
         signal,
       });
+    };
 
     if (!streaming) return invoke(false);
     try {
@@ -3019,7 +3075,8 @@ export async function invokeServing(
   timeoutMs: number = SERVING_INVOKE_TIMEOUT_MS,
   userToken?: string,
   endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  forwardedUserToken?: string
 ) {
   if (!endpointName) {
     throw new Error('DATABRICKS_SERVING_ENDPOINT_NAME is not set.');
@@ -3063,6 +3120,7 @@ export async function invokeServing(
         payload,
         onStage: guardedStage,
         userToken,
+        forwardedUserToken,
         signal: controller.signal,
       }),
       aborted,
@@ -3504,9 +3562,20 @@ export function setupInsightsRoutes(
   const storeReady = prepareStore(appkit);
   const idleConfig = options.appSessionConfig ?? resolveIdleTimeout();
   const identityProbe = createIdentityReadinessProbe({
-    invoke: async ({ payload, userToken }) => {
+    invoke: async ({ payload, forwardedUserToken }) => {
       try {
-        return { result: await invokeServing(appkit, payload, undefined, 15_000, userToken) };
+        return {
+          result: await invokeServing(
+            appkit,
+            payload,
+            undefined,
+            IDENTITY_READINESS_TIMEOUT_MS,
+            undefined,
+            undefined,
+            undefined,
+            forwardedUserToken
+          ),
+        };
       } catch (error) {
         return { error };
       }
@@ -4682,15 +4751,26 @@ export function setupInsightsRoutes(
         return;
       }
 
-      const identityVerdict = await identityProbe.get();
+      let identityVerdict = await identityProbe.get();
+      if (!identityVerdict.ok && identityVerdict.reason === 'unverified') {
+        // A cold endpoint looks the same as a wiring fault; check once more
+        // before telling anyone anything.
+        identityVerdict = await identityProbe.get();
+      }
       if (!identityVerdict.ok) {
-        reply.status(unavailableHttpStatus('IDENTITY_REQUIRED')).json(
+        // An unfinished check is the app's problem, not the reader's sign-in.
+        const readinessCode = identityVerdict.reason === 'unverified' ? 'DEPENDENCY_UNAVAILABLE' : 'IDENTITY_REQUIRED';
+        reply.status(unavailableHttpStatus(readinessCode)).json(
           unavailableResult({
-            code: 'IDENTITY_REQUIRED',
+            code: readinessCode,
             requestId: identity.correlationId,
             runId: null,
             persistence: 'not_stored',
             executionIdentity: refusedIdentityClaim(),
+            detail:
+              identityVerdict.reason === 'unverified'
+                ? 'The agent endpoint identity check did not complete after retry. Try this question again.'
+                : undefined,
           })
         );
         return;

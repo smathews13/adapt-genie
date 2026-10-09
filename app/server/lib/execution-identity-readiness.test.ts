@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createIdentityReadinessProbe,
   compareExecutionIdentity,
   expectedModelAuthPolicy,
   identityReadinessEnforced,
@@ -72,11 +73,35 @@ describe('observeRuntimeIdentity', () => {
           custom_outputs: {
             type: 'unavailable',
             code: 'IDENTITY_REQUIRED',
+            message:
+              'The model came up without working user-authorization credential forwarding, so the model had no credential for the signed-in user.',
             execution_identity: { mode: 'signed_in_user', verified: false },
           },
         },
       })
     ).toBe('service_principal');
+  });
+
+  it('keeps a bare identity-required response retryable when it names no missing credential', () => {
+    expect(
+      observeRuntimeIdentity({
+        result: { custom_outputs: { type: 'unavailable', code: 'IDENTITY_REQUIRED' } },
+      })
+    ).toBe('unknown');
+  });
+
+  it('treats a fake-user mismatch with signed-in-user evidence as aligned OBO', () => {
+    expect(
+      observeRuntimeIdentity({
+        result: {
+          custom_outputs: {
+            type: 'unavailable',
+            code: 'IDENTITY_MISMATCH',
+            execution_identity: { mode: 'signed_in_user', verified: true },
+          },
+        },
+      })
+    ).toBe('token_forwarded');
   });
 
   it('reads a successful signed-in identity from a live answer', () => {
@@ -118,8 +143,8 @@ describe('runIdentityReadinessProbe', () => {
   it('fails when a user-auth model answers as the service principal', async () => {
     const verdict = await runIdentityReadinessProbe({
       env: { ENFORCE_IDENTITY_READINESS: 'true', PLAYER_INSIGHTS_USER_AUTHORIZATION: 'true' },
-      invoke: async ({ userToken }) => {
-        expect(userToken).toBeTruthy();
+      invoke: async ({ forwardedUserToken }) => {
+        expect(forwardedUserToken).toBeTruthy();
         return {
           result: {
             custom_outputs: {
@@ -142,6 +167,53 @@ describe('runIdentityReadinessProbe', () => {
       },
     });
     expect(verdict).toMatchObject({ ok: true, reason: 'aligned', observed: 'token_forwarded' });
+  });
+});
+
+describe('createIdentityReadinessProbe', () => {
+  const env = { ENFORCE_IDENTITY_READINESS: 'true', PLAYER_INSIGHTS_USER_AUTHORIZATION: 'true' };
+
+  it('retries an inconclusive cold-start probe instead of caching it for the process lifetime', async () => {
+    let attempts = 0;
+    const probe = createIdentityReadinessProbe({
+      env,
+      invoke: () => {
+        attempts += 1;
+        return Promise.resolve(
+          attempts === 1
+            ? {}
+            : {
+                result: {
+                  custom_outputs: {
+                    type: 'unavailable',
+                    code: 'IDENTITY_MISMATCH',
+                    execution_identity: { mode: 'signed_in_user', verified: true },
+                  },
+                },
+              }
+        );
+      },
+    });
+
+    await expect(probe.get()).resolves.toMatchObject({ ok: false, reason: 'unverified' });
+    await expect(probe.get()).resolves.toMatchObject({ ok: true, reason: 'aligned' });
+    expect(attempts).toBe(2);
+  });
+
+  it('keeps a passing verdict without probing again', async () => {
+    let attempts = 0;
+    const probe = createIdentityReadinessProbe({
+      env,
+      invoke: () => {
+        attempts += 1;
+        return Promise.reject(
+          new Error('model_serving_user_credentials auth: Unable to authenticate using user_credentials')
+        );
+      },
+    });
+    await expect(probe.get()).resolves.toMatchObject({ ok: true });
+    await expect(probe.get()).resolves.toMatchObject({ ok: true });
+    expect(attempts).toBe(1);
   });
 });
 

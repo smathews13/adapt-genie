@@ -392,14 +392,86 @@ describe('plan and conversation contracts', () => {
     expect(extractStructuredAnswer(livePlanResponse)).toBeNull();
   });
 
-  it('replays a stored assistant answer as takeaway plus narrative', () => {
+  it('replays a stored assistant answer as takeaway, narrative and the query behind it', () => {
     const stored = liveAnswerResponse.custom_outputs.answer;
     const history = buildServingHistory([
       { role: 'user', content: 'Compare active players by title' },
       { role: 'assistant', content: stored.narrative, response_json: stored },
     ]);
 
-    expect(history[1]?.content).toBe(`${stored.takeaway}\n\n${stored.narrative}`);
+    expect(history[1]?.content).toBe(
+      `${stored.takeaway}\n\n${stored.narrative}\n\nQueries behind this answer:\n${stored.sql.trim()}`
+    );
+  });
+
+  it('replays the returned rows so a follow-up can refer to them', () => {
+    const history = buildServingHistory([
+      {
+        role: 'assistant',
+        content: 'Germany leads.',
+        response_json: {
+          takeaway: 'Germany leads wishlists.',
+          narrative: '- **Scope:** NBA 2K26, last 30 days',
+          sql: 'SELECT country, SUM(wishlists) FROM t GROUP BY country',
+          content: '| country | wishlists |\n|---|---|\n| DE | 120 |',
+        },
+      },
+    ]);
+
+    const replayed = history[0]?.content ?? '';
+    expect(replayed).toContain('SELECT country, SUM(wishlists)');
+    expect(replayed).toContain('| DE | 120 |');
+    expect(replayed.indexOf('Queries behind this answer')).toBeLessThan(replayed.indexOf('Rows returned'));
+  });
+
+  it('keeps the final query of a long run, which is the one carrying the filters', () => {
+    const lookups = Array.from({ length: 80 }, (_, index) => `DESCRIBE TABLE cat.sch.lookup_${index}`);
+    const final = "SELECT language, SUM(wishlists) FROM t WHERE title = 'NBA 2K26' GROUP BY language";
+    const history = buildServingHistory([
+      {
+        role: 'assistant',
+        content: 'x',
+        response_json: {
+          takeaway: 'English leads.',
+          narrative: '- **Scope:** NBA 2K26',
+          sql: [...lookups, final].join('\n\n'),
+          content: '| language | wishlists |\n|---|---|\n| en | 90 |',
+        },
+      },
+    ]);
+
+    const replayed = history[0]?.content ?? '';
+    expect(replayed).toContain(final);
+    expect(replayed).toContain('-- (earlier statements omitted)');
+    expect(replayed).not.toContain('lookup_0\n');
+    // The rows keep their own room rather than being crowded out by the SQL.
+    expect(replayed).toContain('| en | 90 |');
+    expect(replayed.length).toBeLessThanOrEqual(4000);
+  });
+
+  it('trims a long table to whole rows and says how many were left out', () => {
+    const rows = Array.from({ length: 400 }, (_, index) => `| country_${index} | ${index} |`);
+    const history = buildServingHistory([
+      {
+        role: 'assistant',
+        content: 'x',
+        response_json: {
+          takeaway: 'Many countries.',
+          narrative: '- **Scope:** all',
+          sql: 'SELECT country, wishlists FROM t',
+          content: ['| country | wishlists |', '|---|---|', ...rows].join('\n'),
+        },
+      },
+    ]);
+
+    const replayed = history[0]?.content ?? '';
+    expect(replayed.length).toBeLessThanOrEqual(4000);
+    expect(replayed).toMatch(/\n\(\d+ more rows omitted\)$/);
+    const kept = replayed.split('Rows returned:\n')[1]?.split('\n').slice(0, -1) ?? [];
+    expect(kept[0]).toBe('| country | wishlists |');
+    for (const line of kept.slice(2)) expect(line).toMatch(/^\| country_\d+ \| \d+ \|$/);
+    const omitted = Number(/\((\d+) more rows omitted\)/.exec(replayed)?.[1]);
+    expect(kept.length + omitted).toBe(402);
   });
 
   it('parses assistant history that Lakebase returned as a JSON string', () => {

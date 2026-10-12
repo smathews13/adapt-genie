@@ -75,12 +75,12 @@ describe('the two rails share one width and the card sits in the middle', () => 
 
   it('insets cards from the rails and caps the composer independently', () => {
     // Cards retain their 8px side inset. The composer keeps that responsive
-    // width rule but stops at 640px, leaving a materially narrower prompt bar.
+    // width rule but stops at 700px, leaving a narrower prompt bar than the cards.
     expect(ASK).toMatch(
       /\.conversation-main \.answer-card,\s*\.conversation-main \.plan-card\s*\{[^}]*width:\s*calc\(100% - 16px\)/
     );
     expect(COMPOSER).toMatch(
-      /\.composer\s*\{[^}]*width:\s*calc\(100% - 16px\)[^}]*max-width:\s*min\(640px,\s*var\(--conversation-measure\)\)/
+      /\.composer\s*\{[^}]*width:\s*calc\(100% - 16px\)[^}]*max-width:\s*min\(700px,\s*var\(--conversation-measure\)\)/
     );
   });
 

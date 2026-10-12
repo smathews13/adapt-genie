@@ -60,7 +60,13 @@ describe('organization identity assets', () => {
       /@media \(forced-colors: active\)[\s\S]*\.roster-organization-mark:not\([^}]*color:\s*CanvasText/s
     );
     expect(MONITORING_CSS).toContain('.monitoring-organization-trigger');
-    expect(MONITORING_CSS).toMatch(
+    expect(MONITORING_CSS).not.toContain('.monitoring-organization-option-content');
+    expect(ORGANIZATION_CSS).toMatch(
+      /\.monitoring-organization-option-content\s*\{[^}]*display:\s*flex[^}]*align-items:\s*center/
+    );
+    // The option row ships with the avatar so it also applies on Ask, where
+    // monitoring.css is not loaded.
+    expect(ORGANIZATION_CSS).toMatch(
       /\.monitoring-organization-option-content \.roster-databricks-symbol\s*\{[^}]*transform:\s*translateY\(2px\)/
     );
     expect(RESPONSIVE_CSS).toMatch(/\.monitoring-organization-trigger[^}]*width:\s*100%/s);

@@ -1584,30 +1584,6 @@ a.monitoring-context-badge {
 [data-radix-popper-content-wrapper]:has(.monitoring-organization-menu) {
   z-index: 1100;
 }
-.monitoring-organization-option-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.monitoring-organization-option-content > .roster-organization-mark {
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
-  align-self: center;
-}
-.monitoring-organization-option-content .roster-databricks-symbol {
-  transform: translateY(2px);
-}
-.monitoring-organization-option-content > span:last-child {
-  display: flex;
-  align-items: center;
-  min-height: 24px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .monitoring-users-filter-menu {
   max-height: min(320px, var(--radix-popover-content-available-height));
   overflow-y: auto;

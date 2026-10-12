@@ -9,7 +9,8 @@
  *
  * The server is authoritative: every write goes to an /api/admin route.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { Check, CircleAlert } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Input } from './ui';
 import { AdaptBusyButtonContent } from './AdaptLoadingAnimation';
 import {
@@ -17,6 +18,14 @@ import {
   type SlackConnection,
   type SlackConnectionResponse,
 } from '../../shared/slack-connection';
+import {
+  EMPTY_DRAFT,
+  SAVED_CONFIRMATION_MS,
+  draftFrom,
+  fieldErrors,
+  type Draft,
+  type FieldKey,
+} from './slack-connection-form';
 import {
   loadSlackConnection,
   loadSlackSwitch,
@@ -30,47 +39,36 @@ const REGISTRATION: Record<SlackConnection['environment'], string> = {
   production: 'adapt-slack-production',
 };
 
-type Draft = Record<keyof SlackConnection, string>;
-
-const EMPTY_DRAFT: Draft = {
-  environment: 'test',
-  allowedTeamId: '',
-  databricksWorkspaceHost: '',
-  publicBaseUrl: '',
-  oauthClientId: '',
-  secretScope: 'adapt-app',
-};
-
-function draftFrom(response: SlackConnectionResponse): Draft {
-  const saved = response.connection ?? {};
-  return {
-    environment: saved.environment ?? EMPTY_DRAFT.environment,
-    allowedTeamId: saved.allowedTeamId ?? '',
-    databricksWorkspaceHost: saved.databricksWorkspaceHost ?? response.suggested.databricksWorkspaceHost,
-    publicBaseUrl: saved.publicBaseUrl ?? response.suggested.publicBaseUrl,
-    oauthClientId: saved.oauthClientId ?? '',
-    secretScope: saved.secretScope ?? EMPTY_DRAFT.secretScope,
-  };
-}
-
 function Field({
   label,
-  hint,
   value,
+  error,
   onChange,
+  onBlur,
   disabled,
 }: {
   label: string;
-  hint: string;
   value: string;
+  error?: string;
   onChange: (value: string) => void;
+  onBlur: () => void;
   disabled: boolean;
 }) {
   return (
     <label className="slack-connection-field">
       <span className="slack-connection-label">{label}</span>
-      <Input value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
-      <span className="admin-list-note">{hint}</span>
+      <Input
+        value={value}
+        disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
+      />
+      {error ? (
+        <span className="slack-connection-field-error" role="alert">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -79,9 +77,13 @@ export function SlackConnectionPanel() {
   const [loaded, setLoaded] = useState<SlackConnectionResponse | null>(null);
   const [switchDoc, setSwitchDoc] = useState<SlackSwitchDocument | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState<'save' | 'switch' | ''>('');
+  const [saved, setSaved] = useState(false);
+  const [restartNeeded, setRestartNeeded] = useState(false);
   const [failed, setFailed] = useState('');
+  const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
+  const [attempted, setAttempted] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const refresh = useCallback(async () => {
     const [connection, current] = await Promise.all([loadSlackConnection(), loadSlackSwitch().catch(() => null)]);
@@ -100,121 +102,158 @@ export function SlackConnectionPanel() {
     };
   }, [refresh]);
 
-  const update = (key: keyof Draft) => (value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
+
+  const update = (key: FieldKey) => (value: string) => {
+    setSaved(false);
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+  const touch = (key: FieldKey) => () => setTouched((current) => ({ ...current, [key]: true }));
   const parsed = SlackConnectionSchema.safeParse(draft);
-  const locked = busy || loaded?.managedByRelease === true;
+  const errors = fieldErrors(draft);
+  const shown = (key: FieldKey) => (attempted || touched[key] ? errors[key] : undefined);
+  const locked = busy !== '' || loaded?.managedByRelease === true;
 
   const save = async () => {
+    setAttempted(true);
+    setSaved(false);
+    clearTimeout(savedTimer.current);
     if (!parsed.success) {
-      setFailed(parsed.error.issues.map((issue) => issue.message).join(' '));
+      setFailed('Fix the highlighted fields.');
       return;
     }
-    setBusy(true);
+    setBusy('save');
     setFailed('');
-    setMessage('');
     try {
       const next = await saveSlackConnection(parsed.data);
       setLoaded(next);
       setDraft(draftFrom(next));
-      setMessage(
-        next.requiresRestart
-          ? 'Saved. Restart the app from its Databricks page to apply these values.'
-          : 'Saved. These values are already in use.'
-      );
+      setRestartNeeded(next.requiresRestart);
+      setSaved(true);
+      savedTimer.current = setTimeout(() => setSaved(false), SAVED_CONFIRMATION_MS);
     } catch (error) {
-      setFailed(error instanceof Error ? error.message : 'Slack connection values were not saved.');
+      setFailed(error instanceof Error ? error.message : 'Not saved. Try again.');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
-  const toggle = async (on: boolean) => {
+  const isOn = Boolean(switchDoc?.settings.enabled && !switchDoc.settings.killSwitch);
+
+  const toggle = async () => {
     if (!switchDoc) return;
-    setBusy(true);
+    setBusy('switch');
     setFailed('');
-    setMessage('');
     try {
       setSwitchDoc(
-        await saveSlackSwitch(switchDoc.revision, on, REGISTRATION[draft.environment as SlackConnection['environment']])
+        await saveSlackSwitch(
+          switchDoc.revision,
+          !isOn,
+          REGISTRATION[draft.environment as SlackConnection['environment']]
+        )
       );
-      setMessage(on ? 'Slack is on.' : 'Slack is off.');
     } catch (error) {
-      setFailed(error instanceof Error ? error.message : 'The Slack on/off setting was not saved.');
+      setFailed(error instanceof Error ? error.message : 'Could not change the Slack setting. Try again.');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
-  if (!loaded && !failed) return <p className="admin-list-note">Loading Slack connection...</p>;
+  if (!loaded && !failed) return <p className="admin-list-note">Loading...</p>;
 
-  const scope = draft.secretScope || '<secret scope>';
+  const cannotTurnOn = !isOn && !loaded?.complete;
   return (
     <section className="slack-connection settings-table-frame" aria-labelledby="slack-connection-title">
-      <h4 id="slack-connection-title">Slack connection</h4>
-      {loaded?.managedByRelease ? (
-        <p className="admin-list-note">
-          This deployment takes its Slack values from its bundle release, so they are shown here but cannot be edited.
-        </p>
-      ) : null}
+      <div className="slack-connection-head">
+        <h4 id="slack-connection-title">Slack connection</h4>
+        {switchDoc ? (
+          <span className="slack-status" data-state={isOn ? 'on' : 'off'} role="status">
+            <span className="slack-status-dot" aria-hidden="true" />
+            {isOn ? 'Slack on' : 'Slack off'}
+          </span>
+        ) : null}
+      </div>
+      {loaded?.managedByRelease ? <p className="admin-list-note">Set by the release. Read only.</p> : null}
       <Field
         label="Slack Team ID"
-        hint="Starts with T. In Slack, open the workspace menu, then About this workspace."
         value={draft.allowedTeamId}
+        error={shown('allowedTeamId')}
         onChange={update('allowedTeamId')}
+        onBlur={touch('allowedTeamId')}
         disabled={locked}
       />
       <Field
         label="Databricks workspace address"
-        hint="For example https://your-workspace.cloud.databricks.com"
         value={draft.databricksWorkspaceHost}
+        error={shown('databricksWorkspaceHost')}
         onChange={update('databricksWorkspaceHost')}
+        onBlur={touch('databricksWorkspaceHost')}
         disabled={locked}
       />
       <Field
         label="ADAPT app address"
-        hint="The address people use to open ADAPT."
         value={draft.publicBaseUrl}
+        error={shown('publicBaseUrl')}
         onChange={update('publicBaseUrl')}
+        onBlur={touch('publicBaseUrl')}
         disabled={locked}
       />
       <Field
         label="Databricks OAuth client ID"
-        hint={`From the custom OAuth app you created. Its redirect URL must be ${
-          loaded?.suggested.callbackUrl || '<ADAPT app address>/api/slack/oauth/callback'
-        }`}
         value={draft.oauthClientId}
+        error={shown('oauthClientId')}
         onChange={update('oauthClientId')}
+        onBlur={touch('oauthClientId')}
         disabled={locked}
       />
       <Field
         label="Secret scope"
-        hint={`Holds these four secrets: ${Object.values(loaded?.secrets.keys ?? {}).join(', ')}. Give this app read access to the scope: databricks secrets put-acl ${scope} <app service principal> READ`}
         value={draft.secretScope}
+        error={shown('secretScope')}
         onChange={update('secretScope')}
+        onBlur={touch('secretScope')}
         disabled={locked}
       />
       <div className="slack-connection-actions">
-        <Button type="button" disabled={locked || !parsed.success} onClick={() => void save()}>
-          <AdaptBusyButtonContent busy={busy} label="Save Slack connection" busyLabel="Saving" />
+        <Button
+          type="button"
+          className="slack-save-button"
+          data-saved={saved ? 'true' : undefined}
+          disabled={locked}
+          onClick={() => void save()}
+        >
+          {saved ? (
+            <span className="slack-save-done">
+              <Check aria-hidden="true" />
+              Saved
+            </span>
+          ) : (
+            <AdaptBusyButtonContent busy={busy === 'save'} label="Save" busyLabel="Saving" />
+          )}
         </Button>
         {switchDoc ? (
           <Button
             type="button"
-            variant="outline"
-            disabled={busy || (!switchDoc.settings.enabled && !loaded?.complete)}
-            onClick={() => void toggle(!(switchDoc.settings.enabled && !switchDoc.settings.killSwitch))}
+            className="slack-switch-button"
+            data-state={isOn ? 'on' : 'off'}
+            disabled={busy !== '' || cannotTurnOn}
+            title={cannotTurnOn ? 'Save the connection first.' : undefined}
+            onClick={() => void toggle()}
           >
-            {switchDoc.settings.enabled && !switchDoc.settings.killSwitch ? 'Turn Slack off' : 'Turn Slack on'}
+            <AdaptBusyButtonContent
+              busy={busy === 'switch'}
+              label={isOn ? 'Turn Slack off' : 'Turn Slack on'}
+              busyLabel={isOn ? 'Turning off' : 'Turning on'}
+            />
           </Button>
         ) : null}
       </div>
-      {message ? (
-        <p className="settings-status" role="status">
-          {message}
-        </p>
-      ) : null}
+      <p className="slack-connection-live" role="status" aria-live="polite">
+        {saved && restartNeeded ? 'Restart the app to apply.' : ''}
+      </p>
       {failed ? (
-        <p className="settings-status settings-error" role="alert">
+        <p className="slack-connection-error" role="alert">
+          <CircleAlert aria-hidden="true" />
           {failed}
         </p>
       ) : null}

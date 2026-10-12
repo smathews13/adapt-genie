@@ -2810,7 +2810,7 @@ export function HomePage() {
                 ADAPT mark again would read the name twice. */}
             <span>
               <AstrolabeMark size={13} />
-              ADAPT can make mistakes. Sources and caveats are included.
+              ADAPT can make mistakes.
             </span>
             {/* "Ask ADAPT" is the composer button's name, and
                 while a run is in flight the button becomes the in-button loader:

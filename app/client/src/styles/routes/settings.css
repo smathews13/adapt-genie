@@ -26,3 +26,117 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.slack-connection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.slack-connection-head h4 {
+  margin: 0;
+}
+
+/* On is green, off is grey with a red dot. The state reads before the button does. */
+.slack-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--ast-border-input);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.slack-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--destructive);
+}
+
+.slack-status[data-state='on'] {
+  border-color: var(--ast-positive-border);
+  background: var(--ast-positive-fill);
+  color: var(--success);
+}
+
+.slack-status[data-state='on'] .slack-status-dot {
+  background: var(--success);
+}
+
+/* Turn on is green; turn off is red. */
+.slack-switch-button[data-state='off'] {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--success-foreground);
+}
+
+.slack-switch-button[data-state='on'] {
+  background: var(--destructive);
+  border-color: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+.slack-switch-button:disabled {
+  opacity: 0.5;
+}
+
+/* Saved: the button itself turns green with a check for a few seconds. */
+.slack-save-button[data-saved='true'] {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--success-foreground);
+}
+
+.slack-save-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slack-save-done svg {
+  width: 16px;
+  height: 16px;
+}
+
+.slack-connection-field-error {
+  color: var(--destructive);
+  font-size: 12px;
+}
+
+.slack-connection-field [aria-invalid='true'] {
+  border-color: var(--destructive);
+}
+
+.slack-connection-live {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.slack-connection-live:empty {
+  display: none;
+}
+
+.slack-connection-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--destructive);
+  border-radius: var(--ast-radius-card);
+  color: var(--destructive);
+  font-size: 13px;
+}
+
+.slack-connection-error svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}

@@ -155,7 +155,7 @@ describe('the ask home is the geometry the mockup gives it', () => {
     expect(partial('tokens.css')).toMatch(/--conversation-inset:\s*clamp\(/);
     expect(body('.conversation-main')).toMatch(/padding:\s*56px var\(--conversation-inset\) 32px/);
     expect(body('.composer')).toMatch(/width:\s*calc\(100% - 16px\)/);
-    expect(body('.composer')).toMatch(/max-width:\s*min\(640px,\s*var\(--conversation-measure\)\)/);
+    expect(body('.composer')).toMatch(/max-width:\s*min\(700px,\s*var\(--conversation-measure\)\)/);
     // No copy of the old literal left anywhere. A single survivor is worse than
     // none of this, because it would be the one rule that stopped moving.
     expect(withoutComments(STYLESHEET)).not.toMatch(/clamp\(28px,\s*3\.5vw,\s*64px\)/);
@@ -275,11 +275,11 @@ describe('the ask home is the geometry the mockup gives it', () => {
 
   it('keeps the composer narrower than the headline in every seating', () => {
     // The question field is an action, not another reading card. Holding it to
-    // 640px leaves a visible inset inside the 720px hero and avoids the
+    // 700px leaves a visible inset inside the 720px hero and avoids the
     // full-column rectangle reported on both empty and active conversations.
     expect(body('.ask-hero')).toMatch(/max-width:\s*720px/);
     expect(body('.conversation-main.is-empty .composer')).toMatch(
-      /max-width:\s*min\(640px,\s*var\(--conversation-measure\)\)/
+      /max-width:\s*min\(700px,\s*var\(--conversation-measure\)\)/
     );
     expect(body('.conversation-main.is-empty .composer')).toMatch(/margin-inline:\s*auto/);
   });
@@ -334,9 +334,7 @@ describe('the ask home is the geometry the mockup gives it', () => {
      * wrong. Nothing in the stylesheet resizes this one, which is how they agree.
      */
     const home = withoutComments(HOME_PAGE);
-    expect(home).toMatch(
-      /<AstrolabeMark size=\{13\} \/>\s*ADAPT can make mistakes\. Sources and caveats are included\./
-    );
+    expect(home).toMatch(/<AstrolabeMark size=\{13\} \/>\s*ADAPT can make mistakes\./);
     const caveat = body('.composer-actions > span');
     expect(caveat).toMatch(/display:\s*flex/);
     expect(caveat).toMatch(/align-items:\s*center/);

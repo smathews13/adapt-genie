@@ -2,7 +2,7 @@
   position: static;
   width: calc(100% - 16px);
   margin: 28px auto 0;
-  max-width: min(640px, var(--conversation-measure));
+  max-width: min(700px, var(--conversation-measure));
   background: var(--ast-surface);
   border: 1px solid var(--ast-border-input);
   border-radius: var(--ast-radius-card);
@@ -17,7 +17,7 @@
  * form is already the last child of `.conversation-main`, so returning it to the
  * flow puts it directly under the hero -- and the hero is the only thing above it
  * when the transcript is empty. `max-width` and `margin-inline: auto` still hold,
- * so it keeps the same 640px measure, centred in the same column, and lands in the
+ * so it keeps the same 700px measure, centred in the same column, and lands in the
  * same place a reader's eye already is.
  *
  * A `top` in the tens of vh was the alternative and it is the version that breaks:
@@ -37,10 +37,10 @@
   /*
    * On an empty transcript the composer is not a footer over anything -- it is a
    * card in the flow under the hero -- so it takes back the bordered, rounded
-   * panel the docked bar sheds. The 640px measure keeps the input visibly
+   * panel the docked bar sheds. The 700px measure keeps the input visibly
    * narrower than the surrounding page instead of reading as another full-width card.
    */
-  max-width: min(640px, var(--conversation-measure));
+  max-width: min(700px, var(--conversation-measure));
   margin-inline: auto;
   border: 1px solid var(--ast-border-input);
   border-radius: var(--ast-radius-card);
@@ -285,6 +285,7 @@
   gap: 6px;
   font-size: 12px;
   color: var(--db-slate);
+  white-space: nowrap;
 }
 /* 32px, the design's control height, on both the ghost controls and the submit. */
 .composer-actions [data-slot='button'] {

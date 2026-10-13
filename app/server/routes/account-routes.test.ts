@@ -37,8 +37,8 @@ describe('account feedback targets', () => {
       url: 'https://github.com/smathews13/adapt-genie/issues/new',
     });
     expect(targets.slack).toEqual({
-      label: 'Find Emily Huang in Slack',
-      url: 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang',
+      label: 'Message Sam Mathews in Slack',
+      url: 'slack://user?team=T02EPKPG3&id=U04H3555WMB',
     });
     expect(targets.escalation).toBeNull();
   });
@@ -67,8 +67,8 @@ describe('account feedback targets', () => {
       [ACCOUNT_ESCALATION_SLACK_URL_ENV]: search,
     });
     expect(escalationOnly.slack).toEqual({
-      label: 'Find Emily Huang in Slack',
-      url: 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang',
+      label: 'Message Sam Mathews in Slack',
+      url: 'slack://user?team=T02EPKPG3&id=U04H3555WMB',
     });
     expect(escalationOnly.escalation?.url).toBe(search);
     const unsafe = accountFeedbackTargetsFromEnv({

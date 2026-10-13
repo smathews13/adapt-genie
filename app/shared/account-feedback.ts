@@ -1,6 +1,6 @@
 export const ACCOUNT_FEEDBACK_GITHUB_URL = 'https://github.com/smathews13/adapt-genie/issues/new';
-export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL = 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang';
-export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_LABEL = 'Message feedback maintainer in Slack';
+export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL = 'slack://user?team=T02EPKPG3&id=U04H3555WMB';
+export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_LABEL = 'Message Sam Mathews in Slack';
 export const ACCOUNT_FEEDBACK_DEFAULT_SEARCH_LABEL = 'Find feedback maintainer in Slack';
 export const ACCOUNT_ESCALATION_DEFAULT_SLACK_LABEL = 'Open Super Admin escalation in Slack';
 export const ACCOUNT_FEEDBACK_MAX_LABEL_LENGTH = 64;

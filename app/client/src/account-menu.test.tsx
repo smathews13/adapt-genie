@@ -166,7 +166,7 @@ describe('account menu', () => {
     const githubOnly = renderToStaticMarkup(<AccountFeedbackChoices targets={accountFeedbackTargets()} />);
     expect(githubOnly).toContain('GitHub issue');
     expect(githubOnly).toContain('https://github.com/smathews13/adapt-genie/issues/new');
-    expect(githubOnly).toContain('Find Emily Huang in Slack');
+    expect(githubOnly).toContain('Message Sam Mathews in Slack');
     expect(githubOnly.match(/target="_blank"/g)).toHaveLength(2);
     expect(githubOnly).toContain('lucide-github');
     expect(githubOnly).toContain('lucide-slack');

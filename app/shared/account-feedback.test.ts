@@ -12,10 +12,10 @@ const DIRECT = `slack://user?team=T${'1'.repeat(8)}&id=U${'2'.repeat(8)}`;
 const SEARCH = `https://app.slack.com/client/T${'3'.repeat(8)}/search?q=Feedback%20contact`;
 
 describe('account feedback destinations', () => {
-  it('defaults to the public issue form and the T2 Emily Huang Slack search', () => {
+  it('defaults to the public issue form and a Slack DM to Sam Mathews', () => {
     expect(accountFeedbackTargets()).toEqual({
       github: { label: 'GitHub issue', url: ACCOUNT_FEEDBACK_GITHUB_URL },
-      slack: { label: 'Find Emily Huang in Slack', url: ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL },
+      slack: { label: ACCOUNT_FEEDBACK_DEFAULT_SLACK_LABEL, url: ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL },
       escalation: null,
     });
   });

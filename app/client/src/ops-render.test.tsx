@@ -2682,6 +2682,8 @@ describe('the latency block', () => {
     const busy = markupOf(<LatencyBody block={block(latency(), { busy: true })} />);
     expect(busy.match(/ops-latency-trend-filter"[^>]*disabled=""/g)).toHaveLength(2);
     expect(busy).not.toMatch(/ops-latency-trend-filter"[^>]*style="[^"]*opacity/);
+    expect(busy).toContain('aria-busy="true"');
+    expect(busy).not.toMatch(/refresh-button[^>]*disabled=""/);
   });
 
   it('keeps the TREND pills even when the table has no TREND column', () => {

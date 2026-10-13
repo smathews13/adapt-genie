@@ -148,6 +148,16 @@ describe('what the control says while it is working', () => {
     expect(busy).toContain('adapt-button-mark');
   });
 
+  it('can stay pressable while spinning when a caller opts out of disable', () => {
+    const busy = renderToStaticMarkup(
+      <RefreshControl busy disabled={false} checkedAt={READ_AT} now={TWO_MIN_LATER} onRefresh={() => {}} />
+    );
+
+    expect(busy).toContain(REFRESH_BUSY_LABEL);
+    expect(busy).toContain('aria-busy="true"');
+    expect(busy).not.toContain('disabled=""');
+  });
+
   it('is pressable and unspun the rest of the time', () => {
     const idle = control({ checkedAt: READ_AT, now: TWO_MIN_LATER });
 

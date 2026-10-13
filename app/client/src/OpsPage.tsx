@@ -377,7 +377,7 @@ export function HealthBody({ block }: { block: Block<OpsHealthPayload> }) {
         meta={checkedAgoLine(payload?.checkedAt ?? '')}
         control={
           <div className="ops-health-head-controls">
-            <RefreshButton busy={block.busy} onRefresh={block.refresh} />
+            <RefreshButton busy={block.busy} disabled={false} onRefresh={block.refresh} />
           </div>
         }
       />
@@ -616,7 +616,12 @@ export function CostBody({
               </Button>
             ) : null}
             <CostUnitControl unit={unit} onChange={onUnitChange} />
-            <RefreshControl busy={block.busy} checkedAt={payload?.readAt ?? ''} onRefresh={block.refresh} />
+            <RefreshControl
+              busy={block.busy}
+              disabled={false}
+              checkedAt={payload?.readAt ?? ''}
+              onRefresh={block.refresh}
+            />
           </div>
         }
         titleBadge={<ExperimentalBadge />}
@@ -1211,7 +1216,7 @@ export function LatencyBody({
                 Outside baseline
               </button>
             </div>
-            <RefreshButton busy={block.busy} onRefresh={block.refresh} />
+            <RefreshButton busy={block.busy} disabled={false} onRefresh={block.refresh} />
           </div>
         }
       />
@@ -1474,7 +1479,14 @@ export function TrafficBody({ block }: { block: Block<OpsTrafficPayload> }) {
         // the tab's rules forbid, and it reads as a population that was measured
         // rather than as one that does not exist.
         meta={payload && payload.runsInRange > 0 ? `From ${count(payload.runsInRange)} recorded runs` : ''}
-        control={<RefreshControl busy={block.busy} checkedAt={payload?.readAt ?? ''} onRefresh={block.refresh} />}
+        control={
+          <RefreshControl
+            busy={block.busy}
+            disabled={false}
+            checkedAt={payload?.readAt ?? ''}
+            onRefresh={block.refresh}
+          />
+        }
       />
 
       <BlockBody>

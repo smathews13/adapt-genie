@@ -20,8 +20,13 @@ import { Button } from './ui';
 import { REFRESH_BUSY_LABEL, REFRESH_LABEL, readAgo } from './refresh-state';
 
 export interface RefreshButtonProps {
-  /** Whether a read is in flight. Disables the button and spins the icon. */
+  /** Whether a read is in flight. Spins the icon and, unless `disabled` is set, blocks a second press. */
   busy?: boolean;
+  /**
+   * Defaults to `busy`. Ops passes false so a hung read can be forced while
+   * the spinner is still showing.
+   */
+  disabled?: boolean;
   onRefresh: () => void;
   className?: string;
 }
@@ -36,7 +41,7 @@ export interface RefreshButtonProps {
  * from the accessibility tree for the same reason: it would otherwise be a
  * second, wordless copy of the button.
  */
-export function RefreshButton({ busy = false, onRefresh, className }: RefreshButtonProps) {
+export function RefreshButton({ busy = false, disabled = busy, onRefresh, className }: RefreshButtonProps) {
   return (
     <Button
       /*
@@ -55,9 +60,9 @@ export function RefreshButton({ busy = false, onRefresh, className }: RefreshBut
       size="sm"
       className={className ? `refresh-button ${className}` : 'refresh-button'}
       onClick={onRefresh}
-      // A second press cannot race the first. Both reads land on the same
-      // state, and the later answer used to be able to arrive first.
-      disabled={busy}
+      // Default: a second press cannot race the first. Ops leaves this false
+      // so Refresh can start a forced read while the previous one is hung.
+      disabled={disabled}
       aria-busy={busy || undefined}
       aria-label={REFRESH_LABEL}
     >
@@ -93,14 +98,21 @@ export interface RefreshControlProps extends RefreshButtonProps {
  * visible copy in the tree as well would make a reader hear the same sentence
  * twice on the way past.
  */
-export function RefreshControl({ busy = false, checkedAt, now, onRefresh, className }: RefreshControlProps) {
+export function RefreshControl({
+  busy = false,
+  disabled,
+  checkedAt,
+  now,
+  onRefresh,
+  className,
+}: RefreshControlProps) {
   const line = readAgo(checkedAt, now);
   return (
     <div className={className ? `refresh-control ${className}` : 'refresh-control'}>
       <p className="refresh-control-when" aria-hidden="true">
         {line}
       </p>
-      <RefreshButton busy={busy} onRefresh={onRefresh} />
+      <RefreshButton busy={busy} disabled={disabled} onRefresh={onRefresh} />
       <p className="sr-only" role="status" aria-live="polite">
         {busy ? REFRESH_BUSY_LABEL : line}
       </p>

@@ -1461,27 +1461,45 @@ export function latencyRouteView(route: RouteLatency, nowMs: number = Date.now()
 }
 
 /**
- * Which trend pills are on. Neither, one, or both — never a third exclusive
- * "no data" unless both are on, which drops the dashes.
+ * Which TREND pill is on. One at a time, or neither — never both.
+ * Clicking the selected pill again returns to showing every row.
  */
-export interface LatencyTrendFilter {
-  within: boolean;
-  outside: boolean;
+export type LatencyTrendPick = 'within' | 'outside' | null;
+
+/** The next exclusive pick after clicking one of the two pills. */
+export function nextLatencyTrendPick(
+  current: LatencyTrendPick,
+  clicked: Exclude<LatencyTrendPick, null>
+): LatencyTrendPick {
+  return current === clicked ? null : clicked;
 }
 
 /**
- * Whether one route belongs under the two TREND toggles.
+ * A slow outlier against this route's own earlier-half median.
  *
- * Neither on: every row, including a dash. One on: only that verdict. Both on:
- * every row that has a verdict, so the dashes drop out. A missing trend is not
- * "outside": outside is the red slower pill, not an absence of one.
+ * Uses the numbers even when the Trend column still says "too thin": the pills
+ * have to sort the table the reader is looking at, not only the routes that
+ * already cleared the published-verdict floor. No earlier median is not
+ * "outside" — it has not established a regression.
  */
-export function latencyRouteMatchesTrend(verdict: LatencyVerdict, filter: LatencyTrendFilter): boolean {
-  const { within, outside } = filter;
-  if (!within && !outside) return true;
-  if (within && outside) return verdict === 'within' || verdict === 'slower';
-  if (within) return verdict === 'within';
-  return verdict === 'slower';
+export function latencyRouteIsOutsideBaseline(route: Pick<RouteLatency, 'p50Ms' | 'priorP50Ms'>): boolean {
+  const prior = route.priorP50Ms;
+  return prior != null && prior > 0 && route.p50Ms >= prior * LATENCY_SLOWER_RATIO;
+}
+
+/**
+ * Whether one route belongs under the exclusive TREND pick.
+ *
+ * Neither on: every row. Outside: only the slow outliers. Within: everything
+ * that is not a slow outlier, including thin samples and routes with no prior.
+ */
+export function latencyRouteMatchesTrend(
+  route: Pick<RouteLatency, 'p50Ms' | 'priorP50Ms'>,
+  pick: LatencyTrendPick
+): boolean {
+  if (!pick) return true;
+  const outside = latencyRouteIsOutsideBaseline(route);
+  return pick === 'outside' ? outside : !outside;
 }
 
 /** Relative age of the last span, or "Not reported" when nothing was timed. */

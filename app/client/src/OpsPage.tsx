@@ -69,6 +69,8 @@ import {
   latencyRouteMatchesTrend,
   latencyRouteView,
   latencySharedFacts,
+  nextLatencyTrendPick,
+  type LatencyTrendPick,
   p50BarWidths,
   primaryCostCardViews,
   productForCostTile,
@@ -1071,16 +1073,16 @@ function DailyBars({
  */
 const LATENCY_PAGE_SIZE = 10;
 
-/** The already-read routes matching one route-or-method query and the TREND pills. */
+/** The already-read routes matching one route-or-method query and the TREND pill. */
 function filterLatencyRoutes(
   routes: readonly RouteLatency[],
   search: string,
-  trend: { within: boolean; outside: boolean }
+  trend: LatencyTrendPick
 ): RouteLatency[] {
   const query = search.trim().toLocaleLowerCase();
   return routes.filter((route) => {
     if (query && !route.route.toLocaleLowerCase().includes(query)) return false;
-    return latencyRouteMatchesTrend(latencyRouteView(route).verdict, trend);
+    return latencyRouteMatchesTrend(route, trend);
   });
 }
 
@@ -1098,15 +1100,13 @@ function filterLatencyRoutes(
 export function LatencyBody({
   block,
   initialSearch = '',
-  initialWithin = false,
-  initialOutside = false,
+  initialTrend = null,
 }: {
   block: Block<OpsLatencyPayload>;
   /** A deterministic starting query for restored views and render-level tests. */
   initialSearch?: string;
-  /** Starting TREND pills, for the same reason `initialSearch` exists. */
-  initialWithin?: boolean;
-  initialOutside?: boolean;
+  /** Starting TREND pill, for the same reason `initialSearch` exists. One or none. */
+  initialTrend?: LatencyTrendPick;
 }) {
   const payload = block.data;
   /*
@@ -1118,8 +1118,7 @@ export function LatencyBody({
    */
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState(initialSearch);
-  const [showWithin, setShowWithin] = useState(initialWithin);
-  const [showOutside, setShowOutside] = useState(initialOutside);
+  const [trend, setTrend] = useState<LatencyTrendPick>(initialTrend);
 
   if (block.failed) {
     return (
@@ -1146,7 +1145,6 @@ export function LatencyBody({
    * it would draw that empty table first and then replace it.
    */
   const allRoutes = absence ? [] : (payload?.routes ?? []);
-  const trend = { within: showWithin, outside: showOutside };
   /*
    * The server has already paid to read every route, so narrowing this list is a
    * browser operation just like Monitoring's filters. Searching the combined
@@ -1195,20 +1193,20 @@ export function LatencyBody({
               <button
                 type="button"
                 className={astPill('pos', 'ops-pill ops-latency-trend-filter')}
-                aria-pressed={showWithin}
+                aria-pressed={trend === 'within'}
                 aria-label="Show routes within baseline"
                 disabled={block.busy}
-                onClick={() => setShowWithin((on) => !on)}
+                onClick={() => setTrend((current) => nextLatencyTrendPick(current, 'within'))}
               >
                 Within baseline
               </button>
               <button
                 type="button"
                 className={astPill('neg', 'ops-pill ops-latency-trend-filter')}
-                aria-pressed={showOutside}
+                aria-pressed={trend === 'outside'}
                 aria-label="Show routes outside baseline"
                 disabled={block.busy}
-                onClick={() => setShowOutside((on) => !on)}
+                onClick={() => setTrend((current) => nextLatencyTrendPick(current, 'outside'))}
               >
                 Outside baseline
               </button>
@@ -1224,7 +1222,7 @@ export function LatencyBody({
             <Absence notice={absence}>{payload?.grant ? <Grant grant={payload.grant} /> : null}</Absence>
           ) : payload ? (
             <>
-              {routes.length === 0 && (search.trim() || showWithin || showOutside) ? (
+              {routes.length === 0 && (search.trim() || trend) ? (
                 /* The same one-line list absence and named escape Monitoring uses.
                  A search or TREND pill has hidden rows; it has not made the
                  telemetry empty. */
@@ -1238,11 +1236,10 @@ export function LatencyBody({
                       size="sm"
                       onClick={() => {
                         setSearch('');
-                        setShowWithin(false);
-                        setShowOutside(false);
+                        setTrend(null);
                       }}
                     >
-                      {search.trim() && !showWithin && !showOutside ? 'Clear search' : 'Clear filters'}
+                      {search.trim() && !trend ? 'Clear search' : 'Clear filters'}
                     </Button>
                   </div>
                 </div>

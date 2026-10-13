@@ -2410,14 +2410,14 @@ a.ops-bar-count:hover {
 .ops-latency-trend-filter.ast-pill--pos[aria-pressed='false'] {
   color: var(--ast-pos-text);
   border-color: var(--ast-pos-border);
-  background: var(--ast-pos-fill);
+  background: transparent;
   opacity: 1;
 }
 
 .ops-latency-trend-filter.ast-pill--neg[aria-pressed='false'] {
   color: var(--ast-neg-text);
   border-color: var(--ast-neg-border);
-  background: var(--ast-neg-fill);
+  background: transparent;
   opacity: 1;
 }
 

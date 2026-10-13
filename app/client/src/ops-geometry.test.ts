@@ -49,11 +49,15 @@ describe('latency baseline filter states', () => {
     const outside = rule(".ops-latency-trend-filter.ast-pill--neg[aria-pressed='false']");
     expect(within).toContain('var(--ast-pos-text)');
     expect(within).toContain('var(--ast-pos-border)');
+    expect(within).toMatch(/background:\s*transparent/);
     expect(outside).toContain('var(--ast-neg-text)');
     expect(outside).toContain('var(--ast-neg-border)');
+    expect(outside).toMatch(/background:\s*transparent/);
     expect(`${within}${outside}`).not.toMatch(/opacity:\s*0\./);
     const selectedWithin = rule(".ops-latency-trend-filter.ast-pill--pos[aria-pressed='true']");
     const selectedOutside = rule(".ops-latency-trend-filter.ast-pill--neg[aria-pressed='true']");
+    expect(selectedWithin).toContain('var(--ast-pos-fill)');
+    expect(selectedOutside).toContain('var(--ast-neg-fill)');
     expect(selectedWithin).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--ast-pos-border\)/);
     expect(selectedOutside).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--ast-neg-border\)/);
     expect(`${selectedWithin}${selectedOutside}`).toMatch(/font-weight:\s*700/);

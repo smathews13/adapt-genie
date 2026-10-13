@@ -2675,10 +2675,10 @@ describe('the latency block', () => {
   });
 
   it('keeps baseline filter state semantic and disables both controls during refresh', () => {
-    const selected = markupOf(<LatencyBody block={block(latency())} initialWithin initialOutside />);
+    const selected = markupOf(<LatencyBody block={block(latency())} initialTrend="within" />);
     expect(selected).toMatch(/ast-pill--pos[^"]*ops-latency-trend-filter" aria-pressed="true"/);
-    expect(selected).toMatch(/ast-pill--neg[^"]*ops-latency-trend-filter" aria-pressed="true"/);
-    expect(selected.match(/aria-pressed="true"/g)).toHaveLength(2);
+    expect(selected).toMatch(/ast-pill--neg[^"]*ops-latency-trend-filter" aria-pressed="false"/);
+    expect(selected.match(/aria-pressed="true"/g)).toHaveLength(1);
     const busy = markupOf(<LatencyBody block={block(latency(), { busy: true })} />);
     expect(busy.match(/ops-latency-trend-filter"[^>]*disabled=""/g)).toHaveLength(2);
     expect(busy).not.toMatch(/ops-latency-trend-filter"[^>]*style="[^"]*opacity/);
@@ -2722,17 +2722,18 @@ describe('the latency block', () => {
   });
 
   it('shows only within-baseline rows when the green pill is on', () => {
-    const rendered = render(<LatencyBody block={block(latency())} initialWithin />);
+    const rendered = render(<LatencyBody block={block(latency())} initialTrend="within" />);
 
     expect(rendered).toContain('GET /api/storage');
+    expect(rendered).toContain('POST /api/insights/ask');
+    expect(rendered).toContain('GET /api/ops/cost');
     expect(rendered).toContain('Within baseline');
     expect(rendered).not.toContain('GET /api/preflight');
-    expect(rendered).not.toContain('POST /api/insights/ask');
     expect(rendered).not.toContain('Slower than baseline');
   });
 
   it('shows only outside-baseline rows when the red pill is on', () => {
-    const rendered = render(<LatencyBody block={block(latency())} initialOutside />);
+    const rendered = render(<LatencyBody block={block(latency())} initialTrend="outside" />);
 
     expect(rendered).toContain('GET /api/preflight');
     expect(rendered).toContain('Slower than baseline');
@@ -2740,15 +2741,16 @@ describe('the latency block', () => {
     expect(rendered).not.toContain('POST /api/insights/ask');
   });
 
-  it('keeps every row that has a trend when both pills are on', () => {
-    const rendered = render(<LatencyBody block={block(latency())} initialWithin initialOutside />);
+  it('never presses both TREND pills at once', () => {
+    const within = markupOf(<LatencyBody block={block(latency())} initialTrend="within" />);
+    const outside = markupOf(<LatencyBody block={block(latency())} initialTrend="outside" />);
 
-    expect(rendered).toContain('GET /api/storage');
-    expect(rendered).toContain('GET /api/preflight');
-    expect(rendered).toContain('Within baseline');
-    expect(rendered).toContain('Slower than baseline');
-    expect(rendered).not.toContain('POST /api/insights/ask');
-    expect(rendered).not.toContain('GET /api/ops/cost');
+    expect(within.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(outside.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(within).toMatch(/ast-pill--pos[^"]*ops-latency-trend-filter" aria-pressed="true"/);
+    expect(within).toMatch(/ast-pill--neg[^"]*ops-latency-trend-filter" aria-pressed="false"/);
+    expect(outside).toMatch(/ast-pill--neg[^"]*ops-latency-trend-filter" aria-pressed="true"/);
+    expect(outside).toMatch(/ast-pill--pos[^"]*ops-latency-trend-filter" aria-pressed="false"/);
   });
 
   it('uses the same empty-list escape when a TREND pill hides every row', () => {
@@ -2769,7 +2771,7 @@ describe('the latency block', () => {
         },
       ],
     });
-    const markup = markupOf(<LatencyBody block={block(onlyDashes)} initialWithin />);
+    const markup = markupOf(<LatencyBody block={block(onlyDashes)} initialTrend="outside" />);
     const rendered = text(markup);
 
     expect(rendered).toContain('Nothing matches the selected trend.');

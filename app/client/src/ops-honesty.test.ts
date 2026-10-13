@@ -29,9 +29,11 @@ import {
   count,
   errorFraming,
   healthResourceObject,
+  latencyRouteIsOutsideBaseline,
   latencyRouteMatchesTrend,
   latencyRouteView,
   latencySharedFacts,
+  nextLatencyTrendPick,
   money,
   P50_BAR_MIN_WIDTH,
   p50BarWidths,
@@ -1019,32 +1021,42 @@ describe('a latency verdict against a route baseline', () => {
 });
 
 describe('the latency TREND filters', () => {
-  const off = { within: false, outside: false };
-  const green = { within: true, outside: false };
-  const red = { within: false, outside: true };
-  const both = { within: true, outside: true };
+  const within = route({ p50Ms: 140, priorP50Ms: 100 });
+  const slower = route({ p50Ms: 160, priorP50Ms: 100 });
+  const thinWithPrior = route({ spans: 3, priorSpans: 5, p50Ms: 80, priorP50Ms: 100 });
+  const thinSlower = route({ spans: 3, priorSpans: 5, p50Ms: 200, priorP50Ms: 100 });
+  const noPrior = route({ priorSpans: 0, priorP50Ms: null, p50Ms: 500 });
 
-  it('shows every row, including a dash, when neither pill is on', () => {
-    expect(latencyRouteMatchesTrend('within', off)).toBe(true);
-    expect(latencyRouteMatchesTrend('slower', off)).toBe(true);
-    expect(latencyRouteMatchesTrend('too-thin', off)).toBe(true);
-    expect(latencyRouteMatchesTrend('not-reported', off)).toBe(true);
+  it('lets one pick replace the other, and the same pick clear it', () => {
+    expect(nextLatencyTrendPick(null, 'within')).toBe('within');
+    expect(nextLatencyTrendPick('within', 'within')).toBe(null);
+    expect(nextLatencyTrendPick('within', 'outside')).toBe('outside');
+    expect(nextLatencyTrendPick('outside', 'within')).toBe('within');
   });
 
-  it('shows only the matching verdict when one pill is on', () => {
-    expect(latencyRouteMatchesTrend('within', green)).toBe(true);
-    expect(latencyRouteMatchesTrend('slower', green)).toBe(false);
-    expect(latencyRouteMatchesTrend('too-thin', green)).toBe(false);
-
-    expect(latencyRouteMatchesTrend('slower', red)).toBe(true);
-    expect(latencyRouteMatchesTrend('within', red)).toBe(false);
-    expect(latencyRouteMatchesTrend('not-reported', red)).toBe(false);
+  it('shows every row when neither pill is on', () => {
+    expect(latencyRouteMatchesTrend(within, null)).toBe(true);
+    expect(latencyRouteMatchesTrend(slower, null)).toBe(true);
+    expect(latencyRouteMatchesTrend(noPrior, null)).toBe(true);
   });
 
-  it('drops the dashes when both pills are on, and keeps every row that has a trend', () => {
-    expect(latencyRouteMatchesTrend('within', both)).toBe(true);
-    expect(latencyRouteMatchesTrend('slower', both)).toBe(true);
-    expect(latencyRouteMatchesTrend('too-thin', both)).toBe(false);
-    expect(latencyRouteMatchesTrend('not-reported', both)).toBe(false);
+  it('treats a missing prior as within, not outside', () => {
+    expect(latencyRouteIsOutsideBaseline(noPrior)).toBe(false);
+    expect(latencyRouteMatchesTrend(noPrior, 'within')).toBe(true);
+    expect(latencyRouteMatchesTrend(noPrior, 'outside')).toBe(false);
+  });
+
+  it('uses the p50 comparison even when the published verdict is still too thin', () => {
+    expect(latencyRouteView(thinWithPrior).verdict).toBe('too-thin');
+    expect(latencyRouteMatchesTrend(thinWithPrior, 'within')).toBe(true);
+    expect(latencyRouteMatchesTrend(thinSlower, 'outside')).toBe(true);
+    expect(latencyRouteMatchesTrend(thinSlower, 'within')).toBe(false);
+  });
+
+  it('shows only the matching side when one pill is on', () => {
+    expect(latencyRouteMatchesTrend(within, 'within')).toBe(true);
+    expect(latencyRouteMatchesTrend(slower, 'within')).toBe(false);
+    expect(latencyRouteMatchesTrend(slower, 'outside')).toBe(true);
+    expect(latencyRouteMatchesTrend(within, 'outside')).toBe(false);
   });
 });

@@ -57,8 +57,8 @@ const PALETTE: Record<string, string> = {
   '--ast-warn-deep': '#7a5e32',
   '--ast-neutral-text': '#4c5c68',
   '--ast-neutral-fill': '#f2f5f8',
-  '--ast-info-text': '#1a5b8f',
-  '--ast-info-fill': '#e8f1fa',
+  '--ast-info-text': '#0f6257',
+  '--ast-info-fill': '#eaf6f3',
 };
 
 function declared(name: string) {

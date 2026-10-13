@@ -116,7 +116,7 @@
   align-self: center;
 }
 .monitoring-organization-option-content .roster-databricks-symbol {
-  transform: translateY(2px);
+  transform: translateY(-1px);
 }
 .monitoring-organization-option-content > span:last-child {
   display: flex;

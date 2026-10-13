@@ -20,7 +20,7 @@ describe('Ops Admin control geometry', () => {
       /\.ops-admin-action-scope \.ops-scope-check-button,\s*\.ops-stop-all \.ops-stop-all-button\s*\{[^}]*margin-left:\s*auto/
     );
     expect(OPS_STYLES).toMatch(
-      /\.ops-admin-action-main\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto[^}]*gap:\s*12px/
+      /\.ops-admin-action-main\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*align-items:\s*stretch[^}]*gap:\s*8px[^}]*margin-top:\s*auto/
     );
     expect(OPS_PAGE_SOURCE).toMatch(
       /<section className="ops-stop-all"[\s\S]*?<strong[^>]*>ADMIN<\/strong>[\s\S]*?<div className="ops-admin-action-main">[\s\S]*?<span>No data or history is deleted\.<\/span>[\s\S]*?<Button[\s\S]*?className="ops-stop-all-button"/

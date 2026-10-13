@@ -1,4 +1,5 @@
 export const ACCOUNT_FEEDBACK_GITHUB_URL = 'https://github.com/smathews13/adapt-genie/issues/new';
+export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL = 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang';
 export const ACCOUNT_FEEDBACK_DEFAULT_SLACK_LABEL = 'Message feedback maintainer in Slack';
 export const ACCOUNT_FEEDBACK_DEFAULT_SEARCH_LABEL = 'Find feedback maintainer in Slack';
 export const ACCOUNT_ESCALATION_DEFAULT_SLACK_LABEL = 'Open Super Admin escalation in Slack';
@@ -61,6 +62,19 @@ function safeSlackTarget(value: unknown): SafeSlackTarget | null {
     ) {
       return { kind: 'direct', url: parsed.toString() };
     }
+    if (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === 'app.slack.com' &&
+      /^\/client\/T[A-Z0-9]{8,}\/composer-dm\/?$/.test(parsed.pathname) &&
+      /^[UW][A-Z0-9]{8,}(,[UW][A-Z0-9]{8,})+$/.test(parsed.searchParams.get('ids') ?? '') &&
+      parsed.searchParams.getAll('ids').length === 1 &&
+      [...parsed.searchParams.keys()].every((key) => key === 'ids') &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.hash
+    ) {
+      return { kind: 'direct', url: parsed.toString() };
+    }
     const searchName = safeExactNameSearch(parsed.searchParams.get('q'));
     if (
       parsed.protocol === 'https:' &&
@@ -116,7 +130,8 @@ export function accountFeedbackTargets(
   escalationSlackUrl?: unknown,
   escalationSlackLabel?: unknown
 ): AccountFeedbackTargets {
-  const safeFeedback = safeSlackTarget(slackUrl);
+  const requested = slackUrl === undefined || slackUrl === '' ? ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL : slackUrl;
+  const safeFeedback = safeSlackTarget(requested);
   const safeEscalation = safeSlackTarget(escalationSlackUrl);
   return {
     github: githubTarget,

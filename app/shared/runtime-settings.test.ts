@@ -6,6 +6,7 @@ import {
   FONT_FAMILY_STACKS,
   LEGACY_NIGHT_ENTITY_STYLES,
   PAPER_ENTITY_STYLES,
+  PIA_BLUE_PAPER_ENTITY_STYLES,
   RuntimeSettingsSchema,
   THEME_FONT_COLORS,
   entityStylesForScheme,
@@ -27,8 +28,8 @@ describe('runtime settings contract', () => {
   it('ships canonical paper entity chips', () => {
     expect(DEFAULT_RUNTIME_SETTINGS.entityStyles).toEqual(DEFAULT_ENTITY_STYLES);
     expect(DEFAULT_ENTITY_STYLES).toEqual({
-      catalog: { foreground: '#ffffff', background: '#1a62a8' },
-      schema: { foreground: '#1a5b8f', background: '#e8f1fa' },
+      catalog: { foreground: '#ffffff', background: '#0f6257' },
+      schema: { foreground: '#0f6257', background: '#eaf6f3' },
       table: { foreground: '#7a5a11', background: '#fbf5e6' },
       column: { foreground: '#4c5c68', background: '#f2f5f8' },
       quote: { foreground: '#4c5c68', background: '#f0f4f7' },
@@ -37,8 +38,8 @@ describe('runtime settings contract', () => {
 
     expect(runtimeEntityCssVariables(DEFAULT_RUNTIME_SETTINGS)).toMatchObject({
       '--entity-catalog-fg': '#ffffff',
-      '--entity-catalog-bg': '#1a62a8',
-      '--entity-schema-bg': '#e8f1fa',
+      '--entity-catalog-bg': '#0f6257',
+      '--entity-schema-bg': '#eaf6f3',
       '--entity-table-bg': '#fbf5e6',
       '--entity-column-bg': '#f2f5f8',
       '--entity-quote-bg': '#f0f4f7',
@@ -48,6 +49,7 @@ describe('runtime settings contract', () => {
 
   it('upgrades inherited defaults for the active theme while leaving chosen colors alone', () => {
     expect(upgradePaperEntityStyles(PAPER_ENTITY_STYLES)).toEqual(DEFAULT_ENTITY_STYLES);
+    expect(upgradePaperEntityStyles(PIA_BLUE_PAPER_ENTITY_STYLES)).toEqual(DEFAULT_ENTITY_STYLES);
     expect(upgradePaperEntityStyles(LEGACY_NIGHT_ENTITY_STYLES)).toEqual(DEFAULT_ENTITY_STYLES);
     expect(upgradePaperEntityStyles(PAPER_ENTITY_STYLES, 'dark')).toEqual(DARK_ENTITY_STYLES);
     expect(

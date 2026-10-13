@@ -40,18 +40,18 @@ describe('the canonical ADAPT light palette', () => {
       '--ast-surface': '#ffffff',
       '--ast-surface-sunken': '#f0f4f7',
       '--ast-surface-raised': '#ffffff',
-      '--ast-surface-selected': '#edf3f9',
+      '--ast-surface-selected': '#eaf6f3',
       '--ast-scrim': 'rgba(23, 34, 44, 0.45)',
       '--ast-ink': '#0e1720',
       '--ast-ink-secondary': '#4c5c68',
       '--ast-ink-tertiary': '#64737f',
       '--ast-ink-disabled': '#9aa7b2',
-      '--ast-action': '#1a62a8',
-      '--ast-action-hover': '#14507f',
+      '--ast-action': '#0f6257',
+      '--ast-action-hover': '#0c5249',
       '--ast-action-ink-on-fill': '#ffffff',
-      '--ast-action-tint': '#e8f1fa',
-      '--ast-action-edge': '#bbd6f0',
-      '--ast-focus-halo': 'rgba(26, 98, 168, 0.28)',
+      '--ast-action-tint': '#eaf6f3',
+      '--ast-action-edge': '#a8d5cd',
+      '--ast-focus-halo': 'rgba(15, 98, 87, 0.28)',
       '--ast-positive-text': '#0f6257',
       '--ast-positive-border': '#a8d5cd',
       '--ast-positive-fill': '#eaf6f3',
@@ -64,9 +64,9 @@ describe('the canonical ADAPT light palette', () => {
       '--ast-neutral-text': '#4c5c68',
       '--ast-neutral-border': '#dce3e9',
       '--ast-neutral-fill': '#f2f5f8',
-      '--ast-info-text': '#1a5b8f',
-      '--ast-info-border': '#bbd6f0',
-      '--ast-info-fill': '#e8f1fa',
+      '--ast-info-text': '#0f6257',
+      '--ast-info-border': '#a8d5cd',
+      '--ast-info-fill': '#eaf6f3',
       '--ast-provenance-text': '#7a5a11',
       '--ast-provenance-border': '#e4d3a6',
       '--ast-provenance-fill': '#fbf5e6',
@@ -82,8 +82,8 @@ describe('the canonical ADAPT light palette', () => {
       '--ast-shadow-overlay': '0 16px 40px rgba(14, 23, 32, 0.18)',
       '--ast-star': '#c3d0da',
       '--ast-constellation-line': '#dde5eb',
-      '--ast-chart-1': '#1a62a8',
-      '--ast-chart-2': '#0f6257',
+      '--ast-chart-1': '#0f6257',
+      '--ast-chart-2': '#04867d',
       '--ast-chart-3': '#8a5a00',
       '--ast-chart-track': '#e7ecf0',
       '--ast-chart-grid': '#edf1f4',
@@ -109,11 +109,11 @@ describe('the canonical ADAPT light palette', () => {
   it('pins dark canonical values and keeps legacy names as aliases', () => {
     expect(declaration(DARK_TOKENS, '--ast-canvas')).toBe('#0b1014');
     expect(declaration(DARK_TOKENS, '--ast-surface')).toBe('#101820');
-    expect(declaration(DARK_TOKENS, '--ast-action')).toBe('#8fc1e8');
+    expect(declaration(DARK_TOKENS, '--ast-action')).toBe('#3ba99b');
     expect(declaration(DARK_TOKENS, '--ast-action-ink-on-fill')).toBe('#0e1720');
-    expect(declaration(DARK_TOKENS, '--ast-chart-1')).toBe('#8fc1e8');
+    expect(declaration(DARK_TOKENS, '--ast-chart-1')).toBe('#3ba99b');
     expect(declaration(DARK_TOKENS, '--ast-chart-2')).toBe('#04867d');
-    expect(declaration(DARK_TOKENS, '--ast-chart-3')).toBe('#6faedd');
+    expect(declaration(DARK_TOKENS, '--ast-chart-3')).toBe('#7fdcd1');
     for (const [legacy, canonical] of [
       ['--ast-blue', '--ast-action'],
       ['--ast-pos-text', '--ast-positive-text'],
@@ -135,8 +135,8 @@ describe('the canonical ADAPT light palette', () => {
     expect(contrast(actionInk, declaration(DARK_TOKENS, '--ast-action-hover'))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('uses blue for UI action and confines teal to the ADAPT mark', () => {
-    expect(declaration(TOKENS, '--ast-action')).toBe('#1a62a8');
+  it('uses ADAPT green for UI action and keeps the mark teal', () => {
+    expect(declaration(TOKENS, '--ast-action')).toBe('#0f6257');
     expect(declaration(TOKENS, '--ast-brand-teal')).toBe('#3ec6b4');
     expect(LOADING).toMatch(/--accent:\s*var\(--ast-brand-teal\)/);
     expect(LOADING).toMatch(/stroke:\s*var\(--ast-loading-peak\)/);

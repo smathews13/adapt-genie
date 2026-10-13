@@ -1161,7 +1161,6 @@ export function LatencyBody({
   const shown = routes.slice(from, from + LATENCY_PAGE_SIZE);
 
   const facts = payload ? latencySharedFacts(routes) : { line: '', showPercentiles: false };
-  const canFilterTrend = latencySharedFacts(allRoutes).showPercentiles;
   // Log-scaled across the rows ON SCREEN, so the scale answers to the page a
   // reader is looking at rather than to routes on another page of the table.
   const barWidths = p50BarWidths(shown.map((route) => route.p50Ms));
@@ -1192,30 +1191,28 @@ export function LatencyBody({
                 </button>
               ) : null}
             </div>
-            {canFilterTrend ? (
-              <div className="ops-latency-trend-filters" role="group" aria-label="Filter by trend">
-                <button
-                  type="button"
-                  className={astPill('pos', 'ops-pill ops-latency-trend-filter')}
-                  aria-pressed={showWithin}
-                  aria-label="Show routes within baseline"
-                  disabled={block.busy}
-                  onClick={() => setShowWithin((on) => !on)}
-                >
-                  Within baseline
-                </button>
-                <button
-                  type="button"
-                  className={astPill('neg', 'ops-pill ops-latency-trend-filter')}
-                  aria-pressed={showOutside}
-                  aria-label="Show routes outside baseline"
-                  disabled={block.busy}
-                  onClick={() => setShowOutside((on) => !on)}
-                >
-                  Outside baseline
-                </button>
-              </div>
-            ) : null}
+            <div className="ops-latency-trend-filters" role="group" aria-label="Filter by trend">
+              <button
+                type="button"
+                className={astPill('pos', 'ops-pill ops-latency-trend-filter')}
+                aria-pressed={showWithin}
+                aria-label="Show routes within baseline"
+                disabled={block.busy}
+                onClick={() => setShowWithin((on) => !on)}
+              >
+                Within baseline
+              </button>
+              <button
+                type="button"
+                className={astPill('neg', 'ops-pill ops-latency-trend-filter')}
+                aria-pressed={showOutside}
+                aria-label="Show routes outside baseline"
+                disabled={block.busy}
+                onClick={() => setShowOutside((on) => !on)}
+              >
+                Outside baseline
+              </button>
+            </div>
             <RefreshButton busy={block.busy} onRefresh={block.refresh} />
           </div>
         }
@@ -1613,7 +1610,7 @@ export function StopAllActiveRuns() {
   const [error, setError] = useState('');
 
   const stop = async () => {
-    const confirmed = window.confirm('Stop all active ADAPT runs? No data or history is deleted.');
+    const confirmed = window.confirm('Stop active ADAPT runs? No data or history is deleted.');
     if (!confirmed) return;
     setBusy(true);
     setError('');
@@ -1652,7 +1649,7 @@ export function StopAllActiveRuns() {
           aria-busy={busy || undefined}
           onClick={() => void stop()}
         >
-          <AdaptBusyButtonContent busy={busy} label="Stop all active runs" busyLabel="Stopping" />
+          <AdaptBusyButtonContent busy={busy} label="Stop active runs" busyLabel="Stopping" />
         </Button>
       </div>
       {result ? (

@@ -18,15 +18,15 @@
    * changed. One of the five rules below still has to justify any colour on
    * screen, and each colour still means one thing and only that thing:
    *
-   *   BLUE   = action and identity. Anything you press to make the agent work,
-   *            whatever is currently active or selected, links, focus, the
-   *            primary data series, and the marks that identify ADAPT. If
-   *            it is not one of those, it stays neutral. This is the job ink
-   *            used to do, and the swap is the whole revamp in one line.
+   *   GREEN  = action, identity, reachable, or saved. Anything you press to
+   *            make the agent work, whatever is currently active or selected,
+   *            links, focus, the primary data series, the marks that identify
+   *            ADAPT, and a dependency that answered. If it is not one of
+   *            those, it stays neutral.
    *   ORANGE = the agent is working, and the agent's own identity. The step in
    *            flight, the live pill, the indeterminate sweep, the agent avatar.
    *            FILLED MASSES ONLY -- never text, never a hairline. Never an
-   *            action, because blue owns those, and never a judgement about an
+   *            action, because green owns those, and never a judgement about an
    *            answer, because amber owns those.
    *   AMBER  = evaluation. Score, rating, benchmark quality, and the
    *            qualifications that hang off them. Nowhere else: not on an
@@ -34,10 +34,9 @@
    *   RED    = something failed, or is one click from destroying something.
    *            Partial shares this family with failed; the hatch and the label
    *            carry the difference. Never decoration, never identity.
-   *   GREEN  = reachable, or saved. A dependency answered, a write landed.
    *
    * And one rule that is about weight rather than hue, unchanged by the revamp:
-   * a SLOW or outlier bar separates by going to full-strength blue and getting
+   * a SLOW or outlier bar separates by going to full-strength green and getting
    * heavier, never by going amber. Amber next to the score card would read as a
    * judgement about the run rather than a measurement of it.
    *
@@ -383,7 +382,7 @@
   --ring: var(--ast-action);
   /*
    * Four series and an emphasis, rather than the two weights of black this used
-   * to be. --chart-1 is the primary series and is the same blue as every other
+   * to be. --chart-1 is the primary series and is the same green as every other
    * action, which is the point: the bar and the button that produced it are the
    * same colour. --chart-emphasis is orange and marks exactly one bar, the
    * leader, because it is the AI-identity colour and a chart full of it would

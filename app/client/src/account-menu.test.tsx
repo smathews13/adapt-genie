@@ -162,13 +162,14 @@ describe('account menu', () => {
     expect(escalation).not.toContain('GitHub issue');
   });
 
-  it('offers GitHub alone until a deployment supplies a validated Slack target', () => {
+  it('offers GitHub and the default Slack search together', () => {
     const githubOnly = renderToStaticMarkup(<AccountFeedbackChoices targets={accountFeedbackTargets()} />);
     expect(githubOnly).toContain('GitHub issue');
     expect(githubOnly).toContain('https://github.com/smathews13/adapt-genie/issues/new');
-    expect(githubOnly.match(/target="_blank"/g)).toHaveLength(1);
+    expect(githubOnly).toContain('Find Emily Huang in Slack');
+    expect(githubOnly.match(/target="_blank"/g)).toHaveLength(2);
     expect(githubOnly).toContain('lucide-github');
-    expect(githubOnly).not.toContain('lucide-slack');
+    expect(githubOnly).toContain('lucide-slack');
 
     const configured = accountFeedbackTargets(
       `https://app.slack.com/client/T${'1'.repeat(8)}/search?q=Feedback%20contact`,

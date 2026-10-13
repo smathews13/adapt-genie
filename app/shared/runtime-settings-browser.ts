@@ -62,10 +62,20 @@ const LEGACY_PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
   tag: { foreground: '#ffffff', background: '#243746' },
 };
 
-/** Canonical light defaults, aligned to the status and provenance families. */
-export const PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
+/** PIA blue paper chips, upgraded to ADAPT green with the rest of the action palette. */
+export const PIA_BLUE_PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
   catalog: { foreground: '#ffffff', background: '#1a62a8' },
   schema: { foreground: '#1a5b8f', background: '#e8f1fa' },
+  table: { foreground: '#7a5a11', background: '#fbf5e6' },
+  column: { foreground: '#4c5c68', background: '#f2f5f8' },
+  quote: { foreground: '#4c5c68', background: '#f0f4f7' },
+  tag: { foreground: '#ffffff', background: '#0e1720' },
+};
+
+/** Canonical light defaults, aligned to the status and provenance families. */
+export const PAPER_ENTITY_STYLES: RuntimeEntityStyles = {
+  catalog: { foreground: '#ffffff', background: '#0f6257' },
+  schema: { foreground: '#0f6257', background: '#eaf6f3' },
   table: { foreground: '#7a5a11', background: '#fbf5e6' },
   column: { foreground: '#4c5c68', background: '#f2f5f8' },
   quote: { foreground: '#4c5c68', background: '#f0f4f7' },
@@ -212,6 +222,7 @@ export type RuntimeSettings = {
 function inheritedEntityDefault(kind: RuntimeEntityKind, style: RuntimeEntityStyle): boolean {
   return (
     sameHexStyle(style, PAPER_ENTITY_STYLES[kind]) ||
+    sameHexStyle(style, PIA_BLUE_PAPER_ENTITY_STYLES[kind]) ||
     sameHexStyle(style, LEGACY_PAPER_ENTITY_STYLES[kind]) ||
     sameHexStyle(style, LEGACY_NIGHT_ENTITY_STYLES[kind]) ||
     sameHexStyle(style, DARK_ENTITY_STYLES[kind]) ||

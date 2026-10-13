@@ -175,10 +175,11 @@ async function readBlock<T>(url: string, timeoutMs: number): Promise<T> {
 export async function loadOpsBlock<T>(
   key: string,
   url: string,
-  timeoutMs = OPS_BLOCK_TIMEOUT_MS
+  timeoutMs = OPS_BLOCK_TIMEOUT_MS,
+  options?: { force?: boolean }
 ): Promise<OpsBlockAnswer<T>> {
   const existing = inflight.get(key);
-  if (existing) return existing as Promise<OpsBlockAnswer<T>>;
+  if (existing && !options?.force) return existing as Promise<OpsBlockAnswer<T>>;
   const generation = nextGeneration(key);
 
   const work = readBlock<T>(url, timeoutMs)
@@ -194,7 +195,7 @@ export async function loadOpsBlock<T>(
       return answer;
     })
     .finally(() => {
-      inflight.delete(key);
+      if (inflight.get(key) === work) inflight.delete(key);
       announce();
     });
   inflight.set(key, work);
@@ -310,7 +311,7 @@ export function useOpsBlock<T>(path: string, search: string, identity = '', enab
   }, [enabled, key, url]);
 
   const refresh = useCallback(() => {
-    if (enabled) void loadOpsBlock<T>(key, url);
+    if (enabled) void loadOpsBlock<T>(key, url, OPS_BLOCK_TIMEOUT_MS, { force: true });
   }, [enabled, key, url]);
 
   const stored = recallOpsBlock<T>(key);

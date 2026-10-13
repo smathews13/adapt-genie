@@ -30,13 +30,16 @@ describe('account feedback targets', () => {
     expect(SOURCE).toContain('res.json(accountFeedbackTargetsFromEnv())');
   });
 
-  it('publishes GitHub with no Slack identity by default', () => {
+  it('publishes GitHub and the default Slack search together', () => {
     const targets = accountFeedbackTargetsFromEnv({});
     expect(targets.github).toEqual({
       label: 'GitHub issue',
       url: 'https://github.com/smathews13/adapt-genie/issues/new',
     });
-    expect(targets.slack).toBeNull();
+    expect(targets.slack).toEqual({
+      label: 'Find Emily Huang in Slack',
+      url: 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang',
+    });
     expect(targets.escalation).toBeNull();
   });
 
@@ -63,7 +66,10 @@ describe('account feedback targets', () => {
     const escalationOnly = accountFeedbackTargetsFromEnv({
       [ACCOUNT_ESCALATION_SLACK_URL_ENV]: search,
     });
-    expect(escalationOnly.slack).toBeNull();
+    expect(escalationOnly.slack).toEqual({
+      label: 'Find Emily Huang in Slack',
+      url: 'https://app.slack.com/client/T046S6QDTQ9/search?q=Emily%20Huang',
+    });
     expect(escalationOnly.escalation?.url).toBe(search);
     const unsafe = accountFeedbackTargetsFromEnv({
       [ACCOUNT_FEEDBACK_SLACK_URL_ENV]: 'https://example.com/not-slack',

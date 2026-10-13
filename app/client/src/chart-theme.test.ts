@@ -39,8 +39,8 @@ const LIGHT: ChartTheme = {
   muted: '#6b7a87',
   grid: '#edf1f4',
   surface: '#ffffff',
-  accent: '#1a62a8',
-  second: '#0f6257',
+  accent: '#0f6257',
+  second: '#04867d',
   third: '#8a5a00',
   fourth: '#4c5c68',
   mono: MONO,
@@ -52,11 +52,9 @@ const DARK: ChartTheme = {
   muted: 'rgba(232, 237, 242, 0.68)',
   grid: 'rgba(255, 255, 255, 0.12)',
   surface: '#11171c',
-  accent: '#8fc1e8',
-  // The teal is the one of the four that is not a blue, and it clears the contrast
-  // floor on navy unaided, so the dark theme leaves it where it is.
+  accent: '#3ba99b',
   second: '#04867d',
-  third: '#6faedd',
+  third: '#7fdcd1',
   fourth: '#8a9aa3',
   mono: MONO,
 };
@@ -391,10 +389,10 @@ describe('the line treatment, and the two things it is allowed to add', () => {
   it('fills the area under a single ordered time series at 12%', () => {
     const dark = themedFigure(lineSpec(), DARK);
     expect(at(dark.data[0]).fill).toBe('tozeroy');
-    expect(at(dark.data[0]).fillcolor).toBe('rgba(143, 193, 232, 0.12)');
+    expect(at(dark.data[0]).fillcolor).toBe('rgba(59, 169, 155, 0.12)');
 
     const light = themedFigure(lineSpec(), LIGHT);
-    expect(at(light.data[0]).fillcolor).toBe('rgba(26, 98, 168, 0.12)');
+    expect(at(light.data[0]).fillcolor).toBe('rgba(15, 98, 87, 0.12)');
   });
 
   it('does not fill one when the spec has said not to', () => {
@@ -503,7 +501,7 @@ describe('the bar treatment dims a run of days and nothing else', () => {
 
     expect(sessions).toHaveLength(5);
     expect(sessions[4]).toBe(DARK.accent);
-    expect(new Set(sessions.slice(0, 4))).toEqual(new Set(['rgba(143, 193, 232, 0.42)']));
+    expect(new Set(sessions.slice(0, 4))).toEqual(new Set(['rgba(59, 169, 155, 0.42)']));
     // The paired series is dimmed on the same day, in its own colour.
     expect(players[4]).toBe(DARK.second);
     expect(new Set(players.slice(0, 4))).toEqual(new Set(['rgba(4, 134, 125, 0.42)']));
@@ -565,8 +563,8 @@ describe('the theme is read off the document, and re-read when it changes', () =
       '--muted-foreground': '#6b7a87',
       '--chart-grid': '#edf1f4',
       '--background': '#ffffff',
-      '--chart-1': '#1a62a8',
-      '--chart-2': '#0f6257',
+      '--chart-1': '#0f6257',
+      '--chart-2': '#04867d',
       '--chart-3': '#8a5a00',
       '--chart-4': '#4c5c68',
       '--font-mono': MONO,
@@ -580,9 +578,9 @@ describe('the theme is read off the document, and re-read when it changes', () =
       '--muted-foreground': 'rgba(232, 237, 242, 0.68)',
       '--chart-grid': 'rgba(255, 255, 255, 0.12)',
       '--background': '#11171c',
-      '--chart-1': '#8fc1e8',
+      '--chart-1': '#3ba99b',
       '--chart-2': '#04867d',
-      '--chart-3': '#6faedd',
+      '--chart-3': '#7fdcd1',
       '--chart-4': '#8a9aa3',
       '--font-mono': MONO,
     });

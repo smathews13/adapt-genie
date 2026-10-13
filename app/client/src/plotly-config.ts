@@ -111,8 +111,8 @@ const FALLBACK_THEME: ChartTheme = {
   muted: '#6b7a87',
   grid: '#edf1f4',
   surface: '#ffffff',
-  accent: '#1a62a8',
-  second: '#0f6257',
+  accent: '#0f6257',
+  second: '#04867d',
   third: '#8a5a00',
   fourth: '#4c5c68',
   mono: "'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -125,7 +125,8 @@ const AGENT_SERIES = new Map([
   ['#4299e0', 2],
   ['#445461', 3],
   ['#1a62a8', 0],
-  ['#0f6257', 1],
+  ['#0f6257', 0],
+  ['#3ba99b', 0],
   ['#8a5a00', 2],
 ]);
 

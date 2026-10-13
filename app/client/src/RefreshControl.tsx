@@ -50,6 +50,7 @@ export function RefreshButton({ busy = false, onRefresh, className }: RefreshBut
        * here and Connections, Architecture, Monitoring, Ops, the unavailable
        * panel and the access gate all follow. Do not restyle it per page.
        */
+      type="button"
       variant="default"
       size="sm"
       className={className ? `refresh-button ${className}` : 'refresh-button'}

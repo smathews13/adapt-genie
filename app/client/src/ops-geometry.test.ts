@@ -165,7 +165,7 @@ describe('the figures line up', () => {
   it('keeps the latency search wide enough for its placeholder', () => {
     const search = rule('.ops-latency-head-controls .ops-latency-search');
     expect(search).toMatch(/min-width:\s*0/);
-    expect(search).toMatch(/flex:\s*1\s+1\s+280px/);
+    expect(search).toMatch(/flex:\s*1\s+1\s+12rem/);
     expect(RULES).toMatch(
       /@media \(max-width:\s*800px\)[\s\S]*?\.ops-latency-block \.ops-latency-search\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;/
     );
@@ -196,7 +196,7 @@ describe('the figures line up', () => {
   });
 
   it('keeps trend filters inline beside the title', () => {
-    expect(rule('.ops-latency-head-controls')).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rule('.ops-latency-head-controls')).toMatch(/flex-wrap:\s*wrap/);
     const filters = rule('.ops-latency-trend-filters');
     expect(filters).toMatch(/display:\s*inline-flex/);
     expect(filters).toMatch(/flex:\s*0 0 auto/);

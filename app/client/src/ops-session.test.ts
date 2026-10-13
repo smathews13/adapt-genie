@@ -140,6 +140,14 @@ describe('the first Ops visit fetches; a later visit does not', () => {
     expect(opsReads(paths, '/api/ops/traffic')).toBe(1);
   });
 
+  it('starts a new read when Refresh forces it while one is in flight', async () => {
+    const { paths } = stubFetch();
+    const first = loadOpsBlock('/api/ops/latency', '/api/ops/latency');
+    const second = loadOpsBlock('/api/ops/latency', '/api/ops/latency', 120_000, { force: true });
+    await Promise.all([first, second]);
+    expect(opsReads(paths, '/api/ops/latency')).toBe(2);
+  });
+
   it('re-reads when asked again, which is what Refresh does', async () => {
     const { paths } = stubFetch();
     await loadOpsBlock('/api/ops/latency', '/api/ops/latency');

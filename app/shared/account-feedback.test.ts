@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_ESCALATION_DEFAULT_SLACK_LABEL,
   ACCOUNT_FEEDBACK_DEFAULT_SLACK_LABEL,
+  ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL,
   ACCOUNT_FEEDBACK_GITHUB_URL,
   accountFeedbackTargets,
   safeAccountFeedbackTargets,
@@ -11,11 +12,19 @@ const DIRECT = `slack://user?team=T${'1'.repeat(8)}&id=U${'2'.repeat(8)}`;
 const SEARCH = `https://app.slack.com/client/T${'3'.repeat(8)}/search?q=Feedback%20contact`;
 
 describe('account feedback destinations', () => {
-  it('defaults to the fixed public issue form with no Slack identity', () => {
+  it('defaults to the public issue form and the T2 Emily Huang Slack search', () => {
     expect(accountFeedbackTargets()).toEqual({
       github: { label: 'GitHub issue', url: ACCOUNT_FEEDBACK_GITHUB_URL },
-      slack: null,
+      slack: { label: 'Find Emily Huang in Slack', url: ACCOUNT_FEEDBACK_DEFAULT_SLACK_URL },
       escalation: null,
+    });
+  });
+
+  it('accepts a Slack compose URL that names two people in one thread', () => {
+    const compose = `https://app.slack.com/client/T${'4'.repeat(8)}/composer-dm?ids=U${'1'.repeat(8)},U${'2'.repeat(8)}`;
+    expect(accountFeedbackTargets(compose, 'Message Emily Huang and Sam Mathews in Slack').slack).toEqual({
+      label: 'Message Emily Huang and Sam Mathews in Slack',
+      url: compose,
     });
   });
 
@@ -120,7 +129,11 @@ describe('account feedback destinations', () => {
         github: { label: 'Wrong', url: 'https://example.com/phish' },
         slack: { label: 'Feedback contact', url: 'https://example.com/person' },
       })
-    ).toEqual(accountFeedbackTargets());
+    ).toEqual({
+      github: { label: 'GitHub issue', url: ACCOUNT_FEEDBACK_GITHUB_URL },
+      slack: null,
+      escalation: null,
+    });
     expect(
       safeAccountFeedbackTargets({
         slack: { label: 'Message Maintainer in Slack', url: DIRECT },

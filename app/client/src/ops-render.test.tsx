@@ -82,7 +82,7 @@ describe('the admin cancellation control', () => {
   it('labels the compact admin-only control and says only what it preserves', () => {
     const visible = render(<StopAllActiveRuns />);
     expect(visible).toContain('ADMIN');
-    expect(visible).toContain('Stop all active runs');
+    expect(visible).toContain('Stop active runs');
     expect(visible).toContain('No data or history is deleted.');
     expect(visible).not.toContain('One-time snapshot only');
     expect(visible).not.toContain('Future Asks continue');
@@ -90,12 +90,10 @@ describe('the admin cancellation control', () => {
     expect(markup).toContain('ops-stop-all-button');
     expect(markup).toContain('data-variant="destructive"');
     expect(markup).toContain('adapt-button-state');
-    expect(markup).toContain('class="sr-only">Stop all active runs</span>');
+    expect(markup).toContain('class="sr-only">Stop active runs</span>');
     const source = readFileSync(new URL('./OpsPage.tsx', import.meta.url), 'utf8');
     expect(source).toContain('aria-busy={busy || undefined}');
-    expect(source).toContain(
-      '<AdaptBusyButtonContent busy={busy} label="Stop all active runs" busyLabel="Stopping" />'
-    );
+    expect(source).toContain('<AdaptBusyButtonContent busy={busy} label="Stop active runs" busyLabel="Stopping" />');
     expect(OPS_STYLES).toMatch(
       /\.ops-stop-all strong,\s*\.ops-admin-action strong\s*\{[^}]*color:\s*var\(--db-red-700\)/
     );
@@ -2686,7 +2684,7 @@ describe('the latency block', () => {
     expect(busy).not.toMatch(/ops-latency-trend-filter"[^>]*style="[^"]*opacity/);
   });
 
-  it('hides the TREND pills when the table has no TREND column', () => {
+  it('keeps the TREND pills even when the table has no TREND column', () => {
     const allThin = latency({
       routes: [
         {
@@ -2705,7 +2703,9 @@ describe('the latency block', () => {
       ],
     });
     const markup = markupOf(<LatencyBody block={block(allThin)} />);
-    expect(markup).not.toContain('ops-latency-trend-filters');
+    expect(markup).toContain('ops-latency-trend-filters');
+    expect(markup).toContain('Within baseline');
+    expect(markup).toContain('Outside baseline');
     expect(markup).not.toMatch(/<th[^>]*>Trend<\/th>/);
   });
 

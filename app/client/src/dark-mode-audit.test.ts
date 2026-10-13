@@ -14,8 +14,8 @@ describe('ADAPT theme contracts', () => {
     expect(INDEX).not.toContain('prefers-color-scheme');
   });
 
-  it('maps dark actions and information to the existing blue family', () => {
-    expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-action:\s*#8fc1e8/);
+  it('maps dark actions and information to the ADAPT green family', () => {
+    expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-action:\s*#3ba99b/);
     expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-blue-on-dark:\s*var\(--ast-action\)/);
     expect(TOKENS).toMatch(/html\[data-theme='dark'\][^{]*\{[\s\S]*--ast-info-text:\s*var\(--ast-action\)/);
   });

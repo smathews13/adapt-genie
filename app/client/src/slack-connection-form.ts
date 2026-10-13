@@ -1,3 +1,4 @@
+import { SlackConnectionError } from './slack-connection-api';
 import {
   SlackConnectionSchema,
   type SlackConnection,
@@ -43,4 +44,9 @@ export function fieldErrors(draft: Draft): Partial<Record<FieldKey, string>> {
     errors[key as FieldKey] = empty ? 'Required.' : issue.message;
   }
   return errors;
+}
+
+/** The server's own message when it gave one; a plain fallback for a dropped connection. */
+export function failureMessage(error: unknown, fallback: string): string {
+  return error instanceof SlackConnectionError && error.message ? error.message : fallback;
 }

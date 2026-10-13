@@ -1,3 +1,4 @@
+import { bodyString } from '../lib/request-body';
 import { z } from 'zod';
 import {
   ApplyTargetSchema,
@@ -502,8 +503,7 @@ export function setupBenchmarkLabRoutes(appkit: InsightsAppKit): void {
       const actor = userEmail(req);
       try {
         const state = await readLabState(appkit, { maxAgeMs: 0 });
-        const preview =
-          (typeof req.body?.preview === 'string' ? req.body.preview.trim() : '') || state.alignPreview?.preview || '';
+        const preview = bodyString(req, 'preview') || state.alignPreview?.preview || '';
         if (!preview) {
           res.status(400).json({
             error: 'no_preview',

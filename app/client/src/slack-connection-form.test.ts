@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_DRAFT, fieldErrors } from './slack-connection-form';
+import { SlackConnectionError } from './slack-connection-api';
+import { EMPTY_DRAFT, failureMessage, fieldErrors } from './slack-connection-form';
 
 const valid = {
   ...EMPTY_DRAFT,
@@ -26,5 +27,12 @@ describe('Slack connection form errors', () => {
     const errors = fieldErrors({ ...valid, publicBaseUrl: 'adapt.example.com', allowedTeamId: 'bad' });
     expect(Object.keys(errors).sort()).toEqual(['allowedTeamId', 'publicBaseUrl']);
     expect(errors.publicBaseUrl).toMatch(/https/);
+  });
+
+  it('shows the server message when there is one, a plain fallback otherwise', () => {
+    expect(failureMessage(new SlackConnectionError('Team ID not recognised.', 400), 'fallback')).toBe(
+      'Team ID not recognised.'
+    );
+    expect(failureMessage(new TypeError('Failed to fetch'), 'Not saved.')).toBe('Not saved.');
   });
 });

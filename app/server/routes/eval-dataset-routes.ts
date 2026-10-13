@@ -1,3 +1,4 @@
+import { bodyString, bodyValue } from '../lib/request-body';
 import { z } from 'zod';
 import { normalizeWorkspaceHost } from '../../shared/databricks-links';
 import { EvalDatasetSchema, labeledRowCount, uniqueQuestionsToAdd } from '../../shared/eval-dataset';
@@ -248,7 +249,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
           alignClient,
           invokeJudge,
         });
-        if (req.body?.preview === true) {
+        if (bodyValue(req, 'preview') === true) {
           res.json({
             preview: aligned.guidelinesText,
             labeled,
@@ -377,7 +378,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
     app.post('/api/admin/benchmarks/review-app', async (req, res) => {
       const actor = userEmail(req);
       const settings = await readBenchmarkSettings(appkit, { maxAgeMs: 0 });
-      const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+      const name = bodyString(req, 'name');
       let session;
       try {
         const { WorkspaceClient } = await import('@databricks/sdk-experimental');
@@ -418,7 +419,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
 
     app.post('/api/admin/benchmarks/score-thread', async (req, res) => {
       const actor = userEmail(req);
-      const requested = typeof req.body?.conversationId === 'string' ? req.body.conversationId.trim() : '';
+      const requested = bodyString(req, 'conversationId');
       try {
         const conversationId = requested || (await findLatestAnsweredConversation(appkit));
         if (!conversationId) {
@@ -491,7 +492,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
     });
 
     app.put('/api/admin/benchmarks/prompt-registry', async (req, res) => {
-      const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+      const name = bodyString(req, 'name');
       if (name && !/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+){2}$/.test(name)) {
         res.status(400).json({
           error: 'invalid_prompt_name',
@@ -543,7 +544,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
     });
 
     app.post('/api/admin/benchmarks/cancel', async (req, res) => {
-      const runId = typeof req.body?.runId === 'string' ? req.body.runId.trim() : '';
+      const runId = bodyString(req, 'runId');
       if (!runId) {
         res.status(400).json({ error: 'invalid_cancel', message: 'Name the run to cancel.' });
         return;
@@ -623,7 +624,7 @@ export function setupEvalDatasetRoutes(appkit: InsightsAppKit): void {
     });
 
     app.post('/api/admin/benchmarks/known-failure', async (req, res) => {
-      const caseId = typeof req.body?.caseId === 'string' ? req.body.caseId.trim() : '';
+      const caseId = bodyString(req, 'caseId');
       if (!caseId) {
         res.status(400).json({ error: 'invalid_known_failure', message: 'Name the case to mark as a known failure.' });
         return;

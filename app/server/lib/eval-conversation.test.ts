@@ -4,7 +4,7 @@ import { findLatestAnsweredConversation, loadConversationTurns, loadTurnsForQues
 function store(rows: { conversation_id?: string; role?: string; content?: string }[]) {
   return {
     lakebase: {
-      query: async (_sql: string, params?: unknown[]) => {
+      query: (_sql: string, params?: unknown[]) => {
         const asked = typeof params?.[0] === 'string' ? params[0] : '';
         const matched = asked
           ? rows.filter(
@@ -13,7 +13,7 @@ function store(rows: { conversation_id?: string; role?: string; content?: string
                 (row.role === 'user' && row.content?.toLowerCase() === asked.toLowerCase())
             )
           : rows;
-        return { rows: matched };
+        return Promise.resolve({ rows: matched });
       },
     },
   };

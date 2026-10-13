@@ -14,9 +14,10 @@ export function limitChartResults(chart: Chart): Record<string, unknown>[] {
   if (kind !== 'bar' && kind !== 'pie') return chart.data;
   const first = chart.data[0];
   if (!first) return chart.data;
-  const horizontal = kind === 'bar' && String(first.orientation ?? '').toLowerCase() === 'h';
+  const horizontal = kind === 'bar' && typeof first.orientation === 'string' && first.orientation.toLowerCase() === 'h';
   const measureKey = kind === 'pie' ? 'values' : horizontal ? 'x' : 'y';
-  const measures = Array.isArray(first[measureKey]) ? first[measureKey] : [];
+  const rawMeasures = first[measureKey];
+  const measures: unknown[] = Array.isArray(rawMeasures) ? (rawMeasures as unknown[]) : [];
   if (measures.length <= MAX_CHART_RESULTS) return chart.data;
   const indices = measures
     .map((value, index) => ({ index, value: Number(value) }))
@@ -30,13 +31,16 @@ export function limitChartResults(chart: Chart): Record<string, unknown>[] {
   return chart.data.map((trace) => {
     const copy = { ...trace };
     for (const [key, value] of Object.entries(copy)) {
-      if (Array.isArray(value) && value.length === measures.length) copy[key] = indices.map((index) => value[index]);
+      if (Array.isArray(value) && value.length === measures.length) {
+        const column = value as unknown[];
+        copy[key] = indices.map((index) => column[index]);
+      }
     }
     const marker =
       copy.marker && typeof copy.marker === 'object' && !Array.isArray(copy.marker)
         ? (copy.marker as Record<string, unknown>)
         : null;
-    const colors = marker && Array.isArray(marker.color) ? marker.color : null;
+    const colors = marker && Array.isArray(marker.color) ? (marker.color as unknown[]) : null;
     if (marker && colors?.length === measures.length) {
       copy.marker = { ...marker, color: indices.map((index) => colors[index]) };
     }

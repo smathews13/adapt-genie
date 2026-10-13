@@ -91,7 +91,7 @@ describe('Genie table scope sync', () => {
     await expect(reader('/api/2.0/genie/spaces/space-1', { include_serialized_space: 'true' })).resolves.toMatchObject({
       serialized_space: SERIALIZED,
     });
-    expect(String(call.mock.calls[0]?.[0])).toBe(
+    expect(`${call.mock.calls[0]?.[0] as string}`).toBe(
       'https://workspace.example/api/2.0/genie/spaces/space-1?include_serialized_space=true'
     );
     expect(new Headers(call.mock.calls[0]?.[1]?.headers).get('authorization')).toBe('Bearer user-token');

@@ -21,9 +21,9 @@ describe('Prompt Registry promote', () => {
     const calls: string[] = [];
     const result = await promotePromptAlias(
       {
-        request: async ({ method, path }) => {
+        request: ({ method, path }) => {
           calls.push(`${method} ${path}`);
-          return { version: 3, template: 'Promoted guidance.' };
+          return Promise.resolve({ version: 3, template: 'Promoted guidance.' });
         },
       },
       { name: 'main.default.pia_guidance', template: 'Promoted guidance.' }
@@ -37,9 +37,7 @@ describe('Prompt Registry promote', () => {
   it('says blocked instead of inventing a moved alias when the workspace refuses', async () => {
     const result = await promotePromptAlias(
       {
-        request: async () => {
-          throw new Error('403 PERMISSION_DENIED: missing catalog scope');
-        },
+        request: () => Promise.reject(new Error('403 PERMISSION_DENIED: missing catalog scope')),
       },
       { name: 'main.default.pia_guidance', template: 'Saved locally.' }
     );
@@ -49,7 +47,7 @@ describe('Prompt Registry promote', () => {
   });
 
   it('skips the registry when no name is configured', async () => {
-    const result = await promotePromptAlias({ request: async () => ({}) }, { name: '', template: 'Cached.' });
+    const result = await promotePromptAlias({ request: () => Promise.resolve({}) }, { name: '', template: 'Cached.' });
     expect(result.status).toBe('skipped');
     expect(parsePromptVersion({ version: 2 })).toBe('2');
   });

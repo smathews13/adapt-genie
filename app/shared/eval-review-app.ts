@@ -55,7 +55,12 @@ export function labelingIdsFromBody(body: unknown): { sessionId: string; runId: 
   const record = body as Record<string, unknown>;
   const nested =
     record.session && typeof record.session === 'object' ? (record.session as Record<string, unknown>) : record;
-  const text = (value: unknown) => (typeof value === 'string' ? value.trim() : value != null ? String(value) : '');
+  const text = (value: unknown) =>
+    typeof value === 'string'
+      ? value.trim()
+      : typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint'
+        ? String(value)
+        : '';
   return {
     sessionId: text(nested.labeling_session_id ?? nested.session_id ?? nested.id),
     runId: text(nested.mlflow_run_id ?? nested.run_id),

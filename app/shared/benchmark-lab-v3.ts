@@ -631,7 +631,9 @@ function columnValues(table: ExecutedTable, name: string): unknown[] | null {
 function canonicalizeCell(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return String(value).trim();
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
 }
 
 function sortedRowKeys(table: ExecutedTable, names: readonly string[]): string[] {

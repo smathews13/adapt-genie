@@ -16,7 +16,7 @@ export type BuiltinJudgeName =
   | typeof GUIDELINES_FEEDBACK_NAME;
 
 /** Built-in names, plus custom / multi-turn `Guidelines(name=…)` assessments. */
-export type JudgeName = BuiltinJudgeName | string;
+export type JudgeName = string;
 
 export function conversationTranscript(question: string, response: string): string {
   return `User: ${question}\nAssistant: ${response}`;

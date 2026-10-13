@@ -22,6 +22,7 @@ import {
   EMPTY_DRAFT,
   SAVED_CONFIRMATION_MS,
   draftFrom,
+  failureMessage,
   fieldErrors,
   type Draft,
   type FieldKey,
@@ -95,7 +96,7 @@ export function SlackConnectionPanel() {
   useEffect(() => {
     let cancelled = false;
     refresh().catch((error: unknown) => {
-      if (!cancelled) setFailed(error instanceof Error ? error.message : 'Slack settings could not be loaded.');
+      if (!cancelled) setFailed(failureMessage(error, 'Slack settings could not be loaded. Check your connection.'));
     });
     return () => {
       cancelled = true;
@@ -132,7 +133,7 @@ export function SlackConnectionPanel() {
       setSaved(true);
       savedTimer.current = setTimeout(() => setSaved(false), SAVED_CONFIRMATION_MS);
     } catch (error) {
-      setFailed(error instanceof Error ? error.message : 'Not saved. Try again.');
+      setFailed(failureMessage(error, 'Not saved. Check your connection and try again.'));
     } finally {
       setBusy('');
     }
@@ -153,13 +154,42 @@ export function SlackConnectionPanel() {
         )
       );
     } catch (error) {
-      setFailed(error instanceof Error ? error.message : 'Could not change the Slack setting. Try again.');
+      setFailed(failureMessage(error, 'Could not change the Slack setting. Check your connection and try again.'));
+      // Someone else may have changed it first; show what is actually set now.
+      void loadSlackSwitch()
+        .then(setSwitchDoc)
+        .catch(() => undefined);
     } finally {
       setBusy('');
     }
   };
 
   if (!loaded && !failed) return <p className="admin-list-note">Loading...</p>;
+  if (!loaded) {
+    return (
+      <section className="slack-connection settings-table-frame" aria-labelledby="slack-connection-title">
+        <h4 id="slack-connection-title">Slack connection</h4>
+        <p className="slack-connection-error" role="alert">
+          <CircleAlert aria-hidden="true" />
+          {failed}
+        </p>
+        <div className="slack-connection-actions">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setFailed('');
+              refresh().catch((error: unknown) =>
+                setFailed(failureMessage(error, 'Slack settings could not be loaded. Check your connection.'))
+              );
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   const cannotTurnOn = !isOn && !loaded?.complete;
   return (

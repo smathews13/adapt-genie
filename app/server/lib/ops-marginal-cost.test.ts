@@ -387,9 +387,7 @@ describe('foundation billing query contract', () => {
     expect(built?.statement).toContain("LIKE '%CACHE%' THEN request.input_tokens");
     expect(built?.statement).not.toContain("LIKE '%CACHE%READ%' THEN 0");
     expect(built?.statement).toContain("record_type ILIKE '%CORRECT%'");
-    expect(built?.statement).toContain(
-      "GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name')"
-    );
+    expect(built?.statement).toContain("GET_JSON_OBJECT(TO_JSON(u.usage_metadata), '$.endpoint_name')");
     expect(built?.statement).toContain('GROUP BY record_id');
     expect(built?.statement).toContain('MAX(usage_quantity) AS usage_quantity');
     expect(built?.statement).toContain(

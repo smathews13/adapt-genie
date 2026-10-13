@@ -78,7 +78,7 @@ describe('the ranged cost route', () => {
   it('prices foundation usage without serving or AI Gateway schema access', async () => {
     const statements: string[] = [];
     const fetchImpl = vi.fn((_input: string | URL | globalThis.Request, init?: RequestInit) => {
-      const statement = (JSON.parse(String(init?.body)) as { statement: string }).statement;
+      const statement = (JSON.parse(init?.body as string) as { statement: string }).statement;
       statements.push(statement);
       const body = { status: { state: 'SUCCEEDED' }, result: { data_array: [] } };
       return Promise.resolve(

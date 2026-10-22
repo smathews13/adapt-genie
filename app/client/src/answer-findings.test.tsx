@@ -163,8 +163,8 @@ describe('finding layout', () => {
 });
 
 describe('table origin on the table header', () => {
-  const PROFILES = 'sample_catalog.player_insights_demo.silver_player_profiles';
-  const DAILY = 'sample_catalog.player_insights_demo.gold_title_daily_summary';
+  const PROFILES = 'cmegdemos_catalog.player_insights_demo.silver_player_profiles';
+  const DAILY = 'cmegdemos_catalog.player_insights_demo.gold_title_daily_summary';
   const TABLE = '| Title | Players |\n| --- | ---: |\n| GTAO | 6044 |';
 
   it('puts the named source on that table’s header band', () => {

@@ -4,10 +4,10 @@ import { markdownToMrkdwn, splitMrkdwn } from './slack-mrkdwn';
 describe('markdownToMrkdwn', () => {
   it('renders the bullets and bold labels Slack showed as raw Markdown', () => {
     const out = markdownToMrkdwn(
-      '- **Scope:** All 5 tables live in `sample_catalog.sample_schema`.\n- **Visibility:** `pub_steam_visibility` -- daily impressions'
+      '- **Scope:** All 5 tables live in `adapt_sbx_catalog.adapt_poc`.\n- **Visibility:** `pub_steam_visibility` -- daily impressions'
     );
     expect(out).toBe(
-      '• *Scope:* All 5 tables live in `sample_catalog.sample_schema`.\n• *Visibility:* `pub_steam_visibility` -- daily impressions'
+      '• *Scope:* All 5 tables live in `adapt_sbx_catalog.adapt_poc`.\n• *Visibility:* `pub_steam_visibility` -- daily impressions'
     );
     expect(out).not.toContain('**');
   });

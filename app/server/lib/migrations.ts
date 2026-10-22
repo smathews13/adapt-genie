@@ -3,6 +3,7 @@ import { DEFAULT_ASK_STARTER_SETTINGS } from '../../shared/ask-starters-browser'
 import { ASK_STARTER_SETTINGS_DDL, ASK_STARTER_SETTINGS_TABLE } from './ask-starter-settings-store';
 import { WATCHLIST_SETTINGS_DDL, WATCHLIST_SETTINGS_TABLE } from './watchlist-settings-store';
 import { DEPLOYMENT_DECISIONS_TABLE_NAME, deploymentDecisionsDdl } from './deployment-decisions';
+import { deploymentVariablesDdl, deploymentVariablesDown } from './deployment-variables';
 import { REQUEST_LATENCY_DDL, REQUEST_LATENCY_INDEX_DDL } from './request-latency';
 import { APP_ACTIVITY_DDL, APP_ACTIVITY_TABLE } from './app-activity';
 import { APP_SESSION_TABLE } from './app-session';
@@ -1156,6 +1157,14 @@ ON CONFLICT (id) DO UPDATE SET
       `DROP INDEX IF EXISTS ${APP_SCHEMA}.slack_link_intents_expires_idx`,
       `DROP TABLE IF EXISTS ${SLACK_LINK_INTENTS_TABLE}`,
     ],
+  },
+  {
+    version: 53,
+    name: 'deployment variables',
+    // One row per saved configuration value, with history. See
+    // lib/deployment-variables.ts; the first boot copies the old blobs across.
+    statements: deploymentVariablesDdl(),
+    down: deploymentVariablesDown(),
   },
 ];
 

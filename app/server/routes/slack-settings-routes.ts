@@ -7,6 +7,7 @@ import {
 } from '../../shared/slack-connection';
 import { SlackOperationalSettingsPatchSchema } from '../../shared/slack-settings';
 import { recordAdminAction } from '../lib/admin-roles';
+import { listDeploymentVariables } from '../lib/deployment-variables';
 import {
   readStoredSlackSnapshot,
   slackConnectionDraftFromEnv,
@@ -58,6 +59,17 @@ async function connectionResponse(appkit: InsightsAppKit): Promise<SlackConnecti
 
 export function setupSlackSettingsRoutes(appkit: InsightsAppKit): void {
   appkit.server.extend((app) => {
+    app.get('/api/admin/deployment-variables', async (_req, res) => {
+      try {
+        res.json({ variables: await listDeploymentVariables(appkit.lakebase) });
+      } catch {
+        res.status(503).json({
+          error: 'deployment_variables_unavailable',
+          detail: 'Saved deployment values could not be read from Lakebase.',
+        });
+      }
+    });
+
     app.get('/api/admin/slack/connection', async (_req, res) => {
       try {
         res.json(await connectionResponse(appkit));

@@ -1,4 +1,3 @@
-import { appTable } from '../../shared/app-schema';
 import {
   DEFAULT_SLACK_SECRET_KEYS,
   SLACK_CONNECTION_FIXED,
@@ -6,13 +5,8 @@ import {
   SlackConnectionSchema,
   type SlackConnection,
 } from '../../shared/slack-connection';
-import {
-  DEPLOYMENT_DECISIONS_TABLE_NAME,
-  readDeploymentDecision,
-  recordDeploymentDecision,
-  type DecisionStore,
-} from '../lib/deployment-decisions';
-import { RELEASE_ENVIRONMENT_DECISION } from '../lib/release-environment';
+import type { DecisionStore } from '../lib/deployment-decisions';
+import { readVariableScope, recordVariableScope } from '../lib/deployment-variables';
 
 type Env = Record<string, string | undefined>;
 
@@ -66,10 +60,6 @@ export const SLACK_CONNECTION_ENV_KEYS = [
   ...Object.values(SECRET_REF_ENV),
   ...Object.values(SECRET_KEY_ENV),
 ] as const;
-
-function decisionTable(): string {
-  return appTable(DEPLOYMENT_DECISIONS_TABLE_NAME);
-}
 
 /**
  * The environment the Slack adapter reads. The master switch is armed because
@@ -162,11 +152,11 @@ function parseSnapshot(raw: string | null): Record<string, string> {
 export const SLACK_CONNECTION_DECISION = 'slack_connection';
 
 async function readSavedSlackConnection(store: DecisionStore): Promise<Record<string, string>> {
-  return parseSnapshot(await readDeploymentDecision(store, decisionTable(), SLACK_CONNECTION_DECISION));
+  return parseSnapshot(await readVariableScope(store, 'slack_connection'));
 }
 
 export async function readStoredSlackSnapshot(store: DecisionStore): Promise<Record<string, string>> {
-  const snapshot = parseSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
+  const snapshot = parseSnapshot(await readVariableScope(store, 'release'));
   return { ...snapshot, ...(await readSavedSlackConnection(store)) };
 }
 
@@ -200,22 +190,10 @@ export async function writeSlackConnection(
   actor: string
 ): Promise<boolean> {
   const values = slackConnectionEnv(connection);
-  const existing = parseSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
-  const saved = await recordDeploymentDecision(
-    store,
-    decisionTable(),
-    SLACK_CONNECTION_DECISION,
-    JSON.stringify(values),
-    actor
-  );
+  const existing = parseSnapshot(await readVariableScope(store, 'release'));
+  const saved = await recordVariableScope(store, 'slack_connection', values, 'admin', actor);
   if (!saved) return false;
-  return recordDeploymentDecision(
-    store,
-    decisionTable(),
-    RELEASE_ENVIRONMENT_DECISION,
-    JSON.stringify({ ...existing, ...values }),
-    actor
-  );
+  return recordVariableScope(store, 'release', { ...existing, ...values }, 'admin', actor);
 }
 
 export interface SlackSecretReader {

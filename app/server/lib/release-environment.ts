@@ -7,11 +7,11 @@
  * reconstruct and record it from those durable resources before routes load.
  */
 import { appTable } from '../../shared/app-schema';
+import { readVariableScope, recordVariableScope } from './deployment-variables';
 import {
   DEPLOYMENT_DECISIONS_TABLE_NAME,
   decisionSource,
   readDeploymentDecision,
-  recordDeploymentDecision,
   type DecisionStore,
 } from './deployment-decisions';
 
@@ -289,7 +289,7 @@ export async function restoreReleaseEnvironment(
   recover: ReleaseEnvironmentRecovery = () => recoverExistingReleaseEnvironment(store, env)
 ): Promise<number> {
   if (decisionSource(env) !== 'git-deploy') return 0;
-  const snapshot = parsedSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
+  const snapshot = parsedSnapshot(await readVariableScope(store, 'release'));
   const snapshotMissing = REQUIRED_GIT_RELEASE_ENVIRONMENT_KEYS.filter((key) => !snapshot?.[key]);
   const recovered = snapshotMissing.length > 0 ? await recover() : {};
   const authored = releaseEnvironmentSnapshot(env);
@@ -318,13 +318,7 @@ export async function restoreReleaseEnvironment(
       ...trustedAuthoredGroups,
       ...snapshot,
     };
-    await recordDeploymentDecision(
-      store,
-      decisionTable(),
-      RELEASE_ENVIRONMENT_DECISION,
-      JSON.stringify(persisted),
-      'automatic Git migration'
-    );
+    await recordVariableScope(store, 'release', persisted, 'recovered', 'automatic Git migration');
   }
   return restored;
 }
@@ -335,11 +329,5 @@ export async function recordReleaseEnvironment(
   env: Record<string, string | undefined> = process.env
 ): Promise<boolean> {
   if (decisionSource(env) !== 'release') return false;
-  return recordDeploymentDecision(
-    store,
-    decisionTable(),
-    RELEASE_ENVIRONMENT_DECISION,
-    JSON.stringify(releaseEnvironmentSnapshot(env)),
-    'app boot'
-  );
+  return recordVariableScope(store, 'release', releaseEnvironmentSnapshot(env), 'release', 'app boot');
 }

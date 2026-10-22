@@ -22,4 +22,11 @@ describe('Slack settings route contract', () => {
     expect(source).toContain("action: 'slack-connection-updated'");
     expect(source).not.toMatch(/xapp-|xoxb-/);
   });
+
+  it('admin-gates the read-only list of saved deployment values', () => {
+    expect(isAdminRoute('/api/admin/deployment-variables')).toBe(true);
+    const source = fs.readFileSync(path.join(__dirname, 'slack-settings-routes.ts'), 'utf8');
+    expect(source).toContain("app.get('/api/admin/deployment-variables'");
+    expect(source).not.toContain("app.put('/api/admin/deployment-variables'");
+  });
 });

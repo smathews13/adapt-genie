@@ -11,6 +11,7 @@ import {
   type ReleaseEnvironmentKey,
 } from './release-environment';
 import type { DecisionStore } from './deployment-decisions';
+import { memoryDeploymentStore } from './__fixtures__/memory-deployment-store';
 
 function readingStore(value: string | null): DecisionStore {
   return {
@@ -22,13 +23,7 @@ function readingStore(value: string | null): DecisionStore {
 
 describe('release runtime configuration persistence', () => {
   it('records only allowlisted target values, including scope and MLflow identity', async () => {
-    const calls: { params: unknown[] }[] = [];
-    const store: DecisionStore = {
-      query: vi.fn((_text: string, params: unknown[] = []) => {
-        calls.push({ params });
-        return Promise.resolve({ rows: [] });
-      }),
-    };
+    const { store, decisions, scopeValues } = memoryDeploymentStore();
     const env = {
       PLAYER_INSIGHTS_TARGET: 'customer',
       LAKEBASE_ENDPOINT: 'projects/example/branches/production',
@@ -48,9 +43,8 @@ describe('release runtime configuration persistence', () => {
     };
 
     expect(await recordReleaseEnvironment(store, env)).toBe(true);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.params[0]).toBe(RELEASE_ENVIRONMENT_DECISION);
-    const recorded = JSON.parse(String(calls[0]?.params[1])) as Record<string, string>;
+    const recorded = scopeValues('release');
+    expect(JSON.parse(decisions.get(RELEASE_ENVIRONMENT_DECISION) ?? '{}')).toEqual(recorded);
     expect(recorded).toMatchObject({
       PLAYER_INSIGHTS_CATALOG: 'example_catalog',
       PLAYER_INSIGHTS_SCHEMA: 'adapt_data',
@@ -131,14 +125,7 @@ describe('release runtime configuration persistence', () => {
   });
 
   it('self-migrates an existing app from its durable model, ACL and Lakebase values', async () => {
-    let recorded: Record<string, string> | null = null;
-    const store: DecisionStore = {
-      query: vi.fn((text: string, params: unknown[] = []) => {
-        if (text.startsWith('SELECT value')) return Promise.resolve({ rows: [] });
-        recorded = JSON.parse(String(params[1])) as Record<string, string>;
-        return Promise.resolve({ rows: [] });
-      }),
-    };
+    const { store, scopeValues } = memoryDeploymentStore();
     const env: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',
       LAKEBASE_ENDPOINT: 'projects/example/branches/production',
@@ -168,8 +155,8 @@ describe('release runtime configuration persistence', () => {
       ADAPT_ADMIN_GROUP_LABEL: 'ADAPT administrators',
       ADAPT_USER_GROUP_LABEL: 'ADAPT users',
     });
-    expect(recorded).toMatchObject(recovered);
-    const saved: Partial<Record<ReleaseEnvironmentKey, string>> = recorded ?? {};
+    const saved: Partial<Record<ReleaseEnvironmentKey, string>> = scopeValues('release');
+    expect(saved).toMatchObject(recovered);
     expect(saved).not.toHaveProperty('PLAYER_INSIGHTS_SHARED_CONVERSATION_RAIL');
     expect(saved).not.toHaveProperty('PLAYER_INSIGHTS_EXPERIMENT_PATH');
     expect(saved).not.toHaveProperty('ADAPT_ADMIN_GROUP_LABEL');
@@ -261,14 +248,7 @@ describe('release runtime configuration persistence', () => {
   });
 
   it('uses and persists the exact customer-shared Git group defaults when SCIM cannot confirm them', async () => {
-    let persisted = '';
-    const store: DecisionStore = {
-      query: vi.fn((text: string, params: unknown[] = []) => {
-        if (text.startsWith('SELECT value')) return Promise.resolve({ rows: [] });
-        persisted = typeof params[1] === 'string' ? params[1] : '';
-        return Promise.resolve({ rows: [] });
-      }),
-    };
+    const { store, scopeValues } = memoryDeploymentStore();
     const env: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',
       LAKEBASE_ENDPOINT: 'projects/example/branches/production',
@@ -288,7 +268,7 @@ describe('release runtime configuration persistence', () => {
     await expect(restoreReleaseEnvironment(store, env, () => Promise.resolve(recovered))).resolves.toBeGreaterThan(0);
     expect(env.ADAPT_ADMIN_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Admins');
     expect(env.ADAPT_USER_GROUP).toBe('S_TK2_Databricks_Adapt_Genie_Users');
-    expect(JSON.parse(persisted)).toMatchObject({
+    expect(scopeValues('release')).toMatchObject({
       ADAPT_ADMIN_GROUP: 'S_TK2_Databricks_Adapt_Genie_Admins',
       ADAPT_USER_GROUP: 'S_TK2_Databricks_Adapt_Genie_Users',
     });
@@ -341,16 +321,7 @@ describe('release runtime configuration persistence', () => {
   });
 
   it('round-trips every ADAPT deployment value through a blank Deploy-from-Git manifest', async () => {
-    let persisted: string | null = null;
-    const store: DecisionStore = {
-      query: vi.fn((text: string, params: unknown[] = []) => {
-        if (text.startsWith('SELECT value')) {
-          return Promise.resolve({ rows: persisted === null ? [] : [{ value: persisted }] });
-        }
-        persisted = String(params[1]);
-        return Promise.resolve({ rows: [] });
-      }),
-    };
+    const { store, scopeValues } = memoryDeploymentStore();
     const expected = {
       PLAYER_INSIGHTS_EXPERIMENT_ID: 'experiment-123',
       PLAYER_INSIGHTS_EXPERIMENT_PATH: '/Shared/customer-adapt',
@@ -376,7 +347,7 @@ describe('release runtime configuration persistence', () => {
     };
 
     expect(await recordReleaseEnvironment(store, releaseEnv)).toBe(true);
-    const recorded = persisted;
+    const recorded = scopeValues('release');
     const gitEnv: Record<string, string | undefined> = {
       PLAYER_INSIGHTS_TARGET: '',
       LAKEBASE_ENDPOINT: releaseEnv.LAKEBASE_ENDPOINT,
@@ -384,7 +355,7 @@ describe('release runtime configuration persistence', () => {
     };
 
     expect(await recordReleaseEnvironment(store, gitEnv)).toBe(false);
-    expect(persisted).toBe(recorded);
+    expect(scopeValues('release')).toEqual(recorded);
     expect(await restoreReleaseEnvironment(store, gitEnv)).toBe(Object.keys(expected).length);
     expect(gitEnv).toMatchObject(expected);
   });

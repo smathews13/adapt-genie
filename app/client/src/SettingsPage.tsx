@@ -5,6 +5,7 @@ import { EgressPanel, EGRESS_SETTINGS_FORM_ID } from './EgressPanel';
 import { EnvironmentPanel } from './EnvironmentPanel';
 import { ExperimentalFeatureName, ExperimentalStatus } from './ExperimentalBadge';
 import { ResourceTagsPanel } from './ResourceTagsPanel';
+import { DeploymentVariablesPanel } from './DeploymentVariablesPanel';
 import { SlackConnectionPanel } from './SlackConnectionPanel';
 import { BENCHMARK_LAB_ENABLED } from './nav-reveal';
 import {
@@ -381,6 +382,7 @@ export function SettingsPage({
                   initialAccessGuideAvailable={initialAccessGuideAvailable}
                 />
                 {showsAdminSurfaces(role.state) ? <SlackConnectionPanel /> : null}
+                {showsAdminSurfaces(role.state) ? <DeploymentVariablesPanel /> : null}
               </>
             ) : null}
             {active === 'egress' ? <EgressPanel onSaveState={setSaveState} onDirtyChange={handlePaneDirty} /> : null}

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { SlackConnectionSchema, type SlackConnection } from '../../shared/slack-connection';
-import type { DecisionStore } from '../lib/deployment-decisions';
+import { memoryDeploymentStore } from '../lib/__fixtures__/memory-deployment-store';
+import { writeVariableScope } from '../lib/deployment-variables';
 import { RELEASE_ENVIRONMENT_DECISION, RELEASE_ENVIRONMENT_KEYS } from '../lib/release-environment';
 import { readSlackRuntimeConfig, resolveSlackSecrets } from './config';
 import {
@@ -24,23 +25,8 @@ const CONNECTION: SlackConnection = SlackConnectionSchema.parse({
   secretScope: 'adapt-app',
 });
 
-function memoryStore(initial: string | null): { store: DecisionStore; writes: string[]; values: Map<string, string> } {
-  const values = new Map<string, string>();
-  if (initial !== null) values.set(RELEASE_ENVIRONMENT_DECISION, initial);
-  const writes: string[] = [];
-  const store: DecisionStore = {
-    query: vi.fn((text: string, params: unknown[] = []) => {
-      const decision = String(params[0]);
-      if (text.startsWith('SELECT')) {
-        const value = values.get(decision);
-        return Promise.resolve({ rows: value === undefined ? [] : [{ value }] });
-      }
-      values.set(decision, String(params[1]));
-      if (decision === RELEASE_ENVIRONMENT_DECISION) writes.push(String(params[1]));
-      return Promise.resolve({ rows: [] });
-    }),
-  };
-  return { store, writes, values };
+function memoryStore(initial: string | null) {
+  return memoryDeploymentStore(initial === null ? {} : { decisions: { [RELEASE_ENVIRONMENT_DECISION]: initial } });
 }
 
 describe('Slack connection settings', () => {
@@ -78,18 +64,18 @@ describe('Slack connection settings', () => {
   });
 
   it('merges into the existing snapshot without dropping other recorded values', async () => {
-    const { store, writes } = memoryStore(JSON.stringify({ PLAYER_INSIGHTS_CATALOG: 'kept_catalog' }));
+    const { store, scopeValues } = memoryStore(JSON.stringify({ PLAYER_INSIGHTS_CATALOG: 'kept_catalog' }));
     expect(await writeSlackConnection(store, CONNECTION, 'admin@example.test')).toBe(true);
-    const saved = JSON.parse(writes[0] ?? '{}') as Record<string, string>;
+    const saved = scopeValues('release');
     expect(saved.PLAYER_INSIGHTS_CATALOG).toBe('kept_catalog');
     expect(saved.SLACK_ADAPTER_ALLOWED_TEAM_ID).toBe('T046S6QDTQ9');
     expect(slackConnectionFromEnv(await readStoredSlackSnapshot(store))).toEqual(CONNECTION);
   });
 
   it('keeps values saved on a release-installed app after the release rewrites its snapshot', async () => {
-    const { store, values } = memoryStore(null);
+    const { store } = memoryStore(null);
     await writeSlackConnection(store, CONNECTION, 'admin@example.test');
-    values.set(RELEASE_ENVIRONMENT_DECISION, JSON.stringify({ SLACK_ADAPTER_ENABLED: 'false' }));
+    await writeVariableScope(store, 'release', { SLACK_ADAPTER_ENABLED: 'false' }, 'release', 'app boot');
     expect(slackConnectionFromEnv(await readStoredSlackSnapshot(store))).toEqual(CONNECTION);
     const env: Record<string, string | undefined> = { APP_TARGET: 'demo', SLACK_ADAPTER_ENABLED: 'false' };
     expect(await applySavedSlackConnection(store, env)).toBeGreaterThan(0);
@@ -98,8 +84,8 @@ describe('Slack connection settings', () => {
   });
 
   it('leaves a deployment that supplies its own complete Slack values alone', async () => {
-    const { store, values } = memoryStore(null);
-    values.set(SLACK_CONNECTION_DECISION, JSON.stringify(slackConnectionEnv(CONNECTION)));
+    const { store, decisions } = memoryStore(null);
+    decisions.set(SLACK_CONNECTION_DECISION, JSON.stringify(slackConnectionEnv(CONNECTION)));
     const own = slackConnectionEnv({ ...CONNECTION, oauthClientId: 'release-client' });
     const env: Record<string, string | undefined> = { ...own };
     expect(await applySavedSlackConnection(store, env)).toBe(0);
@@ -107,9 +93,10 @@ describe('Slack connection settings', () => {
   });
 
   it('never stores secret values in the snapshot', async () => {
-    const { store, writes } = memoryStore(null);
+    const { store, decisions, variables } = memoryStore(null);
     await writeSlackConnection(store, CONNECTION, 'admin@example.test');
-    expect(writes[0]).not.toMatch(/xapp-|xoxb-/);
+    const stored = JSON.stringify([...decisions.values(), ...[...variables.values()].map((rows) => [...rows])]);
+    expect(stored).not.toMatch(/xapp-|xoxb-/);
   });
 });
 

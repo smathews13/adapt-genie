@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { exportCompleteMessage } from './export-labels';
 
 const answerCard = readFileSync(new URL('./AnswerCard.tsx', import.meta.url), 'utf8');
 const tables = readFileSync(new URL('./DataEntityLinks.tsx', import.meta.url), 'utf8');
@@ -22,14 +23,32 @@ describe('export surface wiring', () => {
     }
   });
 
-  it('mounts the whole-conversation export menu on HomePage with every format', () => {
-    expect(home).toContain('<ConversationExportMenu');
-    expect(home).toContain('conversation-export-toolbar');
-    expect(menu).toContain('downloadConversationMarkdown');
-    expect(menu).toContain('downloadConversationHtml');
-    expect(menu).toContain('downloadConversationJson');
-    expect(menu).toContain('downloadConversationPdf');
-    expect(actions).toContain('readAllConversationMessages(conversationId)');
+  it('names the exported format in the completion notice', () => {
+    expect(exportCompleteMessage('Download PDF')).toBe('PDF downloaded');
+    expect(exportCompleteMessage('Copy Markdown')).toBe('Markdown copied');
+    expect(exportCompleteMessage('Download HTML for slides')).toBe('HTML for slides downloaded');
+    expect(exportCompleteMessage('Copy TSV')).toBe('TSV copied');
+  });
+
+  it('gives every export action an icon', () => {
+    for (const label of [
+      'Copy Markdown',
+      'Download Markdown',
+      'Download HTML',
+      'Download HTML for slides',
+      'Download JSON',
+      'Download PDF',
+      'Copy TSV',
+      'Download PNG',
+    ]) {
+      expect(menu).toContain(`'${label}':`);
+    }
+  });
+
+  it('keeps export on each answer and has no whole-conversation menu above the transcript', () => {
+    expect(home).not.toContain('ConversationExportMenu');
+    expect(home).not.toContain('conversation-export-toolbar');
+    expect(menu).not.toContain('Export whole conversation');
   });
 
   it('offers TSV, PNG and PDF on parsed answer tables', () => {
@@ -67,7 +86,7 @@ describe('export surface wiring', () => {
     expect(menu).toContain('role="menu"');
     expect(menu).toContain('role="menuitem"');
     expect(menu).toContain('aria-live="polite"');
-    expect(menu).toContain("message: 'Export complete'");
+    expect(menu).toContain('message: exportCompleteMessage(action.label)');
     expect(menu).toContain('export-menu-notice--${notice.tone}');
   });
 });

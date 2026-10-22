@@ -38,11 +38,32 @@ def main() -> None:
     mlflow.set_experiment(
         os.getenv("PLAYER_INSIGHTS_EXPERIMENT", "/Shared/adapt-genie")
     )
-    deployment = agents.deploy(
-        model_name=args.model_name,
-        model_version=str(args.model_version),
-        endpoint_name=args.endpoint_name,
-    )
+    try:
+        deployment = agents.deploy(
+            model_name=args.model_name,
+            model_version=str(args.model_version),
+            endpoint_name=args.endpoint_name,
+        )
+    except ValueError as error:
+        # Re-running a release for a version that is already serving is not a
+        # failure: `--skip-log --model-version N` exists to finish a release that
+        # stopped after the deploy, and the SDK refuses it with this error. The
+        # rest of the release (traffic wait, auth check) is what needs to run.
+        if "already serves" not in str(error):
+            raise
+        print(f"[deploy] {error} Continuing with the existing deployment.")
+        print(
+            json.dumps(
+                {
+                    "endpoint_name": args.endpoint_name,
+                    "query_endpoint": None,
+                    "model_name": args.model_name,
+                    "model_version": str(args.model_version),
+                    "already_serving": True,
+                }
+            )
+        )
+        return
     print(
         json.dumps(
             {

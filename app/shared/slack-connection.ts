@@ -69,7 +69,6 @@ export const SLACK_CONNECTION_FIXED = {
 export interface SlackConnectionResponse {
   connection: Partial<SlackConnection> | null;
   complete: boolean;
-  managedByRelease: boolean;
   suggested: { publicBaseUrl: string; databricksWorkspaceHost: string; callbackUrl: string };
   secrets: { scope: string | null; keys: typeof DEFAULT_SLACK_SECRET_KEYS };
   requiresRestart: boolean;

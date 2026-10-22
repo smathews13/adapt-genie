@@ -68,6 +68,33 @@ resolve_profile
 # script spawns rather than paid for again by each of them.
 seed_bundle_cache
 
+# The workspace URL for this profile, used in messages and for the user-auth
+# probe. It was referenced below without ever being set, so the two messages
+# that name it ended the script with "HOST: unbound variable" instead of the
+# advice they carry.
+HOST="$(databricks auth env --profile "$PROFILE" -o json 2>/dev/null \
+  | python3 -c 'import json,sys
+try: print((json.load(sys.stdin).get("env") or {}).get("DATABRICKS_HOST", ""))
+except Exception: print("")' || true)"
+HOST="${HOST%/}"
+: "${HOST:=<workspace host>}"
+
+# One read of the endpoint that survives a dropped connection. The traffic wait
+# below runs for up to twenty minutes and used to die, version already
+# deployed, on a single DNS blip on the laptop running it.
+endpoint_json() {
+  local attempt out
+  for attempt in 1 2 3 4 5 6; do
+    if out="$(databricks serving-endpoints get "$ENDPOINT" --profile "$PROFILE" -o json 2>/dev/null)" \
+       && [[ -n "$out" ]]; then
+      printf '%s' "$out"
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
 CATALOG="$(bundle_var app_catalog)"
 SCHEMA="$(bundle_var app_schema)"
 WAREHOUSE_ID="$(bundle_var warehouse_id)"
@@ -843,6 +870,39 @@ fi
 step "Deploying version $MODEL_VERSION to $ENDPOINT"
 (cd "$BUNDLE_ROOT/agent" && uv run --python 3.13 python deploy_agent.py --model-version "$MODEL_VERSION")
 
+# --- Did the endpoint come up able to act as the caller? ----------------------
+#
+# Every question runs as the person asking, which needs the endpoint to carry a
+# user auth policy. `agents.deploy` never sets one: Model Serving derives it from
+# the model artifact, and only when the workspace's "Agent Framework:
+# On-Behalf-Of-User Authorization" preview is on at the moment the endpoint is
+# created or rebuilt. With the preview off the endpoint is created with
+# EMBEDDED_CREDENTIALS only and looks healthy, the release goes green, and the
+# first question fails. The post-deploy check at the end caught this, but only
+# after a twenty-minute traffic wait, and only when it had a token to run with.
+# Ask the endpoint directly, right after the deploy, and say what to do.
+if [[ "${USER_AUTHORIZATION:-true}" == "true" ]]; then
+  cred_state="$(endpoint_json | python3 -c '
+import json,sys
+b=json.load(sys.stdin)
+policy=(b.get("auth_policy") or {}).get("user_auth_policy")
+strategy=b.get("resource_credential_strategy")
+# No strategy at all means the endpoint is mid-update and has not reported one
+# yet; that is not evidence the policy is missing.
+print("ok" if policy else ("unreadable" if not strategy else "missing:" + str(strategy)))' 2>/dev/null || echo "unreadable")"
+  case "$cred_state" in
+    ok) note "endpoint carries a user auth policy" ;;
+    unreadable) note "the endpoint has not reported its auth policy yet (mid-update); the final check below decides" ;;
+    *)
+      note "WARNING: $ENDPOINT has no user auth policy (${cred_state#missing:})."
+      note "The workspace's 'Agent Framework: On-Behalf-Of-User Authorization' preview"
+      note "(Settings > Previews) was probably off when the endpoint was created. Turn it"
+      note "on, then re-run this script WITHOUT --skip-log: a new version rebuilds the"
+      note "endpoint with the policy. Questions will fail until then."
+      ;;
+  esac
+fi
+
 # The app invokes this endpoint with the signed-in human's forwarded token.
 # Its resource binding grants only the app service principal, so grant the two
 # configured app access groups explicitly and verify the resulting endpoint ACL.
@@ -870,7 +930,7 @@ step "Applying the ADAPT resource tag"
 step "Waiting for the traffic switch to settle, then confirming version $MODEL_VERSION"
 deadline=$(( $(date +%s) + 1200 ))
 while :; do
-  state=$(databricks serving-endpoints get "$ENDPOINT" --profile "$PROFILE" -o json \
+  state=$(endpoint_json \
     | python3 -c "
 import json,sys
 body=json.load(sys.stdin)
@@ -921,6 +981,21 @@ $MODEL_VERSION can act as the person asking. A missing checker is not a pass:
   USER_AUTH_STATUS=0
   # Under the agent's environment: it reads the registered version's MLmodel with
   # MLflow's own reader rather than parsing YAML a second way.
+  # The probe needs a workspace host and token. It used to read them from the
+  # caller's environment and answer "COULD NOT RUN" when they were unset, which
+  # is the normal case for a profile-based release, so the gate failed on every
+  # such run without saying anything about the endpoint. Take both from the
+  # profile unless the caller already supplied them.
+  if [[ -z "${DATABRICKS_TOKEN:-}" ]]; then
+    DATABRICKS_TOKEN="$(databricks auth token --profile "$PROFILE" -o json 2>/dev/null \
+      | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("access_token", ""))
+except Exception: print("")' || true)"
+    export DATABRICKS_TOKEN
+  fi
+  if [[ -z "${DATABRICKS_HOST:-}" && "$HOST" == https://* ]]; then
+    export DATABRICKS_HOST="$HOST"
+  fi
   (cd "$BUNDLE_ROOT/agent" && uv run --python 3.13 python "$USER_AUTH_CHECK" \
     --logged "$LOG_SUMMARY" --registered \
     --user-authorization "$USER_AUTHORIZATION" \

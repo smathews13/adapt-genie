@@ -154,8 +154,39 @@ function parseSnapshot(raw: string | null): Record<string, string> {
   }
 }
 
+/**
+ * Admin-saved Slack values, kept in their own decision as well as the release
+ * snapshot. A bundle release rewrites that snapshot from app.yaml on every boot,
+ * which would otherwise erase values an admin entered on a release-installed app.
+ */
+export const SLACK_CONNECTION_DECISION = 'slack_connection';
+
+async function readSavedSlackConnection(store: DecisionStore): Promise<Record<string, string>> {
+  return parseSnapshot(await readDeploymentDecision(store, decisionTable(), SLACK_CONNECTION_DECISION));
+}
+
 export async function readStoredSlackSnapshot(store: DecisionStore): Promise<Record<string, string>> {
-  return parseSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
+  const snapshot = parseSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
+  return { ...snapshot, ...(await readSavedSlackConnection(store)) };
+}
+
+/**
+ * Put admin-saved Slack values into the environment when the deployment itself
+ * supplied no complete connection. A release that does carry Slack values keeps
+ * them. Returns how many values were applied.
+ */
+export async function applySavedSlackConnection(store: DecisionStore, env: Env): Promise<number> {
+  if (slackConnectionFromEnv(env)) return 0;
+  const saved = await readSavedSlackConnection(store);
+  if (!slackConnectionFromEnv(saved)) return 0;
+  let applied = 0;
+  for (const key of SLACK_CONNECTION_ENV_KEYS) {
+    const value = saved[key];
+    if (!value) continue;
+    env[key] = value;
+    applied += 1;
+  }
+  return applied;
 }
 
 /**
@@ -168,12 +199,21 @@ export async function writeSlackConnection(
   connection: SlackConnection,
   actor: string
 ): Promise<boolean> {
-  const existing = await readStoredSlackSnapshot(store);
+  const values = slackConnectionEnv(connection);
+  const existing = parseSnapshot(await readDeploymentDecision(store, decisionTable(), RELEASE_ENVIRONMENT_DECISION));
+  const saved = await recordDeploymentDecision(
+    store,
+    decisionTable(),
+    SLACK_CONNECTION_DECISION,
+    JSON.stringify(values),
+    actor
+  );
+  if (!saved) return false;
   return recordDeploymentDecision(
     store,
     decisionTable(),
     RELEASE_ENVIRONMENT_DECISION,
-    JSON.stringify({ ...existing, ...slackConnectionEnv(connection) }),
+    JSON.stringify({ ...existing, ...values }),
     actor
   );
 }

@@ -140,12 +140,19 @@ function standardFetch(
     tokenExpiresIn?: number;
     refreshSubject?: string;
     refreshEmail?: string;
+    databricksDiscovery?: boolean;
   } = {}
 ) {
   return vi.fn<typeof fetch>((input, init) => {
     const url = requestUrl(input);
-    if (url.endsWith('/.well-known/openid-configuration')) return Promise.resolve(json(discovery()));
-    if (url.endsWith('/oidc/v1/keys')) return Promise.resolve(json({ keys: [publicJwk] }));
+    if (url.endsWith('/.well-known/openid-configuration')) {
+      if (!options.databricksDiscovery) return Promise.resolve(json(discovery()));
+      const { userinfo_endpoint: _userinfo, ...rest } = discovery();
+      return Promise.resolve(json({ ...rest, jwks_uri: 'https://ohio.cloud.databricks.com/oidc/jwks.json' }));
+    }
+    if (url.endsWith('/oidc/v1/keys') || url === 'https://ohio.cloud.databricks.com/oidc/jwks.json') {
+      return Promise.resolve(json({ keys: [publicJwk] }));
+    }
     if (url.endsWith('/oidc/v1/userinfo')) {
       expect((init?.headers as Record<string, string>).authorization).toBe(`Bearer ${ROTATED_ACCESS_TOKEN}`);
       return Promise.resolve(json({ sub: options.refreshSubject ?? SUBJECT, email: options.refreshEmail ?? EMAIL }));
@@ -159,6 +166,15 @@ function standardFetch(
           json({
             access_token: ROTATED_ACCESS_TOKEN,
             refresh_token: ROTATED_REFRESH_TOKEN,
+            ...(options.databricksDiscovery
+              ? {
+                  id_token: jwt({
+                    nonce: undefined,
+                    sub: options.refreshSubject ?? SUBJECT,
+                    email: options.refreshEmail ?? EMAIL,
+                  }),
+                }
+              : {}),
             token_type: 'Bearer',
             expires_in: 3600,
           })
@@ -245,6 +261,7 @@ describe('DatabricksOAuthTokenBroker', () => {
     ['missing email', { email: '' }],
     ['expired token', { exp: Math.floor(NOW.getTime() / 1000) - 1 }],
     ['wrong issuer host', { iss: 'https://evil.example/oidc' }],
+    ['a preferred username that is not an email', { email: undefined, preferred_username: 'not-an-email' }],
   ])('fails closed for a signed ID token with %s', async (_label, claims) => {
     const secrets = secretManager();
     const broker = new DatabricksOAuthTokenBroker({
@@ -258,6 +275,26 @@ describe('DatabricksOAuthTokenBroker', () => {
       reason: 'subject_unverified',
     });
     expect(secrets.putSecret).not.toHaveBeenCalled();
+  });
+
+  it('accepts an ID token without a nonce, as Databricks issues them', async () => {
+    const broker = new DatabricksOAuthTokenBroker({
+      secretManager: secretManager().manager,
+      fetchImpl: standardFetch({ idToken: jwt({ nonce: undefined }) }),
+      now: () => NOW,
+      randomId: () => 'credential-nn',
+    });
+    await expect(broker.exchangeAndStore(exchangeInput())).resolves.toMatchObject({ ok: true });
+  });
+
+  it('takes the email from preferred_username, as Databricks ID tokens carry it', async () => {
+    const broker = new DatabricksOAuthTokenBroker({
+      secretManager: secretManager().manager,
+      fetchImpl: standardFetch({ idToken: jwt({ email: undefined, preferred_username: EMAIL }) }),
+      now: () => NOW,
+      randomId: () => 'credential-pu',
+    });
+    await expect(broker.exchangeAndStore(exchangeInput())).resolves.toMatchObject({ ok: true });
   });
 
   it('rejects an invalid RS256 signature and cross-host discovery endpoints', async () => {
@@ -391,6 +428,34 @@ describe('DatabricksOAuthTokenBroker', () => {
     });
     expect(JSON.stringify(result)).not.toMatch(new RegExp(`${ROTATED_ACCESS_TOKEN}|${REFRESH_TOKEN}`));
   });
+
+  it.each([
+    ['the same person', SUBJECT, true],
+    ['a different person', 'different-subject', false],
+  ])(
+    'links and refreshes against Databricks discovery (regional keys, no userinfo) for %s',
+    async (_label, refreshSubject, refreshed) => {
+      const secrets = secretManager();
+      let clock = NOW;
+      const broker = new DatabricksOAuthTokenBroker({
+        secretManager: secrets.manager,
+        fetchImpl: standardFetch({ tokenExpiresIn: 60, databricksDiscovery: true, refreshSubject }),
+        now: () => clock,
+        randomId: () => 'credential-db',
+      });
+      const exchange = await broker.exchangeAndStore(exchangeInput());
+      expect(exchange.ok).toBe(true);
+      if (!exchange.ok) return;
+      clock = new Date('2026-10-01T10:02:00.000Z');
+      const result = await broker.broker({
+        tokenReference: exchange.metadata.tokenReference,
+        workspace: WORKSPACE,
+        audience: AUDIENCE,
+      });
+      expect(result.ok).toBe(refreshed);
+      if (result.ok) expect(result.credential.accessToken()).toBe(ROTATED_ACCESS_TOKEN);
+    }
+  );
 
   it('rejects mismatched references, workspace, and audience before returning a credential', async () => {
     const secrets = secretManager();

@@ -2,10 +2,11 @@ import { createApp, lakebase, server } from '@databricks/appkit';
 import { lakebasePoolSettings } from './lib/lakebase-pool';
 import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
 import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/release-environment';
-import { hydrateSlackSecrets, readSecretWithAppIdentity } from './slack/connection-settings';
+import { applySavedSlackConnection, hydrateSlackSecrets, readSecretWithAppIdentity } from './slack/connection-settings';
 import { requestLatencyShutdown } from './lib/request-latency-shutdown';
 import { registerStaticDelivery } from './lib/static-delivery';
 import { readMlflowTokenEvidence } from './lib/mlflow-token-evidence';
+import { slackAnswerLink } from './slack/answer-link';
 import { slackRuntimeLifecycle } from './slack/runtime-lifecycle';
 
 // Static ESM imports have completed before this guard runs, so the production
@@ -46,6 +47,12 @@ createApp({
         `[release-config] Deploy from Git restored ${restoredReleaseValues} target runtime values ` +
           'from the app-owned store.'
       );
+    }
+    // A bundle release's app.yaml carries no Slack values unless its target set
+    // them; an admin may have saved them in Settings instead.
+    const savedSlackValues = await applySavedSlackConnection(appkit.lakebase, process.env);
+    if (savedSlackValues > 0) {
+      console.warn(`[slack] Applied ${savedSlackValues} Slack connection values saved in Settings.`);
     }
     // Slack secrets are read from the customer's secret scope when no app
     // resource bound them, so a Git deploy keeps working without app.yaml edits.
@@ -253,11 +260,7 @@ createApp({
           client,
           governedRuns,
           logSlackOperationalAudit,
-          (runId) => {
-            const base = process.env.DATABRICKS_APP_URL?.trim();
-            if (!base) throw new Error('Authenticated ADAPT app URL is unavailable.');
-            return new URL(`/api/runs/${encodeURIComponent(runId)}/trace`, base).toString();
-          }
+          (run) => slackAnswerLink(process.env.DATABRICKS_APP_URL, run.conversationId)
         );
         return createDefaultSlackEventProcessor({
           store: appkit.lakebase,

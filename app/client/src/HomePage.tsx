@@ -189,7 +189,6 @@ import type {
   PlanResponse,
 } from './app-types';
 import { QuestionAttributionBubble } from './QuestionAttributionBubble';
-import { ConversationExportMenu } from './ExportMenu';
 import { OrganizationUserBadge } from './OrganizationUserBadge';
 import { organizationForEmail, organizationOptionsForEmails } from '../../shared/organization-mapping';
 import { FeedbackWriteQueue } from './feedback-write-queue';
@@ -2461,15 +2460,6 @@ export function HomePage() {
               </div>
             </div>
           )}
-
-          {!conversationLoading && messages.length > 0 ? (
-            <div className="conversation-export-toolbar">
-              <ConversationExportMenu
-                conversationId={conversationId}
-                title={conversations.find((conversation) => conversation.id === conversationId)?.title ?? ''}
-              />
-            </div>
-          ) : null}
 
           {!conversationLoading && (olderMessages.hasMore || olderMessagesLoading || olderMessagesError) ? (
             <div className="message-pagination" aria-live="polite">

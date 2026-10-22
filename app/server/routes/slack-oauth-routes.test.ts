@@ -46,6 +46,37 @@ describe('Slack OAuth route contract', () => {
     expect(callbackSchema).not.toContain('nonce:');
   });
 
+  it('accepts the issuer Databricks adds to the callback and refuses a foreign one', async () => {
+    const app = express();
+    setupSlackOAuthRoutes({ server: { extend: (register) => register(app) } } as InsightsAppKit, {
+      readConfig: () =>
+        ({
+          ready: true,
+          config: {
+            databricksWorkspaceHost: 'https://example-workspace.cloud.databricks.com',
+            publicBaseUrl: 'https://adapt.example.test',
+          },
+        }) as never,
+    });
+    const server = app.listen(0, '127.0.0.1');
+    open.push(server);
+    await new Promise((resolve) => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const state = 's'.repeat(40);
+    const call = async (iss: string) =>
+      (await (
+        await fetch(`${base}/api/slack/oauth/callback?code=abc&state=${state}&iss=${encodeURIComponent(iss)}`, {
+          redirect: 'manual',
+        })
+      ).json()) as { error: string; detail: string };
+
+    const ours = await call('https://example-workspace.cloud.databricks.com/oidc');
+    expect(ours.detail).not.toBe('The OAuth callback was incomplete.');
+    expect(ours.detail).not.toBe('The OAuth callback came from another issuer.');
+    const foreign = await call('https://other.cloud.databricks.com/oidc');
+    expect(foreign.detail).toBe('The OAuth callback came from another issuer.');
+  });
+
   it('scopes uninstall from server configuration rather than a request identifier', () => {
     expect(source).toContain('readSlackInstallationScope');
     expect(source).toContain('linkWriter.uninstall(installationScope)');

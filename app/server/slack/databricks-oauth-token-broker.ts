@@ -25,7 +25,7 @@ interface OidcDiscovery {
   issuer: string;
   tokenEndpoint: string;
   jwksUri: string;
-  userinfoEndpoint: string;
+  userinfoEndpoint: string | null;
 }
 
 interface VerifiedIdentity {
@@ -107,6 +107,22 @@ function trustedEndpoint(value: string, workspace: string): string {
   return url.toString();
 }
 
+/**
+ * Databricks publishes a workspace's signing keys on a shared regional control
+ * plane host (for example `ohio.cloud.databricks.com`), not on the workspace
+ * itself. Keys may come from the workspace or from a Databricks cloud domain.
+ */
+const DATABRICKS_KEY_DOMAINS = ['.cloud.databricks.com', '.gcp.databricks.com', '.azuredatabricks.net'];
+
+function trustedKeyEndpoint(value: string, workspace: string): string {
+  const url = new URL(value);
+  const databricksHost = DATABRICKS_KEY_DOMAINS.some((domain) => url.hostname.endsWith(domain));
+  if (url.protocol !== 'https:' || url.username || url.password || (url.origin !== workspace && !databricksHost)) {
+    throw new SafeBrokerFailure('subject_unverified', 'subject_unverified');
+  }
+  return url.toString();
+}
+
 async function responseJson(response: Response): Promise<JsonObject> {
   if (!response.ok) throw new SafeBrokerFailure('exchange_refused', 'token_expired');
   const parsed = object(await response.json());
@@ -176,15 +192,15 @@ async function discover(fetchImpl: typeof fetch, workspaceInput: string): Promis
   const tokenEndpointValue = nonempty(payload.token_endpoint);
   const jwksUriValue = nonempty(payload.jwks_uri);
   const userinfoEndpointValue = nonempty(payload.userinfo_endpoint);
-  if (!issuerValue || !tokenEndpointValue || !jwksUriValue || !userinfoEndpointValue) {
+  if (!issuerValue || !tokenEndpointValue || !jwksUriValue) {
     throw new SafeBrokerFailure('subject_unverified', 'subject_unverified');
   }
   const issuer = trustedEndpoint(issuerValue, workspace);
   return {
     issuer,
     tokenEndpoint: trustedEndpoint(tokenEndpointValue, workspace),
-    jwksUri: trustedEndpoint(jwksUriValue, workspace),
-    userinfoEndpoint: trustedEndpoint(userinfoEndpointValue, workspace),
+    jwksUri: trustedKeyEndpoint(jwksUriValue, workspace),
+    userinfoEndpoint: userinfoEndpointValue ? trustedEndpoint(userinfoEndpointValue, workspace) : null,
   };
 }
 
@@ -193,7 +209,7 @@ async function verifyIdToken(
   idToken: string,
   discovery: OidcDiscovery,
   expectedClientId: string,
-  expectedNonce: string,
+  expectedNonce: string | null,
   now: Date
 ): Promise<VerifiedIdentity> {
   const parts = idToken.split('.');
@@ -237,22 +253,31 @@ async function verifyIdToken(
 
   const issuer = nonempty(claims.iss);
   const subject = nonempty(claims.sub);
-  const email = nonempty(claims.email)?.toLowerCase() ?? null;
+  // Databricks ID tokens carry the user's email as `preferred_username` and
+  // publish no `email` claim.
+  const email = (nonempty(claims.email) ?? nonempty(claims.preferred_username))?.toLowerCase() ?? null;
   const expiresAt = numericClaim(claims.exp);
   const notBefore = numericClaim(claims.nbf);
   const nowSeconds = Math.floor(now.getTime() / 1000);
-  if (
-    issuer !== discovery.issuer ||
-    !audienceContains(claims.aud, expectedClientId) ||
-    (claims.azp !== undefined && claims.azp !== expectedClientId) ||
-    claims.nonce !== expectedNonce ||
-    !subject ||
-    !email ||
-    !email.includes('@') ||
-    expiresAt === null ||
-    expiresAt <= nowSeconds ||
-    (notBefore !== null && notBefore > nowSeconds + 60)
-  ) {
+  const failed = [
+    issuer !== discovery.issuer && 'iss',
+    !audienceContains(claims.aud, expectedClientId) && 'aud',
+    claims.azp !== undefined && claims.azp !== expectedClientId && 'azp',
+    // Databricks omits `nonce` from ID tokens. The one-time state and PKCE
+    // verifier already bind the code to this intent; a nonce that is present
+    // must still match.
+    expectedNonce !== null && claims.nonce !== undefined && claims.nonce !== expectedNonce && 'nonce',
+    !subject && 'sub',
+    (!email || !email.includes('@')) && 'email',
+    (expiresAt === null || expiresAt <= nowSeconds) && 'exp',
+    notBefore !== null && notBefore > nowSeconds + 60 && 'nbf',
+  ].filter((check): check is string => typeof check === 'string');
+  if (failed.length > 0 || !issuer || !subject || !email) {
+    // Claim names only; never values.
+    console.warn(
+      `[slack-oauth] ID token refused on ${failed.join(', ') || 'missing claims'}; ` +
+        `claims present: ${Object.keys(claims).sort().join(', ')}`
+    );
     throw new SafeBrokerFailure('subject_unverified', 'subject_unverified');
   }
   return { issuer, subject, email };
@@ -589,11 +614,21 @@ export class DatabricksOAuthTokenBroker implements SlackOAuthTokenBroker, Databr
     if (tokens.expiresAt === null || !tokens.refreshToken) {
       throw new SafeBrokerFailure('exchange_refused', 'token_expired');
     }
-    await verifyUserinfo(this.#fetch, configuration.userinfoEndpoint, tokens.accessToken, {
-      issuer: manifest.issuer,
-      subjectFingerprint: manifest.subjectFingerprint,
-      email,
-    });
+    const expected = { issuer: manifest.issuer, subjectFingerprint: manifest.subjectFingerprint, email };
+    if (configuration.userinfoEndpoint) {
+      await verifyUserinfo(this.#fetch, configuration.userinfoEndpoint, tokens.accessToken, expected);
+    } else {
+      // Databricks has no userinfo endpoint; a refresh under the openid scope
+      // returns a fresh ID token, which carries no nonce.
+      if (!tokens.idToken) throw new SafeBrokerFailure('subject_unverified', 'subject_unverified');
+      const identity = await verifyIdToken(this.#fetch, tokens.idToken, configuration, manifest.clientId, null, now);
+      if (
+        fingerprint('databricks-oidc-subject-v1', expected.issuer, identity.subject) !== expected.subjectFingerprint ||
+        identity.email !== email.toLowerCase()
+      ) {
+        throw new SafeBrokerFailure('subject_unverified', 'subject_unverified');
+      }
+    }
 
     const updated = { ...manifest, expiresAt: tokens.expiresAt };
     await this.#secretManager.putSecret(

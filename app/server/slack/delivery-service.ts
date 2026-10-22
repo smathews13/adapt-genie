@@ -43,7 +43,7 @@ export class SlackDeliveryService {
     private readonly client: SlackMessageClient,
     private readonly runs: Pick<GovernedRunService, 'get'>,
     private readonly audit: SlackOperationalAudit,
-    private readonly runUrl: (runId: string) => string,
+    private readonly runUrl: (run: Pick<RunEnvelope, 'runId' | 'conversationId'>) => string,
     private readonly options: SlackDeliveryServiceOptions = {}
   ) {
     this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
@@ -96,7 +96,7 @@ export class SlackDeliveryService {
 
     if (delivery.deliveryState === 'pending') {
       try {
-        await this.post(renderSlackRunMessage({ ...envelope, state: 'running' }, this.runUrl(runId)), input.event);
+        await this.post(renderSlackRunMessage({ ...envelope, state: 'running' }, this.runUrl(envelope)), input.event);
       } catch (error) {
         const transport =
           error instanceof SlackMessageTransportError
@@ -144,7 +144,7 @@ export class SlackDeliveryService {
   }): Promise<SlackDelivery> {
     try {
       const messageId = await this.post(
-        renderSlackRunMessage(input.envelope, this.runUrl(input.envelope.runId)),
+        renderSlackRunMessage(input.envelope, this.runUrl(input.envelope)),
         input.event
       );
       const updated = await recordSlackDeliveryAttempt(this.store, {

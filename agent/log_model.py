@@ -11,6 +11,7 @@ from databricks.sdk import WorkspaceClient
 from databricks_mcp import DatabricksMCPClient
 from mlflow.models.auth_policy import AuthPolicy, SystemAuthPolicy, UserAuthPolicy
 from mlflow.models.resources import (
+    DatabricksFunction,
     DatabricksServingEndpoint,
     DatabricksSQLWarehouse,
     DatabricksTable,
@@ -221,6 +222,14 @@ resources = [
     DatabricksSQLWarehouse(warehouse_id=settings.warehouse_id),
     *(DatabricksTable(table_name=table) for table in manifest),
 ]
+# OPT-IN, off by default. On a workspace where the endpoint's generated
+# passthrough principal is refused `USE CATALOG` on the `system` catalog (seen on
+# an FEVM sandbox; the orchestrator's model call fails with PERMISSION_DENIED),
+# also declare the Foundation Model as a Unity Catalog function resource so that
+# principal is granted it. Set ADAPT_EXPERIMENT_SYSTEM_AI_FUNCTION=1 when logging.
+# Verified on that sandbox; other workspaces do not need it and are unchanged.
+if os.environ.get("ADAPT_EXPERIMENT_SYSTEM_AI_FUNCTION") == "1":
+    resources.append(DatabricksFunction(function_name=f"system.ai.{settings.llm_endpoint}"))
 
 # MLflow refuses `resources` and `auth_policy` together, so under user
 # authorization the declared list MOVES into the system half of an AuthPolicy

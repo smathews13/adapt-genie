@@ -518,6 +518,8 @@ describe('Settings modal', () => {
     const settingsRoute = app.slice(app.indexOf("path: '/settings'"), app.indexOf("path: '/connections'"));
     expect(settingsRoute).not.toContain('<AdminRoute>');
     expect(settingsRoute).toContain('<HomePage />');
+    // Without readiness the startup loader never lifts on a pasted or redirected /settings link.
+    expect(settingsRoute).toContain('<ReadyRoute>');
     expect(settingsRoute).not.toContain('<SettingsPage');
     expect(layout).not.toContain('<AdminOnly role={role}>');
   });

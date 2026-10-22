@@ -1,13 +1,36 @@
 import { useId, useState } from 'react';
-import { Check, Download, Ellipsis, LoaderCircle } from 'lucide-react';
+import {
+  Braces,
+  Check,
+  Code2,
+  Copy,
+  Download,
+  Ellipsis,
+  FileDown,
+  FileImage,
+  FileText,
+  LoaderCircle,
+  Presentation,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button, Popover, PopoverContent, PopoverTrigger } from './ui';
+import { exportCompleteMessage } from './export-labels';
 
 export interface ExportAction {
   label: string;
   run: () => Promise<void> | void;
 }
 
-const loadExportActions = () => import('./export-actions');
+const ACTION_ICONS: Record<string, LucideIcon> = {
+  'Copy Markdown': Copy,
+  'Copy TSV': Copy,
+  'Download Markdown': FileDown,
+  'Download HTML': Code2,
+  'Download HTML for slides': Presentation,
+  'Download JSON': Braces,
+  'Download PDF': FileText,
+  'Download PNG': FileImage,
+};
 
 export function ExportMenu({
   label,
@@ -21,7 +44,6 @@ export function ExportMenu({
   const menuId = useId();
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
-  const [completed, setCompleted] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
 
   const invoke = async (action: ExportAction) => {
@@ -29,11 +51,9 @@ export function ExportMenu({
     setNotice(null);
     try {
       await action.run();
-      setCompleted(action.label);
-      setNotice({ tone: 'success', message: 'Export complete' });
+      setNotice({ tone: 'success', message: exportCompleteMessage(action.label) });
       setOpen(false);
     } catch (error) {
-      setCompleted(null);
       setNotice({ tone: 'error', message: error instanceof Error ? error.message : `${action.label} failed` });
     } finally {
       setRunning(null);
@@ -69,59 +89,28 @@ export function ExportMenu({
           </Button>
         </PopoverTrigger>
         <PopoverContent id={menuId} className="export-menu-content ast-surface-menu" align="end" role="menu">
-          {actions.map((action) => (
-            <button
-              type="button"
-              role="menuitem"
-              className="export-menu-item"
-              key={action.label}
-              disabled={running !== null}
-              onClick={() => void invoke(action)}
-            >
-              {running === action.label ? (
-                <LoaderCircle className="animate-spin" aria-hidden="true" />
-              ) : completed === action.label ? (
-                <Check aria-hidden="true" />
-              ) : null}
-              {action.label}
-            </button>
-          ))}
+          {actions.map((action) => {
+            const ActionIcon = ACTION_ICONS[action.label] ?? Download;
+            return (
+              <button
+                type="button"
+                role="menuitem"
+                className="export-menu-item"
+                key={action.label}
+                disabled={running !== null}
+                onClick={() => void invoke(action)}
+              >
+                {running === action.label ? (
+                  <LoaderCircle className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <ActionIcon aria-hidden="true" />
+                )}
+                {action.label}
+              </button>
+            );
+          })}
         </PopoverContent>
       </Popover>
     </div>
-  );
-}
-
-export function ConversationExportMenu({ conversationId, title }: { conversationId: string; title: string }) {
-  return (
-    <ExportMenu
-      label="Export whole conversation"
-      actions={[
-        {
-          label: 'Copy Markdown',
-          run: async () => (await loadExportActions()).copyConversationExport(conversationId, title),
-        },
-        {
-          label: 'Download Markdown',
-          run: async () => (await loadExportActions()).downloadConversationMarkdown(conversationId, title),
-        },
-        {
-          label: 'Download HTML',
-          run: async () => (await loadExportActions()).downloadConversationHtml(conversationId, title, 'page'),
-        },
-        {
-          label: 'Download HTML for slides',
-          run: async () => (await loadExportActions()).downloadConversationHtml(conversationId, title, 'presentation'),
-        },
-        {
-          label: 'Download JSON',
-          run: async () => (await loadExportActions()).downloadConversationJson(conversationId, title),
-        },
-        {
-          label: 'Download PDF',
-          run: async () => (await loadExportActions()).downloadConversationPdf(conversationId, title),
-        },
-      ]}
-    />
   );
 }

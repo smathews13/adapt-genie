@@ -92,7 +92,7 @@ describe('Slack delivery service', () => {
       { postMessage },
       { get },
       vi.fn(),
-      (runId) => `https://adapt.example/runs/${runId}`,
+      (run) => `https://adapt.example/runs/${run.runId}`,
       { sleep, maxAttempts: 2, egressPolicy: () => Promise.resolve(true) }
     );
     await service.deliverRun({ delivery, event, owner: 'reader@example.com', initial: complete });

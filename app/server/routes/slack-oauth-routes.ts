@@ -13,6 +13,8 @@ const StartQuery = z.strictObject({ state: z.string().trim().min(32).max(512) })
 const CallbackQuery = z.strictObject({
   state: z.string().trim().min(32).max(512),
   code: z.string().trim().min(1).max(4096),
+  // RFC 9207 issuer identifier. Databricks sends it on every authorization response.
+  iss: z.string().trim().max(2048).optional(),
 });
 const EmptyBody = z.strictObject({});
 
@@ -68,7 +70,24 @@ export function setupSlackOAuthRoutes(
       }
       const configured = (dependencies.readConfig ?? readSlackRuntimeConfig)();
       if (!configured.ready) return blocked(res, 'config_invalid');
-      const result = await completeSlackOAuth(parsed.data, configured.config, dependencies);
+      const { iss, ...callback } = parsed.data;
+      if (iss !== undefined && iss !== new URL('/oidc', configured.config.databricksWorkspaceHost).toString()) {
+        res.status(400).json({ error: 'link_out_unavailable', detail: 'The OAuth callback came from another issuer.' });
+        return;
+      }
+      const started = Date.now();
+      let result: Awaited<ReturnType<typeof completeSlackOAuth>>;
+      try {
+        result = await completeSlackOAuth(callback, configured.config, dependencies);
+      } catch (error) {
+        console.warn(
+          `[slack-oauth] callback threw ${error instanceof Error ? error.name : typeof error} after ${Date.now() - started} ms`
+        );
+        return blocked(res, 'broker_unavailable');
+      }
+      console.warn(
+        `[slack-oauth] callback ${result.ok ? 'linked' : `refused: ${result.reason}`} after ${Date.now() - started} ms`
+      );
       if (!result.ok) return blocked(res, result.reason);
       res.redirect(303, new URL('/settings?slack=linked', configured.config.publicBaseUrl).toString());
     });

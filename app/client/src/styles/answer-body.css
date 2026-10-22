@@ -548,6 +548,7 @@
   color: var(--ast-pos-text);
 }
 
+.feedback > button.feedback-rating--down:hover:not(:disabled),
 .feedback > button.feedback-rating--down.feedback-chosen {
   border-color: var(--ast-neg-border);
   background: var(--ast-neg-fill);

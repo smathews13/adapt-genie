@@ -113,7 +113,7 @@ export function SlackConnectionPanel() {
   const parsed = SlackConnectionSchema.safeParse(draft);
   const errors = fieldErrors(draft);
   const shown = (key: FieldKey) => (attempted || touched[key] ? errors[key] : undefined);
-  const locked = busy !== '' || loaded?.managedByRelease === true;
+  const locked = busy !== '';
 
   const save = async () => {
     setAttempted(true);
@@ -203,7 +203,6 @@ export function SlackConnectionPanel() {
           </span>
         ) : null}
       </div>
-      {loaded?.managedByRelease ? <p className="admin-list-note">Set by the release. Read only.</p> : null}
       <Field
         label="Slack Team ID"
         value={draft.allowedTeamId}

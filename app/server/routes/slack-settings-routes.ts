@@ -7,7 +7,6 @@ import {
 } from '../../shared/slack-connection';
 import { SlackOperationalSettingsPatchSchema } from '../../shared/slack-settings';
 import { recordAdminAction } from '../lib/admin-roles';
-import { decisionSource } from '../lib/deployment-decisions';
 import {
   readStoredSlackSnapshot,
   slackConnectionDraftFromEnv,
@@ -47,7 +46,6 @@ async function connectionResponse(appkit: InsightsAppKit): Promise<SlackConnecti
   return {
     connection: Object.keys(effective).length > 0 ? effective : null,
     complete: slackConnectionFromEnv(process.env) !== null || storedConnection !== null,
-    managedByRelease: decisionSource(process.env) === 'release',
     suggested: {
       publicBaseUrl,
       databricksWorkspaceHost: host,
@@ -72,13 +70,6 @@ export function setupSlackSettingsRoutes(appkit: InsightsAppKit): void {
     });
 
     app.put('/api/admin/slack/connection', async (req, res) => {
-      if (decisionSource(process.env) === 'release') {
-        res.status(409).json({
-          error: 'slack_connection_managed_by_release',
-          detail: 'This deployment takes its Slack values from its bundle release, so they are not editable here.',
-        });
-        return;
-      }
       const parsed = SlackConnectionSchema.safeParse(req.body);
       if (!parsed.success) {
         res.status(400).json({

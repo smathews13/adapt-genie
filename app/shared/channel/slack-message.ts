@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { RunEnvelope } from './run-contracts';
+import { markdownToMrkdwn, splitMrkdwn } from './slack-mrkdwn';
 
 export const SLACK_MAX_BLOCKS = 50;
 export const SLACK_MAX_SECTION_TEXT = 3000;
@@ -123,22 +124,30 @@ export function renderSlackRunMessage(envelope: RunEnvelope, authenticatedRunUrl
     if (answer.figures.length > 4) {
       return safeSummary(envelope, authenticatedRunUrl, 'The answer contains more than four figures.');
     }
-    blocks.push(section(`*Takeaway*\n${escapeMrkdwn(answer.takeaway)}`));
-    if (answer.narrative.trim()) blocks.push(section(escapeMrkdwn(answer.narrative)));
+    blocks.push(section(`*Takeaway*\n${markdownToMrkdwn(answer.takeaway)}`));
+    if (answer.narrative.trim()) {
+      for (const chunk of splitMrkdwn(markdownToMrkdwn(answer.narrative), SLACK_MAX_SECTION_TEXT)) {
+        blocks.push(section(chunk));
+      }
+    }
     if (answer.figures.length) {
       blocks.push(
         section(
           `*Key figures*\n${answer.figures
             .map(
               (figure) =>
-                `• *${escapeMrkdwn(figure.label)}:* ${escapeMrkdwn(figure.display)} (${escapeMrkdwn(figure.comparison)})`
+                `• *${plain(escapeMrkdwn(figure.label))}:* ${markdownToMrkdwn(figure.display)} (${markdownToMrkdwn(figure.comparison)})`
             )
             .join('\n')}`
         )
       );
     }
     if (answer.caveats.length) {
-      blocks.push(section(`*Caveats*\n${answer.caveats.map((item) => `• ${escapeMrkdwn(item)}`).join('\n')}`));
+      blocks.push(
+        section(
+          `*Caveats*\n${answer.caveats.map((item) => `• ${markdownToMrkdwn(item).replace(/\n/g, '\n    ')}`).join('\n')}`
+        )
+      );
     }
     if (answer.sources.length) {
       blocks.push(section(`*Sources*\n${answer.sources.map((source) => `• ${escapeMrkdwn(source.name)}`).join('\n')}`));

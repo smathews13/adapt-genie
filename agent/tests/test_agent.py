@@ -472,6 +472,321 @@ def test_numeric_breakouts_require_rows_and_an_executive_figure():
         agent._submitted_synthesis(without_figures, question)
 
 
+@pytest.mark.parametrize(
+    "table",
+    [
+        "| Franchise | Revenue |\n|:--|--:|\n| Alpha | $90 |",
+        "| Franchise | Revenue |\n|-|-|\n| Alpha | $90 |",
+        "Franchise | Revenue\n--- | ---\nAlpha | $90",
+        "| Franchise | Revenue |\n| --- | ---: |\n| Alpha | $90 |",
+    ],
+)
+def test_a_breakout_table_the_renderer_draws_is_accepted(table):
+    """The contract reads a delimiter row the way answer-markdown.ts does.
+
+    It used to want three dashes and both outer pipes, so each of these was
+    refused as "no table" and the model rewrote a complete answer to change
+    punctuation the app would have rendered anyway.
+    """
+
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue at $90.",
+            "narrative": "- **Source:** Sales.",
+            "content": table,
+            "figures": [{"label": "Alpha revenue", "value": 90, "display": "$90"}],
+        },
+        "Show me revenue by franchise.",
+    )
+
+    assert synthesis.content == table
+
+
+def test_a_breakout_table_written_into_the_narrative_moves_to_content():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue at $90.",
+            "narrative": (
+                "- **Source:** Sales.\n\n"
+                "| Franchise | Revenue |\n|---|---:|\n| Alpha | $90 |\n\n"
+                "- **Action:** Hold the discount."
+            ),
+            "figures": [{"label": "Alpha revenue", "value": 90, "display": "$90"}],
+        },
+        "Show me revenue by franchise.",
+    )
+
+    assert synthesis.content == "| Franchise | Revenue |\n|---|---:|\n| Alpha | $90 |"
+    assert synthesis.narrative == "- **Source:** Sales.\n- **Action:** Hold the discount."
+
+
+def test_figure_shapes_a_model_writes_do_not_refuse_the_answer():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue at $1.2M.",
+            "narrative": "- **Source:** Sales.",
+            "figures": [
+                {"label": "Alpha revenue", "value": "$1.2M", "display": "$1.2M"},
+                {"label": "Alpha units", "value": "1200"},
+                {"label": "Beta revenue", "value": None, "display": "n/a"},
+                "not a figure",
+            ],
+        },
+        "How is Alpha selling?",
+    )
+
+    assert [(f.label, f.value, f.display) for f in synthesis.figures] == [
+        ("Alpha revenue", 1_200_000.0, "$1.2M"),
+        ("Alpha units", 1200.0, "1200"),
+    ]
+
+    lone = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue.",
+            "narrative": "- **Source:** Sales.",
+            "figures": {"label": "Alpha revenue", "value": 90, "display": "$90"},
+        },
+        "How is Alpha selling?",
+    )
+    assert [f.display for f in lone.figures] == ["$90"]
+
+
+def test_a_draft_refused_for_its_shape_ships_when_the_rewrite_times_out():
+    """The reported failure: a long breakout answer, refused, then a timeout.
+
+    The model wrote an answer from the run's evidence and was sent back only to
+    add a table. The rewrite hit `APITimeoutError` and the reader got "This
+    question was not answered" in place of an answer that already existed.
+    """
+
+    draft = {
+        "takeaway": "Alpha leads revenue at $8,413.",
+        "narrative": "- **Source:** Sales.\n- **Action:** Hold the Alpha discount.",
+        "figures": [{"label": "Alpha revenue", "value": 8413, "display": "$8,413"}],
+    }
+
+    class TimesOutOnRewrite(ScriptedLlm):
+        def _loop_turn(self, offered):
+            if len(self.loop_calls) >= 3:
+                raise TimeoutError("Request timed out.")
+            return super()._loop_turn(offered)
+
+    llm = TimesOutOnRewrite(
+        [Call("run_sql", {"sql": f"SELECT 8413 AS revenue FROM {ACTIVITY}"})],
+        "Drafted.",
+        synthesis=json.dumps(draft),
+        charts=False,
+    )
+    tools = FakeTools(
+        run_sql=ToolResult(
+            text="revenue\n8413",
+            sql=f"SELECT 8413 AS revenue FROM {ACTIVITY}",
+            sources=[ACTIVITY],
+        )
+    )
+
+    answer = ask(build(llm, tools), question="Break out revenue by franchise.").custom_outputs[
+        "answer"
+    ]
+    caveats = " ".join(answer["caveats"])
+
+    assert len(llm.loop_calls) == 3
+    assert answer["takeaway"] == draft["takeaway"]
+    assert "Hold the Alpha discount" in answer["narrative"]
+    assert "the reasoning endpoint failed" in caveats
+
+
+def test_a_breakout_answer_is_sent_back_for_its_table_once_then_ships():
+    """Measured live: the model resubmitted without `content` nine times.
+
+    Each rewrite took ~18s, so the turn ran out of budget and the reader got
+    "the reasoning endpoint failed (APITimeoutError)" for a question the model
+    had answered on its first submission. One targeted retry, then the draft.
+    """
+
+    draft = {
+        "takeaway": "Alpha leads revenue at $8,413.",
+        "narrative": "- **Source:** Sales.\n- **Action:** Hold the Alpha discount.",
+        "figures": [{"label": "Alpha revenue", "value": 8413, "display": "$8,413"}],
+    }
+    llm = ScriptedLlm(
+        [Call("run_sql", {"sql": f"SELECT 8413 AS revenue FROM {ACTIVITY}"})],
+        "Drafted.",
+        "Drafted again.",
+        "Drafted a third time.",
+        synthesis=json.dumps(draft),
+        charts=False,
+    )
+    tools = FakeTools(
+        run_sql=ToolResult(
+            text="revenue\n8413",
+            sql=f"SELECT 8413 AS revenue FROM {ACTIVITY}",
+            sources=[ACTIVITY],
+        )
+    )
+
+    answer = ask(build(llm, tools), question="Break out revenue by franchise.").custom_outputs[
+        "answer"
+    ]
+
+    assert len(llm.loop_calls) == 3
+    assert answer["takeaway"] == draft["takeaway"]
+    refused = [m["content"] for m in llm.transcript if m.get("role") == "tool"]
+    assert any("`content` field holding a Markdown table" in text for text in refused)
+    assert "summarised in the narrative and figures rather than shown as a table" in " ".join(
+        answer["caveats"]
+    )
+
+
+def _breakout_run(*turns, synthesis: dict):
+    llm = ScriptedLlm(
+        [Call("run_sql", {"sql": f"SELECT 8413 AS revenue FROM {ACTIVITY}"})],
+        *turns,
+        synthesis=json.dumps(synthesis),
+        charts=False,
+    )
+    tools = FakeTools(
+        run_sql=ToolResult(
+            text="revenue\n8413",
+            sql=f"SELECT 8413 AS revenue FROM {ACTIVITY}",
+            sources=[ACTIVITY],
+        )
+    )
+    answer = ask(build(llm, tools), question="Break out revenue by franchise.").custom_outputs[
+        "answer"
+    ]
+    return llm, answer
+
+
+UNSHAPED_DRAFT = {
+    "takeaway": "Alpha leads revenue at $8,413.",
+    "narrative": "- **Source:** Sales.\n- **Action:** Hold the Alpha discount.",
+    "figures": [{"label": "Alpha revenue", "value": 8413, "display": "$8,413"}],
+}
+
+
+def test_two_unshaped_submissions_in_one_turn_still_get_the_retry():
+    submit = Call("submit_answer", UNSHAPED_DRAFT)
+    llm, answer = _breakout_run([submit, submit], "Drafted again.", synthesis=UNSHAPED_DRAFT)
+
+    # The second call in the first batch is refused alongside the first rather
+    # than shipped, so the model is asked once before a draft is accepted.
+    assert len(llm.loop_calls) == 3
+    assert answer["takeaway"] == UNSHAPED_DRAFT["takeaway"]
+
+
+def test_prose_in_reply_to_the_reshape_request_ships_the_draft():
+    class ProseAfterRefusal(ScriptedLlm):
+        def _loop_turn(self, offered):
+            if len(self.loop_calls) == 3:
+                return self._message(content="I've added the table above.")
+            return super()._loop_turn(offered)
+
+    llm = ProseAfterRefusal(
+        [Call("run_sql", {"sql": f"SELECT 8413 AS revenue FROM {ACTIVITY}"})],
+        "Drafted.",
+        synthesis=json.dumps(UNSHAPED_DRAFT),
+        charts=False,
+    )
+    tools = FakeTools(
+        run_sql=ToolResult(
+            text="revenue\n8413",
+            sql=f"SELECT 8413 AS revenue FROM {ACTIVITY}",
+            sources=[ACTIVITY],
+        )
+    )
+    answer = ask(build(llm, tools), question="Break out revenue by franchise.").custom_outputs[
+        "answer"
+    ]
+
+    assert answer["takeaway"] == UNSHAPED_DRAFT["takeaway"]
+    assert "Hold the Alpha discount" in answer["narrative"]
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        "Franchise|Revenue\n---|---\nAlpha|90",
+        "Xbox Series X|S\n-|",
+        "| Franchise | Revenue |\n| Alpha | $90 |",
+    ],
+)
+def test_a_table_the_renderer_does_not_draw_does_not_satisfy_a_breakout(table):
+    with pytest.raises(agent.UnshapedBreakout, match="Markdown table"):
+        agent._submitted_synthesis(
+            {
+                "takeaway": "Alpha leads revenue at $90.",
+                "narrative": "- **Source:** Sales.",
+                "content": table,
+                "figures": [{"label": "Alpha revenue", "value": 90, "display": "$90"}],
+            },
+            "Show me revenue by franchise.",
+        )
+
+
+def test_a_bullet_right_after_a_narrative_table_stays_in_the_narrative():
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue at $90.",
+            "narrative": (
+                "- **Source:** Sales.\n| A | B |\n|---|---|\n| x | 1 |\n- **Action:** a | b"
+            ),
+            "figures": [{"label": "Alpha revenue", "value": 90, "display": "$90"}],
+        },
+        "Show me revenue by franchise.",
+    )
+
+    assert synthesis.content == "| A | B |\n|---|---|\n| x | 1 |"
+    assert "- **Action:** a | b" in synthesis.narrative
+
+
+def test_a_table_written_in_both_fields_is_not_doubled():
+    table = "| Franchise | Revenue |\n|---|---:|\n| Alpha | $90 |"
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha leads revenue at $90.",
+            "narrative": f"- **Source:** Sales.\n\n{table}",
+            "content": table,
+            "figures": [{"label": "Alpha revenue", "value": 90, "display": "$90"}],
+        },
+        "Show me revenue by franchise.",
+    )
+
+    assert synthesis.content == table
+
+
+@pytest.mark.parametrize("value", ["NaN", "inf", "-Infinity"])
+def test_a_figure_with_no_finite_number_is_dropped(value):
+    synthesis = agent._submitted_synthesis(
+        {
+            "takeaway": "Alpha grew.",
+            "narrative": "- **Source:** Sales.",
+            "figures": [{"label": "Growth", "value": value, "display": value}],
+        },
+        "How is Alpha selling?",
+    )
+
+    assert synthesis.figures == []
+
+
+def test_an_answer_cut_off_at_the_output_limit_is_told_to_be_shorter():
+    class CutOffOnce(ScriptedLlm):
+        def _loop_turn(self, offered):
+            if len(self.loop_calls) == 1:
+                reply = self._message(tool_calls=[Call("submit_answer", '{"takeaway": "Alpha le')])
+                reply.choices[0].finish_reason = "length"
+                return reply
+            return super()._loop_turn(offered)
+
+    llm = CutOffOnce("Done.", charts=False)
+
+    ask(build(llm))
+
+    refused = [m["content"] for m in llm.transcript if m.get("role") == "tool"]
+    assert any("cut off at the 1000-token output limit" in text for text in refused)
+    assert any("SHORTER" in text for text in refused)
+
+
 def test_causal_grouped_metric_question_does_not_require_breakout_rows():
     synthesis = agent._submitted_synthesis(
         {

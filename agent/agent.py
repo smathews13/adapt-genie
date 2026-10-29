@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextvars
 import hashlib
 import json
+import math
 import re
 import threading
 import time
@@ -507,33 +508,167 @@ _NO_DATA_ANSWER = re.compile(
     r"returned\s+(?:no|zero|0)\s+(?:matching\s+)?(?:rows|data|records|results))\b",
     re.I,
 )
-_MARKDOWN_TABLE_SEPARATOR = re.compile(r"^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
+#: A table as the client's renderer draws one (`tableOpensAt` in
+#: answer-markdown.ts), ported rule for rule so the two cannot disagree: a row
+#: either wears an outer pipe or separates its cells with spaced inner pipes, a
+#: table continues only while its rows keep that form, and the second row is a
+#: delimiter of one or more dashes with optional colons. The check this replaces
+#: demanded three dashes and both outer pipes, so `|:--|--:|` and `--- | ---` --
+#: tables the app draws -- were refused as "no table" and the model was sent back
+#: to write the whole answer again, which is what ran a long turn out of time.
+_DELIMITER_CELL = re.compile(r":?-+:?")
+_SPACED_PIPE = re.compile(r"\S\s+\|\s+\S")
+
+
+def _row_cells(line: str) -> list[str] | None:
+    """`rowCells`: a row with an outer pipe on at least one end."""
+
+    trimmed = line.strip()
+    if not (trimmed.startswith("|") or trimmed.endswith("|")):
+        return None
+    body = trimmed[1:] if trimmed.startswith("|") else trimmed
+    if body.endswith("|") and len(body) > 1:
+        body = body[:-1]
+    cells = [cell.strip() for cell in body.split("|")]
+    return cells if len(cells) >= 2 else None
+
+
+def _inner_pipe_cells(line: str) -> list[str] | None:
+    """`innerPipeCells`: a row with no outer pipes and spaces around each inner one."""
+
+    trimmed = line.strip()
+    if not trimmed or trimmed.startswith("|") or trimmed.endswith("|"):
+        return None
+    if trimmed[-1] in ".?!" or not _SPACED_PIPE.search(trimmed):
+        return None
+    cells = [cell.strip() for cell in re.split(r"\s+\|\s+", trimmed)]
+    return cells if len(cells) >= 2 else None
+
+
+def _table_end(lines: Sequence[str], start: int) -> int | None:
+    """Where a table opening at `start` ends, or None when none opens there."""
+
+    if _row_cells(lines[start]):
+        end = start + 1
+        while end < len(lines) and _row_cells(lines[end]):
+            end += 1
+    else:
+        opening = _inner_pipe_cells(lines[start])
+        if not opening:
+            return None
+        end = start + 1
+        while end < len(lines):
+            cells = _inner_pipe_cells(lines[end]) or _row_cells(lines[end])
+            if not cells or len(cells) != len(opening):
+                break
+            end += 1
+    if end - start < 2:
+        return None
+    delimiter = _row_cells(lines[start + 1]) or _inner_pipe_cells(lines[start + 1])
+    if not delimiter or not all(_DELIMITER_CELL.fullmatch(cell) for cell in delimiter):
+        return None
+    return end
 
 
 def _has_markdown_table(text: str) -> bool:
-    """Recognize the header/separator pair required by the answer renderer."""
+    """Recognize the header/delimiter pair the answer renderer draws as a table."""
 
     lines = (text or "").splitlines()
-    return any(
-        index > 0
-        and _MARKDOWN_TABLE_SEPARATOR.fullmatch(line)
-        and lines[index - 1].strip().startswith("|")
-        for index, line in enumerate(lines)
-    )
+    return any(_table_end(lines, index) is not None for index in range(len(lines)))
+
+
+def _narrative_without_tables(text: str) -> tuple[str, str]:
+    """Split the tables out of a narrative, which is bullets only.
+
+    A model asked for a breakout sometimes writes the table under its bullets
+    instead of in `content`. Compacted as narrative, every row became one bullet
+    of pipes and the answer was then refused for having no table. Moved, it is
+    the table the contract asked for, in the field that renders it. The table
+    ends where the renderer's would, so a bullet after it stays in the narrative.
+    """
+
+    lines = (text or "").splitlines()
+    kept: list[str] = []
+    tables: list[str] = []
+    index = 0
+    while index < len(lines):
+        end = _table_end(lines, index)
+        if end is not None:
+            tables.append("\n".join(line.strip() for line in lines[index:end]))
+            index = end
+            continue
+        kept.append(lines[index])
+        index += 1
+    return "\n".join(kept), "\n\n".join(tables)
+
+
+def _submitted_figures(figures: Any) -> Any:
+    """Read the figure shapes a model writes as the shape the contract holds.
+
+    The schema asks for a numeric `value` and a `display`, and models answer
+    with `"$1.2M"`, `"1,200,000"`, a missing display or a lone object. One such
+    figure failed validation for the whole answer, so the model rewrote all of
+    it to fix a field the reader never sees. A figure that still has no number
+    (or only NaN or infinity, which is not JSON) is dropped; the rest of
+    the answer does not depend on it.
+    """
+
+    if isinstance(figures, dict):
+        figures = [figures]
+    if not isinstance(figures, list):
+        return figures
+    kept: list[dict[str, Any]] = []
+    for figure in figures:
+        if not isinstance(figure, dict):
+            continue
+        figure = dict(figure)
+        if "value" not in figure and "numeric_value" in figure:
+            figure["value"] = figure.pop("numeric_value")
+        display = figure.get("display")
+        value = _number(figure.get("value"))
+        if value is None and isinstance(display, str):
+            value = _number(display)
+        if value is None or not math.isfinite(value) or not str(figure.get("label") or "").strip():
+            continue
+        if not isinstance(display, str) or not display.strip():
+            raw = figure.get("value")
+            figure["display"] = raw.strip() if isinstance(raw, str) else f"{value:,.12g}"
+        figure["value"] = value
+        kept.append(figure)
+    return kept
+
+
+class UnshapedBreakout(ValueError):
+    """A sound answer refused only because a breakout lacks its table or figure.
+
+    Carries the answer, so a run that cannot get it reshaped -- the rewrite
+    times out, comes back as prose, or comes back unshaped again -- still gives
+    the reader what was written instead of "not answered". See `_orchestrate`.
+    """
+
+    def __init__(self, message: str, synthesis: Synthesis, caveat: str):
+        super().__init__(message)
+        self.synthesis = synthesis
+        #: What the reader is told is missing when this draft ships as it is.
+        self.caveat = caveat
+
+    def shipped(self) -> Synthesis:
+        return self.synthesis.model_copy(update={"caveats": [*self.synthesis.caveats, self.caveat]})
 
 
 def _submitted_synthesis(payload: dict[str, Any], question: str) -> Synthesis:
     """Validate the terminal answer tool more strictly than its JSON envelope."""
 
     payload = dict(payload)
-    payload["narrative"] = _compact_answer_narrative(str(payload.get("narrative") or ""))
+    narrative, tables = _narrative_without_tables(str(payload.get("narrative") or ""))
+    content = str(payload.get("content") or "").strip()
+    if tables and _answer_fingerprint(tables) not in _answer_fingerprint(content):
+        # Not when content already holds it: models often write the table twice.
+        payload["content"] = f"{content}\n\n{tables}" if content else tables
+    payload["narrative"] = _compact_answer_narrative(narrative)
     if not payload["narrative"] and str(payload.get("takeaway") or "").strip():
         payload["narrative"] = f"- **Summary:** {str(payload['takeaway']).strip()}"
-    figures = payload.get("figures")
-    if isinstance(figures, list):
-        for figure in figures:
-            if isinstance(figure, dict) and "value" not in figure and "numeric_value" in figure:
-                figure["value"] = figure.pop("numeric_value")
+    payload["figures"] = _submitted_figures(payload.get("figures"))
     synthesis = Synthesis.model_validate(payload)
     if not synthesis.takeaway.strip():
         raise ValueError("submit_answer needs a concrete takeaway")
@@ -547,19 +682,23 @@ def _submitted_synthesis(payload: dict[str, Any], question: str) -> Synthesis:
                 synthesis.content,
             )
         )
+        has_table = _has_markdown_table(synthesis.content)
         no_data_answer = (
-            not synthesis.figures
-            and not _has_markdown_table(synthesis.content)
-            and bool(_NO_DATA_ANSWER.search(answer_text))
+            not synthesis.figures and not has_table and bool(_NO_DATA_ANSWER.search(answer_text))
         )
         numeric_answer = bool(not no_data_answer and _EVIDENCE_NUMBER.search(answer_text))
-        if numeric_answer and not _has_markdown_table(synthesis.content):
-            raise ValueError(
-                "a numeric breakout needs its requested rows in a Markdown table in content"
+        if numeric_answer and not has_table:
+            raise UnshapedBreakout(
+                "a numeric breakout needs its requested rows in a Markdown table in content",
+                synthesis,
+                "The requested breakdown is summarised in the narrative and figures rather "
+                "than shown as a table.",
             )
         if numeric_answer and not synthesis.figures:
-            raise ValueError(
-                "a numeric breakout needs at least one decision-useful headline figure"
+            raise UnshapedBreakout(
+                "a numeric breakout needs at least one decision-useful headline figure",
+                synthesis,
+                "No headline figure was produced for this breakdown.",
             )
     question_key = _answer_fingerprint(question)
     if (
@@ -859,7 +998,7 @@ SUBMIT_ANSWER_TOOL = {
                 "content": {
                     "type": "string",
                     "description": (
-                        "A compact Markdown table. It is required when the user asks for a "
+                        "A compact Markdown table. It is required when the user "
                         "explicitly asks to see, list, or break out grouped rows or a time "
                         "series and returned rows answer that request; preserve the requested "
                         "dimensions and measures. Otherwise "
@@ -2392,7 +2531,9 @@ class LoopOutcome:
     `answer_text` is retained for older models that end with free prose.
     `clarification` is set when it stopped to ask the user something instead.
     `failure` names an orchestrator failure that stopped it, and is carried into
-    the answer's caveats so the gap cannot read as a finding.
+    the answer's caveats so the gap cannot read as a finding. It is the one field
+    that may accompany another: a draft refused only for its breakout shape is
+    returned as `synthesis` beside the failure that stopped its rewrite.
     """
 
     answer_text: str = ""
@@ -3452,6 +3593,10 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
             )
             return LoopOutcome(answer_text=package, complete=True)
         step = 0
+        #: The latest `submit_answer` refused only for its breakout shape, and the
+        #: step it was refused in. See `UnshapedBreakout`.
+        unshaped: UnshapedBreakout | None = None
+        unshaped_step = 0
         while True:
             step += 1
             started = time.perf_counter()
@@ -3536,11 +3681,20 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                         depth=depth,
                         parent_id=parent_id,
                     )
+                    if refusal is None and unshaped is not None:
+                        # The model already wrote an answer from this run's
+                        # evidence and was sent back only to reshape it. Losing
+                        # it to the rewrite timing out left "not answered"; it
+                        # ships instead, under the caveats this failure adds.
+                        return LoopOutcome(
+                            synthesis=unshaped.shipped(), failure=reason, complete=False
+                        )
                     return LoopOutcome(failure=reason)
 
                 message = response.choices[0].message
                 content = getattr(message, "content", None) or ""
                 calls = list(getattr(message, "tool_calls", None) or [])
+                truncated = getattr(response.choices[0], "finish_reason", None) == "length"
                 llm_span.set_outputs({"text": content[:6000], "tool_calls": len(calls)})
                 log.add_usage(record_llm_usage(llm_span, response))
 
@@ -3556,6 +3710,10 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                     depth=depth,
                     parent_id=parent_id,
                 )
+                if unshaped is not None:
+                    # Prose in reply to the reshape request ("I've added the table
+                    # above") salvages to that one sentence; the draft is the answer.
+                    return LoopOutcome(synthesis=unshaped.shipped(), complete=False)
                 return LoopOutcome(
                     synthesis=_salvaged_synthesis(content, content),
                     complete=False,
@@ -3630,10 +3788,22 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                     # parsed dict to show and the malformed text is the diagnosis.
                     entry.arguments_json = str(getattr(call.function, "arguments", "") or "")
                     entry.refused_label = _TOOL_STAGE_NAMES.get(name, f"Called {name}")
-                    entry.refused_before_running = (
-                        f"ERROR: the arguments to {name} were not valid JSON, so nothing "
-                        "ran. Call the tool again with a valid JSON object of arguments."
-                    )
+                    if truncated and name == "submit_answer":
+                        # Cut off, not malformed. Told only "not valid JSON", the
+                        # model wrote the same long answer again, was cut off at
+                        # the same place, and repeated until the turn timed out.
+                        entry.refused_before_running = (
+                            "ERROR: the arguments to submit_answer were cut off at the "
+                            f"{self.settings.max_output_tokens}-token output limit, so they "
+                            "were not valid JSON and nothing ran. Call it again with a "
+                            "SHORTER payload: keep tables to the rows that answer the "
+                            "request and the narrative to its bullets."
+                        )
+                    else:
+                        entry.refused_before_running = (
+                            f"ERROR: the arguments to {name} were not valid JSON, so nothing "
+                            "ran. Call the tool again with a valid JSON object of arguments."
+                        )
                     batch.append(entry)
                     continue
 
@@ -3661,14 +3831,47 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                     try:
                         synthesis = _submitted_synthesis(arguments, question)
                     except (ValueError, ValidationError) as error:
+                        if (
+                            isinstance(error, UnshapedBreakout)
+                            and unshaped is not None
+                            and unshaped_step < step
+                        ):
+                            # Asked once already, in an earlier turn. Measured on the
+                            # reported prompt, the model resubmitted the same shape
+                            # nine times at ~18s each until the turn's budget ran
+                            # out and the reader got a timeout instead of the answer
+                            # it had. The fuller of the two drafts ships, saying what
+                            # it lacks; on a tie, the later one.
+                            best = max((error, unshaped), key=lambda e: len(e.synthesis.figures))
+                            submitting = (entry, best.shipped())
+                            break
                         entry.announce = False
                         entry.refused_label = "Rejected an incomplete answer"
                         entry.refused_status = "partial"
-                        entry.refused_before_running = (
-                            f"ERROR: submit_answer was incomplete: {error}. Use the evidence "
-                            "already returned to provide a concrete takeaway and detailed "
-                            "narrative, then call submit_answer again."
-                        )
+                        if isinstance(error, UnshapedBreakout):
+                            if unshaped is None or len(error.synthesis.figures) >= len(
+                                unshaped.synthesis.figures
+                            ):
+                                unshaped = error
+                            unshaped_step = step
+                            # Said in full, because the generic retry asks for a
+                            # "detailed narrative" -- and the model did exactly
+                            # that, rewriting its bullets and leaving `content`
+                            # empty every time.
+                            entry.refused_before_running = (
+                                f"ERROR: submit_answer was incomplete: {error}. Keep your "
+                                "takeaway and narrative, and call submit_answer again with a "
+                                "`content` field holding a Markdown table of the requested "
+                                "rows from the evidence already returned (one table per "
+                                "requested breakout, header row then a |---| row), and at "
+                                "least one entry in `figures`."
+                            )
+                        else:
+                            entry.refused_before_running = (
+                                f"ERROR: submit_answer was incomplete: {error}. Use the "
+                                "evidence already returned to provide a concrete takeaway and "
+                                "detailed narrative, then call submit_answer again."
+                            )
                         batch.append(entry)
                         continue
                     submitting = (entry, synthesis)

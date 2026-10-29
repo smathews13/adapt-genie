@@ -656,6 +656,16 @@ class UnshapedBreakout(ValueError):
         return self.synthesis.model_copy(update={"caveats": [*self.synthesis.caveats, self.caveat]})
 
 
+def _draft_fullness(draft: UnshapedBreakout) -> tuple[bool, int]:
+    """Rank two unshaped drafts: the one with the requested table first, then figures.
+
+    Ranked by figures alone, a draft with figures but no table beat the later
+    one that had added the table, and the table the model wrote never shipped.
+    """
+
+    return _has_markdown_table(draft.synthesis.content), len(draft.synthesis.figures)
+
+
 def _submitted_synthesis(payload: dict[str, Any], question: str) -> Synthesis:
     """Validate the terminal answer tool more strictly than its JSON envelope."""
 
@@ -3842,15 +3852,15 @@ class PlayerInsightsResponsesAgent(ResponsesAgent):
                             # out and the reader got a timeout instead of the answer
                             # it had. The fuller of the two drafts ships, saying what
                             # it lacks; on a tie, the later one.
-                            best = max((error, unshaped), key=lambda e: len(e.synthesis.figures))
+                            best = max((error, unshaped), key=_draft_fullness)
                             submitting = (entry, best.shipped())
                             break
                         entry.announce = False
                         entry.refused_label = "Rejected an incomplete answer"
                         entry.refused_status = "partial"
                         if isinstance(error, UnshapedBreakout):
-                            if unshaped is None or len(error.synthesis.figures) >= len(
-                                unshaped.synthesis.figures
+                            if unshaped is None or _draft_fullness(error) >= _draft_fullness(
+                                unshaped
                             ):
                                 unshaped = error
                             unshaped_step = step

@@ -665,6 +665,24 @@ UNSHAPED_DRAFT = {
 }
 
 
+def test_the_rewrite_that_added_the_table_ships_over_one_with_more_figures():
+    tabled = {
+        **UNSHAPED_DRAFT,
+        "figures": [],
+        "content": "| Franchise | Revenue |\n| --- | --- |\n| Alpha | $8,413 |",
+    }
+    llm, answer = _breakout_run(
+        [Call("submit_answer", UNSHAPED_DRAFT)],
+        [Call("submit_answer", tabled)],
+        "Drafted again.",
+        synthesis=UNSHAPED_DRAFT,
+    )
+
+    assert len(llm.loop_calls) == 3
+    assert "| Alpha | $8,413 |" in answer["content"]
+    assert "No headline figure was produced" in " ".join(answer["caveats"])
+
+
 def test_two_unshaped_submissions_in_one_turn_still_get_the_retry():
     submit = Call("submit_answer", UNSHAPED_DRAFT)
     llm, answer = _breakout_run([submit, submit], "Drafted again.", synthesis=UNSHAPED_DRAFT)

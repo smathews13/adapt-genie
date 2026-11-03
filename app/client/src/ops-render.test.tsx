@@ -1167,7 +1167,7 @@ describe('the cost block', () => {
     });
     const markup = render(<CostBody block={block(payload)} />);
     expect(markup).toContain('2.00 USD');
-    expect(markup).toContain('Average cost / question Estimated 2.00 USD');
+    expect(markup).toContain('Average cost / question Estimated 7.00 USD Extra cost of one more question: 2.00 USD');
     expect(markup).not.toContain('Marginal serving + foundation tokens + Ask SQL ÷ completed interactive Asks');
     expect(markup).not.toContain('token-apportioned');
     expect(markup).not.toContain('<table');

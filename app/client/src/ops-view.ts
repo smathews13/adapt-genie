@@ -55,6 +55,7 @@ import {
   type TelemetryState,
   type TrafficBar,
 } from '../../shared/ops-contract';
+import { appCostSummary } from '../../shared/app-cost-summary';
 import { PRIMARY_CONNECTION_LABEL, resolvedConnectionState } from './connection-status';
 
 const QUERY_HISTORY_REASON: Record<QueryHistoryCoverage['reasons'][number], string> = {
@@ -447,24 +448,37 @@ export function questionCostCardView(payload: OpsCostPayload, unit: CostBudgetUn
     .map((tile) => usableQuestionComponent(tile, unit))
     .filter((value): value is number => value !== null);
   const completed = payload.perQuestion.runsInRange;
-  const value = completed > 0 && usable.length > 0 ? usable.reduce((sum, amount) => sum + amount, 0) / completed : null;
+  const marginal =
+    completed > 0 && usable.length > 0 ? usable.reduce((sum, amount) => sum + amount, 0) / completed : null;
   const partial =
-    value !== null &&
+    marginal !== null &&
     (usable.length < ids.length || components.some((tile) => Boolean(tile && isPartialFoundation(tile))));
+  const summary = appCostSummary(payload, unit);
+  const appTotal = unit === 'DBU' ? summary.dbus : summary.amount;
+  const loaded = completed > 0 && appTotal !== null ? appTotal / completed : null;
+  const marginalLine =
+    marginal === null ? '' : `Extra cost of one more question: ${costAmount(marginal, payload.currency, unit)}`;
   return {
     id: 'average-cost-question',
     title: 'Average cost / question',
-    amount: value === null ? 'No measured average' : costAmount(value, payload.currency, unit),
-    secondaryMetric: '',
+    amount:
+      loaded !== null
+        ? costAmount(loaded, payload.currency, unit)
+        : marginal !== null
+          ? costAmount(marginal, payload.currency, unit)
+          : 'No measured average',
+    secondaryMetric: loaded !== null ? marginalLine : '',
     status: 'Estimated',
     basis: '',
     evidence: '',
     detail:
-      value === null
-        ? 'No usable numerator and denominator were measured.'
-        : partial
-          ? 'Components without a safe measured amount are excluded from this estimate.'
-          : QUESTION_COST_FORMULA,
+      loaded !== null
+        ? `${QUESTION_FULL_COST_FORMULA}${partial ? ' The extra-cost figure excludes components without a safe measured amount.' : ''}`
+        : marginal === null
+          ? 'No usable numerator and denominator were measured.'
+          : partial
+            ? 'Components without a safe measured amount are excluded from this estimate.'
+            : QUESTION_COST_FORMULA,
     // The amount ("No measured average") already states the absence; no second line.
     reason: '',
     resource: '',
@@ -1014,6 +1028,9 @@ export function costCoverageLinesForTile(tileId: string, coverage: CostCoverage 
  * divided by every completed question in that same complete-day period.
  */
 export const QUESTION_COST_FORMULA = 'Marginal serving + foundation tokens + Ask SQL ÷ completed interactive Asks';
+
+/** The headline per-question figure: everything the app cost, including the always-on standing share. */
+export const QUESTION_FULL_COST_FORMULA = 'Full app cost in range ÷ completed interactive Asks.';
 
 export function questionServingAverage(payload: OpsCostPayload, unit: CostBudgetUnit = 'USD'): number | null {
   const serving = payload.tiles.find((tile) => tile.id === 'serving-endpoint');

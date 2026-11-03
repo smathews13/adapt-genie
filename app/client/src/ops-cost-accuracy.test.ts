@@ -37,6 +37,7 @@ function tile(overrides: Partial<CostTile> & Pick<CostTile, 'id'>): CostTile {
 function payload(tiles: CostTile[]): OpsCostPayload {
   return {
     tiles,
+    range: { from: '2026-08-27', to: '2026-09-02' },
     currency: 'USD',
     throughDay: '2026-09-02',
     perQuestion: {
@@ -114,7 +115,10 @@ describe('Cost component accuracy presentation', () => {
     const sql = tile({ id: 'sql-warehouse', amount: 0.2 });
     const current = payload([serving, foundation, sql]);
     expect(costCardView(serving, current)).toMatchObject({ amount: '64.00 USD', evidence: '' });
-    expect(questionCostCardView(current).amount).toBe('0.20 USD');
+    expect(questionCostCardView(current)).toMatchObject({
+      amount: '16.15 USD',
+      secondaryMetric: 'Extra cost of one more question: 0.20 USD',
+    });
     expect(costCardView(serving, current).evidence).not.toMatch(/interactive requests/);
   });
 
@@ -181,11 +185,23 @@ describe('Cost component accuracy presentation', () => {
     });
     expect(
       genieCostCardViews(
-        payload([tile({ id: unmeasuredDbu.tileId, unavailable: 'No workspace id configured.', genieInstanceAccounting: unmeasuredDbu })]),
+        payload([
+          tile({
+            id: unmeasuredDbu.tileId,
+            unavailable: 'No workspace id configured.',
+            genieInstanceAccounting: unmeasuredDbu,
+          }),
+        ]),
         'DBU'
       )
     ).toEqual([
-      { id: 'genie:data', title: 'Data Genie', note: 'No workspace id configured.', charged: 'Unavailable', free: '0.00 DBU' },
+      {
+        id: 'genie:data',
+        title: 'Data Genie',
+        note: 'No workspace id configured.',
+        charged: 'Unavailable',
+        free: '0.00 DBU',
+      },
     ]);
 
     // USD unit: the paid charge is known but the free-equivalent USD is missing,
@@ -198,10 +214,22 @@ describe('Cost component accuracy presentation', () => {
     });
     expect(
       genieCostCardViews(
-        payload([tile({ id: unmeasuredFree.tileId, unavailable: 'A billing read was refused.', genieInstanceAccounting: unmeasuredFree })])
+        payload([
+          tile({
+            id: unmeasuredFree.tileId,
+            unavailable: 'A billing read was refused.',
+            genieInstanceAccounting: unmeasuredFree,
+          }),
+        ])
       )
     ).toEqual([
-      { id: 'genie:data', title: 'Data Genie', note: 'A billing read was refused.', charged: '$4.51', free: 'Unavailable' },
+      {
+        id: 'genie:data',
+        title: 'Data Genie',
+        note: 'A billing read was refused.',
+        charged: '$4.51',
+        free: 'Unavailable',
+      },
     ]);
   });
 

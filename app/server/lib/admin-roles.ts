@@ -34,6 +34,11 @@ import crypto from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { ADDED_ADMINS_TABLE, ADMIN_AUDIT_TABLE } from './admin-roles-schema';
 import { columnText, normalizeAdminEmail, type AdminStore } from './admin-identity';
+import {
+  ADAPT_SUPER_ADMIN_EMAILS_ENV,
+  adaptSuperAdminEmails,
+  applyLegacyAdaptSuperAdmins,
+} from './adapt-super-admin-floor';
 import { canMutateConnections, highestRole, opensUserRoster, type Role } from '../../shared/user-roster-contract';
 import {
   effectiveRole,
@@ -72,19 +77,7 @@ export type { AdminListEntry, AdminListPayload };
  */
 export const SEED_ADMIN_EMAILS_ENV = 'PLAYER_INSIGHTS_ADMIN_EMAILS';
 
-/**
- * ADAPT's immutable operator floor.
- *
- * Unlike deployment seed values, this remains authoritative after Lakebase has
- * a roster so the named operator cannot be locked out by a stale or incomplete
- * roster. It grants only ADAPT application administration; analytical queries
- * still run with the caller's own Databricks permissions.
- */
-export const ADAPT_SUPER_ADMIN_EMAILS = [
-  'sam.mathews@databricks.com',
-  'emily.huang@take2games.com',
-  'rida.qureshi@take2games.com',
-] as const;
+export { ADAPT_SUPER_ADMIN_EMAILS_ENV, adaptSuperAdminEmails, applyLegacyAdaptSuperAdmins };
 
 /**
  * The marker that makes a seed entry a super admin: `super:someone@example.com`.
@@ -194,12 +187,12 @@ let seedSuperAdmins: string[] = [];
 
 /** What the environment named at boot. Super admins included: they are admins too. */
 export function seedAdminEmails(): readonly string[] {
-  return [...new Set([...ADAPT_SUPER_ADMIN_EMAILS, ...seedAdmins])];
+  return [...new Set([...adaptSuperAdminEmails(), ...seedAdmins])];
 }
 
 /** The super admins the environment named at boot. A subset of {@link seedAdminEmails}. */
 export function seedSuperAdminEmails(): readonly string[] {
-  return [...new Set([...ADAPT_SUPER_ADMIN_EMAILS, ...seedSuperAdmins])];
+  return [...new Set([...adaptSuperAdminEmails(), ...seedSuperAdmins])];
 }
 
 /** Both halves of the seed, as the roster's precedence rule wants them. */

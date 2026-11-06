@@ -1,5 +1,5 @@
 import { appTable } from '../../shared/app-schema';
-import { ownsPreferenceDefaults } from '../../shared/preference-default-owner';
+import { ownsPreferenceDefaults } from './preference-default-owner';
 import { DEFAULT_WATCHLIST_SETTINGS, parseWatchlistSettings, type WatchlistSettings } from '../../shared/watchlist';
 import type { LakebaseReader } from './lakebase-store';
 import {

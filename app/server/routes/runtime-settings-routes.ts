@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Request, Response } from 'express';
 import { RuntimeSettingsPatchSchema } from '../../shared/runtime-settings';
-import { ownsPreferenceDefaults } from '../../shared/preference-default-owner';
+import { ownsPreferenceDefaults } from '../lib/preference-default-owner';
 import { recordAdminAction } from '../lib/admin-roles';
 import {
   deleteUserRuntimeSettings,
@@ -10,10 +10,7 @@ import {
   writeRuntimeSettingsPatch,
   writeUserRuntimeSettingsPatch,
 } from '../lib/runtime-settings-store';
-import {
-  deleteUserWatchlistSettings,
-  deleteWatchlistSettingsDefaults,
-} from '../lib/watchlist-settings-store';
+import { deleteUserWatchlistSettings, deleteWatchlistSettingsDefaults } from '../lib/watchlist-settings-store';
 import { SettingsRevisionConflict } from '../lib/versioned-settings-store';
 import { userEmail, type InsightsAppKit } from './insights-routes';
 
@@ -82,7 +79,9 @@ export function setupRuntimeSettingsRoutes(appkit: InsightsAppKit): void {
         return;
       }
       if (ownsPreferenceDefaults(actor)) {
-        res.status(409).json({ error: 'default_owner_cannot_reset', detail: 'Rida’s settings are the default.' });
+        res
+          .status(409)
+          .json({ error: 'default_owner_cannot_reset', detail: 'This user’s settings are the deployment default.' });
         return;
       }
       try {
@@ -102,14 +101,8 @@ export function setupRuntimeSettingsRoutes(appkit: InsightsAppKit): void {
       }
       try {
         const [runtime, watchlist] = ownsPreferenceDefaults(actor)
-          ? await Promise.all([
-              deleteRuntimeSettingsDefaults(appkit),
-              deleteWatchlistSettingsDefaults(appkit),
-            ])
-          : await Promise.all([
-              deleteUserRuntimeSettings(appkit, actor),
-              deleteUserWatchlistSettings(appkit, actor),
-            ]);
+          ? await Promise.all([deleteRuntimeSettingsDefaults(appkit), deleteWatchlistSettingsDefaults(appkit)])
+          : await Promise.all([deleteUserRuntimeSettings(appkit, actor), deleteUserWatchlistSettings(appkit, actor)]);
         res.json({ runtime, watchlist });
       } catch (error) {
         res.status(503).json({

@@ -25,7 +25,7 @@ vi.hoisted(() => {
 import { setupUserRoutes } from './user-routes';
 import { userEmail, type InsightsAppKit } from './insights-routes';
 import {
-  ADAPT_SUPER_ADMIN_EMAILS,
+  adaptSuperAdminEmails,
   announceSeedAdmins,
   requireAdmin,
   requireSuperAdmin,
@@ -352,7 +352,7 @@ describe('the super admin reads the roster', () => {
     const app = await startApp(fakeLakebase([{ email: ANALYST, role: 'consumer', added_by: LEAD, added_at: '' }]));
     const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
     const expected: Array<[string, string]> = [
-      ...[...ADAPT_SUPER_ADMIN_EMAILS, LEAD].sort().map((email): [string, string] => [email, 'super_admin']),
+      ...[...adaptSuperAdminEmails(), LEAD].sort().map((email): [string, string] => [email, 'super_admin']),
       [DEPUTY, 'admin'],
       [ANALYST, 'consumer'],
     ];
@@ -361,7 +361,7 @@ describe('the super admin reads the roster', () => {
       payload.entries.map((entry) => [entry.email, entry.role]).sort(([left], [right]) => left.localeCompare(right))
     ).toEqual(expected);
     expect(payload.entries.filter((entry) => entry.isDeploymentOwner).map((entry) => entry.email)).toEqual([LEAD]);
-    expect(payload.superAdminCount).toBe(ADAPT_SUPER_ADMIN_EMAILS.length + 1);
+    expect(payload.superAdminCount).toBe(adaptSuperAdminEmails().length + 1);
     expect(payload.groupRoleDefaults).toEqual([
       {
         displayName: 'S_TK2_Databricks_Adapt_Genie_Admins',
@@ -636,7 +636,7 @@ describe('appointing an administrator', () => {
     expect(store.rows.roster[0].role).toBe('super_admin');
     const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
     expect(payload.entries.filter((entry) => entry.role === 'super_admin')).toHaveLength(
-      ADAPT_SUPER_ADMIN_EMAILS.length + 2
+      adaptSuperAdminEmails().length + 2
     );
     expect(payload.entries.filter((entry) => entry.isDeploymentOwner).map((entry) => entry.email)).toEqual([LEAD]);
   });
@@ -774,7 +774,7 @@ describe('changing and removing', () => {
 
   it('refuses to lower the immutable ADAPT super admin', async () => {
     const app = await startApp(fakeLakebase());
-    const response = await app.change(LEAD, ADAPT_SUPER_ADMIN_EMAILS[0], 'admin');
+    const response = await app.change(LEAD, adaptSuperAdminEmails()[0], 'admin');
     expect(response.status).toBe(409);
     expect(await errorOf(response)).toBe('roster_refused_immutable_super_admin');
   });
@@ -850,7 +850,7 @@ describe('when Lakebase is not answering', () => {
     const payload = (await (await app.list(LEAD)).json()) as RosterPayload;
     expect(payload.storedRosterReadable).toBe(false);
     expect(payload.entries.map((entry) => entry.email).sort((left, right) => left.localeCompare(right))).toEqual(
-      [...ADAPT_SUPER_ADMIN_EMAILS, LEAD, DEPUTY].sort((left, right) => left.localeCompare(right))
+      [...adaptSuperAdminEmails(), LEAD, DEPUTY].sort((left, right) => left.localeCompare(right))
     );
   });
 

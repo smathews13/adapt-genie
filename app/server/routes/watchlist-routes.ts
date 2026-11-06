@@ -9,7 +9,7 @@ import {
   type WatchlistTrendsResponse,
 } from '../../shared/watchlist';
 import { recordAdminAction } from '../lib/admin-roles';
-import { ownsPreferenceDefaults } from '../../shared/preference-default-owner';
+import { ownsPreferenceDefaults } from '../lib/preference-default-owner';
 import { sqlQueryTags } from '../lib/sql-query-tags';
 import {
   deleteUserWatchlistSettings,
@@ -322,7 +322,9 @@ export function setupWatchlistRoutes(appkit: InsightsAppKit): void {
         return;
       }
       if (ownsPreferenceDefaults(actor)) {
-        res.status(409).json({ error: 'default_owner_cannot_reset', detail: 'Rida’s settings are the default.' });
+        res
+          .status(409)
+          .json({ error: 'default_owner_cannot_reset', detail: 'This user’s settings are the deployment default.' });
         return;
       }
       try {

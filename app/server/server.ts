@@ -2,6 +2,9 @@ import { createApp, lakebase, server } from '@databricks/appkit';
 import { lakebasePoolSettings } from './lib/lakebase-pool';
 import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
 import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/release-environment';
+import { recordIdentityCarryover, restoreIdentityCarryover } from './lib/identity-carryover';
+import { applyLegacyPreferenceDefaultOwner } from './lib/preference-default-owner';
+import { applyLegacyAdaptSuperAdmins } from './lib/adapt-super-admin-floor';
 import { applySavedSlackConnection, hydrateSlackSecrets, readSecretWithAppIdentity } from './slack/connection-settings';
 import { requestLatencyShutdown } from './lib/request-latency-shutdown';
 import { registerStaticDelivery } from './lib/static-delivery';
@@ -48,6 +51,16 @@ createApp({
           'from the app-owned store.'
       );
     }
+    // Super admins, group display names and the preferences owner stay out of
+    // public artifacts; restore whatever this deployment last stated.
+    const restoredIdentityValues = await restoreIdentityCarryover(appkit.lakebase);
+    if (restoredIdentityValues > 0) {
+      console.warn(
+        `[identity-config] Deploy from Git restored ${restoredIdentityValues} identity values from the app-owned store.`
+      );
+    }
+    applyLegacyAdaptSuperAdmins();
+    applyLegacyPreferenceDefaultOwner();
     // A bundle release's app.yaml carries no Slack values unless its target set
     // them; an admin may have saved them in Settings instead.
     const savedSlackValues = await applySavedSlackConnection(appkit.lakebase, process.env);
@@ -177,6 +190,9 @@ createApp({
       async () => {
         if (await recordReleaseEnvironment(appkit.lakebase)) {
           console.log('[release-config] Recorded target runtime configuration for future source-only deploys.');
+        }
+        if (await recordIdentityCarryover(appkit.lakebase)) {
+          console.log('[identity-config] Recorded identity configuration for future deploys that omit it.');
         }
       },
       () => undefined

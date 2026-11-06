@@ -14,7 +14,7 @@ import {
   READ_USER_SPEND_SUMMARY_QUERY,
 } from '../lib/user-spend-read-model';
 import { READ_USER_SPEND_HOURLY_SUMMARY_QUERY } from '../lib/user-spend-hourly-read-model';
-import { ADAPT_SUPER_ADMIN_EMAILS, isAdminRoute } from '../lib/admin-roles';
+import { adaptSuperAdminEmails, isAdminRoute } from '../lib/admin-roles';
 
 function storedRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -451,7 +451,7 @@ describe('User Monitoring read-model routes', () => {
   });
 
   it('serves full spend for an immutable Identity entry that has no stored roster row', async () => {
-    const email = ADAPT_SUPER_ADMIN_EMAILS[0];
+    const email = adaptSuperAdminEmails()[0];
     const { handlers, calls } = routes(
       [
         storedRow({

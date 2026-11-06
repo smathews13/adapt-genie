@@ -36,20 +36,6 @@ describe('organization mapping', () => {
         logoKey: 'take-two',
         fallback: 'monogram',
       },
-      {
-        id: '2k',
-        name: '2K',
-        domain: '2k.com',
-        logoKey: '2k',
-        fallback: 'monogram',
-      },
-      {
-        id: 'rockstar-games',
-        name: 'Rockstar Games',
-        domain: 'rockstargames.com',
-        logoKey: 'rockstar',
-        fallback: 'monogram',
-      },
     ]);
     for (const organization of ORGANIZATION_MANIFEST) {
       expect(organization.domainSuffixes).toContain(organization.domain);
@@ -65,9 +51,8 @@ describe('organization mapping', () => {
   it.each([
     ['leader@labs.databricks.com', 'databricks'],
     ['producer@take2games.com', 'take-two-interactive'],
-    ['artist@2k.com', '2k'],
-    ['designer@rockstargames.com', 'rockstar-games'],
-    ['developer@rockstarlondon.com', 'rockstar-games'],
+    ['artist@2k.com', 'domain:2k.com'],
+    ['designer@rockstargames.com', 'domain:rockstargames.com'],
   ])('maps canonical organization domains for %s', (email, id) => {
     expect(organizationForEmail(email, []).id).toBe(id);
   });

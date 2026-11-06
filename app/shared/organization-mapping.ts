@@ -42,26 +42,6 @@ export const ORGANIZATION_MANIFEST: readonly OrganizationMapping[] = [
     ariaLabel: 'Organization: Take-Two Interactive',
     fallback: 'monogram',
   },
-  {
-    id: '2k',
-    domain: '2k.com',
-    domainSuffixes: ['2k.com'],
-    name: '2K',
-    monogram: '2K',
-    logoKey: '2k',
-    ariaLabel: 'Organization: 2K',
-    fallback: 'monogram',
-  },
-  {
-    id: 'rockstar-games',
-    domain: 'rockstargames.com',
-    domainSuffixes: ['rockstargames.com', 'rockstarnewengland.com', 'rockstarlondon.com'],
-    name: 'Rockstar Games',
-    monogram: 'R*',
-    logoKey: 'rockstar',
-    ariaLabel: 'Organization: Rockstar Games',
-    fallback: 'monogram',
-  },
 ] as const;
 
 function mergedOrganizationManifest(configured: readonly OrganizationMapping[]): OrganizationMapping[] {

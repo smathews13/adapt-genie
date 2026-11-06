@@ -449,7 +449,7 @@ describe('what the flag deliberately does not widen', () => {
 describe('what the app says about itself at boot', () => {
   it('includes only sanitized organization mappings on /api/identity', async () => {
     process.env.PLAYER_INSIGHTS_ORGANIZATIONS = JSON.stringify([
-      { domain: 'ROCKSTARGAMES.COM', name: 'Rockstar Games', monogram: 'R*' },
+      { domain: 'TAKE2GAMES.COM', name: 'Take-Two', monogram: 'T2' },
       { domain: 'take2.example', name: 'Take-Two Interactive', monogram: 'T2' },
     ]);
     const app = await startApp(recordingStore().lakebase);
@@ -459,7 +459,7 @@ describe('what the app says about itself at boot', () => {
       const payload = (await response.json()) as Record<string, unknown>;
       expect(payload.organizations).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: 'rockstar-games', domain: 'rockstargames.com', logoKey: 'rockstar' }),
+          expect.objectContaining({ id: 'take-two-interactive', domain: 'take2games.com', logoKey: 'take-two' }),
           expect.objectContaining({ id: 'domain:take2.example', domain: 'take2.example', logoKey: 'monogram' }),
         ])
       );
@@ -475,8 +475,6 @@ describe('what the app says about itself at boot', () => {
         expect.arrayContaining([
           expect.objectContaining({ id: 'databricks' }),
           expect.objectContaining({ id: 'take-two-interactive' }),
-          expect.objectContaining({ id: '2k' }),
-          expect.objectContaining({ id: 'rockstar-games' }),
         ])
       );
       expect(JSON.stringify(malformed)).not.toContain('must-not-cross-the-wire');

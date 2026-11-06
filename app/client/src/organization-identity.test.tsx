@@ -101,8 +101,6 @@ describe('organization user badges', () => {
   it.each([
     ['sam.mathews@databricks.com', 'databricks', 'sam.mathews'],
     ['producer@take2games.com', 'take-two-interactive', 'producer'],
-    ['artist@2k.com', '2k', 'artist'],
-    ['designer@rockstargames.com', 'rockstar-games', 'designer'],
   ])('shows the canonical organization mark and user handle for %s', (email, organizationId, handle) => {
     const markup = renderToStaticMarkup(
       <MemoryRouter>

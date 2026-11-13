@@ -43,7 +43,10 @@ def tag_warehouse(workspace: WorkspaceClient, warehouse_id: str) -> None:
     warehouse = workspace.warehouses.get(warehouse_id)
     current = warehouse.tags.custom_tags if warehouse.tags else []
     tags = EndpointTags(custom_tags=_merge(current, EndpointTagPair))
-    workspace.warehouses.edit(warehouse_id, tags=tags).result()
+    pending = workspace.warehouses.edit(warehouse_id, tags=tags)
+    # The waiter only accepts RUNNING, so it fails on an idle (STOPPED) warehouse.
+    if getattr(warehouse.state, "value", warehouse.state) != "STOPPED":
+        pending.result()
     print(f"tagged SQL warehouse {warehouse_id}")
 
 

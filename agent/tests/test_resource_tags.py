@@ -29,6 +29,7 @@ class API:
     def __init__(self) -> None:
         self.calls: list[tuple[Any, ...]] = []
         self.wait = Wait()
+        self.state = "RUNNING"
 
     def get_project(self, name: str) -> Any:
         return SimpleNamespace(
@@ -45,6 +46,7 @@ class API:
 
     def get(self, warehouse_id: str) -> Any:
         return SimpleNamespace(
+            state=SimpleNamespace(value=self.state),
             tags=tag_resources.EndpointTags(
                 custom_tags=[
                     tag_resources.EndpointTagPair(key="owner", value="team"),
@@ -89,6 +91,15 @@ def test_warehouse_tag_preserves_existing_tags_and_waits() -> None:
         "system_billing": "adapt",
     }
     assert client.warehouses.wait.finished
+
+
+def test_stopped_warehouse_is_tagged_without_waiting_for_it_to_start() -> None:
+    client = workspace()
+    client.warehouses.state = "STOPPED"
+    tag_resources.tag_warehouse(client, "warehouse-one")
+    _, kwargs = client.warehouses.calls[0]
+    assert pairs(kwargs["tags"].custom_tags)["system_billing"] == "adapt"
+    assert not client.warehouses.wait.finished
 
 
 def test_serving_endpoint_adds_adapt_tag() -> None:

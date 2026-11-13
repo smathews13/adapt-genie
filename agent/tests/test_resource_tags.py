@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location(
     "tag_resources", ROOT / "bundle" / "tag-resources.py"
@@ -17,8 +19,11 @@ SPEC.loader.exec_module(tag_resources)
 class Wait:
     def __init__(self) -> None:
         self.finished = False
+        self.fails = False
 
     def result(self) -> None:
+        if self.fails:
+            raise tag_resources.OperationFailed("failed to reach RUNNING")
         self.finished = True
 
     def wait(self) -> None:
@@ -93,13 +98,21 @@ def test_warehouse_tag_preserves_existing_tags_and_waits() -> None:
     assert client.warehouses.wait.finished
 
 
-def test_stopped_warehouse_is_tagged_without_waiting_for_it_to_start() -> None:
+@pytest.mark.parametrize("state", ["STOPPED", "STOPPING"])
+def test_idle_warehouse_is_tagged_although_it_never_reaches_running(state: str) -> None:
     client = workspace()
-    client.warehouses.state = "STOPPED"
+    client.warehouses.state = state
+    client.warehouses.wait.fails = True
     tag_resources.tag_warehouse(client, "warehouse-one")
     _, kwargs = client.warehouses.calls[0]
     assert pairs(kwargs["tags"].custom_tags)["system_billing"] == "adapt"
-    assert not client.warehouses.wait.finished
+
+
+def test_warehouse_that_fails_while_running_still_fails_the_tag_step() -> None:
+    client = workspace()
+    client.warehouses.wait.fails = True
+    with pytest.raises(tag_resources.OperationFailed):
+        tag_resources.tag_warehouse(client, "warehouse-one")
 
 
 def test_serving_endpoint_adds_adapt_tag() -> None:

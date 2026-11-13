@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.errors import OperationFailed
 from databricks.sdk.service.postgres import FieldMask, Project, ProjectCustomTag, ProjectSpec
 from databricks.sdk.service.serving import EndpointTag
 from databricks.sdk.service.sql import EndpointTagPair, EndpointTags
@@ -44,9 +45,14 @@ def tag_warehouse(workspace: WorkspaceClient, warehouse_id: str) -> None:
     current = warehouse.tags.custom_tags if warehouse.tags else []
     tags = EndpointTags(custom_tags=_merge(current, EndpointTagPair))
     pending = workspace.warehouses.edit(warehouse_id, tags=tags)
-    # The waiter only accepts RUNNING, so it fails on an idle (STOPPED) warehouse.
-    if getattr(warehouse.state, "value", warehouse.state) != "STOPPED":
+    # The waiter only accepts RUNNING. A warehouse that is, or goes, idle keeps
+    # the tags but ends STOPPED, which is not a failure here.
+    try:
         pending.result()
+    except OperationFailed:
+        state = workspace.warehouses.get(warehouse_id).state
+        if getattr(state, "value", state) not in ("STOPPING", "STOPPED"):
+            raise
     print(f"tagged SQL warehouse {warehouse_id}")
 
 

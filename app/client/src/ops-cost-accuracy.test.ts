@@ -122,6 +122,14 @@ describe('Cost component accuracy presentation', () => {
     expect(costCardView(serving, current).evidence).not.toMatch(/interactive requests/);
   });
 
+  it('marks the full cost per question as a lower bound when an app cost is unmeasured', () => {
+    const serving = tile({ id: 'serving-endpoint', amount: 64, marginalAmount: 0.2 });
+    const unmeasured = tile({ id: 'sql-warehouse', amount: null });
+    const view = questionCostCardView(payload([serving, tile({ id: 'foundation-model', amount: 0.4 }), unmeasured]));
+    expect(view.amount).toMatch(/^At least /);
+    expect(view.detail).toContain('lower bound');
+  });
+
   it('keeps Free and Charged comparable for the one configured Genie space', () => {
     const chargedHigher = genie({
       tileId: 'genie:data',

@@ -2,7 +2,7 @@ import { createApp, lakebase, server } from '@databricks/appkit';
 import { lakebasePoolSettings } from './lib/lakebase-pool';
 import { preserveOwnedAppSchema } from './lib/app-schema-bootstrap';
 import { recordReleaseEnvironment, restoreReleaseEnvironment } from './lib/release-environment';
-import { recordIdentityCarryover, restoreIdentityCarryover } from './lib/identity-carryover';
+import { recordIdentityCarryover, restoreIdentityCarryover, silentIdentityKeys } from './lib/identity-carryover';
 import { applyLegacyPreferenceDefaultOwner } from './lib/preference-default-owner';
 import { applyLegacyAdaptSuperAdmins } from './lib/adapt-super-admin-floor';
 import { applySavedSlackConnection, hydrateSlackSecrets, readSecretWithAppIdentity } from './slack/connection-settings';
@@ -59,6 +59,7 @@ createApp({
         `[identity-config] Deploy from Git restored ${restoredIdentityValues} identity values from the app-owned store.`
       );
     }
+    const defaultedIdentityKeys = silentIdentityKeys();
     applyLegacyAdaptSuperAdmins();
     applyLegacyPreferenceDefaultOwner();
     // A bundle release's app.yaml carries no Slack values unless its target set
@@ -191,7 +192,7 @@ createApp({
         if (await recordReleaseEnvironment(appkit.lakebase)) {
           console.log('[release-config] Recorded target runtime configuration for future source-only deploys.');
         }
-        if (await recordIdentityCarryover(appkit.lakebase)) {
+        if (await recordIdentityCarryover(appkit.lakebase, process.env, defaultedIdentityKeys)) {
           console.log('[identity-config] Recorded identity configuration for future deploys that omit it.');
         }
       },

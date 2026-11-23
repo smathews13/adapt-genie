@@ -5,7 +5,11 @@ import type { DecisionStore } from './deployment-decisions';
 import { IDENTITY_CARRYOVER_DECISION, recordIdentityCarryover, restoreIdentityCarryover } from './identity-carryover';
 import { applyLegacyPreferenceDefaultOwner, ownsPreferenceDefaults } from './preference-default-owner';
 
-const GIT_DEPLOY = { LAKEBASE_ENDPOINT: 'projects/example/branches/production' };
+const GIT_DEPLOY = {
+  LAKEBASE_ENDPOINT: 'projects/example/branches/production',
+  ADAPT_ADMIN_GROUP: 'Example_Admins_Group',
+  ADAPT_USER_GROUP: 'Example_Users_Group',
+};
 
 function storeWith(value: string | null) {
   const calls: { text: string; params: unknown[] }[] = [];
@@ -23,7 +27,13 @@ const RECORDED = JSON.stringify({
   ADAPT_USER_GROUP_LABEL: 'Example_Users',
   ADAPT_SUPER_ADMIN_EMAILS: 'owner@example.test',
   PLAYER_INSIGHTS_PREFERENCE_DEFAULT_OWNER: 'designer@example.test',
+  labelGroups: { ADAPT_ADMIN_GROUP_LABEL: 'Example_Admins_Group', ADAPT_USER_GROUP_LABEL: 'Example_Users_Group' },
 });
+
+function written(calls: { text: string; params: unknown[] }[]): Record<string, unknown> | undefined {
+  const write = calls.find((call) => call.text.startsWith('INSERT'));
+  return write ? (JSON.parse(String(write.params[1])) as Record<string, unknown>) : undefined;
+}
 
 describe('identity configuration carryover', () => {
   it('restores every key a Git deploy leaves empty', async () => {
@@ -62,6 +72,63 @@ describe('identity configuration carryover', () => {
       ...JSON.parse(RECORDED),
       ADAPT_ADMIN_GROUP_LABEL: 'New_Admins',
     });
+  });
+
+  it('restores a group label only while the deployment names the group it was recorded with', async () => {
+    const { store } = storeWith(RECORDED);
+    const env: Record<string, string | undefined> = { ...GIT_DEPLOY, ADAPT_ADMIN_GROUP: 'Recovered_Admins' };
+
+    await restoreIdentityCarryover(store, env);
+    expect(env.ADAPT_ADMIN_GROUP_LABEL).toBeUndefined();
+    expect(env.ADAPT_USER_GROUP_LABEL).toBe('Example_Users');
+  });
+
+  it('never restores a label from a record that does not say which group it belongs to', async () => {
+    const { labelGroups: _ignored, ...legacy } = JSON.parse(RECORDED) as Record<string, unknown>;
+    const { store } = storeWith(JSON.stringify(legacy));
+    const env: Record<string, string | undefined> = { ...GIT_DEPLOY };
+
+    await expect(restoreIdentityCarryover(store, env)).resolves.toBe(2);
+    expect(env.ADAPT_ADMIN_GROUP_LABEL).toBeUndefined();
+    expect(env.ADAPT_SUPER_ADMIN_EMAILS).toBe('owner@example.test');
+  });
+
+  it('keeps a recorded value over a code default filled on a boot that could not restore it', async () => {
+    const { store, calls } = storeWith(RECORDED);
+    const env = { ...GIT_DEPLOY, ADAPT_SUPER_ADMIN_EMAILS: 'legacy@example.test' };
+
+    await recordIdentityCarryover(store, env, ['ADAPT_SUPER_ADMIN_EMAILS']);
+    expect(written(calls)?.ADAPT_SUPER_ADMIN_EMAILS).toBe('owner@example.test');
+  });
+
+  it('seeds an empty record from code defaults', async () => {
+    const { store, calls } = storeWith(null);
+    const env = { ...GIT_DEPLOY, ADAPT_SUPER_ADMIN_EMAILS: 'legacy@example.test' };
+
+    await recordIdentityCarryover(store, env, ['ADAPT_SUPER_ADMIN_EMAILS']);
+    expect(written(calls)?.ADAPT_SUPER_ADMIN_EMAILS).toBe('legacy@example.test');
+  });
+
+  it('writes nothing when the previous record cannot be read', async () => {
+    const calls: string[] = [];
+    const store: DecisionStore = {
+      query: vi.fn((text: string) => {
+        calls.push(text);
+        return text.startsWith('SELECT') ? Promise.reject(new Error('waking up')) : Promise.resolve({ rows: [] });
+      }),
+    };
+    const env = { ...GIT_DEPLOY, ADAPT_SUPER_ADMIN_EMAILS: 'legacy@example.test' };
+
+    await expect(recordIdentityCarryover(store, env, ['ADAPT_SUPER_ADMIN_EMAILS'])).resolves.toBe(false);
+    expect(calls.some((text) => text.startsWith('INSERT'))).toBe(false);
+  });
+
+  it('records each stated label beside the group it was stated with', async () => {
+    const { store, calls } = storeWith(null);
+    const env = { ...GIT_DEPLOY, ADAPT_ADMIN_GROUP_LABEL: 'Shown_Admins' };
+
+    await recordIdentityCarryover(store, env);
+    expect(written(calls)?.labelGroups).toEqual({ ADAPT_ADMIN_GROUP_LABEL: 'Example_Admins_Group' });
   });
 
   it('never touches the store on a local run', async () => {

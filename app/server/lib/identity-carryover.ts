@@ -89,13 +89,14 @@ function parsedRecord(value: string | null): StoredRecord {
 }
 
 /** The record, or undefined when the store did not answer: an unreadable record must never be overwritten. */
-async function readRecordStrict(store: DecisionStore): Promise<StoredRecord | undefined> {
+async function readRecordStrict(store: DecisionStore): Promise<(StoredRecord & { existed: boolean }) | undefined> {
   try {
     const result = await store.query(`SELECT value FROM ${decisionTable()} WHERE decision = $1`, [
       IDENTITY_CARRYOVER_DECISION,
     ]);
     const value = result.rows?.[0]?.value;
-    return parsedRecord(typeof value === 'string' && value.trim() ? value.trim() : null);
+    const stored = typeof value === 'string' && value.trim() ? value.trim() : null;
+    return { ...parsedRecord(stored), existed: stored !== null };
   } catch {
     return undefined;
   }
@@ -131,8 +132,8 @@ export async function restoreIdentityCarryover(store: DecisionStore, env: Env = 
  * Record what this boot states over the previous record, so a key the artifact is silent on keeps its value.
  *
  * `defaulted` names keys a code default filled rather than the deployment: they
- * seed an empty record but never replace a recorded value. Nothing is written
- * when the previous record cannot be read.
+ * seed a deployment that has no record yet and are never added to an existing
+ * one. Nothing is written when the previous record cannot be read.
  */
 export async function recordIdentityCarryover(
   store: DecisionStore,
@@ -149,7 +150,7 @@ export async function recordIdentityCarryover(
   for (const [key, value] of Object.entries(current) as [IdentityCarryoverKey, string][]) {
     (defaulted.includes(key) ? fromDefaults : fromDeployment)[key] = value;
   }
-  const values = { ...fromDefaults, ...previous.values, ...fromDeployment };
+  const values = { ...(previous.existed ? {} : fromDefaults), ...previous.values, ...fromDeployment };
   const currentGroups = labelGroupsOf(env);
   const labelGroups = Object.fromEntries(
     (Object.keys(LABEL_GROUP) as LabelKey[]).flatMap((label) => {

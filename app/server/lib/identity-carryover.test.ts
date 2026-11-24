@@ -109,6 +109,14 @@ describe('identity configuration carryover', () => {
     expect(written(calls)?.ADAPT_SUPER_ADMIN_EMAILS).toBe('legacy@example.test');
   });
 
+  it('never adds a code default to an existing record that lacks the key', async () => {
+    const { store, calls } = storeWith(JSON.stringify({ ADAPT_ADMIN_GROUP_LABEL: 'Example_Admins' }));
+    const env = { ...GIT_DEPLOY, ADAPT_SUPER_ADMIN_EMAILS: 'legacy@example.test', ADAPT_USER_GROUP_LABEL: 'Users' };
+
+    await recordIdentityCarryover(store, env, ['ADAPT_SUPER_ADMIN_EMAILS']);
+    expect(written(calls)).not.toHaveProperty('ADAPT_SUPER_ADMIN_EMAILS');
+  });
+
   it('writes nothing when the previous record cannot be read', async () => {
     const calls: string[] = [];
     const store: DecisionStore = {
